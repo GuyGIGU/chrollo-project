@@ -1632,3 +1632,15 @@ freezes at its last turn before price left.
 MEASURED (his windows / ratchet / junk firing / fleet firing; control 20 / 30 / 8 / 34): alone 20 / 26 of 35 (BODI, MATX, MRK and MSGS silent: boxes today's walk keeps that a confirmed child ends by the fire day) / 5 (BBVA, ENIC, FRPH silent) / 30, reader pin PASS; with every
 switch through step 10 on 35 / 33 of 35 (no pinned fire lost; EGBN, NOK and ST convert) / 10 / 33, the reader pin failing on those fires (the vocabulary re-pin is step 12's). On the frozen fire day of his 35 marks (control fires 30, rails his 14, box and
 open his 10, T5 WITH 10): every switch through step 11 on: fires 20, rails his on 12 of the 30 boxes read, box and open his on 9 (ANRO, DSGN, EWTX, FOSL, NGL April, NKTR, PBT, VIK and one more), WITH 3, no chart on a 2024 range and none broke down (the states: crossed 4, lines no LPS yet 3, root candidate unconfirmed 2 (EGBN, SKYT), forming 1, handed over with no child box yet 3: MSGS, NOK, ST); without the no-LPS switch fires 20, rails his 8, box and open his 7; the one-turn confirmation of the first measurement read fires 16, rails his 10, box and open his 7, with NTCT, SILC, ST handed over from inside their own boxes and FOSL, JAZZ broken down on a dip he kept. Flag-off every guard byte-identical; 21 mutations red then green (a 22nd, on a guard the loop's own order made dead, was equivalent and the guard removed).
+
+## BUILD STEP 12, PART ONE (Sat 19/09/2026): THE POWER PLAY SPECIES LANE DELETED
+
+Point 25 of the final method, on his Sun 13/09/2026 answer 6 ("15 trading days is the base minimum"): the species
+lane (a second walk at clock 8 with the story form forced on, counting closes) is deleted; the 15-day floor from the
+first anchor (step 6, dark) is the one length floor; a Power Play is a fired setup whose trend fact reads pole; box
+length is archived with no points (its zero is part two's grade ledger). Deleted: the twin, the module, the preset
+(live since 2026-08-19), the pole and breakout-wall knobs, the census, the fixture and the sheets tools, seven test
+files with two baselines, the screener's sink and payload block, the scan line's counters, the frontend's labels.
+Kept: his two sealed corpora and the program record; the pp_* archive columns (NULL from here on); the
+resistance-contraction story form flag, because the dark contraction rescue lane is its remaining consumer. One
+epoch rotation (five manifest keys gone). Nothing in the paying read moved: flag-off every guard byte-identical.

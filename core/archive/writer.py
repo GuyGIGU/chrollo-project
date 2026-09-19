@@ -243,7 +243,6 @@ from engine_alpha.scoring.scoring import (
 )
 # Election-trace evidence cell — single source in engine_alpha.structure.trace_export
 # (same model-only convention as the event_map family).
-from engine_alpha.structure.power_play import power_play_archive_values
 from engine_alpha.structure.trace_export import election_trace_archive_values
 # Strategy-read family — single source in engine_alpha.structure.strategy_read.
 from engine_alpha.structure.strategy_read import strategy_archive_values
@@ -672,8 +671,6 @@ def archive_scan_results(
             **election_trace_archive_values(row.get, prefixed=True),
             # Strategy read (held-through-correction) — NULL when dark
             **strategy_archive_values(row.get, prefixed=True),
-            # Power-Play species family — NULL until the species lane runs
-            **power_play_archive_values(row.get, prefixed=True),
             # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
             # Per-ticker fundamentals / RS-line / days-to-earnings come from the
             # eval result (set by core.fundamentals.advisory when the flags are on;

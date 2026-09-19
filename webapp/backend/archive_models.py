@@ -413,13 +413,13 @@ class SetupArchive(Base):
     strategy_correction_depth_pct = Column(Float, nullable=True)
     strategy_floor_above_ar = Column(Integer, nullable=True)
 
-    # ── Power-Play species family — flag-gated (dark), measure-first ──
-    # Owning declaration in engine_alpha/structure/power_play.py
-    # (POWER_PLAY_COLUMN_SQL); MODEL-ONLY adds (AP-7). NULL = never evaluated;
-    # "watched but refused" is the closed-set pp_state (fresh-DB CHECK below;
-    # the live DB's operative constraint is the write-time refusal in
-    # power_play_archive_values). Anchor-family from birth: the pp_* numerics
-    # join the PHASE_A_ANCHOR_FEATURES epoch partition in core/archive/analyze.
+    # ── Power-Play species family — RETIRED with the species lane (the final
+    # method, build step 12, point 25, Sat 19/09/2026). The columns stay for
+    # the rows the lane wrote (2026-08-19 to the deletion); every writer leaves
+    # them NULL from here on (NULL = never evaluated, as from birth). The
+    # closed-set pp_state CHECK below is the fresh-DB defence only. The pp_*
+    # numerics keep their PHASE_A_ANCHOR_FEATURES epoch partition in
+    # core/archive/analyze for the rows that carry them.
     pp_state = Column(String, nullable=True)
     pp_clock = Column(Integer, nullable=True)
     pp_climax_date = Column(String, nullable=True)

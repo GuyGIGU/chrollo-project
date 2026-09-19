@@ -402,8 +402,7 @@ def test_the_conductor_publishes_the_lane_to_market_context(monkeypatch):
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
     monkeypatch.setattr(screener_module, "_evaluate_ticker", lines)
 
-    with flag_capture(LPS_LEAVES_ELECTION_ENABLED=True, NEAR_MISS_LANE_ENABLED=False,
-                      POWER_PLAY_PRESET_ENABLED=False):
+    with flag_capture(LPS_LEAVES_ELECTION_ENABLED=True, NEAR_MISS_LANE_ENABLED=False):
         _results, _data, _tickers, market_context = screener_module.run_screener()
     block = market_context["watch"]
     assert [r["ticker"] for r in block["candidates"]] == ["AAA"]
@@ -415,6 +414,6 @@ def test_the_conductor_publishes_the_lane_to_market_context(monkeypatch):
         return None
 
     monkeypatch.setattr(screener_module, "_evaluate_ticker", plain)
-    with flag_capture(NEAR_MISS_LANE_ENABLED=False, POWER_PLAY_PRESET_ENABLED=False):
+    with flag_capture(NEAR_MISS_LANE_ENABLED=False):
         _results, _data, _tickers, market_context = screener_module.run_screener()
     assert "watch" not in market_context

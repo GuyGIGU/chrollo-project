@@ -1,11 +1,9 @@
 """The displacement seam's battery (story-chain program Task 5).
 
-The seam owns the resolution arithmetic both chains and the species wall
-consume. These tests pin the contract laws the module docstring states: the
-yardstick excludes the crossing bar's own volatility, NaN fails closed,
-unresolved is None (never a fabricated index), and running extremes keep the
-earliest tie. The species lane's byte-identity through the delegation is
-pinned by its own battery (test_power_play_*), which runs in the same suite.
+The seam owns the resolution arithmetic both chains consume. These tests pin
+the contract laws the module docstring states: the yardstick excludes the
+crossing bar's own volatility, NaN fails closed, unresolved is None (never a
+fabricated index), and running extremes keep the earliest tie.
 """
 import numpy as np
 import pytest

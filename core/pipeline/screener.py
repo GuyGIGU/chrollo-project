@@ -30,7 +30,6 @@ from engine_alpha.evaluation import (
     _evaluate_ticker,
     apply_baseline_filters,
     evaluate_ticker_with_near_miss,
-    evaluate_ticker_with_power_play,
     evaluate_ticker_with_watch,
 )
 from core.pipeline.market_data_health import (
@@ -77,7 +76,6 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
                      breadth_pct: float | None,
                      near_miss_sink: dict | None = None,
-                     power_play_sink: dict | None = None,
                      watch_sink: dict | None = None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
 
@@ -102,16 +100,7 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
     lane_on = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
-    # The species lane COMPOSES with the near-miss lane: its twin wraps the
-    # near-miss-aware submission (which re-checks its own flag in-worker), so
-    # the selection stays a single ladder and flag-off is byte-identical.
-    pp_on = power_play_sink is not None and settings.POWER_PLAY_PRESET_ENABLED
-    if pp_on:
-        worker_fn = evaluate_ticker_with_power_play
-    elif lane_on:
-        worker_fn = evaluate_ticker_with_near_miss
-    else:
-        worker_fn = _evaluate_ticker
+    worker_fn = evaluate_ticker_with_near_miss if lane_on else _evaluate_ticker
     watch_on = watch_sink is not None and settings.LPS_LEAVES_ELECTION_ENABLED
     if watch_on:
         worker_fn = partial(evaluate_ticker_with_watch, inner=worker_fn)
@@ -140,25 +129,7 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 wstats = watch_sink.setdefault("stats", {})
                 for k, v in watch_stats.items():
                     wstats[k] = wstats.get(k, 0) + v
-            if pp_on:
-                result, pp_row, pp_stats = result
-                if pp_row is not None:
-                    power_play_sink["rows"].append(pp_row)
-                pstats = power_play_sink.setdefault("stats", {})
-                for k, v in pp_stats.items():
-                    pstats[k] = pstats.get(k, 0) + v
-                if isinstance(result, tuple):
-                    # The composed near-miss triple (the nm flag was on
-                    # in-worker). Rows flow to the sink when one rides;
-                    # without one they drop with the same no-sink semantics
-                    # as the legacy ladder (archive off = no lane rows).
-                    result, lane_rows, lane_stats = result
-                    if lane_on:
-                        near_miss_sink["rows"].extend(lane_rows)
-                        stats = near_miss_sink.setdefault("stats", {})
-                        for k, v in lane_stats.items():
-                            stats[k] = stats.get(k, 0) + v
-            elif lane_on:
+            if lane_on:
                 result, lane_rows, lane_stats = result
                 near_miss_sink["rows"].extend(lane_rows)
                 stats = near_miss_sink.setdefault("stats", {})
@@ -283,11 +254,6 @@ def run_screener(mode: str = "download",
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
 
-    # The species lane's sink is created HERE (not scan_job): its rows ride the
-    # payload through market_context, never the archive writer — the archive
-    # half of the family travels on firing result rows via the Task 7 producer.
-    power_play_sink = ({"rows": [], "stats": {}}
-                       if settings.POWER_PLAY_PRESET_ENABLED else None)
     # The watch lane's sink (build step 8): rows and counts ride the payload
     # through market_context["watch"]; absent flag-off (byte-identical).
     watch_sink = ({"rows": [], "stats": {}}
@@ -303,24 +269,11 @@ def run_screener(mode: str = "download",
         results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return,
                                                     breadth_pct,
                                                     near_miss_sink=near_miss_sink,
-                                                    power_play_sink=power_play_sink,
                                                     **watch_kw)
     if watch_sink is not None:
         market_context["watch"] = {
             "candidates": sorted(watch_sink["rows"], key=lambda r: r["ticker"]),
             "counts": {k: int(v) for k, v in sorted(watch_sink["stats"].items())},
-        }
-    if power_play_sink is not None:
-        pp_stats = dict(power_play_sink.get("stats") or {})
-        # The lane's OWN cost attribution (EC-8's bound cites this production
-        # instrument): summed in-worker time, recorded as its own phase entry —
-        # an aggregate across workers, not wall clock, and named so.
-        timer.phases["power_play_lane_worker_s"] = round(
-            float(pp_stats.pop("pp_eval_ms", 0.0)) / 1000.0, 2)
-        market_context["power_play"] = {
-            "candidates": sorted(power_play_sink["rows"],
-                                 key=lambda r: r["ticker"]),
-            "counts": {k: int(v) for k, v in sorted(pp_stats.items())},
         }
 
     # Conductor-level fundamentals/RS-line post-pass (species program Task 12):

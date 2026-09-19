@@ -154,12 +154,6 @@ def test_the_floor_leaves_every_other_20_day_use_alone(floor_on):
 
 # ── the evaluation ───────────────────────────────────────────────────────────
 
-def test_the_power_play_species_read_keeps_its_own_clock():
-    from engine_alpha import evaluation
-
-    assert 'override["BASE_AGE_FROM_ANCHOR_ENABLED"] = False' in inspect.getsource(evaluation.species_watch)
-
-
 def test_the_fire_carries_its_age_only_under_the_floor(monkeypatch):
     """The real cascade (EC-17) on the committed shadow fixture: flag-off no key; flag-on the age of every fire that
     survives the floor, and that age is at least the floor."""

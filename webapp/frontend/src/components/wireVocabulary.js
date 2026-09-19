@@ -123,25 +123,6 @@ export const TREND_STATE_LABELS = {
   choppy: 'choppy',
 };
 
-// Power-Play species candidacy (the server-derived closed set —
-// evaluation.PP_WIRE_STATUS; program Task 14). The wire carries the VERDICT,
-// never the rule (EC-28): no client code may reconstruct these from null
-// patterns, and unknown slugs render verbatim until they earn a signed label.
-// "watched, ungraded" is deliberately MARK-register language: a candidacy is
-// a note in the margin, never a chip, never a tier color, until the operator's
-// flip promotes it.
-export const POWER_PLAY_STATUS_LABELS = {
-  fired: 'Power Play — fired',
-  watched_ungraded: 'Power Play — watched, ungraded',
-  not_watched_clock: 'Power Play — missed by the clock',
-  refused_occupancy: 'Power Play — refused (occupancy)',
-  refused_story: 'Power Play — refused (story)',
-};
-
-export function powerPlayStatusLabel(id) {
-  return POWER_PLAY_STATUS_LABELS[id] ?? id;
-}
-
 // Story chapters (TA-grade build task 12): the grade's breakdown vocabulary.
 // Wire ids mirror taxonomy.CHAPTER_ORDER (ruled 2026-08-06; vocabulary
 // re-ruled 2026-08-08 to the operator's phase-overlay words); the order mirrors

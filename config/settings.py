@@ -376,12 +376,24 @@ STORY_POOL_ENABLED = True
 # (event_map.resistance_contraction_admission — the operator ruled its
 # EGBN/PKE conversions real, 2026-08-19). Scoped to full refusals by
 # construction: it can never displace an existing election or re-frame a box,
-# which is exactly what refused the global POWER_PLAY_STORY_FORM_ENABLED flip
+# which is exactly what refused the global POWER_PLAY_STORY_FORM_ENABLED flip (2026-08-19)
 # (the WCC 2.2x-wider re-election). A rescued fire stamps
 # elected_pool='story' with the self-naming contraction profile. Flip =
 # operator decision vs the miss-program A/B (docs/miss_program_2026-08.md);
 # flipping re-seals the marks ratchet (EGBN/PKE leave the expected-miss list).
 CONTRACTION_RESCUE_ENABLED = False
+# The resistance-contraction STORY form the rescue lane arms (event_map.
+# resistance_contraction_admission, the second named ruled form inside the one
+# story admission; named by operator ruling 2026-08-18: the record says the
+# behavior, never an invented umbrella word). Dark and toggled ONLY under the
+# scoped override (htf.window_override) around the rescue re-walk, so the
+# paying scan's admission never consults it. Its global flip was refused on
+# 2026-08-19 (EGBN and PKE fired, a ratchet break; the WCC 2.2x-wider
+# re-election). The Power-Play species lane that once rode it under its own
+# 8-day clock was DELETED at the final method's build step 12, point 25 (Sat
+# 19/09/2026), with its preset, pole and breakout-wall keys; this flag stays
+# because the rescue lane above is its remaining consumer.
+POWER_PLAY_STORY_FORM_ENABLED = False
 
 # --- Near-miss lane — the RULED one-leg-narrow form (Task 6 ruling) ----------
 # Measurement constants for the operator-ruled near-miss predicate
@@ -1302,69 +1314,6 @@ HTF_MONTHLY_WINDOWS = {
     # Daily-clock-only lane pinned off, as in the weekly preset above.
     "BOTTOMING_BASE_LANE_ENABLED": False,
 }
-
-# ============================================================
-# POWER-PLAY SPECIES PRESET (dark — docs/power_play_program_2026-08.md)
-# ============================================================
-# Operator ruling c029555 (2026-08-14): Power Plays (Minervini; = O'Neil's High
-# Tight Flag — see docs/minervini_oneil_canon.md) are WANTED setups. The species
-# reads through the ONE cascade under a scoped window override
-# (engine_alpha.structure.htf.window_override) — never a forked collector. The
-# dict carries ONLY the keys the species moves: the reading clock, and its
-# import-time copy PIP_MACRO_MIN_BASE_BARS EXPLICITLY (a bare MIN_BASE_DAYS
-# patch would silently leave the macro-bridge overlay on the default clock —
-# program Task 1 §D). STRUCTURE_EDGE_SKIP_BARS deliberately stays 5: the edge
-# reserve is a data-integrity frame, not a maturity clock.
-# THE CLOCK VALUE 8 IS RULED (operator, 2026-08-18 — decisions.md): the census
-# evidence (clock 8's elected cohort the only forward-positive: median fwd_20
-# +2.8%, 54% winners, n=79) + his 40 sheet rulings (S2: 8/10 of the 8-day
-# wait's marginal catch KEPT). Species lane only; everything else stays the
-# same. FLIPPED LIVE 2026-08-19 on the operator's word ("flip the power play
-# thing... as long as everything works like I asked"), TOGETHER with
-# POWER_PLAY_STORY_FORM_ENABLED as the flag-ledger requires — gated on the
-# Guided-List ratchet holding 28/33 with both flags ON (it does) rather than on
-# the ScanTimer bound, which cannot be measured while the lane is dark: the cost
-# instrument only reports when this flag is on. The bound arrives with the first
-# nightly scan; if it is too dear, this line is the one-word revert.
-POWER_PLAY_PRESET_ENABLED = True   # the lane consults this (program Task 8); LIVE 2026-08-19
-POWER_PLAY_WINDOWS = {
-    "MIN_BASE_DAYS": 8,
-    "PIP_MACRO_MIN_BASE_BARS": 8,
-}
-# The species STORY form (program Task 6): the resistance contraction — price
-# contracting at or above resistance after the pole — as a second NAMED ruled
-# form inside event_map's one story admission (named by operator ruling
-# 2026-08-18: the record says the behavior, never an invented umbrella word).
-# A separate gate from the
-# lane chooser above BY DESIGN: the species read toggles it under the ONE
-# scoped override (htf.window_override, riding the preset dict) around its
-# own election only, so the paying scan's admission can never consult the
-# shelf form even after the lane flag flips (a passenger never touches the
-# paying read). Provisional form; calibrated by the operator's ruling sheets
-# (program Task 4).
-# FLIPPED LIVE 2026-08-19 with the preset above (the ledger's "the two flags flip
-# together or not at all"). This is the half that reaches the PAYING read's
-# admission, so it is the one the ratchet had to clear: Guided List 28/33 held,
-# same marks fingerprint, with it ON. The form stays PROVISIONAL — the ruling
-# sheets calibrate or re-rule it.
-POWER_PLAY_STORY_FORM_ENABLED = False
-# The breakout wall's departure yardstick (RULED 1.0, operator 2026-08-18 —
-# decisions.md): an episode counts RESOLVED only when a close clears the
-# pole peak by this many ATR10 — a close hugging the peak is base-building,
-# not a resolution (the drift-up misfile: the old close-above-peak wall
-# filed MAN not-watched at every clock while still basing). Evidence: the
-# S1 rulings (the departure form keeps all four named anchors, files all
-# four junks) + the full-cache A/B (MAN's breakout re-dates to 2026-08-13,
-# HIS date, and MAN elects; 903 filings regain their looks; newly-elected
-# cohort +2.6% med fwd_20 / 67% win; whole cohort quality preserved).
-# 0.0 reproduces the close-above-peak wall byte-identically (kept as the
-# legacy branch); species lane + instruments only — no paying consumer.
-POWER_PLAY_BREAKOUT_DEPARTURE_ATR = 1.0
-# The species precondition (the pole): literature anchors — Bulkowski >=90% in
-# <=2 months, O'Neil/Minervini ~100%/8 weeks. The census reads these as its
-# screen defaults; the engine lane consults them only behind the flag.
-POWER_PLAY_POLE_MIN_GAIN = 0.90    # prior-leg gain floor over the pole window
-POWER_PLAY_POLE_WINDOW_BARS = 40   # ~8 trading weeks
 
 # ============================================================
 # --- DATA PRIMITIVES (Lane C) ---

@@ -1,5 +1,9 @@
 # Power-Play species program — build record (2026-08)
 
+> **Retired Sat 19/09/2026.** The species lane, its preset, its tools and its tests were deleted at the final
+> method's build step 12 (point 25; `decisions.md` row of that date): one walk, one map, one clock. The
+> operator's marks and verdict corpora stay sealed in `docs/`; this record stays as history.
+
 The operator's ruling (`docs/decisions.md` 2026-08-14, commit `c029555`): **Power Plays are
 wanted setups** — the young high-tension continuation base (explosive leg → holding shelf)
 must be read, watched, and eventually graded, and "Acceptable Misses" is re-ruled. This doc

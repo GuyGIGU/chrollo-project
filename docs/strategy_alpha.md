@@ -178,6 +178,10 @@ is undetermined. An ended box is never the structure: the walk
 moves on to the next run, which is what carries it past the ranges price left long ago (his dead space). The
 unit of the areas is frozen with the rails at the election day; an unconfirmed child is the chart's state. The
 extension veto, the stale-box rescue and the dethrone pass retire under this switch; steps 7 to 10 go live with it.
+Step 12, part one (Sat 19/09/2026): the Power Play species lane is deleted, no switch. One walk, one map, one
+clock: the 15-day floor from the first anchor (step 6) is the one length floor, a Power Play is a fired setup
+whose trend fact reads pole, and box length is archived with no points. His marks and verdict corpora stay
+sealed; the resistance-contraction story form stays, dark, as the contraction rescue's form.
 The SOS sitting (Tue 15/09/2026) rebuilt three of the words on his words there, still dark and on defaults of mine
 he has not confirmed: THE SOS is the last push after the middle that breaks clear of the local high, else the last
 push after the middle; the upthrust is his reverse spring in Phase B, one per box, the most developed push out of the
@@ -918,7 +922,8 @@ never an invented umbrella word).** The admission stays a thin predicate OUTSIDE
 reader, and it now carries TWO named forms, each an operator-ruled judgment with exactly
 one implementation: the **S-test form** (the 2026-07-25 ruling: ≥ 2 completed support
 tests + terminal resistance posture + no terminal support drift) and — dark, consulted
-only inside the species lane's own election — the **resistance contraction** (the
+only inside the contraction rescue's re-walk since the species lane's deletion (build
+step 12, Sat 19/09/2026) — the **resistance contraction** (the
 Power-Play species; ruling `c029555`, theory in `minervini_oneil_canon.md` §2). A young
 continuation base after an explosive leg contracts at or above resistance: its story is
 the HOLD, not completed support tests — it is S-poor **by virtue**, so the S-test form
