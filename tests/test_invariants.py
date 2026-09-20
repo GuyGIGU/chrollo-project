@@ -439,15 +439,18 @@ _LEDGER_EXEMPT_OFF_BOOLS = frozenset({
 def _ledger_dark_flags() -> dict:
     """Parse docs/flag_ledger.md's Dark-flags table -> {flag_name: kill_by}.
 
-    Reads the first backticked NAME token of each row between the "## Dark flags"
-    heading and "## Retired", plus the row's last cell (the kill-by date)."""
+    Reads the first backticked NAME token of each row of the Dark table, plus the
+    row's last cell (the kill-by date). The table ENDS at the next "## " heading:
+    the sections below it carry tables of their own whose rows also open with a
+    backticked flag name (the final-method fate table, 2026-09-20), and reading
+    those as dark rows makes this guard fail on a cell that was never a date."""
     import re
     from pathlib import Path
 
     text = (Path(__file__).resolve().parents[1] / "docs" / "flag_ledger.md"
             ).read_text(encoding="utf-8")
     start = text.index("## Dark flags")
-    end = text.index("## Retired", start)
+    end = text.index("\n## ", start + 1)
     out: dict = {}
     for line in text[start:end].splitlines():
         line = line.strip()

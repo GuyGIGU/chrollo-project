@@ -747,6 +747,45 @@ All boundaries are nullable. If the engine cannot place a region confidently, it
 
 ---
 
+## The final method — the twelve dark build steps (Sun 13/09 to Sun 20/09/2026)
+
+His method of Sat 12/09/2026 was built in twelve steps as 27 default-off switches INSIDE
+this reader, one switch per ruling site, each measured against his 35 drawn marks, the 16
+junk charts and the 37-ticker fleet, and every one still off. This is the log the theory
+doc used to carry; the theory keeps the method, the build keeps the log. Each step's
+mechanics are in its own entry under *Phase 3 — LPS Detection* below, in build order.
+
+| Step | Landed | What it landed | Its switches |
+|---|---|---|---|
+| 1 | 2026-09-13 | the guards grade the fired window | none (a test change) |
+| 2 | 2026-09-13 | the ruled stack: whole-bar respect, the graded dwell, the hand-over in ranges, the lifted spring bounds, the LPS in daily ranges with the 1.35-range ceiling, the graded LPS traits, one receding window per read day, the buy day reading the high | 8 |
+| 3 | 2026-09-13 | the LPS refusals that remained (support side, post-window, volume) become grades; volume never refuses and never elects | 1 |
+| 4 | 2026-09-13 | the ONE turn line, floor 0.75 of each day's own range, feeding the swing map and the trend labels; it reads all 186 of his drawn turns where the old walk read 112, and moves no fire | 2 |
+| 5 | 2026-09-14 | the words on that line (every push and THE SOS, the last supper, Phase C and its spring test, where the right side opens, the mini), read by a reader nothing else consults; they describe a chart and never filter one. His fatal character change (a pullback increasing with sellers) landed the same day | 6 + 1 |
+| 6 | 2026-09-14 | his fifteen-day minimum, counted from the box's first rail anchor | 1 |
+| 7 | 2026-09-15 | no width in percent of price, no depth number and no respect share refuses anything; each stays a fact | 3 |
+| 8 | 2026-09-19 | the LPS leaves the election — the first box the walk finds is the structure whether or not a pullback has formed — plus the ten state words and the watch lane behind his display floor of two turns a rail | 1 |
+| 9 | 2026-09-19 | the box opens on its earlier anchor and is never extended left; the walk had been opening 15 of his 35 boxes before their anchors | 1 |
+| 10 | 2026-09-19 | the climax and its reaction are decided first, on the line, and each run's pairs are walked forward from the climax | 1 |
+| 11 | 2026-09-19 | a box ends, by swings only: the hand-over to a confirmed child above or below, never by a close level | 1 |
+| 12 | 2026-09-19/20 | part one, the Power Play species lane DELETED (one walk, one map, one clock); part two, the grade ledger (height, spread profile, event map; base age, the volume dry-up, the ATR squeeze, the contractions and the 52-week proximity to zero weight); part three, the ten state words on the screen and the descent tail a comment on the fire | 1 |
+
+**What the whole method measured, with every switch on** (Sun 20/09/2026): it lands his LPS
+window on 35 of 37 when it is handed HIS two lines, but the engine's OWN box matches his
+drawing on 12 of 35 (today's live engine: 14), 10 of the 16 junk charts fire, and EGBN, NOK
+and ST fire two to five days before his LPS day. The order was never inverted: the pair is
+still chosen by the old root-by-root walk, and a switch cannot invert an order.
+
+**Superseded, Sun 20/09/2026.** On that measurement the engine is being REWRITTEN to his
+method rather than switched into it: a new reader in his order, beside this one, behind one
+switch, built from these steps' proven pieces (the turn line, the climax and reaction rule,
+the box-end reader with its confirmed child, the word rules, the receding-run LPS rule, the
+ten state words). None of these 27 switches will be flipped; each is carried into a stage of
+the new reader or dropped with its subject, and the fate table in
+[flag_ledger.md](flag_ledger.md) says which. The entries below stay as the record of what
+was built and measured, and as the source the copies are taken from.
+
+
 ## Phase 3 — LPS Detection
 
 `detect_lps()` ([engine_alpha/structure/lps.py](../engine_alpha/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow above-R shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
