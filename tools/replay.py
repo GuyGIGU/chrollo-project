@@ -47,7 +47,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from core.pipeline.downloads import _trim_to_period
-from core.pipeline.screener import _evaluate_ticker
+from engine_alpha import reader
 from engine_alpha.evaluation import EVAL_ERROR, _prepare_eval_frame_with_reason
 from engine_alpha.structure.gate_margins import (
     count_allowed,
@@ -55,7 +55,6 @@ from engine_alpha.structure.gate_margins import (
     outside_allowed,
 )
 from engine_alpha.structure.indicators import calculate_atr
-from engine_alpha.structure.narrative import read_structure
 
 # count_needed / count_allowed / outside_allowed are re-exported here for the
 # sibling instruments (near-miss lane Task 5): the ONE integer translation of
@@ -233,7 +232,7 @@ def flag_capture(**overrides):
 def read_structure_under(df: pd.DataFrame, atr: float, overrides: dict):
     """One structure read under the given flag overrides (self-restoring)."""
     with flag_capture(**overrides):
-        return read_structure(df, atr)
+        return reader.read_box(df, atr)
 
 
 # The ONE day-snap policy: how far a replay may walk back from a requested
@@ -369,10 +368,10 @@ def fired_window_walk(ticker: str, frozen: pd.DataFrame, spy_6m: float,
     consumers project the raw result
     themselves (Score/Tier, the shadow guard's canonical fields).
 
-    ``evaluate`` defaults to the pipeline's ``_evaluate_ticker``; a consumer
+    ``evaluate`` defaults to the reader door's ``evaluate_ticker``; a consumer
     passes its own module-bound name so its tests can monkeypatch that
     binding exactly as they always have."""
-    evaluate = evaluate or _evaluate_ticker
+    evaluate = evaluate or reader.evaluate_ticker
     as_of = frozen.index[-1] if as_of is None else as_of
     sessions, note = fired_window_sessions(frozen, as_of, [])
     out = {"window": [sessions[0].date().isoformat(), sessions[-1].date().isoformat()]

@@ -31,7 +31,7 @@ if _BACKEND_DIR not in sys.path:
 from core.archive.db_path import archive_db_path
 from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
-from engine_alpha.evaluation import _run_eval_chain
+from engine_alpha import reader
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
@@ -184,14 +184,14 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
     live screener uses, then re-key the canonical result to the unprefixed shape the
     seed archive writer consumes.
 
-    Delegates to ``engine_alpha.evaluation._run_eval_chain`` so that "replay at T ==
+    Delegates through the reader door (``engine_alpha.reader.run_eval_chain``) so that "replay at T ==
     live at T" holds by construction rather than by a recall test. Seed runs with
     ``breadth_pct=None`` (there is no live universe-breadth at a historical replay
     date), matching the prior behaviour. ``seed_row_from_result`` is the single
     boundary translating the canonical contract to the writer's historical key names.
     """
     try:
-        result = _run_eval_chain("", df, spy_6m_return, None)
+        result = reader.run_eval_chain("", df, spy_6m_return, None)
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError,
             AttributeError):
         # Parity with the live _evaluate_ticker guard: skip the date, never crash.

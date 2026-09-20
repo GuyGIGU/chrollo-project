@@ -18,20 +18,26 @@ import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from functools import partial
 
 import pandas as pd
 
 from config import settings
 from core.pipeline.cache import _cache_paths
 from core.pipeline.data import get_market_context, get_provider, get_tickers
+from engine_alpha import reader
 from engine_alpha.evaluation import (
     EVAL_ERROR,
-    _evaluate_ticker,
     apply_baseline_filters,
-    evaluate_ticker_with_near_miss,
-    evaluate_ticker_with_watch,
+    # Re-exported, NOT called here: the lane twins are named by instruments and
+    # by tests that pin their flag-off degrade. The scan composes its worker
+    # through the door (`reader.scan_worker`), so the one place that decides
+    # which reader answers stays one place.
+    evaluate_ticker_with_near_miss,  # noqa: F401
+    evaluate_ticker_with_watch,  # noqa: F401
 )
+# The scan's worker under its old name, for the instruments and tests that call
+# it directly. Both names lead to the same door.
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
 from core.pipeline.market_data_health import (
     compute_market_data_health,
     eligible_tickers_for,
@@ -100,10 +106,13 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
     lane_on = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
-    worker_fn = evaluate_ticker_with_near_miss if lane_on else _evaluate_ticker
     watch_on = watch_sink is not None and settings.LPS_LEAVES_ELECTION_ENABLED
-    if watch_on:
-        worker_fn = partial(evaluate_ticker_with_watch, inner=worker_fn)
+    worker_fn = reader.scan_worker(near_miss_lane=lane_on, watch_lane=watch_on)
+    # The night's reader, named ONCE. The results cross the pool boundary in a
+    # fixed shape, so a per-ticker name would move the worker contract; it does
+    # not need to. The switch is read per process and cannot change mid-scan,
+    # so this one reading describes every ticker below it.
+    print(f"Chart reader: {reader.which_reader()}", flush=True)
 
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
         futures = {

@@ -55,7 +55,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha.evaluation import apply_baseline_filters
-from core.pipeline.screener import _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
 from tools.replay import (
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,

@@ -33,6 +33,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import engine_alpha.evaluation as evaluation
+# The scan's read is substituted at the DOOR, not on the screener module: the
+# scan composes its pool worker through `reader.scan_worker(...)` (two-eyes
+# reader task 4), so `screener._evaluate_ticker` is now only a re-export and
+# patching it controls nothing.
+import engine_alpha.reader as reader
 import core.pipeline.screener as screener
 import core.pipeline.scan_metrics as scan_metrics
 
@@ -134,7 +139,7 @@ def test_evaluate_frames_counts_error_not_reject_and_keeps_fire(monkeypatch):
             return None                        # legitimate structural reject
         return fire                            # a normal fire
 
-    monkeypatch.setattr(screener, "_evaluate_ticker", _fake_eval)
+    monkeypatch.setattr(reader, "evaluate_ticker", _fake_eval)
 
     frames = {
         "BOOM": _price_frame(),
@@ -156,7 +161,7 @@ def test_evaluate_frames_clean_run_reports_zero_errored(monkeypatch):
     def _fake_eval(ticker, df, spy, breadth):
         return None if ticker == "REJECT" else {"Ticker": ticker, "Score": 1}
 
-    monkeypatch.setattr(screener, "_evaluate_ticker", _fake_eval)
+    monkeypatch.setattr(reader, "evaluate_ticker", _fake_eval)
 
     frames = {"A": _price_frame(), "REJECT": _price_frame(), "B": _price_frame()}
     results, errored = screener._evaluate_frames(frames, 0.0, None)
@@ -171,14 +176,14 @@ def test_evaluate_frames_count_is_per_call_not_carried_over(monkeypatch):
     monkeypatch.setattr(screener, "ProcessPoolExecutor", _SyncExecutor)
     monkeypatch.setattr(screener, "as_completed", _as_completed_passthrough)
     monkeypatch.setattr(
-        screener, "_evaluate_ticker",
+        reader, "evaluate_ticker",
         lambda t, df, spy, breadth: evaluation.EVAL_ERROR,
     )
     _, errored = screener._evaluate_frames({"X": _price_frame()}, 0.0, None)
     assert errored == 1
     # A subsequent clean call reports 0 — the prior 1 does not leak forward.
     monkeypatch.setattr(
-        screener, "_evaluate_ticker",
+        reader, "evaluate_ticker",
         lambda t, df, spy, breadth: {"Ticker": t, "Score": 1},
     )
     _, errored = screener._evaluate_frames({"Y": _price_frame()}, 0.0, None)

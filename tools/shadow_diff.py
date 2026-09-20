@@ -49,7 +49,7 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
 from core.archive.db_path import archive_db_path
 from tools.replay import fired_window_walk
 

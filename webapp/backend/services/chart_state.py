@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 
 from config import settings
-from engine_alpha import evaluation
+from engine_alpha import evaluation, reader
 from engine_alpha.structure.indicators import calculate_atr
 from services import watchlist_candles
 
@@ -58,7 +58,7 @@ def read_chart_state(ticker: str, universe_key: str | None = None) -> dict:
                 "why": FRAME_WORDS.get(status, status), "distance_ranges": None, "close": None}
     watch: dict = {}
     try:
-        result = evaluation._run_eval_chain(ticker, frame, 0.0, None, watch=watch)
+        result = reader.run_eval_chain(ticker, frame, 0.0, None, watch=watch)
     except Exception as exc:  # noqa: BLE001 - the read never raises at the operator
         logger.warning("chart state %s: %r", ticker, exc)
         return {"ticker": ticker, "as_of": str(frame.index[-1].date()), "state": "no lines",

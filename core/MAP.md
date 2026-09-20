@@ -79,6 +79,53 @@ them into a number and a letter grade (S / A / B / C / D).
 **Want to change how much a factor is *worth*?** Edit the numbers in `config/settings.py`
 (the `SCORE_*` and `TIER_*` constants) — never the measurement code.
 
+## 2b. `engine_alpha/reader.py` — the ONE door to the chart reader
+
+Two readers are being built side by side (today's engine, and the two-eyes reader
+of the 2026-09-20 rewrite), so **every shipping path and every gate asks the same
+door which reader answers**, and the switch is read in exactly one function
+(`which_reader`). The door has three ways in — `evaluate_ticker` (the whole chain
+under its skip guard), `run_eval_chain` (the chain that raises, for callers that
+want the exception) and `read_box` (the box read alone, no pullback, no score) —
+plus `scan_worker`, which composes the scan's two lanes. The reader's NAME rides
+an optional `stamp` sink, never the result, so flag-off output stays byte-identical.
+
+**Who reads a chart, and how** (surveyed 2026-09-20; the earlier list of five was
+a lower bound, and two of these bypass the scan's entry point entirely):
+
+| Caller | Through the door | Why it reads |
+|---|---|---|
+| `core/pipeline/screener.py` | `scan_worker` | the nightly scan |
+| `core/archive/seed.py` | `run_eval_chain` | the archive seed, and a single row's re-read from `routers/archive_actions.py` |
+| `webapp/backend/services/chart_state.py` | `run_eval_chain` | one ticker's state word, on demand |
+| `webapp/backend/services/calibration_fired.py` | `read_box` | the calibration workbench's "why did this mark miss" |
+| `tools/replay.py` | `evaluate_ticker`, `read_box` | the seam the gates share |
+| `tools/marks_corpus.py` · `tools/negative_corpus.py` · `tools/shadow_diff.py` | `evaluate_ticker` | the marks ratchet, the junk corpus, the fleet shadow |
+| `tools/calibration_harness.py` | `evaluate_ticker`, `read_box` | the agreement harness |
+
+Instruments (the censuses, the A/Bs, `tools/word_recall.py`, `tools/doctrine_audit.py`,
+`tools/structure_case_audit.py`, `tools/full_package_render.py`) may still name the old
+engine directly while both readers exist — they measure one reader on purpose.
+`tools/fold_parity.py` and `tools/cause_veto_corpus.py` import `_evaluate_ticker` from
+`core/pipeline/screener.py`, which is the door under its old name, so they follow the
+switch without knowing it.
+
+**What the door does NOT reach.** `tools/reader_pin.py` takes the engine's event
+vocabulary straight from the bricks and never asks for a chart read, so the switch
+does not touch it. `webapp/backend/routers/archive_actions.py` re-reads one archived
+row through `core/archive/seed.py`'s `_evaluate_at_date`, which does go through the
+door.
+
+The reader's name is a sink, so it answers the caller that asked. The nightly scan
+reads in a process pool and its results cross that boundary in a fixed shape, so the
+scan does not stamp per ticker: the switch is read once per process and cannot change
+mid-run, so one `which_reader()` names the whole night.
+
+`tests/test_reader_door.py` holds the shipping-and-gating list and fails if one of
+them can reach the old engine — **calling it, or handing it to something that will**.
+The reference rule is the one that matters: the scan never wrote a call at all, it
+picked the twin by name and gave it to the pool.
+
 ## 3. `core/pipeline/` — the Conductor ("runs the screen")
 
 The only part that knows the *order of operations*. For each stock it: filters the
