@@ -1615,3 +1615,24 @@ HEALTH_MIN_BARS = 200
 # TRAVERSAL_HIGH_ZONE) and the touch band (TOUCH_TOLERANCE_ATR) — no new
 # geometry knobs — so "near a rail" is expressed in the same scale-invariant
 # fraction-of-box / ATR units the firing engine already uses.
+
+# ---------------------------------------------------------------------------
+# THE TWO-EYES READER (the rewrite, 2026-09-20) - DARK
+# ---------------------------------------------------------------------------
+# The new chart reader, written beside the old engine and read in HIS order:
+# the bars, one swing line, the end of the trend, the two lines found by
+# walking right like two legs, the box's life, the story left to right, the
+# LPS and its trigger, the grade and the state word.
+#
+# Read in exactly ONE function, engine_alpha.reader.which_reader(). Today the
+# new reader answers "no lines" for every chart, so this is on for tests and
+# the yardstick only. The flip is HIS, after the approval sitting; nothing
+# goes live piecemeal.
+TWO_EYES_READER_ENABLED = False
+
+# The new reader's ruleset version, BUMPED BY HAND with every change to how
+# it reads. The engine's version stamp hashes the listed settings, their
+# names and the scoring registry - but NO reader code, so without this two
+# different builds of the new reader would stamp the same version and an
+# archive row could not say which one wrote it.
+TWO_EYES_RULESET = "two-eyes-0.1.0-skeleton"

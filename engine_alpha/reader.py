@@ -94,9 +94,26 @@ def evaluate_ticker(ticker: str, df: pd.DataFrame,
     """
     from engine_alpha import evaluation  # local: the chain is pandas/scipy-heavy
 
-    _stamp(stamp, which_reader())
+    answering = which_reader()
+    _stamp(stamp, answering)
+    if answering == READER_NEW:
+        return _two_eyes(ticker, df, watch)
     return evaluation._evaluate_ticker(ticker, df, spy_6m_return, breadth_pct,
                                        **_only_given(watch=watch))
+
+
+def _two_eyes(ticker: str, df, watch: Optional[dict]):
+    """The new reader, through its adapter — the ONE place it is called.
+
+    Imported inside the function so that the old reader's path never pays for
+    a package it does not use, and so a broken new reader cannot stop the old
+    one from loading.
+    """
+    from engine_alpha import two_eyes, two_eyes_adapter
+
+    read = two_eyes.read(ticker, df)
+    two_eyes_adapter.fill_watch(read, watch)
+    return two_eyes_adapter.to_result(read)
 
 
 def run_eval_chain(ticker: str, df: pd.DataFrame,
@@ -112,7 +129,17 @@ def run_eval_chain(ticker: str, df: pd.DataFrame,
     """
     from engine_alpha import evaluation
 
-    _stamp(stamp, which_reader())
+    answering = which_reader()
+    _stamp(stamp, answering)
+    if answering == READER_NEW:
+        # This entry point's contract is that it RAISES; the caller decides.
+        from engine_alpha import two_eyes, two_eyes_adapter
+
+        read = two_eyes.read(ticker, df)
+        two_eyes_adapter.fill_watch(read, watch)
+        if read.failed:
+            raise ValueError(f"two-eyes reader refused {ticker}: {read.refusal}")
+        return two_eyes_adapter.to_result(read)
     return evaluation._run_eval_chain(ticker, df, spy_6m_return, breadth_pct,
                                       **_only_given(near_miss=near_miss, watch=watch))
 
@@ -131,6 +158,16 @@ def scan_worker(*, near_miss_lane: bool, watch_lane: bool):
 
     from engine_alpha import evaluation
 
+    if which_reader() == READER_NEW:
+        # The new reader has no lanes yet, and the lane twins reach the old
+        # engine directly — they take no inner worker. Composing them here
+        # would hand the pool the OLD engine while the stamp said "new", which
+        # is the split brain this door exists to prevent. The switch is for
+        # the tests and the yardstick until the lanes are built (task 12).
+        raise NotImplementedError(
+            "the two-eyes reader is not wired for the nightly scan yet: its "
+            "lanes arrive with the display work. Flip TWO_EYES_READER_ENABLED "
+            "for the tests and the yardstick only.")
     worker = evaluation.evaluate_ticker_with_near_miss if near_miss_lane else evaluate_ticker
     if watch_lane:
         worker = partial(evaluation.evaluate_ticker_with_watch, inner=worker)
@@ -146,6 +183,17 @@ def read_box(df: pd.DataFrame, atr: float, *, bricks=None, trace=None,
     """
     from engine_alpha.structure.narrative import read_structure
 
-    _stamp(stamp, which_reader())
+    answering = which_reader()
+    _stamp(stamp, answering)
+    if answering == READER_NEW:
+        # The skeleton draws no lines, and "no lines" in this entry point's
+        # vocabulary is None — the same answer the old box read gives when it
+        # finds nothing, so every caller's no-read branch already handles it.
+        from engine_alpha import two_eyes
+
+        read = two_eyes.read("", df)
+        if read.failed:
+            raise ValueError(f"two-eyes reader refused the frame: {read.refusal}")
+        return None
     return read_structure(df, atr, **_only_given(bricks=bricks, trace=trace,
                                                  near_miss=near_miss))

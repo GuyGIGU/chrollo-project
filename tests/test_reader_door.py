@@ -229,8 +229,19 @@ def test_the_switch_is_read_in_exactly_one_place():
         ["git", "grep", "-l", "--untracked", "TWO_EYES_READER_ENABLED", "--",
          "*.py"], cwd=_ROOT, capture_output=True, text=True)
     files = {line.strip() for line in out.stdout.splitlines() if line.strip()}
-    files -= {"tests/test_reader_door.py", "config/settings.py",
-              "engine_alpha/freeze/manifest.py"}
+    # The rule is about the ENGINE: one function decides which reader answers.
+    # `config/settings.py` declares the switch, the manifest hashes its name so
+    # the version stamp moves when it flips, and a test that flips it to see
+    # what happens is not a second place that decides.
+    #
+    # NAMED, never a `tests/` wildcard. Task 2's guard listed three files; the
+    # skeleton's tests widened it to any test file, which is how a guard stops
+    # biting: a future test reading the setting for some non-test reason would
+    # have passed in silence. A new name here is one line and a moment's
+    # thought, which is exactly the cost it should carry.
+    files -= {"config/settings.py", "engine_alpha/freeze/manifest.py",
+              "tests/test_reader_door.py", "tests/test_two_eyes_adapter.py",
+              "tests/test_two_eyes_skeleton.py"}
     assert files == {"engine_alpha/reader.py"}, (
         f"the reader switch is read in {sorted(files)}; it belongs in "
         "engine_alpha.reader.which_reader() alone")
