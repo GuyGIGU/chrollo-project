@@ -115,6 +115,7 @@ def export() -> str:
         # this file's immutability.
 
         setups: list[dict] = []
+        no_buy: list[str] = []
         for m in marks:
             lps_events = sorted(
                 (e for e in m.events if e.event_type == "lps"),
@@ -133,12 +134,31 @@ def export() -> str:
                     "would misrepresent the ground truth and narrow the fired "
                     "window. Extending the schema is a deliberate EC-7 event."
                 )
+            # The box he drew, not just the two prices he drew it at. His DB has
+            # held all of this since 2026-07-11; the export dropped it, so "did
+            # the engine list HIS pair" could only be scored by matching a price
+            # — and twelve of his marks carry more than one bar at a rail price, so
+            # the answer was decided by chance.
+            for field in ("box_start_date", "box_end_date",
+                          "r_anchor_date", "s_anchor_date", "first_rail"):
+                if not getattr(m, field, None):
+                    raise RuntimeError(
+                        f"REFUSING to export: {m.ticker}@{m.as_of_date} has no "
+                        f"{field}. Every box mark he has drawn carries one, so a "
+                        "missing value means the mark's shape moved — decide what "
+                        "it means, never export a hole."
+                    )
+            # A mark may legitimately carry NO BUY. When he re-dated YPF's
+            # pullback window on Tue 15/09/2026, the trigger he had drawn fell
+            # INSIDE the new window and the "strictly after the last LPS bar"
+            # rule cleared it. This used to refuse the whole export. It is now
+            # carried as an explicit null and counted: the gate replays the
+            # fired-policy window (the LPS spans), so a null narrows nothing
+            # there, and the chronology battery falls back to the window
+            # convention already NAMED for a span with no trigger
+            # (marks_corpus.NULL_TRIGGER_GRACE_SESSIONS) — never to silence.
             if not m.trigger_date:
-                raise RuntimeError(
-                    f"REFUSING to export: {m.ticker}@{m.as_of_date} has no trigger "
-                    "(all Guided List setups carry the operator's buy; a silent "
-                    "grace-window fallback would widen the acceptance semantics)."
-                )
+                no_buy.append(f"{m.ticker}@{m.as_of_date}")
             setup = {
                 "ticker": m.ticker,
                 # Unique, stable identity label (NGL and ORMP appear twice).
@@ -146,10 +166,32 @@ def export() -> str:
                 "source": "operator",
                 "as_of": str(m.as_of_date),
                 "frame_digest": m.frame_digest,
+                "box": [str(m.box_start_date), str(m.box_end_date)],
+                "anchors": {"R": str(m.r_anchor_date), "S": str(m.s_anchor_date)},
+                "first_rail": m.first_rail,
                 "lps": [str(lps_events[0].start_date), str(lps_events[0].end_date)],
-                "trigger": str(m.trigger_date),
+                "trigger": str(m.trigger_date) if m.trigger_date else None,
+                "trigger_price": (float(m.trigger_price)
+                                  if m.trigger_price is not None else None),
                 "rails_drawn": {"R": float(m.resistance), "S": float(m.support)},
             }
+            # The mini consolidation he drew inside the box: its own two lines
+            # and its own dates. His ruling of Sun 20/09/2026 — "both boxes
+            # live, they are a part of the same setup" — makes it a second box,
+            # so it is ground truth the rewrite is scored against.
+            minis = [e for e in m.events if e.event_type == "mini_consolidation"]
+            if len(minis) > 1:
+                raise RuntimeError(
+                    f"REFUSING to export: {m.ticker}@{m.as_of_date} carries "
+                    f"{len(minis)} mini consolidations but the corpus schema "
+                    "seals one — extending it is a deliberate EC-7 event."
+                )
+            if minis:
+                mini = minis[0]
+                setup["mini"] = {
+                    "band": {"R": float(mini.band_high), "S": float(mini.band_low)},
+                    "span": [str(mini.start_date), str(mini.end_date)],
+                }
             if len(lps_events) > 1:
                 setup["lps2"] = [str(lps_events[1].start_date), str(lps_events[1].end_date)]
             if m.knowable_from_date:
@@ -205,6 +247,14 @@ def export() -> str:
     os.replace(tmp_path, OUT_PATH)
     print(f"Graduated {len(setups)} Guided List setups -> {OUT_PATH}")
     print(f"  marks_fingerprint: {fingerprint}")
+    minis = sorted(s["ticker"] for s in setups if s.get("mini"))
+    print(f"  minis he drew: {len(minis)}" + (f" ({', '.join(minis)})" if minis else ""))
+    if no_buy:
+        # Never silent: a setup with no buy cannot be scored on "fires at his
+        # trigger", and whoever reads the next scoreboard must know which one.
+        print(f"  NO BUY MARKED on {len(no_buy)}: {', '.join(no_buy)} — carried "
+              "with a null trigger; it is scored on its lines and its pullback, "
+              "never on a trigger")
     return OUT_PATH
 
 

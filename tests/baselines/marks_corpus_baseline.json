@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-09-13T17:01:02+00:00",
+  "captured_at": "2026-09-20T16:05:30+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "d9f2eb2f3ac0901609b5925cd62a18260da9b555352b7b7295ad4ded82d668c7",
+  "corpus_sha256": "15cff41edf5e4bfd2e181a091145a92b609890d97a218d67ca3c4aaa0c98d176",
   "population": "guided-list",
-  "marks_fingerprint": "88db0fcfa4e4f3eac6cd24aafb34a8a3bba67097a3b55a42004407c47335b28d",
+  "marks_fingerprint": "ee9ec8844163ef5134d265941e39e1015d05555e4cfada273e9be18af74d04be",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42",
+  "engine_config_version": "94a9f7a97c49c694457994e69c1acfcd8f1103b6829bcf6e0e66e81b39ec722c",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -32,7 +32,7 @@
       "key": "ANRO:2026-08-12",
       "ticker": "ANRO",
       "status": "hit",
-      "setup_digest": "9071f81d4cb91f4744d1bb89f367b19d40f2b6a5dcab81fa9a7323545bc2d084",
+      "setup_digest": "4ec0a6090d5e4f4d3a8f90d0b33bedac2712f314092bc2c3304edf789fcdf910",
       "windows": [
         [
           "2026-07-30",
@@ -555,7 +555,7 @@
       "key": "YPF:2026-05-18",
       "ticker": "YPF",
       "status": "hit",
-      "setup_digest": "bae07df62a22cf049c0baafff5c0d4bdf8a078e0aaf535e3b13d4f6419ff9119",
+      "setup_digest": "525cf77d660ce5795f855e64affefb1e676d8506d79ff0757e3edda836eb7dde",
       "windows": [
         [
           "2026-05-05",
