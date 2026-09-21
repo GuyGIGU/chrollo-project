@@ -42,6 +42,7 @@ from engine_alpha.scoring.scoring import (
 from engine_alpha.structure.event_map import event_map_archive_values
 from engine_alpha.structure.htf import htf_archive_values
 from engine_alpha.structure.strategy_read import strategy_archive_values
+from engine_alpha.two_eyes_archive import two_eyes_archive_values
 from engine_alpha.structure.trace_export import election_trace_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -472,6 +473,9 @@ def seed_archive(
             **election_trace_archive_values(best_result.get, prefixed=False),
             # Strategy read (held-through-correction) — NULL when dark
             **strategy_archive_values(best_result.get, prefixed=False),
+            # The two-eyes reader's family — NULL for every seeded row
+            # until the reader that fills it is the one being replayed.
+            **two_eyes_archive_values(best_result.get, prefixed=False),
             # Forward returns (computed above for this historical date)
             **fwd_returns,
         )

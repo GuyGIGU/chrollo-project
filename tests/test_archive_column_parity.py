@@ -66,6 +66,7 @@ from engine_alpha.scoring.scoring import (  # noqa: E402
 from engine_alpha.structure.event_map import event_map_archive_values  # noqa: E402
 from engine_alpha.structure.htf import htf_archive_values  # noqa: E402
 from engine_alpha.structure.strategy_read import strategy_archive_values  # noqa: E402
+from engine_alpha.two_eyes_archive import two_eyes_archive_values  # noqa: E402
 from engine_alpha.structure.trace_export import election_trace_archive_values  # noqa: E402
 
 
@@ -203,6 +204,11 @@ def _strategy_cols(*, prefixed: bool) -> frozenset[str]:
 
 
 
+def _two_eyes_cols(*, prefixed: bool) -> frozenset[str]:
+    return frozenset(
+        two_eyes_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _sector_rank_cols() -> frozenset[str]:
     ranking = {"composite": {"XLK": 92.0}, "ranked": ["XLK", "XLF"]}
     fields = sector_rank_fields("XLK", ranking)
@@ -239,6 +245,7 @@ def _scan_effective_cols() -> frozenset[str]:
                       "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values",
+                      "two_eyes_archive_values",
                       "sector_rank_columns"}, (
         f"unexpected scan **splat(s): {sorted(splats)}; extend the parity guard."
     )
@@ -247,7 +254,8 @@ def _scan_effective_cols() -> frozenset[str]:
             | _ta_grade_cols(prefixed=True)
             | _sub_score_cols()
             | _election_trace_cols(prefixed=True)
-            | _strategy_cols(prefixed=True) | _sector_rank_cols())
+            | _strategy_cols(prefixed=True) | _two_eyes_cols(prefixed=True)
+            | _sector_rank_cols())
 
 
 def _seed_effective_cols() -> frozenset[str]:
@@ -260,6 +268,7 @@ def _seed_effective_cols() -> frozenset[str]:
                       "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values",
+                      "two_eyes_archive_values",
                       "fwd_returns"}, (
         f"unexpected seed **splat(s): {sorted(splats)}; extend the parity guard."
     )
@@ -268,7 +277,8 @@ def _seed_effective_cols() -> frozenset[str]:
             | _ta_grade_cols(prefixed=False)
             | _sub_score_cols()
             | _election_trace_cols(prefixed=False)
-            | _strategy_cols(prefixed=False) | _fwd_return_cols())
+            | _strategy_cols(prefixed=False) | _two_eyes_cols(prefixed=False)
+            | _fwd_return_cols())
 
 
 def test_scan_and_seed_only_diverge_on_allowlist():
@@ -398,6 +408,10 @@ def test_manual_route_score_coverage_with_declared_exclusions():
         "event_map_archive_values",
         "election_trace_archive_values",
         "strategy_archive_values",
+        # The two-eyes reader's own family (build task 6): both boxes with
+        # their anchor DAYS, which box the LPS was read against, and the
+        # three-state mini flag. NULL on every row the old reader writes.
+        "two_eyes_archive_values",
     }
     missing_producers = required_producers - splat_names
     assert not missing_producers, (

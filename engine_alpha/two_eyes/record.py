@@ -28,13 +28,10 @@ import datetime as dt
 from dataclasses import dataclass, field
 from typing import Optional
 
-#: What a box is doing in this read. A closed set: the parent is the setup's
-#: own box, a mini lives inside the parent's life, and earlier is a pair the
-#: walk tried and left behind.
-ROLE_PARENT = "parent"
-ROLE_MINI = "mini"
-ROLE_EARLIER = "earlier"
-ROLES = (ROLE_PARENT, ROLE_MINI, ROLE_EARLIER)
+#: What a box is doing in this read — a closed set, owned by a module with no
+#: imports so the archive can use the same tuple without importing this
+#: package into the old reader's nightly path.
+from engine_alpha.two_eyes_roles import ROLE_EARLIER, ROLE_MINI, ROLE_PARENT, ROLES  # noqa: E402,F401
 
 #: The state words a read can carry. The first version answers only "no lines"
 #: — honestly empty beats accidentally right.
@@ -42,11 +39,32 @@ NO_LINES = "no lines"
 READ_FAILED = "no lines, the read failed"
 
 
+def _as_day(value):
+    """A plain day, or None.
+
+    A timestamp is what a date index hands out, and it passes for a day
+    (it is one, by inheritance) until something writes it down: then it
+    carries a clock time the market never traded at, and the archive,
+    which stores days, refuses the whole fire. Cut here, once, so every
+    reader of the record gets a day.
+    """
+    if value is None:
+        return None
+    if isinstance(value, dt.datetime):      # before date: a timestamp is both
+        return value.date()
+    if isinstance(value, dt.date):
+        return value
+    raise TypeError(f"expected a day, got {value!r}")
+
+
 @dataclass(frozen=True)
 class Line:
     """One drawn line: its price, and the day it was anchored on."""
     price: float
     anchor_day: dt.date
+
+    def __post_init__(self):
+        object.__setattr__(self, "anchor_day", _as_day(self.anchor_day))
 
 
 @dataclass(frozen=True)
@@ -62,6 +80,8 @@ class Box:
     daily_range: Optional[float] = None
 
     def __post_init__(self):
+        object.__setattr__(self, "opened_day", _as_day(self.opened_day))
+        object.__setattr__(self, "end_day", _as_day(self.end_day))
         if self.role not in ROLES:
             raise ValueError(f"unknown box role {self.role!r}; expected one of {ROLES}")
 
@@ -75,6 +95,8 @@ class Lps:
     trigger_price: Optional[float] = None
 
     def __post_init__(self):
+        object.__setattr__(self, "start_day", _as_day(self.start_day))
+        object.__setattr__(self, "end_day", _as_day(self.end_day))
         # Validated the same way a box's role is. A closed set that is checked
         # in one place and not the other is a closed set in name only.
         if self.read_against not in ROLES:
@@ -106,6 +128,11 @@ class Read:
     state: str = NO_LINES
     failed: bool = False
     refusal: Optional[str] = None
+    # The read day's own close. The archive stores it as the setup's price,
+    # and the forward-returns backfill scales every trigger by it — so a
+    # stand-in (the resistance line was the first one) quietly regrades the
+    # outcome of every fire. None until a frame has been read.
+    close: Optional[float] = None
 
     def __post_init__(self):
         # Frozen, but a list slipped in through `boxes` or `trail` would make
@@ -113,6 +140,7 @@ class Read:
         # annotated (object.__setattr__ is how a frozen dataclass does this).
         object.__setattr__(self, "boxes", tuple(self.boxes))
         object.__setattr__(self, "trail", tuple(self.trail))
+        object.__setattr__(self, "as_of", _as_day(self.as_of))
 
     @property
     def parent(self) -> Optional[Box]:
@@ -131,6 +159,14 @@ class Read:
 
 
 def crashed(ticker: str, as_of, why: str) -> Read:
-    """A read that fell over. Counted as a failure, never as 'no lines'."""
-    return Read(ticker=ticker, as_of=as_of, state=READ_FAILED, failed=True,
+    """A read that fell over. Counted as a failure, never as 'no lines'.
+
+    The path a broken read takes may not break in turn: a day it cannot read
+    is dropped rather than raised, so the refusal still arrives.
+    """
+    try:
+        day = _as_day(as_of)
+    except TypeError:
+        day = None
+    return Read(ticker=ticker, as_of=day, state=READ_FAILED, failed=True,
                 refusal=why)

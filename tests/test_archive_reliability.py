@@ -94,7 +94,8 @@ def test_scheduled_maturation_records_own_run_and_alerts_on_failure(monkeypatch)
         return 1 if kind == "scan" else 2
 
     monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked",
-                        lambda *a, **k: SimpleNamespace(output="ok", returncode=0, n_setups=5, n_errored=0))
+                        lambda *a, **k: SimpleNamespace(output="ok", returncode=0, n_setups=5, n_errored=0,
+                                                        n_refused=0))
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "ok")
     monkeypatch.setattr(scan_runner, "_tail_error", lambda out: None)
     monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: alerts.append(a))
@@ -219,7 +220,8 @@ def test_download_degraded_coverage_archives_fresh_subset(tmp_path, monkeypatch)
 
     archived = {}
 
-    def _archive(df, scan_date_str=None, enable=False, universe=None):
+    def _archive(df, scan_date_str=None, enable=False, universe=None,
+                 refused=None):
         archived["tickers"] = list(df["Ticker"])
         # scan_job threads ONE scan_date to both writers (payload identity +
         # archive upsert key) — a None here means the threading broke.
@@ -268,7 +270,7 @@ def test_download_fresh_archives_full_cohort(tmp_path, monkeypatch):
 
     archived = {}
     monkeypatch.setattr(scan_job_module, "archive_scan_results",
-                        lambda df, scan_date_str=None, enable=False, universe=None: (archived.setdefault("t", list(df["Ticker"])), len(df))[1])
+                        lambda df, scan_date_str=None, enable=False, universe=None, refused=None: (archived.setdefault("t", list(df["Ticker"])), len(df))[1])
 
     result = scan_job_module.run_scan_and_export(mode="download")
     assert archived["t"] == ["AAA", "BBB"]
@@ -425,3 +427,172 @@ def test_reconcile_orphaned_running_is_safe_when_table_absent(tmp_path):
     eng = create_engine(f"sqlite:///{tmp_path / 'empty.db'}")
     startup._reconcile_orphaned_runs(eng)  # no table yet -> swallowed, no raise
     eng.dispose()
+
+
+# ── The archive's refused-row count, carried by the scan job (build task 6) ──
+def _archive_refusing(tickers_refused):
+    """An archive double that refuses the named tickers into the caller's
+    sink, exactly as the real writer fills it, and writes the rest."""
+    def _archive(df, scan_date_str=None, enable=False, universe=None, refused=None):
+        names = [t for t in df["Ticker"] if t in tickers_refused]
+        if refused is not None:
+            refused.update({"count": len(names), "tickers": names})
+        return len(df) - len(names)
+    return _archive
+
+
+def test_the_full_cohort_branch_reports_the_rows_the_archive_refused(
+        tmp_path, monkeypatch, capsys):
+    """A lost row must reach the result, and be said out loud in the log,
+    rather than stop at the writer's own sink."""
+    expected = _wire_scanjob(tmp_path, monkeypatch)
+    panel = _panel(["AAA", "BBB", "SPY", "QQQ"], expected)
+    results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}, {"Ticker": "BBB", "Score": 9.0}])
+    _wire_scan_io(monkeypatch, results, panel, ["AAA", "BBB"])
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive_refusing({"BBB"}))
+
+    result = scan_job_module.run_scan_and_export(mode="download")
+
+    assert result.n_refused == 1
+    assert result.n_archived == 1
+    assert "REFUSED 1 row(s) (BBB)" in capsys.readouterr().out
+
+
+def test_the_degraded_coverage_branch_reports_the_rows_the_archive_refused(
+        tmp_path, monkeypatch, capsys):
+    """The other branch archives only the per-ticker-fresh subset; its
+    refusals are counted the same way, through the same helper."""
+    expected = _wire_scanjob(tmp_path, monkeypatch)
+    panel = _panel(["AAA", "SPY", "QQQ"], expected)      # AAA fresh; BBB not in panel
+    results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}, {"Ticker": "BBB", "Score": 9.0}])
+    _wire_scan_io(monkeypatch, results, panel, ["AAA", "BBB"])
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive_refusing({"AAA"}))
+
+    result = scan_job_module.run_scan_and_export(mode="download")
+
+    assert result.n_refused == 1
+    assert "REFUSED 1 row(s) (AAA)" in capsys.readouterr().out
+
+
+def test_the_scheduled_scan_hands_the_refused_count_to_the_alert(monkeypatch):
+    """The nightly entry point, not the pure decision: the count the child
+    printed must be what the alert is asked about."""
+    import services.scan_status as scan_status_mod
+    import services.core_settings as core_settings_mod
+    import core.archive.forward_returns as fr_mod
+
+    alerts = []
+    monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked",
+                        lambda *a, **k: SimpleNamespace(output="ok", returncode=0, n_setups=5,
+                                                        n_errored=0, n_refused=2))
+    monkeypatch.setattr(scan_runner, "_result_status", lambda r: "ok")
+    monkeypatch.setattr(scan_runner, "_tail_error", lambda out: None)
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: alerts.append(a))
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger, kind="scan": 1)
+    monkeypatch.setattr(scan_status_mod, "finish_run", lambda *a, **k: None)
+    monkeypatch.setattr(core_settings_mod, "load_core_settings",
+                        lambda: SimpleNamespace(FORWARD_RETURNS_MIN_AGE_DAYS=5))
+    monkeypatch.setattr(fr_mod, "update_forward_returns", lambda min_age_days=5: None)
+
+    scan_runner.run_scheduled_scan_and_forward_returns()
+
+    scheduled = [a for a in alerts if a[0] == "scheduled"]
+    assert scheduled and scheduled[0][5] == 2, f"the alert never heard the count: {alerts}"
+
+
+def test_the_cache_mode_branch_reports_the_rows_the_archive_refused(
+        tmp_path, monkeypatch, capsys):
+    """The third archive branch. Its result is built by the function's last
+    return, which a mutation showed no test reached: the two download
+    branches were pinned and this one could have reported 0 unseen."""
+    expected = _wire_scanjob(tmp_path, monkeypatch)
+    panel = _panel(["AAA", "BBB", "SPY", "QQQ"], expected)
+    results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}, {"Ticker": "BBB", "Score": 9.0}])
+    _wire_scan_io(monkeypatch, results, panel, ["AAA", "BBB"])
+    monkeypatch.setattr(scan_job_module, "_passes_archive_freshness", lambda *a, **k: True)
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive_refusing({"AAA"}))
+
+    result = scan_job_module.run_scan_and_export(mode="cache")
+
+    assert result.n_refused == 1
+    assert result.n_archived == 1
+    assert "REFUSED 1 row(s) (AAA)" in capsys.readouterr().out
+
+
+# ── Display steps are passengers: they may never cost the night (task 6, diagnose-6) ──
+def _archive_recording(archived):
+    def _archive(df, scan_date_str=None, enable=False, universe=None, refused=None):
+        archived["tickers"] = list(df["Ticker"])
+        if refused is not None:
+            refused.update({"count": 0, "tickers": []})
+        return len(df)
+    return _archive
+
+
+@pytest.mark.parametrize("step", ["print_results", "save_csv", "print_finviz_url"])
+def test_a_display_step_that_breaks_does_not_cost_the_nights_archive(
+        tmp_path, monkeypatch, step):
+    """The terminal table, the watchlist CSV and the Finviz line all walk the
+    whole frame BEFORE the archive runs. The archive's per-row guard is no use
+    if one malformed value crashes the run before the archive is called."""
+    expected = _wire_scanjob(tmp_path, monkeypatch)
+    panel = _panel(["AAA", "BBB", "SPY", "QQQ"], expected)
+    results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}, {"Ticker": "BBB", "Score": 9.0}])
+    _wire_scan_io(monkeypatch, results, panel, ["AAA", "BBB"])
+
+    def breaks(*a, **k):
+        raise ValueError("a malformed value")
+
+    monkeypatch.setattr(scan_job_module, step, breaks)
+    archived = {}
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive_recording(archived))
+
+    result = scan_job_module.run_scan_and_export(mode="download")
+
+    assert archived["tickers"] == ["AAA", "BBB"]
+    assert result.n_archived == 2
+
+
+def test_the_real_terminal_table_meeting_a_rotten_row_does_not_cost_the_night(
+        tmp_path, monkeypatch):
+    """The flagship bad row itself — a price that is not a number — through
+    the REAL table printer, which crashed on it before the archive ran."""
+    from output.terminal import print_results as real_print_results
+
+    def row(ticker, price):
+        return {"Ticker": ticker, "Tier": "B", "Setup": "box", "Score": 10.0,
+                "Current Price": price, "Base Len": 40, "Box Width": 0.1,
+                "Touches": 4, "ATR Ratio": 1.1, "LPS Length": 5}
+
+    expected = _wire_scanjob(tmp_path, monkeypatch)
+    panel = _panel(["AAA", "ROTTEN", "SPY", "QQQ"], expected)
+    results = pd.DataFrame([row("AAA", 10.0), row("ROTTEN", "not a number")])
+    _wire_scan_io(monkeypatch, results, panel, ["AAA", "ROTTEN"])
+    monkeypatch.setattr(scan_job_module, "print_results", real_print_results)
+    archived = {}
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive_recording(archived))
+
+    scan_job_module.run_scan_and_export(mode="download")
+
+    assert archived["tickers"] == ["AAA", "ROTTEN"], \
+        "the archive, with its own per-row guard, must be reached"
+
+
+def test_a_lane_failure_after_the_archive_still_carries_the_refused_rows(
+        tmp_path, monkeypatch):
+    """The near-miss lane runs after the fires are archived, and a failure
+    there fails the run. The rows the archive refused tonight used to leave
+    with that exception — the run failed with no count on its line."""
+    expected = _wire_scanjob(tmp_path, monkeypatch)
+    panel = _panel(["AAA", "BBB", "SPY", "QQQ"], expected)
+    results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}, {"Ticker": "BBB", "Score": 9.0}])
+    _wire_scan_io(monkeypatch, results, panel, ["AAA", "BBB"])
+    monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive_refusing({"BBB"}))
+
+    def lane_breaks(sink, uni):
+        raise ValueError("a near-miss row the lane cannot store")
+
+    monkeypatch.setattr(scan_job_module, "_archive_near_misses", lane_breaks)
+    with pytest.raises(ValueError) as failure:
+        scan_job_module.run_scan_and_export(mode="download")
+    assert failure.value.n_refused == 1

@@ -55,6 +55,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from engine_alpha.structure.htf import htf_archive_values
     from engine_alpha.structure.event_map import event_map_archive_values
     from engine_alpha.structure.strategy_read import strategy_archive_values
+    from engine_alpha.two_eyes_archive import two_eyes_archive_values
     from engine_alpha.structure.trace_export import election_trace_archive_values
     from archive_models import (
         SetupArchive,
@@ -230,6 +231,9 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         **election_trace_archive_values(result.get, prefixed=False),
         # Strategy read (held-through-correction) — NULL when dark
         **strategy_archive_values(result.get, prefixed=False),
+        # EC-30: the family rides EVERY writer through the one producer,
+        # so the closed-set refusal guards this route too.
+        **two_eyes_archive_values(result.get, prefixed=False),
         # Forward-return / triple-barrier outcomes computed above
         **fwd_returns,
     }

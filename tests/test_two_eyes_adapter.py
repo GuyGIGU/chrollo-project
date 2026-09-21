@@ -90,15 +90,50 @@ def test_a_fire_says_its_base_window_so_the_sector_read_is_not_quietly_void():
     assert result["_base_date_end"] == "2026-03-06"
 
 
-def test_the_forced_whole_numbers_are_whole_numbers():
+def test_the_forced_whole_numbers_are_whole_when_measured_and_empty_when_not():
     """Several archive columns are ints by contract; a float there is stored
-    and then compared against an int forever after."""
+    and then compared against an int forever after.
+
+    And what this reader does not measure yet is EMPTY, never 0. The first
+    version sent zeros for touches, breach days and the bar anchors, and the
+    archive stored them as if they had been counted — a zero is
+    indistinguishable from a measured zero forever after.
+    """
     from engine_alpha.two_eyes_adapter import WHOLE_NUMBER_KEYS, to_result
 
     result = to_result(_read_with_lines())
+    # None of them is measured yet. Base Len and LPS Length count trading
+    # BARS on every old-reader row; a first version filled them with calendar
+    # days, a second meaning in the same column. Stage 5 fills them, whole.
     for key in WHOLE_NUMBER_KEYS:
-        assert isinstance(result[key], int), \
-            f"{key} is {type(result[key]).__name__}, not a whole number"
+        assert result[key] is None, \
+            f"{key} is {result[key]!r}: this reader does not measure it yet"
+
+
+def test_the_setup_price_is_the_read_days_close_not_a_line():
+    """The forward-returns backfill scales every trigger by the stored price.
+    The resistance line stood in for it once, which would have regraded the
+    outcome of every fire by the gap between the line and the close."""
+    import dataclasses
+
+    from engine_alpha.two_eyes_adapter import to_result
+
+    read = dataclasses.replace(_read_with_lines(), close=95.37)
+    assert to_result(read)["Current Price"] == 95.37
+
+
+def test_every_two_eyes_fact_the_adapter_carries_is_a_column_the_archive_reads():
+    """Drift in the other direction from the end-to-end archive test: a name
+    the adapter invents that no archive column reads is a fact silently
+    dropped on the floor at write time. The first version did exactly that
+    with four of them."""
+    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL
+
+    carried = [k for k in to_result(_read_with_lines()) if k.startswith("_two_eyes_")]
+    assert carried, "the adapter carries none of the new reader's own facts"
+    unread = [k for k in carried if k[1:] not in TWO_EYES_COLUMN_SQL]
+    assert not unread, f"no archive column reads {unread}"
 
 
 def test_the_two_lines_and_their_days_survive_the_crossing():

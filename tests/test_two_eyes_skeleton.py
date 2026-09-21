@@ -321,3 +321,33 @@ def test_a_read_only_fires_with_both_a_box_and_a_buy():
     assert record.Read(ticker="T", boxes=(box,), lps=priced).fired is True
     assert record.crashed("T", None, "boom").fired is False, \
         "a crashed read never fires"
+
+
+def test_a_read_carries_its_own_days_close():
+    """The archive stores it as the setup's price and the forward-returns
+    backfill scales every trigger by it, so it must be the read day's real
+    close — never a stand-in from a line (build task 6)."""
+    from engine_alpha import two_eyes
+
+    frame = _frame()
+    frame.loc[frame.index[-1], "Close"] = 1.73
+    assert two_eyes.read("TEST", frame).close == 1.73
+
+
+def test_a_day_the_caller_names_that_is_not_a_day_is_a_counted_failure():
+    """read() promises never to raise. The record now cuts every day on the
+    way in and refuses anything else, and that refusal must arrive inside the
+    read's own guard as a counted failure, not escape it (build task 6)."""
+    from engine_alpha import two_eyes
+
+    read = two_eyes.read("TEST", _frame(), as_of="2026-03-06")
+    assert read.failed is True and read.refusal
+
+
+def test_the_crash_path_cannot_crash_on_an_odd_day():
+    """The path a broken read takes may not break in turn: a day it cannot
+    read is dropped so the refusal still arrives."""
+    from engine_alpha.two_eyes import record
+
+    crashed = record.crashed("TEST", "2026-03-06", "the frame was not a chart")
+    assert crashed.failed is True and crashed.as_of is None

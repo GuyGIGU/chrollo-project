@@ -245,27 +245,30 @@ def test_parse_scan_result_reads_errored_from_json_channel():
         "some earlier line\n"
         'SCAN_RESULT_JSON:{"n_setups": 1, "n_archived": 1, "n_errored": 4}\n'
     )
-    n_setups, n_errored = scan_runner._parse_scan_result(output)
-    assert n_setups == 1
-    assert n_errored == 4
+    # Read by NAME: the parser answers a named triple since the archive's
+    # refused-row count joined it, and a positional unpack is how a future
+    # fourth count would land on the wrong name. Every value is unchanged.
+    counts = scan_runner._parse_scan_result(output)
+    assert counts.n_setups == 1
+    assert counts.n_errored == 4
 
 
 def test_parse_scan_result_defaults_errored_to_zero_when_key_absent():
     # An older child (or clean scan) omits n_errored; a swallowed-crash count is a
     # tripwire, so "unknown" means "no known crashes" -> 0 (never a phantom alert).
     scan_runner = _load_scan_runner()
-    n_setups, n_errored = scan_runner._parse_scan_result(
+    counts = scan_runner._parse_scan_result(
         'SCAN_RESULT_JSON:{"n_setups": 5, "n_archived": 5}\n'
     )
-    assert n_setups == 5
-    assert n_errored == 0
+    assert counts.n_setups == 5
+    assert counts.n_errored == 0
 
 
 def test_parse_scan_result_none_setups_when_payload_absent():
     scan_runner = _load_scan_runner()
-    n_setups, n_errored = scan_runner._parse_scan_result("no result line here\n")
-    assert n_setups is None
-    assert n_errored == 0
+    counts = scan_runner._parse_scan_result("no result line here\n")
+    assert counts.n_setups is None
+    assert counts.n_errored == 0
 
 
 def test_multi_universe_errored_reads_primary_not_last_universe():
@@ -297,7 +300,7 @@ def test_multi_universe_errored_reads_primary_not_last_universe():
     # Stdout order: primary universe first (JSON + its timing), ETF universe last.
     output = "\n".join([primary_timing, primary_json, "Scanning ETF universe...", etf_timing]) + "\n"
 
-    _, n_errored = scan_runner._parse_scan_result(output)
+    n_errored = scan_runner._parse_scan_result(output).n_errored
     assert n_errored == 3, "alert must read the PRIMARY universe's errored count, not the last universe's 0"
 
     # The old reversed-scrape read the LAST "errored=" timing line — prove that

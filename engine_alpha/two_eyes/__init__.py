@@ -25,6 +25,7 @@ built against; `frame.py` is what a chart must be before it is read.
 from __future__ import annotations
 
 from engine_alpha.two_eyes.frame import FrameRefused, check as check_frame
+from engine_alpha.two_eyes.record import _as_day
 from engine_alpha.two_eyes.record import (
     NO_LINES,
     READ_FAILED,
@@ -60,6 +61,10 @@ def read(ticker: str, df, *, as_of=None) -> Read:
     try:
         if as_of is None and df is not None and len(df):
             as_of = df.index[-1].date()
+        # A day the caller named is a day or it is refused HERE, inside the
+        # guard: the record cuts every day on the way in and raises on
+        # anything else, and that raise must arrive as a counted failure.
+        as_of = _as_day(as_of)
         check_frame(df)
     except FrameRefused as refusal:
         return crashed(ticker, as_of, str(refusal))
@@ -67,5 +72,7 @@ def read(ticker: str, df, *, as_of=None) -> Read:
         return crashed(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
     # Stages 1 to 7 fill this in. Empty is the honest answer until they do.
+    # The close is a fact of the read day, not of a stage: the frame contract
+    # has just proved the last bar is whole.
     return Read(ticker=ticker, as_of=as_of, boxes=(), lps=None, trail=(),
-                state=NO_LINES)
+                state=NO_LINES, close=float(df["Close"].iloc[-1]))

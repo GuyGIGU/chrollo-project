@@ -52,8 +52,9 @@ REQUIRED_KEYS = (
 #: days, so it can say them.
 SILENTLY_LOST_KEYS = ("_base_date_start", "_base_date_end")
 
-#: Columns that are whole numbers by contract. A float here is stored and then
-#: compared against an int forever after.
+#: Columns that are whole numbers by contract WHEN MEASURED. A float here is
+#: stored and then compared against an int forever after; an unmeasured one is
+#: None, never 0.
 WHOLE_NUMBER_KEYS = ("Base Len", "Touches", "LPS Length", "Breach Days",
                      "_base_len", "_lps_len", "_lps_offset",
                      "_r_anchor_bar", "_s_anchor_bar",
@@ -95,21 +96,48 @@ def to_result(read: Read):
         return None
 
     box, lps = read.parent, read.lps
-    unit = box.daily_range or 0.0
-    width = float(box.resistance.price - box.support.price)
     base_end = box.end_day or read.as_of
     result = {
         "Ticker": read.ticker,
-        "Tier": "",              # stage 7 grades; an empty grade is not a made-up one
-        "Setup": read.state,
+        # EMPTY, not zero, for everything this reader does not measure yet —
+        # and empty, not a different quantity, for a column whose meaning on
+        # every old-reader row this reader does not share. A number stored in
+        # either shape is indistinguishable from a measured one forever after.
+        #
+        # One exception the schema forces: the score column cannot be empty,
+        # so it holds 0.0 until the grade exists (stage 7). That IS a made-up
+        # number, and it is a DARK-ONLY placeholder: the switch flips only at
+        # his approval sitting, after the grade is built, so no row the live
+        # scan archives ever carries it. In a dark run it is recognisable by
+        # the empty tier and by two_eyes_has_mini, which only this reader
+        # fills, and the tier-keyed reports skip an empty tier. Recorded in
+        # docs/decisions.md (2026-09-21) as the builder's default, not his
+        # ruling, and his to overrule.
+        "Tier": "",
+        # The SETUP TYPE — LPS / REBOUND on every old-reader row — not the
+        # screen's state word, which is a different vocabulary and rides the
+        # watch sink to the screen. A fire of this reader is a box and its
+        # last receding run: an LPS setup.
+        "Setup": "LPS",
         "Score": 0.0,
-        "Current Price": round(float(box.resistance.price), 2),
-        "Base Len": _days(box.opened_day, base_end),
-        "Box Width": width,
-        "Touches": 0,
-        "ATR Ratio": (width / unit) if unit else 0.0,
-        "LPS Length": _days(lps.start_day, lps.end_day),
-        "Breach Days": 0,
+        # The read day's real close. The resistance line stood in here once,
+        # and the forward-returns backfill scales every trigger by this price.
+        "Current Price": round(float(read.close), 2) if read.close is not None else None,
+        # Trading bars on every old-reader row; this reader has not ruled how
+        # a box's life is counted yet (stage 5), and calendar days would be a
+        # second meaning in the same column.
+        "Base Len": None,
+        # The box's height as a fraction of its support — the column's own
+        # definition on every old-reader row — so this one IS measured.
+        "Box Width": float((box.resistance.price - box.support.price)
+                           / box.support.price),
+        "Touches": None,
+        # The ten-day over fifty-day range squeeze, which this reader does not
+        # measure. The box's height in daily ranges is a different number,
+        # and it lives in the family's own daily-range column.
+        "ATR Ratio": None,
+        "LPS Length": None,
+        "Breach Days": None,
         "_R": float(box.resistance.price),
         "_S": float(box.support.price),
         "_trigger_price": float(lps.trigger_price),
@@ -126,43 +154,57 @@ def to_result(read: Read):
         # The seed path re-keys these into the archive's own column names
         # (`_base_len` -> base_length, `_r_anchor_bar` -> r_anchor, …), so a
         # fire row without them writes NULLs into columns the scan fills.
-        "_base_len": _days(box.opened_day, base_end),
-        "_lps_len": _days(lps.start_day, lps.end_day),
-        "_lps_offset": 0,
-        "_r_anchor_bar": 0,
-        "_s_anchor_bar": 0,
-        "_r_touches": 0,
-        "_s_touches": 0,
-        "_vol_contraction": 0.0,
-        "_tightness_ratio": 0.0,
+        "_base_len": None,
+        "_lps_len": None,
+        "_lps_offset": None,
+        "_r_anchor_bar": None,        # bar offsets die with the window; the
+        "_s_anchor_bar": None,        # family carries the anchor DAYS instead
+        "_r_touches": None,
+        "_s_touches": None,
+        "_vol_contraction": None,
+        "_tightness_ratio": None,
         # The grade is stage 7's. None is "not measured" — the archive stores
         # that as empty, never as a made-up number — but the KEY must exist,
         # because the scan sorts its results by this column.
         "_ta_grade": None,
         "_ta_grade_raw": None,
         # What the old engine has no word for, carried so the new reader's own
-        # facts survive the crossing rather than being rebuilt from prices.
-        "_two_eyes_r_anchor_date": box.resistance.anchor_day.isoformat(),
-        "_two_eyes_s_anchor_date": box.support.anchor_day.isoformat(),
-        "_two_eyes_box_end_date": box.end_day.isoformat() if box.end_day else None,
-        "_two_eyes_daily_range": box.daily_range,
+        # facts survive the crossing rather than being rebuilt from prices —
+        # under the archive family's OWN names. A first version spoke names
+        # of its own, so a real fire filled 2 of the family's 16 columns and
+        # every producer-level test still passed.
+        **_box_family("parent", box),
+        **_box_family("mini", read.mini),
         "_two_eyes_lps_read_against": lps.read_against,
+        # The new reader LOOKED, so this is 1 or 0 and never empty: empty is
+        # kept for rows written by a reader that never looked.
         "_two_eyes_has_mini": read.mini is not None,
     }
     for key in WHOLE_NUMBER_KEYS:
-        result[key] = int(result[key])
+        if result[key] is not None:        # whole when measured, empty when not
+            result[key] = int(result[key])
     missing = [k for k in REQUIRED_KEYS + SILENTLY_LOST_KEYS if k not in result]
     if missing:                         # a fire row is whole or it is not a row
         raise KeyError(f"the two-eyes adapter built a fire row missing {missing}")
     return result
 
 
-def _days(start, end) -> int:
-    """Calendar days between two days, floored at zero — a placeholder count
-    until stage 5 rules how a box's life is measured in trading days."""
-    if start is None or end is None:
-        return 0
-    return max(0, (end - start).days)
+def _box_family(role: str, box) -> dict:
+    """One box as the archive family's keys (`engine_alpha/two_eyes_archive.py`
+    reads them as ``_two_eyes_<role>_<part>``). No box, no keys — the family
+    then stores that half as empty, which is the truth for a setup whose
+    reader found no mini."""
+    if box is None:
+        return {}
+    return {
+        f"_two_eyes_{role}_r_price": float(box.resistance.price),
+        f"_two_eyes_{role}_r_anchor_date": box.resistance.anchor_day.isoformat(),
+        f"_two_eyes_{role}_s_price": float(box.support.price),
+        f"_two_eyes_{role}_s_anchor_date": box.support.anchor_day.isoformat(),
+        f"_two_eyes_{role}_opened_date": box.opened_day.isoformat(),
+        f"_two_eyes_{role}_end_date": box.end_day.isoformat() if box.end_day else None,
+        f"_two_eyes_{role}_daily_range": box.daily_range,
+    }
 
 
 def fill_watch(read: Read, watch: Optional[dict]) -> None:

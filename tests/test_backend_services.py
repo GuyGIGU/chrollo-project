@@ -1892,7 +1892,8 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
     import services.core_settings as core_settings_mod
 
     calls = {"backfill": 0, "finish_status": None}
-    result = SimpleNamespace(output="boom", returncode=1, n_setups=None, n_errored=0)
+    result = SimpleNamespace(output="boom", returncode=1, n_setups=None,
+                             n_errored=0, n_refused=0)
 
     monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda *a, **k: result)
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "failed")
@@ -2147,3 +2148,22 @@ def test_read_verdict_model_check_refuses_illegal_label(tmp_path):
         db.rollback()
     finally:
         db.close()
+
+
+def test_a_manual_scan_hands_the_refused_count_to_the_alert(monkeypatch):
+    """The manual path parses the child's own result line; the archive's
+    refused-row count on it must reach the alert (build task 6)."""
+    import threading
+
+    gate = threading.Event()
+    gate.set()
+    _gated_scan_child(monkeypatch, gate, [
+        "line one\n",
+        'SCAN_RESULT_JSON:{"n_setups": 3, "n_archived": 1, "n_errored": 0, "n_refused": 2}\n',
+    ])
+    alerts = []
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: alerts.append(a))
+
+    list(scan_runner._stream_process("manual"))
+
+    assert alerts and alerts[0][5] == 2, f"the alert never heard the count: {alerts}"

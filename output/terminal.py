@@ -19,20 +19,32 @@ _TIER_COLORS = {
 _RESET = '\033[0m'
 
 
+def _shown(value, render) -> str:
+    """``render(value)``, or a dash for a value the reader did not measure.
+
+    The scan prints this table BEFORE it archives, so one empty value that
+    crashed the print would cost the whole night's record. A row from the old
+    reader carries every number and prints exactly as it always has.
+    """
+    if value is None or pd.isna(value):
+        return "-"
+    return render(value)
+
+
 def _format_display_row(row: pd.Series) -> dict:
     """Convert the numeric result row into the strings shown in the table."""
-    lps_len = int(row['LPS Length'])
     return {
         'Ticker': row['Ticker'],
         'Tier': row['Tier'],
         'Setup': row['Setup'],
         'Score': row['Score'],
-        'Price': f"${row['Current Price']:.2f}",
-        'Base Len': f"{int(row['Base Len'])}d",
-        'Box Width': f"{row['Box Width'] * 100:.1f}%",
-        'Touches': f"{int(row['Touches'])}",
-        'ATR Ratio': f"{row['ATR Ratio'] * 100:.1f}%",
-        'LPS Length': f"{lps_len}d" if lps_len > 0 else "-",
+        'Price': _shown(row['Current Price'], lambda v: f"${v:.2f}"),
+        'Base Len': _shown(row['Base Len'], lambda v: f"{int(v)}d"),
+        'Box Width': _shown(row['Box Width'], lambda v: f"{v * 100:.1f}%"),
+        'Touches': _shown(row['Touches'], lambda v: f"{int(v)}"),
+        'ATR Ratio': _shown(row['ATR Ratio'], lambda v: f"{v * 100:.1f}%"),
+        'LPS Length': _shown(row['LPS Length'],
+                             lambda v: f"{int(v)}d" if int(v) > 0 else "-"),
     }
 
 
