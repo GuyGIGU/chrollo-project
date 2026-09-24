@@ -41,8 +41,8 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 - The climax anchor is still a fixed 60-day window off the box open; box placement and
   `segment_trends` box-blindness are open ([`flag_ledger.md`](flag_ledger.md), AR row).
 - The parquet cache is survivor-only: delisted names are absent ([`edge_read_2026-07-22.md`](edge_read_2026-07-22.md)).
-- The backend imports calibration code from `tools/`, and the frontend has two import
-  cycles (priorities 1 and 2 below).
+- `core/archive` and the payload writer import the backend's ORM by bare name (the one seam left in
+  [`architecture.md`](architecture.md) §2).
 
 ## Infrastructure
 
@@ -52,18 +52,29 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
   a backend-independent forward-return tick are Windows scheduled tasks ([`deploy.md`](deploy.md) §4, §4b).
 - Code goes live only when the operator runs `update_dashboard.bat`.
 
-## Three structural priorities
+## Structural work
 
-1. **Give the calibration code production imports a production home.** The backend lazily
-   imports `tools.calibration.{replay,agreement,calibration_harness}`. Move that code under
-   the backend's calibration domain (or `core/`), leaving tools as thin CLIs over it.
-2. **Break the two frontend cycles:** `journal` and `portfolio`, `screener` and `watchlist`.
-   Move the shared piece into the owning feature or into `shared/`.
-3. **Behaviour-pinned quality pass on the largest non-engine files:**
-   `core/pipeline/market_data/downloads.py` (1,390 lines), `core/archive/analyze.py` (1,156),
-   `webapp/backend/services/scan_diagnosis.py` (805), `CalibrationTab.jsx` (803)
-   (`wc -l`, 2026-09-24). Pin behaviour with tests first. Engine files wait until
-   `claude/two-eyes-reader` lands, and change only through operator rulings.
+Done 2026-09-24 on `claude/structural-followups` (local, unmerged; behaviour pinned by tests first,
+engine hash and every regression gate unchanged):
+
+- The backend no longer imports `tools/`: the replay layer and agreement taxonomy live in
+  `core/calibration/`, the chips' grading in `domains/calibration/grading.py`.
+- The two frontend feature cycles are gone, and a test keeps them out.
+- Quality pass: `downloads.py` 1,390 lines became four modules (764 + 471 + 220 + 36);
+  `analyze.py` 1,156 became four (227 + 164 + 450 + 491); `scan_diagnosis.py` 805 became 547 plus
+  `interruption_cause.py` 300; `CalibrationTab.jsx` 803 became 518 plus two components and three
+  tested model modules.
+
+Next candidates, none of which changes the method:
+
+1. Retire the ORM bare-name seam (`core/archive` and the payload writer reaching into the backend).
+2. Retire the `tools/calibration/{replay,agreement}.py` aliases once the older branches are ported
+   (two engine comments cite them; repointing those is an engine edit).
+3. Tidy the names that stutter (`box/box_*.py`; `domains/archive/calibration.py` beside
+   `domains/calibration/`), and move `shared/navigation/leaveGuard.test.js`'s calibration case
+   into the calibration feature.
+
+Engine files wait until `claude/two-eyes-reader` lands, and change only through operator rulings.
 
 **Merge-order risk.** Nine local branches are unmerged (`git branch --no-merged`) and all nine
 edit paths that `3bd4531..93ac245` renamed or deleted: most of all `claude/two-eyes-reader`

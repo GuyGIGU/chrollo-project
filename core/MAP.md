@@ -134,7 +134,10 @@ Two files sit at the top of the folder; the rest is grouped by job. `market_data
 | `screening/terminal.py` | Formats scan results for the terminal (percentages, day counts, tier colours). Moved from `output/` on 2026-09-24. |
 | `evaluation.py` (lives in `engine_alpha/`) | Per-ticker evaluation: baseline filter, structure pass, LPS check, scoring, and result row assembly — extracted with the reading engine it composes. |
 | `market_data/providers.py` | Market-data source abstraction. The screener fetches its panel through `get_provider().fetch(...)`, not a vendor directly, so a bulk-EOD source can be slotted in behind one contract. Today only `yahoo` (wraps `downloads.fetch_data`). |
-| `market_data/downloads.py` | The Yahoo provider's implementation: yfinance downloads, retry/recovery, split-drift checks, and the parquet cache. |
+| `market_data/downloads.py` | The Yahoo provider's `fetch_data`: the parquet cache's state machine (meta, quarantine, admission, the absent-session ledger). |
+| `market_data/panel_fetch.py` | Cold and incremental panel builds and their repairs: missing-ticker recovery, latest-session repair, the split probe, the overlap merge, the forming-bar cap. |
+| `market_data/yahoo_download.py` | Yahoo requests: retry, backoff, the shared rate limit, the download pool (the archive downloads use it too). |
+| `market_data/price_regime.py` | The as-traded vs dividend-adjusted flag and its cache tag. |
 | `market_data/cache.py` | Small filesystem, metadata, and market-clock helpers used by the data modules. |
 | `market_data/rate_limit.py` | The throttle on every Yahoo request, so the fetch stays under the provider's limit. |
 | `market_data/file_lock.py` | The cross-process lock on each universe's price cache, so the scheduler, a manual job and a CLI run can't corrupt it by writing at once. |
@@ -164,6 +167,9 @@ is a trap on this machine (`docs/deploy.md` §2).
 | `seed.py` | `-m core.archive.seed` | Bootstraps the archive with known historical setups. |
 | `forward_returns.py` | `-m core.archive.forward_returns` | Fills in real outcomes once setups are old enough. |
 | `analyze.py` | `-m core.archive.analyze` | The report card: winner fingerprint, what predicted returns, bias warnings. |
+| `analyze_features.py` | (shared) | The report's column lists and the engine-epoch seam. |
+| `analyze_stats.py` | (shared) | The report's numbers: outcomes, signal edge, suggested weights. |
+| `analyze_report.py` | (shared) | The report's six sections as text. |
 | `purge.py` | `-m core.archive.purge` | Cleans uncurated rows out of the archive. |
 | `seed_recall.py` | `-m core.archive.seed_recall --hermetic-check` | Does the engine still re-find every known seed winner? The hermetic form replays committed data offline. |
 | `near_miss_writer.py` | (automatic) | Records the setups the engine narrowly refused (the near-miss lane). Measure-only. |

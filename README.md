@@ -112,8 +112,9 @@ core/
   pipeline/            Conductor — data.py (public data door); market_data/, universe/,
                          context/, telemetry/; screening/ (screener.py run_screener,
                          scan_job.py scan → dashboard → archive, dashboard.py + terminal.py)
-  archive/             writer.py, forward_returns.py, analyze.py, seed.py, purge.py,
-                         episodes.py, outcomes.py
+  archive/             writer.py, forward_returns.py, analyze.py (+ analyze_features/stats/report),
+                         seed.py, purge.py, episodes.py, outcomes.py
+  calibration/         Engine replay on frozen calibration frames (workbench chips + calibration tools)
   backtest/            Edge report + backtest statistics (production: the edge tile uses it)
   regime/, fundamentals/   Relative strength, sector ranking, fundamentals (dark lanes)
 config/                Defaults by domain: engine.py (detection knobs), scoring.py (weights,
@@ -127,7 +128,8 @@ webapp/
   backend/             FastAPI app — main.py; domains/ (archive, calibration, ibkr,
                          market_data, portfolio, screener, trading, watchlist); app/
                          (startup, lifespan, migrations); services/ (scan_runner, scheduler,
-                         scan_status, scan_watchdog, health, scan_diagnosis);
+                         scan_status, scan_watchdog, health, scan_diagnosis,
+                         interruption_cause);
                          broker_config.py, database.py
   frontend/            React + Vite — src/app/ (routes, shell), src/features/<screen>/,
                          src/shared/ (used by unrelated features), src/api/base.js;

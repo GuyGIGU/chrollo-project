@@ -117,8 +117,10 @@ Full map, import direction and compatibility paths: [`docs/architecture.md`](doc
 - `core/pipeline/` — conductor: `data.py` (public data door), `market_data/`, `universe/`, `context/`,
   `screening/` (`screener.py` `run_screener`, `scan_job.py` the nightly job, `dashboard.py` +
   `terminal.py` payload writers), `telemetry/`.
-- `core/archive/` — `writer.py`, `forward_returns.py`, `analyze.py`, `seed.py`, `purge.py`, `episodes.py`,
-  `outcomes.py`, `db_path.py`. `core/backtest/` is production (the edge tile imports it);
+- `core/archive/` — `writer.py`, `forward_returns.py`, `analyze.py` (+ `analyze_features.py`, `analyze_stats.py`,
+  `analyze_report.py`), `seed.py`, `purge.py`, `episodes.py`, `outcomes.py`, `db_path.py`.
+  `core/calibration/` replays the engine on frozen calibration frames (the workbench chips and the calibration
+  tools share it). `core/backtest/` is production (the edge tile imports it);
   `core/regime/` and `core/fundamentals/` are dark lanes.
 - `config/` — defaults by domain (`engine.py`, `scoring.py`, `enrichment.py`, `archive.py`,
   `market_data.py`, `market_context.py`, `runtime.py`); `settings.py` is the one namespace.
@@ -160,7 +162,7 @@ Answer these, then use the "Where do I put this?" table in
   models, schemas) → `database.py`. `app/` owns startup, the lifespan and migrations
   (`app/migrations/`, called from `app/startup.initialize_database`); `services/` owns the scan
   lifecycle that crosses domains (`scan_runner`, `scheduler`, `scan_status`, `scan_watchdog`,
-  `health`, `scan_diagnosis`).
+  `health`, `scan_diagnosis`, `interruption_cause`).
 - Route handlers are sync `def` and run in FastAPI's threadpool — **this is intentional**; do not
   "fix" them to `async`. Do not block on long work in a request; offload heavy jobs to a subprocess
   or background thread under `SCAN_LOCK` (see `services/scan_runner.py`).

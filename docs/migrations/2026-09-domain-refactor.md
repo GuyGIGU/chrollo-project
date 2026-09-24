@@ -153,6 +153,8 @@ The per-mark grading the calibration workbench's chips share left the harness fo
 
 On 2026-09-24 the replay layer and the agreement taxonomy moved a second time, from `tools/calibration/` to `core/calibration/`, because the backend imports them and production code must not import `tools/`. The rows for `tools/replay.py`, `tools/agreement.py`, `tools.replay` and `tools.agreement` below compose both moves and name the final home. The intermediate names `tools.calibration.replay` and `tools.calibration.agreement` still import, as aliases (see [Compatibility paths that remain](#compatibility-paths-that-remain)); new code imports `core.calibration.replay` and `core.calibration.agreement`. The JSON records this in its notes.
 
+Also on 2026-09-24, the Windows event-log resolver left `webapp/backend/services/scan_diagnosis.py` for `services/interruption_cause.py`: `resolve_pending`, `classify_interrupted`, `evidence_window_end`, `boot_time`, `collect_machine_down_events`, `parse_events`, `_pending_rows`, `_stamp_kind`, `DETECTION_GRACE_SECONDS`, `EVIDENCE_HORIZON_DAYS` and `WEVTUTIL_TIMEOUT_SECONDS` (and `_parse_iso` became `scan_diagnosis.parse_iso`). The failure verdicts and their words stay in `scan_diagnosis`. A branch that calls one of those names gets an `AttributeError` at service start, not at merge time, so grep for them after merging.
+
 ## What was deleted, and why
 
 | Path | Why |
