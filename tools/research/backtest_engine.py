@@ -52,9 +52,15 @@ from core.archive.missed_winners import (  # reused verbatim
     EpisodeOutcome,
     summarize,
 )
-from core.backtest import edge_report, is_oos, null_model, stats
+from core.backtest import deflated_sharpe, edge_report, event_study, is_oos, null_model, stats
 from core.backtest.loader import DEFAULT_DB_PATH, load_episodes
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
+
+# Tier cuts / horizons the DSR section treats as the candidate-config search (the
+# N trials it must deflate for). Disclosed explicitly in the report.
+_DSR_TIER_CUTS = [("S", {"S"}), ("S+A", {"S", "A"}),
+                  ("S+A+B", {"S", "A", "B"}), ("all", None)]
+_DSR_HORIZONS = [20, 60]
 
 # Outcome-maturity floors below which a number is "directional at best".
 MATURE_MIN_N = 25          # mirrors analyze.EDGE_MIN_N
@@ -451,6 +457,225 @@ def section_predictors(df: pd.DataFrame) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Section 9 — regime-segmented edge (the single-regime-confound answer)
+# ─────────────────────────────────────────────────────────────────────────────
+def section_regime(df: pd.DataFrame) -> dict:
+    header("9. REGIME-SEGMENTED EDGE  (does the edge survive OUTSIDE an uptrend?)")
+    emit("The whole confound: a bull-tape win rate is beta, not edge. Each fire is")
+    emit("tagged with the SPY regime at its scan date (spy_trend). If the abnormal")
+    emit("(excess-vs-SPY) edge holds in downtrend/neutral tapes too, it is not just")
+    emit("market beta. Headline per regime = elapsed-window mfe_to_date + abnormal.")
+    if "spy_trend" not in df.columns:
+        emit()
+        emit("!  No 'spy_trend' column — regime tag absent (pre-backfill archive).")
+        return {"available": False}
+    by = edge_report.slice_by(df, "spy_trend")
+    out: dict = {}
+    order = ["uptrend", "neutral", "downtrend", "unknown"]
+    subhdr("By SPY regime at scan date")
+    for reg in order + [k for k in by if k not in order]:
+        block = by.get(reg)
+        if not block:
+            continue
+        mfe = block.get("headline_mfe_median")
+        ab = (block.get("abnormal") or {}).get("median")
+        ab_n = (block.get("abnormal") or {}).get("n", 0)
+        emit(f"  {reg:10} n={block['n']:<5} mfe_to_date {_pct(mfe)}   "
+             f"abnormal-vs-SPY {_pct(ab)} (n={ab_n})")
+        out[reg] = {"n": block["n"], "mfe_median": mfe, "abnormal_median": ab}
+    emit()
+    emit("  Read: a POSITIVE abnormal in neutral/downtrend is the credible edge")
+    emit("  signal; a large mfe with a negative abnormal is mostly market beta.")
+    return {"available": True, "by_regime": out}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Section 10 — event-study CAR curves (calendar-time significance)
+# ─────────────────────────────────────────────────────────────────────────────
+def _emit_car_row(h: int, b: dict) -> None:
+    emit(f"    {h:>3}d   CAR {_pct(b.get('car_mean_ct'))}   "
+         f"t_ct {_f(b.get('t_ct'), 2):>6}   n_dates {b.get('n_dates', 0):<5} "
+         f"(naive t_cs {_f(b.get('t_cs'), 2)})")
+
+
+def section_event_study(abn: Optional[pd.DataFrame]) -> dict:
+    header("10. EVENT-STUDY CAR  (abnormal-vs-SPY; calendar-time t corrects clustering)")
+    emit("CAR(h) = cumulative abnormal return (ticker minus SPY) h bars after the")
+    emit("fire. Same-date fires are collapsed to ONE portfolio observation per date")
+    emit("(calendar-time), so clustering on strong-tape days can't inflate the t.")
+    emit("t_ct is authoritative; the naive cross-sectional t_cs is shown to expose")
+    emit("the inflation (|t_cs| > |t_ct| when fires cluster). |t_ct| > 2 ~ notable.")
+    if abn is None or abn.empty:
+        emit()
+        emit("!  NOT COMPUTED — needs the price cache (pass --cache or ensure the")
+        emit("   default cache exists). CAR reads forward paths from it.")
+        return {"available": False}
+    res = event_study.build_event_study(abn)
+    horizons = res["horizons"]
+    subhdr("Overall CAR term structure")
+    for h in horizons:
+        _emit_car_row(h, res["overall"].get(h, {}))
+    for seg_key, title in (("by_tier", "By tier"), ("by_spy_trend", "By regime")):
+        seg = res.get(seg_key, {})
+        if not seg:
+            continue
+        subhdr(title + " (CAR at 20d / 60d)")
+        for key in sorted(seg.keys()):
+            parts = []
+            for h in (20, 60):
+                b = seg[key].get(h, {})
+                parts.append(f"{h}d {_pct(b.get('car_mean_ct'))} (t {_f(b.get('t_ct'),2)})")
+            emit(f"  {key:10} " + "   ".join(parts))
+    return {"available": True, "result": res}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Section 11 — Deflated Sharpe / expected-max-Sharpe (N-config selection)
+# ─────────────────────────────────────────────────────────────────────────────
+def _config_series(abn: pd.DataFrame, tiers: Optional[set], h: int) -> list:
+    """Per-scan-date portfolio abnormal-return series for a (tier-cut, horizon)."""
+    col = f"car_{h}"
+    if col not in abn.columns:
+        return []
+    sub = abn if tiers is None else abn[abn["tier"].isin(tiers)]
+    tmp = pd.DataFrame({"d": sub["scan_date"].astype(str),
+                        "r": pd.to_numeric(sub[col], errors="coerce")}).dropna()
+    if tmp.empty:
+        return []
+    return tmp.groupby("d")["r"].mean().tolist()
+
+
+def section_dsr(abn: Optional[pd.DataFrame]) -> dict:
+    header("11. DEFLATED SHARPE  (does the best config beat the noise ceiling for N tries?)")
+    emit("We try several tier-cut x horizon configs; the BEST looks good partly by")
+    emit("luck. The expected-max-Sharpe (False Strategy Theorem) is the Sharpe the")
+    emit("best of N noise configs would reach. DSR = P(true SR > that ceiling),")
+    emit("also correcting skew/kurtosis and sample length. DSR > 0.95 = credible.")
+    if abn is None or abn.empty:
+        emit()
+        emit("!  NOT COMPUTED — needs the price cache (CAR abnormals feed the DSR).")
+        return {"available": False}
+
+    configs = []  # (name, sr, series)
+    for name, tiers in _DSR_TIER_CUTS:
+        for h in _DSR_HORIZONS:
+            series = _config_series(abn, tiers, h)
+            st = deflated_sharpe.sharpe_stats(series)
+            configs.append((f"{name}@{h}d", st.sr, series))
+    n_trials = len(configs)
+    sr_list = [sr for _, sr, _ in configs if sr is not None]
+    if len(sr_list) < 2:
+        emit()
+        emit("!  Fewer than 2 configs produced a Sharpe — sample too thin for DSR.")
+        return {"available": False}
+    v = deflated_sharpe.variance_across_trials(sr_list)
+    sr0 = deflated_sharpe.expected_max_sharpe(n_trials, v)
+
+    subhdr(f"Candidate configs (N = {n_trials} trials disclosed)")
+    emit(f"  {'config':<12}{'per-date SR':>12}{'n_dates':>10}")
+    for name, sr, series in configs:
+        emit(f"  {name:<12}{_f(sr, 3):>12}{len(series):>10}")
+
+    best = max(configs, key=lambda c: (c[1] if c[1] is not None else -np.inf))
+    dsr = deflated_sharpe.deflated_sharpe_ratio(best[2], sr0=sr0)
+    subhdr("Selection-corrected verdict")
+    emit(f"  variance across the {n_trials} configs' Sharpes (V): {_f(v, 4)}")
+    emit(f"  expected-max-Sharpe noise ceiling (SR0): {_f(sr0, 3)}")
+    emit(f"  best config: {best[0]}  (per-date SR {_f(best[1], 3)})")
+    emit(f"  DSR = P(true SR > SR0) = {_f(dsr.dsr, 3) if dsr.dsr is not None else '-'}"
+         f"   -> {'CREDIBLE (>0.95)' if dsr.significant else 'NOT beyond noise'}")
+    if dsr.reason:
+        emit(f"  ({dsr.reason})")
+    return {"available": True, "n_trials": n_trials, "V": v, "sr0": sr0,
+            "best_config": best[0], "best_sr": best[1], "dsr": dsr.as_dict()}
+
+
+def _trigger_rate_block(df: pd.DataFrame) -> dict:
+    tr = pd.to_numeric(df.get("triggered"), errors="coerce") if "triggered" in df else None
+    if tr is None:
+        return {"n": 0, "rate": None}
+    known = tr.dropna()
+    return {"n": int(known.shape[0]),
+            "rate": float(known.mean()) if not known.empty else None}
+
+
+def section_trigger_gated(df: pd.DataFrame, cache) -> dict:
+    header("12. TRIGGER-GATED EDGE  (enter on the BREAKOUT, not the fire close)")
+    emit("The engine is a PRE-breakout screener — you enter when price breaks the")
+    emit("LPS high (the trigger), not at the fire close. This section reports (a) the")
+    emit("TRIGGER RATE (share of fires that broke out within 60 bars) and (b) the")
+    emit("abnormal-vs-SPY CAR measured from the BREAKOUT-day close for the triggered")
+    emit("subset — the read that matches how the setups are actually taken.")
+    if "triggered" not in df.columns:
+        emit()
+        emit("!  No 'triggered' column — cannot compute the trigger-gated read.")
+        return {"available": False}
+
+    overall = _trigger_rate_block(df)
+    subhdr("Trigger rate (broke out within 60 bars)")
+    emit(f"  overall: {_pct(overall['rate'])}  (n={overall['n']})")
+    if "tier" in df.columns:
+        parts = []
+        for tier in ["S", "A", "B", "C"]:
+            sub = df[df["tier"] == tier]
+            if len(sub):
+                b = _trigger_rate_block(sub)
+                parts.append(f"{tier} {_pct(b['rate'])} (n={b['n']})")
+        if parts:
+            emit("  by tier: " + "   ".join(parts))
+    if "spy_trend" in df.columns:
+        parts = []
+        for reg in ["uptrend", "neutral", "downtrend"]:
+            sub = df[df["spy_trend"] == reg]
+            if len(sub):
+                b = _trigger_rate_block(sub)
+                parts.append(f"{reg} {_pct(b['rate'])} (n={b['n']})")
+        if parts:
+            emit("  by regime: " + "   ".join(parts))
+
+    car_res = None
+    triggered = df[(pd.to_numeric(df["triggered"], errors="coerce") == 1)
+                   & df.get("trigger_date").notna()] if "trigger_date" in df else df.iloc[0:0]
+    if cache is None:
+        emit()
+        emit("!  Trigger-gated CAR needs the price cache (pass --cache). Rate shown above.")
+    elif triggered.empty:
+        emit()
+        emit("!  No triggered fires with a trigger_date to anchor the CAR.")
+    else:
+        # Reuse the event-study machinery anchored at trigger_date (the breakout).
+        abn_t = event_study.fire_abnormal_returns(
+            triggered, cache, date_col="trigger_date")
+        car_res = event_study.build_event_study(abn_t, date_col="trigger_date")
+        subhdr("Trigger-gated CAR term structure (from breakout close; calendar-time t)")
+        for h in car_res["horizons"]:
+            _emit_car_row(h, car_res["overall"].get(h, {}))
+        seg = car_res.get("by_tier", {})
+        if seg:
+            subhdr("By tier (CAR at 20d / 60d, from breakout)")
+            for key in sorted(seg.keys()):
+                parts = []
+                for h in (20, 60):
+                    b = seg[key].get(h, {})
+                    parts.append(f"{h}d {_pct(b.get('car_mean_ct'))} (t {_f(b.get('t_ct'),2)})")
+                emit(f"  {key:10} " + "   ".join(parts))
+    return {"available": True, "trigger_rate": overall,
+            "car": car_res if car_res else None}
+
+
+def _load_cache(cache_path: Optional[str]):
+    """Load the price panel for CAR/DSR; None if absent (harness degrades)."""
+    from config import settings
+    path = cache_path or settings.CACHE_FILENAME
+    if not os.path.exists(path):
+        return None
+    data = pd.read_parquet(path, engine=settings.PARQUET_ENGINE)
+    if hasattr(data.index, "tz") and data.index.tz is not None:
+        data.index = data.index.tz_localize(None)
+    return data
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Orchestrator
 # ─────────────────────────────────────────────────────────────────────────────
 def run(db_path: Optional[str] = None, source: Optional[str] = None,
@@ -458,6 +683,7 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         metric_col: str = "mfe_20d", seed: int = 1337,
         spy_col: Optional[str] = None,
         json_path: Optional[str] = None,
+        cache_path: Optional[str] = None,
         universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE) -> dict:
     _LINES.clear()
     out = None
@@ -495,6 +721,21 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
     missed = section_missed_winners(df)
     section_predictors(df)
 
+    # Regime segmentation + event-study CAR + DSR — the additive rigor layer. The
+    # last two read forward PRICE paths from the cache; regime uses only the stored
+    # spy_trend tag + abnormal_ret_to_date. All computed on the UNBIASED screener
+    # basis so seed/manual rows never enter the edge.
+    screener_df = (df[df["source"] == edge_report.UNBIASED_SOURCE]
+                   if "source" in df.columns else df)
+    regime = section_regime(screener_df)
+    cache = _load_cache(cache_path)
+    abn = None
+    if cache is not None and not screener_df.empty:
+        abn = event_study.fire_abnormal_returns(screener_df, cache)
+    car = section_event_study(abn)
+    dsr = section_dsr(abn)
+    trigger = section_trigger_gated(screener_df, cache)
+
     header("END OF PRELIMINARY REPORT")
     report = "\n".join(_LINES)
     _safe_print(report)
@@ -503,6 +744,8 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         "composition": comp, "edge": edge, "null_model": null_res,
         "is_oos": split, "abnormal_vs_spy": abnormal,
         "haircut": haircut, "missed_winners": missed,
+        "regime": regime, "event_study_car": car, "deflated_sharpe": dsr,
+        "trigger_gated": trigger,
     }
     if json_path:
         with open(out, "w", encoding="utf-8") as f:
@@ -524,6 +767,8 @@ def main() -> None:
                     help="parquet of (scan_date, ticker, mfe_20d) eligible-universe MFE — "
                          "activates the null / base-rate model (see tools.research.build_universe_returns)")
     ap.add_argument("--json", default=None, help="also write a structured JSON report here")
+    ap.add_argument("--cache", default=None,
+                    help="price panel parquet for CAR/DSR (default: settings.CACHE_FILENAME)")
     args = ap.parse_args()
     universe_returns = None
     if args.universe:
@@ -531,7 +776,7 @@ def main() -> None:
         universe_returns = pd.read_parquet(path)
     run(db_path=args.db, source=args.source, metric_col=args.metric,
         seed=args.seed, spy_col=args.spy_col, json_path=args.json,
-        universe_returns=universe_returns)
+        universe_returns=universe_returns, cache_path=args.cache)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,38 @@
+2026-09-03 18:46:34,922 INFO matured screener scan_dates: 33 (from 4039 episodes)
+2026-09-03 18:46:36,444 INFO cache universe: 5810 tickers over 33 scan_dates
+2026-09-03 18:46:48,688 INFO [1/33] 2026-06-01: 1572 eligible names with mfe_20d
+2026-09-03 18:46:58,430 INFO [2/33] 2026-06-03: 1440 eligible names with mfe_20d
+2026-09-03 18:47:07,506 INFO [3/33] 2026-06-05: 1439 eligible names with mfe_20d
+2026-09-03 18:47:16,295 INFO [4/33] 2026-06-08: 1433 eligible names with mfe_20d
+2026-09-03 18:47:25,118 INFO [5/33] 2026-06-12: 1683 eligible names with mfe_20d
+2026-09-03 18:47:33,914 INFO [6/33] 2026-06-16: 1642 eligible names with mfe_20d
+2026-09-03 18:47:42,629 INFO [7/33] 2026-06-17: 1482 eligible names with mfe_20d
+2026-09-03 18:47:51,367 INFO [8/33] 2026-06-18: 1614 eligible names with mfe_20d
+2026-09-03 18:48:00,094 INFO [9/33] 2026-06-22: 1608 eligible names with mfe_20d
+2026-09-03 18:48:08,860 INFO [10/33] 2026-06-23: 1658 eligible names with mfe_20d
+2026-09-03 18:48:17,536 INFO [11/33] 2026-06-24: 1668 eligible names with mfe_20d
+2026-09-03 18:48:26,331 INFO [12/33] 2026-06-25: 1692 eligible names with mfe_20d
+2026-09-03 18:48:35,137 INFO [13/33] 2026-06-29: 1834 eligible names with mfe_20d
+2026-09-03 18:48:43,959 INFO [14/33] 2026-06-30: 1817 eligible names with mfe_20d
+2026-09-03 18:48:52,781 INFO [15/33] 2026-07-02: 1803 eligible names with mfe_20d
+2026-09-03 18:49:01,586 INFO [16/33] 2026-07-06: 1809 eligible names with mfe_20d
+2026-09-03 18:49:10,295 INFO [17/33] 2026-07-07: 1721 eligible names with mfe_20d
+2026-09-03 18:49:18,999 INFO [18/33] 2026-07-08: 1641 eligible names with mfe_20d
+2026-09-03 18:49:27,783 INFO [19/33] 2026-07-09: 1709 eligible names with mfe_20d
+2026-09-03 18:49:36,623 INFO [20/33] 2026-07-13: 1702 eligible names with mfe_20d
+2026-09-03 18:49:45,440 INFO [21/33] 2026-07-14: 1716 eligible names with mfe_20d
+2026-09-03 18:49:54,240 INFO [22/33] 2026-07-15: 1722 eligible names with mfe_20d
+2026-09-03 18:50:02,961 INFO [23/33] 2026-07-17: 1669 eligible names with mfe_20d
+2026-09-03 18:50:11,850 INFO [24/33] 2026-07-21: 1670 eligible names with mfe_20d
+2026-09-03 18:50:20,810 INFO [25/33] 2026-07-22: 1675 eligible names with mfe_20d
+2026-09-03 18:50:29,478 INFO [26/33] 2026-07-23: 1533 eligible names with mfe_20d
+2026-09-03 18:50:38,205 INFO [27/33] 2026-07-27: 1587 eligible names with mfe_20d
+2026-09-03 18:50:46,970 INFO [28/33] 2026-07-28: 1629 eligible names with mfe_20d
+2026-09-03 18:50:55,571 INFO [29/33] 2026-07-29: 1493 eligible names with mfe_20d
+2026-09-03 18:51:04,282 INFO [30/33] 2026-07-30: 1538 eligible names with mfe_20d
+2026-09-03 18:51:13,019 INFO [31/33] 2026-08-03: 1643 eligible names with mfe_20d
+2026-09-03 18:51:21,606 INFO [32/33] 2026-08-04: 0 eligible names with mfe_20d
+2026-09-03 18:51:30,159 INFO [33/33] 2026-08-05: 0 eligible names with mfe_20d
+2026-09-03 18:51:30,196 INFO wrote 50842 rows -> C:\Users\User\AppData\Local\Temp\claude\C--Users-User-Documents-Projects-Chrollo-Project--claude-worktrees-eager-chatelet-65e8d4\75096e69-a577-49e2-ae86-5e170a00433e\scratchpad\universe_returns.parquet
+
+universe_returns: 50842 rows, 31 dates, median mfe_20d +7.15%
