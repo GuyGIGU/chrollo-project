@@ -25,7 +25,7 @@ rescue leg; any other universe refusal to neither). Baseline fires are
 counted and never re-evaluated — the rescue cannot touch them by
 construction, and that invariant is pinned in tests, not re-measured here.
 
-Read-only everywhere: flags toggle through ``tools.calibration.replay.flag_capture``
+Read-only everywhere: flags toggle through ``core.calibration.replay.flag_capture``
 (self-restoring), nothing writes to the archive, and the output is a sidecar
 JSON + stdout summary.
 
@@ -57,7 +57,7 @@ from engine_alpha.evaluation import (  # noqa: E402
 )
 from core.pipeline.screening.screener import _evaluate_ticker  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from tools.calibration.replay import flag_capture  # noqa: E402
+from core.calibration.replay import flag_capture  # noqa: E402
 
 _CACHE = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
 

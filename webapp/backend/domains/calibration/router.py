@@ -194,7 +194,7 @@ _ENGINE_READS: dict = {}
 def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
                             frame_digest: Optional[str] = Query(None)):
     """The engine's read of a FROZEN calibration frame, through the agreement
-    harness's own lens (``tools.calibration.replay.snapped_election`` + the shared
+    harness's own lens (``core.calibration.replay.snapped_election`` + the shared
     ``election_identity.projection``) — the same lens the harness scores, never
     a richer parallel read (one-lens rule, Task 6). Parity is exact for a BOX
     verdict; the overlay always walks back the snap window, whereas the harness
@@ -227,7 +227,7 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
         return _ENGINE_READS[key]
 
     from engine_alpha.election_identity import projection  # noqa: PLC0415
-    from tools.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
+    from core.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
 
     result = {
         "ticker": symbol,

@@ -46,7 +46,7 @@ _PROJECT_ROOT = configure_path()
 from engine_alpha.evaluation import _prepare_eval_frame, _resolve_structure_context
 from engine_alpha.structure.events.event_map import read_role_labels
 from tools.regression.marks_corpus import _load_fixture, eval_windows, load_corpus, setup_key
-from tools.calibration.replay import fixture_frame
+from core.calibration.replay import fixture_frame
 
 # Sessions added on each side of the marked windows so the battery watches the
 # labels as the story approaches, crosses, and leaves the marked entry.

@@ -6,15 +6,16 @@ refused loudly, and the corpus gate's fixture names still resolve to the one
 shared implementation (the fold is real, not a copy).
 """
 import sys
+from pathlib import Path
 
 import pytest
 
-from _paths import REPO_ROOT as ROOT
+from _paths import BASELINES_DIR, REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
 from tools.regression import marks_corpus
-from tools.calibration import replay
+from core.calibration import replay
 
 
 def test_flag_capture_restores_on_success_and_crash():
@@ -45,6 +46,25 @@ def test_flag_capture_multi_flag_typo_flips_nothing():
                                  NO_SUCH_FLAG_EVER=True):
             pass
     assert settings.BAND_RAILS_ENABLED is prior
+
+
+def test_the_sealed_fixture_paths_are_the_committed_baselines():
+    # The layer finds the repo root on its own; a root one folder off would
+    # point every fixture consumer at files that do not exist.
+    assert Path(replay.BASELINE_DIR).resolve() == BASELINES_DIR
+    assert Path(replay.SEALED_FIXTURE_PARQUET).resolve() == BASELINES_DIR / "marks_corpus.parquet"
+    assert Path(replay.SEALED_BASELINE_JSON).resolve() == BASELINES_DIR / "marks_corpus_baseline.json"
+
+
+def test_the_old_tools_names_are_the_core_modules():
+    # The layer left tools/ for core/calibration/ (2026-09-24). The old names
+    # stay importable for engine docstrings and older branches, and must be the
+    # SAME module objects: a patch through either name has to reach both.
+    import core.calibration.agreement as agreement
+    import tools.calibration.agreement as old_agreement
+    import tools.calibration.replay as old_replay
+    assert old_replay is replay
+    assert old_agreement is agreement
 
 
 def test_corpus_gate_aliases_the_shared_layer(monkeypatch):

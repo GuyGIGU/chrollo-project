@@ -10,11 +10,11 @@ flags.
 Two populations, one state machine, two rails:
 
   drawn — every operator ``CalibrationMark(verdict='box')`` on HIS rails over
-          HIS window (``tools.calibration.replay.drawn_box_window``, the shared EC-13
+          HIS window (``core.calibration.replay.drawn_box_window``, the shared EC-13
           derivation). 35 marks / 1,492 bars when the evidence was sealed.
   junk  — every negative-corpus strict candidate framing that SURVIVED the
           boundary-respect gate (not rescued; stage not in width/window/
-          respect), judged on ``tools.calibration.replay.judged_window``. 98 framings /
+          respect), judged on ``core.calibration.replay.judged_window``. 98 framings /
           2,949 bars when sealed.
 
 Per bar, per rail (tol = ``TOUCH_TOLERANCE_ATR`` * ATR):
@@ -88,7 +88,7 @@ from engine_alpha.structure.events.box_events import measure_resistance_events  
 from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
 from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
-from tools.calibration.replay import (  # noqa: E402
+from core.calibration.replay import (  # noqa: E402
     drawn_box_window,
     judged_window,
     prepared_frame_with_reason,

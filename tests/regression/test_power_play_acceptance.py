@@ -159,7 +159,7 @@ def test_the_composed_twin_carries_the_frozen_states_end_to_end(fixture):
     # (`admitted_dark`, his exact climax/AR dates), with no fire at the
     # default read: the dark lane now reads MAN end-to-end.
     from engine_alpha.evaluation import evaluate_ticker_with_power_play
-    from tools.calibration.replay import flag_capture
+    from core.calibration.replay import flag_capture
 
     frames, baseline = fixture
     assert baseline["tickers"]["FTNT"]["species"]["state"] is None

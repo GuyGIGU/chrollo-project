@@ -56,7 +56,7 @@ from engine_alpha.structure.box.box_gates import (  # noqa: E402
 from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
 from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
-from tools.calibration.replay import (  # noqa: E402
+from core.calibration.replay import (  # noqa: E402
     count_allowed,
     count_needed,
     drawn_box_window,
@@ -78,7 +78,7 @@ _RESPECT_DETAIL = re.compile(r"respect (\d\.\d+) <")
 
 # --- count math: the gate's fraction thresholds as integer bars -------------
 # The canonical forms live in engine_alpha.structure.box.gate_margins and arrive
-# through the tools.calibration.replay seam (near-miss lane Task 5 promotion); the
+# through the core.calibration.replay seam (near-miss lane Task 5 promotion); the
 # campaign names below are kept as aliases so the sealed protocol vocabulary
 # (docs/rail_program_protocol_2026-07.md) still reads.
 def dwell_needed(floor_frac: float, n: int) -> int:
@@ -173,7 +173,7 @@ def drawn_rows(setups: list[dict], frames: dict) -> tuple[list[dict], str]:
     return rows, fingerprint
 
 
-# ``judged_window`` now lives in tools.calibration.replay (Task 5 promotion) and is
+# ``judged_window`` now lives in core.calibration.replay (Task 5 promotion) and is
 # imported above — the junk self-check below still certifies the slice.
 
 

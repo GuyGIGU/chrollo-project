@@ -21,16 +21,18 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import webapp.backend.frame_store as frame_store  # noqa: E402
 from engine_alpha.evaluation import EVAL_ERROR  # noqa: E402
-from tools.calibration import agreement, replay  # noqa: E402
-from tools.calibration.calibration_harness import (  # noqa: E402
+from core.calibration import agreement, replay  # noqa: E402
+from domains.calibration.grading import (  # noqa: E402
     FIRED_EVENT_TAIL_SESSIONS,
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
     HARNESS_POLICY_VERSION,
-    _print_delta,
-    _refuse_sealed_output,
     fired_one,
     grade_one,
+)
+from tools.calibration.calibration_harness import (  # noqa: E402
+    _print_delta,
+    _refuse_sealed_output,
     load_marks,
     marks_fingerprint,
     parse_variant,
@@ -693,8 +695,8 @@ def test_mark_dict_is_complete_and_the_seal_projection_is_frozen(session):
     operator's next mark. The seal hashes only the FROZEN projection:
     widening it is a graduation re-pin decision (decisions.md 2026-08-20),
     never a fix commit's side effect."""
-    from tools.calibration.calibration_harness import (_SEAL_EVENT_KEYS, _SEAL_MARK_KEYS,
-                                           _mark_dict)
+    from domains.calibration.grading import _mark_dict
+    from tools.calibration.calibration_harness import _SEAL_EVENT_KEYS, _SEAL_MARK_KEYS
     _add_mark(session)
     _add_lps_event(session, "2026-02-02", "2026-02-05")
     mark = session.query(CalibrationMark).one()

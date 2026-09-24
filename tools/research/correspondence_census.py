@@ -1,7 +1,7 @@
 """Correspondence census — do the THREE rail readers describe the same events?
 
 Read-only, offline. For every operator CalibrationMark (verdict='box'), on the
-operator's OWN drawn rails and drawn window (``tools.calibration.replay.drawn_box_window``,
+operator's OWN drawn rails and drawn window (``core.calibration.replay.drawn_box_window``,
 the shared EC-13 derivation), run side by side:
 
   reader 1  event_map.read_rail_episodes + episode_sequence_stats
@@ -84,7 +84,7 @@ from engine_alpha.structure.events.event_map import (  # noqa: E402
 )
 from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
 from tools.calibration.calibration_stat_card import _num, _safe  # noqa: E402
-from tools.calibration.replay import drawn_box_window  # noqa: E402
+from core.calibration.replay import drawn_box_window  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

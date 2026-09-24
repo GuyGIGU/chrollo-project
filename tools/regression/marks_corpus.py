@@ -16,7 +16,7 @@ fair window. The population is ONE kind of setup — digest-GRADUATED marks
 (the Guided List, 2026-07-24: every setup carries ``frame_digest``, ``as_of``
 and a ``trigger``, sealed through the EC-9 export) — graded on the ONE
 fired-policy window owned by the replay seam
-(``tools.calibration.replay.fired_window_sessions``: marked-LPS spans + tail, union the
+(``core.calibration.replay.fired_window_sessions``: marked-LPS spans + tail, union the
 trailing as-of window, faithful-basis clamped, every clamp NAMED) — the SAME
 pops-up-live criterion the agreement harness scores, so the gate and the
 operator's scoreboard can never tell two different stories. The pre-Guided-
@@ -86,9 +86,9 @@ from core.pipeline.screening.screener import _evaluate_ticker
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo
-# root on sys.path, so `tools.calibration.replay` resolves under both documented
+# root on sys.path, so `core.calibration.replay` resolves under both documented
 # invocations.
-from tools.calibration.replay import (
+from core.calibration.replay import (
     BASELINE_DIR as _BASELINE_DIR,
     FIRED_EVENT_TAIL_SESSIONS,
     FIRED_WALK_MAX_SESSIONS,

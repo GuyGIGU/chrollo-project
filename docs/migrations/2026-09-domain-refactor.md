@@ -139,6 +139,20 @@ The FastAPI lifespan handler moved out of `main.py`:
 | `lifespan` | `app.lifecycle` |
 | `_stop_services` | `app.lifecycle` |
 
+### `tools/calibration/calibration_harness.py` (2026-09-24, after the refactor)
+
+The per-mark grading the calibration workbench's chips share left the harness for production, `webapp/backend/domains/calibration/grading.py`, so the backend no longer imports `tools/`. The harness stays the command (marks loading, the seal, the report) and still imports `grade_one`, `fired_one`, `_mark_dict` and the policy constants, so those also resolve from the harness. The four private helpers do not. Import every name from its home:
+
+| Name | Import it from |
+|---|---|
+| `_mark_dict`, `grade_one`, `fired_one` | `domains.calibration.grading` |
+| `_vetoed_cause_absent`, `_refusal_fragment`, `_fired_sessions`, `_binding_gate_margin` | `domains.calibration.grading` |
+| `SNAP_BACK_SESSIONS`, `FIRED_WINDOW_SESSIONS`, `FIRED_EVENT_TAIL_SESSIONS`, `FIRED_WALK_MAX_SESSIONS`, `HARNESS_POLICY_VERSION`, `_FROZEN_BREADTH`, `_FROZEN_SPY_6M` | `domains.calibration.grading` |
+
+## Moved again after the refactor
+
+On 2026-09-24 the replay layer and the agreement taxonomy moved a second time, from `tools/calibration/` to `core/calibration/`, because the backend imports them and production code must not import `tools/`. The rows for `tools/replay.py`, `tools/agreement.py`, `tools.replay` and `tools.agreement` below compose both moves and name the final home. The intermediate names `tools.calibration.replay` and `tools.calibration.agreement` still import, as aliases (see [Compatibility paths that remain](#compatibility-paths-that-remain)); new code imports `core.calibration.replay` and `core.calibration.agreement`. The JSON records this in its notes.
+
 ## What was deleted, and why
 
 | Path | Why |
@@ -163,6 +177,8 @@ Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webap
 | `webapp/backend/models.py` | The model registry `create_all` needs | `webapp/backend/domains/<name>/models.py` |
 | `webapp/backend/archive_models.py` | The archive ORM and market-context names | `domains/archive/models.py`, `domains/archive/market_context.py` |
 | `webapp/backend/broker_config.py` | Unchanged: it carries its own manual-connection safety contract | (same file) |
+| `tools/calibration/replay.py` | `tools.calibration.replay`, which engine docstrings cite and branches cut before 2026-09-24 import (the same module object) | `core/calibration/replay.py` |
+| `tools/calibration/agreement.py` | `tools.calibration.agreement`, likewise | `core/calibration/agreement.py` |
 | `tools/run_maturation.bat` | The Task Scheduler entry registered with this absolute path | `tools/ops/run_maturation.bat` |
 | `tools/fidelity/README.md` | Sealed records that cite `tools/fidelity/<name>/` | `research/fidelity/` |
 
@@ -224,7 +240,7 @@ Import names, as the porter rewrites them. Repo-root modules import from the rep
 | `engine_alpha.structure.trace_export` | `engine_alpha.structure.box.trace_export` |
 | `output.dashboard` | `core.pipeline.screening.dashboard` |
 | `output.terminal` | `core.pipeline.screening.terminal` |
-| `tools.agreement` | `tools.calibration.agreement` |
+| `tools.agreement` | `core.calibration.agreement` |
 | `tools.backtest_engine` | `tools.research.backtest_engine` |
 | `tools.bar_state_census` | `tools.research.bar_state_census` |
 | `tools.build_universe_returns` | `tools.research.build_universe_returns` |
@@ -255,7 +271,7 @@ Import names, as the porter rewrites them. Repo-root modules import from the rep
 | `tools.rail_margin_ab` | `tools.research.rail_margin_ab` |
 | `tools.rail_margin_evidence` | `tools.research.rail_margin_evidence` |
 | `tools.reader_pin` | `tools.regression.reader_pin` |
-| `tools.replay` | `tools.calibration.replay` |
+| `tools.replay` | `core.calibration.replay` |
 | `tools.restore_drill` | `tools.ops.restore_drill` |
 | `tools.settings_reference` | `tools.maintenance.settings_reference` |
 | `tools.shadow_diff` | `tools.regression.shadow_diff` |
@@ -839,7 +855,7 @@ Whole folders that moved unchanged:
 | Old path | New path |
 |---|---|
 | `tools/ChrolloBackup.ps1` | `tools/ops/ChrolloBackup.ps1` |
-| `tools/agreement.py` | `tools/calibration/agreement.py` |
+| `tools/agreement.py` | `core/calibration/agreement.py` |
 | `tools/backtest_engine.py` | `tools/research/backtest_engine.py` |
 | `tools/bar_state_census.py` | `tools/research/bar_state_census.py` |
 | `tools/build_universe_returns.py` | `tools/research/build_universe_returns.py` |
@@ -873,7 +889,7 @@ Whole folders that moved unchanged:
 | `tools/reader_pin.py` | `tools/regression/reader_pin.py` |
 | `tools/recover_service_python.bat` | `tools/ops/recover_service_python.bat` |
 | `tools/recover_service_python.ps1` | `tools/ops/recover_service_python.ps1` |
-| `tools/replay.py` | `tools/calibration/replay.py` |
+| `tools/replay.py` | `core/calibration/replay.py` |
 | `tools/restore_drill.py` | `tools/ops/restore_drill.py` |
 | `tools/settings_reference.py` | `tools/maintenance/settings_reference.py` |
 | `tools/shadow_diff.py` | `tools/regression/shadow_diff.py` |

@@ -30,7 +30,7 @@ from engine_alpha.structure.box.near_miss import (
 )
 from tools.regression.marks_corpus import _FROZEN_BREADTH
 from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.calibration.replay import fixture_frame, prepared_frame
+from core.calibration.replay import fixture_frame, prepared_frame
 
 pytestmark = pytest.mark.regression
 

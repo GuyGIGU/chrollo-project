@@ -19,7 +19,7 @@ per-event grain, on real bars from three committed populations:
 
 Basis: a fixed MECHANICAL window per chart - the frame's last ``PIN_WINDOW_BARS``
 bars, rails at the window's High/Low extremes, ATR via the shared instrument
-enrichment (``tools.calibration.replay.enrich_marked_frame`` at ``MARK_ATR_OFFSET``). This is
+enrichment (``core.calibration.replay.enrich_marked_frame`` at ``MARK_ATR_OFFSET``). This is
 deliberately NOT the operator's drawn rails and NOT the engine's election: a pin
 must not move when an unrelated program legally moves an election, and drawn
 rails live in the editable calibration DB (a gate may not depend on a population
@@ -74,7 +74,7 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path(backend=True)
 
 from tools.regression.fold_parity import diff_paths, exact_equal, jsonable
-from tools.calibration.replay import MARK_ATR_OFFSET, enrich_marked_frame, load_sealed_fixture
+from core.calibration.replay import MARK_ATR_OFFSET, enrich_marked_frame, load_sealed_fixture
 
 from engine_alpha.freeze.manifest import manifest_hash
 from engine_alpha.structure.narrative.bricks import find_lps, find_spring

@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 from config import settings
 from engine_alpha.election_identity import projection, same_election
 from engine_alpha.structure.narrative.reader import read_structure
-from tools.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture, prepared_frame
+from core.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture, prepared_frame
 
 
 def test_flag_state_and_rejected_lever():

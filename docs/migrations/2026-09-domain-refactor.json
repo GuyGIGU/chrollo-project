@@ -3804,10 +3804,10 @@
   },
   {
    "old": "tools/agreement.py",
-   "new": "tools/calibration/agreement.py",
+   "new": "core/calibration/agreement.py",
    "area": "tools",
-   "similarity": 96,
-   "source": "git"
+   "similarity": 98,
+   "source": "git, then moved again on 2026-09-24 (see the notes for tools.calibration.agreement); similarity scored against the final home"
   },
   {
    "old": "tools/backtest_engine.py",
@@ -4042,10 +4042,10 @@
   },
   {
    "old": "tools/replay.py",
-   "new": "tools/calibration/replay.py",
+   "new": "core/calibration/replay.py",
    "area": "tools",
    "similarity": 92,
-   "source": "git"
+   "source": "git, then moved again on 2026-09-24 (see the notes for tools.calibration.replay); similarity scored against the final home"
   },
   {
    "old": "tools/restore_drill.py",
@@ -4645,7 +4645,7 @@
   },
   {
    "old": "tools.agreement",
-   "new": "tools.calibration.agreement",
+   "new": "core.calibration.agreement",
    "root": "repo"
   },
   {
@@ -4800,7 +4800,7 @@
   },
   {
    "old": "tools.replay",
-   "new": "tools.calibration.replay",
+   "new": "core.calibration.replay",
    "root": "repo"
   },
   {
@@ -4954,6 +4954,45 @@
    "kind": "alias",
    "report": false,
    "text": "Compatibility facade for the archive ORM (domains/archive/models.py) and the market context enrichment (domains/archive/market_context.py). New code imports those."
+  },
+  {
+   "module": "tools.calibration.replay",
+   "root": "repo",
+   "kind": "alias",
+   "report": false,
+   "alias_of": "core.calibration.replay",
+   "text": "Moved again on 2026-09-24, after the refactor: the replay layer went from tools/calibration/replay.py to core/calibration/replay.py, because the backend's calibration chips import it and production code must not import tools/. The file_moves and module_moves rows for tools/replay.py compose both moves and name the final home. tools/calibration/replay.py stays as a compatibility alias that swaps itself in sys.modules for core.calibration.replay (one module object under both names); new code imports core.calibration.replay."
+  },
+  {
+   "module": "tools.calibration.agreement",
+   "root": "repo",
+   "kind": "alias",
+   "report": false,
+   "alias_of": "core.calibration.agreement",
+   "text": "Moved again on 2026-09-24, after the refactor: the agreement taxonomy went from tools/calibration/agreement.py to core/calibration/agreement.py, for the same reason as the replay layer. The rows for tools/agreement.py compose both moves. tools/calibration/agreement.py stays as a compatibility alias of core.calibration.agreement; new code imports core.calibration.agreement."
+  },
+  {
+   "module": "tools.calibration.calibration_harness",
+   "root": "repo",
+   "kind": "split",
+   "report": false,
+   "text": "On 2026-09-24 the per-mark grading the workbench chips share left the harness for webapp/backend/domains/calibration/grading.py (imported as domains.calibration.grading, with webapp/backend on sys.path). The harness stays the command-line tool (marks loading, the seal, the report) and still imports grade_one, fired_one, _mark_dict and the policy constants, so those also resolve from the harness; the four private helpers (_vetoed_cause_absent, _refusal_fragment, _fired_sessions, _binding_gate_margin) do not. New code imports every name from its home.",
+   "names": {
+    "_mark_dict": "domains.calibration.grading",
+    "grade_one": "domains.calibration.grading",
+    "fired_one": "domains.calibration.grading",
+    "_vetoed_cause_absent": "domains.calibration.grading",
+    "_refusal_fragment": "domains.calibration.grading",
+    "_fired_sessions": "domains.calibration.grading",
+    "_binding_gate_margin": "domains.calibration.grading",
+    "SNAP_BACK_SESSIONS": "domains.calibration.grading",
+    "FIRED_WINDOW_SESSIONS": "domains.calibration.grading",
+    "FIRED_EVENT_TAIL_SESSIONS": "domains.calibration.grading",
+    "FIRED_WALK_MAX_SESSIONS": "domains.calibration.grading",
+    "HARNESS_POLICY_VERSION": "domains.calibration.grading",
+    "_FROZEN_BREADTH": "domains.calibration.grading",
+    "_FROZEN_SPY_6M": "domains.calibration.grading"
+   }
   }
  ],
  "deleted": [

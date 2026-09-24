@@ -3,9 +3,10 @@
 The ledger's "Engine" chip answers the operator's HEADLINE calibration
 question — did the engine SURFACE a setup at my pick? (concordance, not rail
 replication; operator doctrine 2026-07-11). That is exactly the harness's
-election grade (``tools.calibration.agreement`` over ``tools.calibration.replay.snapped_election``),
-so this reuses ``grade_one`` — the SAME function the CLI reports score, so the
-chip can never drift from ``python -m tools.calibration.calibration_harness``. It is NOT
+election grade (``core.calibration.agreement`` over ``core.calibration.replay.snapped_election``),
+so this reuses ``domains.calibration.grading.grade_one`` — the SAME function the
+CLI reports score, so the chip can never drift from
+``python -m tools.calibration.calibration_harness``. It is NOT
 the sharper fired-in-window criterion (that replays the FULL scoring pipeline
 per mark, ~1s/session, and needs a background worker — a deliberate next
 layer, not this one).
@@ -21,7 +22,7 @@ delete could alias the deleted mark's cached (wrong) chip.
 Degrade-never-500 (EC-6): one mark that throws becomes an 'error' chip, never
 a failed ledger.
 
-Heavy imports (pandas/scipy via the harness) stay function-local so importing
+Heavy imports (pandas/scipy via the grading module) stay function-local so importing
 this module — or ``main`` for a route-registration check — is light.
 """
 from __future__ import annotations
@@ -45,8 +46,8 @@ def _tol_sig() -> str:
     """The tolerance/policy signature baked into the grade — part of the cache
     key so a future tolerance change invalidates stale chips (review mandate)."""
     from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
-    from tools.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
-    from tools.calibration.agreement import DEFAULT_SPAN_OVERLAP_MIN  # noqa: PLC0415
+    from core.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
+    from core.calibration.agreement import DEFAULT_SPAN_OVERLAP_MIN  # noqa: PLC0415
     return (f"rail{DEFAULT_RAIL_TOL_BOX_FRAC}"
             f":span{DEFAULT_SPAN_OVERLAP_MIN}"
             f":snap{replay.SNAP_BACK_SESSIONS}")
@@ -55,7 +56,7 @@ def _tol_sig() -> str:
 def _live_grade(mark) -> dict:
     """Grade ONE mark through the harness's own election lens (baseline
     variant) -> the agreement fragment {outcome, rail_distances?, ...}."""
-    from tools.calibration.calibration_harness import _mark_dict, grade_one  # noqa: PLC0415
+    from domains.calibration.grading import _mark_dict, grade_one  # noqa: PLC0415
     return grade_one(_mark_dict(mark), [{}])[0]
 
 

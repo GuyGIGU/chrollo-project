@@ -16,7 +16,7 @@ Conditions C (junk margin consumption) and D (separation) are distribution
 questions answered by tools.research.rail_margin_evidence at the same grid values —
 this driver reports fire evidence; the campaign record joins both.
 
-Every variant runs under tools.calibration.replay.flag_capture (self-restoring; refuses
+Every variant runs under core.calibration.replay.flag_capture (self-restoring; refuses
 unknown knob names) and stamps the variant's own effective manifest hash —
 baseline and variant evidence must pair or it is void (protocol §1).
 
@@ -45,7 +45,7 @@ from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
 from tools.regression.marks_corpus import _replay_setup, load_corpus, setup_key  # noqa: E402
-from tools.calibration.replay import (  # noqa: E402
+from core.calibration.replay import (  # noqa: E402
     FROZEN_SPY_6M,
     fixture_frame,
     flag_capture,
