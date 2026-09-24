@@ -1,6 +1,7 @@
 # Current state
 
-Snapshot of 2026-09-24, branch `claude/domain-refactor`. Update it when a flag flips, a
+Snapshot of 2026-09-25, branch `claude/integration-2026-09` (the domain refactor, its follow-ups and
+the merge train below). Update it when a flag flips, a
 priority lands or a branch merges. Layout: [`architecture.md`](architecture.md). Every
 `python` here means the repo venv, `.\.venv\Scripts\python.exe` (bare `python` is a trap, `AGENTS.md`).
 
@@ -16,6 +17,11 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   is built DARK behind 27 default-off switches (52 keys join the manifest, every one off), and on his
   ruling (point 25) the Power Play species lane is DELETED, so its live preset `POWER_PLAY_PRESET_ENABLED`
   and four more keys leave the manifest and the lane's `pp_*` archive columns stay NULL from here on.
+  The names the lane fired still fire: it never touched the paying read.
+- **New measure-only columns** (never scored, never gated; the additive migrator adds them at the
+  next boot, and older rows stay NULL): `sentence_*` (PR #11) and ten `eq_*` outside-bar descriptors
+  (engine-eyes Task 1, no flag). The reader-pin readings also gained one additive key,
+  `role_labels.events` (a copy of `box_events`, consolidation-method Task 9); nothing else in them moved.
 - **Scoring:** tier comes from the TA grade against 62 / 52 / 42 / 32, with the
   `S_MAX_BOX_WIDTH` cap (0.15) on top (`config/scoring.py`). RS and uptrend weights are 0;
   the re-opened A/B recommends keeping them there, and the operator's answer is owed ([`asks.md`](asks.md)).
@@ -25,6 +31,9 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
 - **Research:** the 2026-09-03 "no standalone edge" verdict has not been re-run on the
   corrected statistics ([`edge_denominator_2026-09-08.md`](edge_denominator_2026-09-08.md), [`asks.md`](asks.md)).
   Archive counts come from `python -m core.archive.analyze`; do not quote them from memory.
+  The signal-edge rigor layer (`core/backtest/{deflated_sharpe,event_study,exit_sim}.py`,
+  `tools/research/backtest_{backfill,exits}.py`) landed 2026-09-24 as research tooling; production
+  imports none of it.
 
 ## Validated vs experimental
 
@@ -63,8 +72,8 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 
 ## Structural work
 
-Done 2026-09-24 on `claude/structural-followups` (local, unmerged; behaviour pinned by tests first,
-engine hash and every regression gate unchanged):
+Done 2026-09-24 on `claude/structural-followups`, now inside `claude/integration-2026-09` (behaviour
+pinned by tests first, engine hash and every regression gate unchanged):
 
 - The backend no longer imports `tools/`: the replay layer and agreement taxonomy live in
   `core/calibration/`, the chips' grading in `domains/calibration/grading.py`.
@@ -85,9 +94,12 @@ Next candidates, none of which changes the method:
 
 Engine files wait until `claude/two-eyes-reader` lands, and change only through operator rulings.
 
-**Merge-order risk.** Nine local branches are unmerged (`git branch --no-merged`) and all nine
-edit paths that `3bd4531..93ac245` renamed or deleted: most of all `claude/two-eyes-reader`
-(72 paths, counting `config/settings.py`), `claude/method-steps-7-12` (59), `claude/sos-session` (27).
-The per-branch table and the porting steps are in
-[`migrations/2026-09-domain-refactor.md`](migrations/2026-09-domain-refactor.md). Merge order is the operator's call.
-After any merge run pytest; `tests/integration/test_moved_module_paths.py` catches old names.
+**Merge train (2026-09-24).** Onto the refactor and its follow-ups, in order: `revive/signal-edge`,
+`claude/eager-chatelet-65e8d4` (PR #11), `claude/method-steps-7-12` (with `claude/sos-session` and
+`claude/clever-napier-08f25d`). Each was ported, gated and checked by two independent reviews; the
+checkpoints are in [`migrations/2026-09-domain-refactor.md`](migrations/2026-09-domain-refactor.md).
+Four branches remain unmerged: `claude/two-eyes-reader` (its council build is in flight; port it when
+it finishes), `claude/engine-time-axis-and-nan-contract` (held for the LIVN ruling),
+`claude/indexless-universe-cold-gate` (superseded by `937ecd4`) and `wip/signal-edge-backtest`
+(an older copy of `revive/signal-edge`). After any merge run pytest;
+`tests/integration/test_moved_module_paths.py` catches old names.

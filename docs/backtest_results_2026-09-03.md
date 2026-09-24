@@ -73,8 +73,8 @@ That is the question the program existed to answer, and it now has an answer rat
 ## Reproducing it
 
 ```
-python -m tools.build_universe_returns --out <scratch>/universe_returns.parquet
-python -m tools.backtest_engine --universe <scratch>/universe_returns.parquet --json <scratch>/report.json
+python -m tools.research.build_universe_returns --out <scratch>/universe_returns.parquet
+python -m tools.research.backtest_engine --universe <scratch>/universe_returns.parquet --json <scratch>/report.json
 ```
 
 Both are read-only. `build_universe_returns` resolves the archive by `__file__`, so in a worktree it

@@ -68,11 +68,12 @@ def rescue_sink(sink):
 
     The booking below is last-write-wins and sums wall-time, so the sink must
     see ONLY the walk that is paying for the night's verdict. A scoped DARK
-    second read (the species lane's, which re-reads the same frame under the
-    power-play preset and escalates the same armed form) enters under ``None``
-    and books nothing — otherwise the attempts sheet and the cost bound BOTH
-    flip rulings are read from describe the dark read (council review
-    2026-09-01, finding 1).
+    second read enters under ``None`` and books nothing — otherwise the
+    attempts sheet and the cost bound BOTH flip rulings are read from would
+    describe the dark read (council review 2026-09-01, finding 1). The read
+    that needed it, the Power Play species lane, was deleted at final-method
+    build step 12 (point 25); the disarm stays as the seam's own law, pinned
+    by tests/pipeline/test_rescue_transport.py.
 
     An already-armed sink is never clobbered: a nested arm is refused loudly,
     the outer walk keeps the booking, and the nested caller's own sink stays
@@ -403,8 +404,8 @@ def read_structure(df, atr, *, bricks=None, trace=None,
 
     1. Walk once with the BASELINE armed-form roster
        (``event_map.baseline_admission_roster`` — derived from settings at
-       call time, so the species lane's declared preset and the instruments'
-       ``flag_capture`` arm forms by flag exactly as before).
+       call time, so an instrument's ``flag_capture`` arms forms by flag
+       exactly as before).
     2. A cause-before-effect abstention is doctrinal and FINAL — never
        escalated.
     3. On a FULL refusal (every root refused), walk ONCE more with each
@@ -417,9 +418,9 @@ def read_structure(df, atr, *, bricks=None, trace=None,
        ``BAR_POSTURE_RESCUE_ENABLED`` (dark — consolidation-method Task 7)
        arms the S-test form's bar-basis ceiling-leg variant
        (``event_map.story_admission_bar_posture``, the measured bar-as-unit
-       fix). Forms the baseline roster already arms (the species lane's
-       scoped read, an instrument's capture) never re-walk — the escalated
-       walk would be the same walk; no armed escalation forms, no re-walk.
+       fix). Forms the baseline roster already arms (an instrument's
+       capture) never re-walk — the escalated walk would be the same walk;
+       no armed escalation forms, no re-walk.
 
     Scoped to full refusals BY CONSTRUCTION, the rescue can never displace
     an existing election, re-frame a box, or move a fire date on a ticker
@@ -483,9 +484,8 @@ def read_structure(df, atr, *, bricks=None, trace=None,
     roster = baseline_admission_roster()
     escalation -= roster
     if not escalation:
-        # Every armed form is already in the baseline (the species lane's
-        # scoped read, or an instrument's flag_capture) — the escalated walk
-        # would be the same walk.
+        # Every armed form is already in the baseline (an instrument's
+        # flag_capture) — the escalated walk would be the same walk.
         return None
     marker = len(trace) if trace is not None else 0
     # near_miss deliberately None on the rescue pass: the recorder already

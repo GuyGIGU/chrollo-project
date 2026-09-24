@@ -26,6 +26,8 @@ Modules:
   null_model  — random same-count draws + bootstrap CI on the MFE edge
   stats       — multiple-testing haircut (BH-FDR / Bonferroni) + abnormal-vs-SPY
   is_oos      — IS/OOS split keyed on engine_config_version (graceful if absent)
+  deflated_sharpe, event_study, exit_sim — the signal-edge rigor layer; only
+                tools/research/backtest_* import them, production never does
 """
 from __future__ import annotations
 

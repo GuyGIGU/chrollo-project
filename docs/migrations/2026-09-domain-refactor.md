@@ -32,6 +32,26 @@ Nine branches were cut before the refactor and edit files it moved. On 2026-09-2
 | `revive/signal-edge` | `2a5dd13` | 15 | 1 |
 | `wip/signal-edge-backtest` | `52e9182` | 11 | 1 |
 
+**Ported 2026-09-24** onto `claude/integration-2026-09` (the refactor plus its follow-ups, `6704bdf`),
+one merge and one port commit each: `revive/signal-edge` (`c35f924`), then
+`claude/eager-chatelet-65e8d4` (`7c8f547`, docs fix `1119c8b`), then `claude/method-steps-7-12`, which
+carries `claude/sos-session` and `claude/clever-napier-08f25d` (`0a96e39`). Each checkpoint passed the
+full gate stack. Not ported: `claude/two-eyes-reader` (in flight), `claude/engine-time-axis-and-nan-contract`
+(held for a ruling), `claude/indexless-universe-cold-gate` (superseded) and `wip/signal-edge-backtest`
+(superseded by `revive/signal-edge`).
+
+What the train taught about porting:
+
+- `research/evidence/**/*.py` is live code to `test_moved_module_paths.py` but a record to the porter,
+  which leaves it alone. Port an evidence probe's imports with the porter's `rewrite()` and touch
+  nothing else.
+- The porter rewrites markdown links, not backticked paths or `python -m` lines in prose. Port those by
+  hand in living docs (asks, ledgers, registers); leave dated records as written.
+- A branch that deletes a file the map points at fails `test_apply_move_map`'s
+  destinations-exist test. Move the entry to the map's deleted list in the same commit.
+- Two branches minting the same ledger number (a convention or a register row): keep the number a
+  sealed record cites, renumber the other, and leave a note where readers will look for the old one.
+
 The two signal-edge branches also add files in the old flat folders (`tools/backtest_exits.py`, `tools/backtest_backfill.py`, `tests/test_deflated_sharpe.py`, `tests/test_event_study.py`, `tests/test_exit_sim.py`): step 5 below applies to each.
 
 For each branch:

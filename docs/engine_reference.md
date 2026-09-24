@@ -377,8 +377,8 @@ after a full refusal.
 **Where the roster is validated (EC-55), and why the placement moved twice before
 it was unconditional.** `event_map.assert_admission_roster` runs at the roster's
 ENTRY INTO THE WALK — the top of `narrative._walk_structure`, guarded only by
-`forms is not None` and placed above the lazy `bricks` import, above the
-trend-terminal floor read and above the root loop. It therefore runs exactly ONCE
+`forms is not None` and placed above the lazy `bricks` import and above
+the root loop. It therefore runs exactly ONCE
 per read that carries a roster, before the first frame is touched, and its verdict
 cannot depend on the shape of the chart. Both earlier homes made it DATA-dependent,
 which is the whole point of the move: inside the story pool (the first build)

@@ -541,8 +541,9 @@ class SetupArchive(Base):
             name="ck_setup_archive_lps_window_classification",
         ),
         # Power-Play species state (program Task 7): fresh-DB defence only
-        # (the ADD COLUMN path strips CHECKs); the live DB's operative
-        # constraint is the write-time refusal in power_play_archive_values.
+        # (the ADD COLUMN path strips CHECKs). Its producer,
+        # power_play_archive_values, was deleted with the lane (final-method
+        # point 25), so nothing writes pp_state now; the column keeps old rows.
         CheckConstraint(
             "pp_state IS NULL OR "
             "pp_state IN ('refused_clock', 'refused_occupancy', "
