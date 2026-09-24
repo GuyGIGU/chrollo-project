@@ -15,7 +15,7 @@ import os
 import pandas as pd
 
 from config import settings
-from core.pipeline import downloads as dl
+from core.pipeline.market_data import downloads as dl
 
 
 def test_price_regime_flag_source_and_tags(monkeypatch):

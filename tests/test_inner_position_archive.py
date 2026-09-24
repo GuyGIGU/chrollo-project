@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "webapp", "back
 from archive_models import Base, SetupArchive  # noqa: E402
 # The ONE declaration of the ruled closed set (EC-33) — imported, never
 # re-typed, so a vocabulary ruling re-scores this battery automatically.
-from engine_alpha.structure.inner_box import RULED_POSITION_VALUES as RULED_VALUES  # noqa: E402
+from engine_alpha.structure.box.inner_box import RULED_POSITION_VALUES as RULED_VALUES  # noqa: E402
 
 
 def _session():

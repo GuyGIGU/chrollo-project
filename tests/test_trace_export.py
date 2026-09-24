@@ -11,7 +11,7 @@ import json
 import pandas as pd
 
 from config import settings
-from engine_alpha.structure.trace_export import (
+from engine_alpha.structure.box.trace_export import (
     ELECTION_TRACE_COLUMN_SQL,
     election_trace_archive_values,
     election_trace_chart_fields,
@@ -61,8 +61,8 @@ def test_stage_depth_derives_from_the_one_owning_declaration():
     """Council F9: the depth registry is DERIVED from box_trace.CASCADE_STAGES —
     a hand-typed subset shipped drifted on day one (missing the two policy
     kills). Every producable rejected stage must rank."""
-    from engine_alpha.structure.box_trace import CASCADE_STAGES
-    from engine_alpha.structure.trace_export import _STAGE_DEPTH
+    from engine_alpha.structure.box.box_trace import CASCADE_STAGES
+    from engine_alpha.structure.box.trace_export import _STAGE_DEPTH
 
     assert set(_STAGE_DEPTH) == set(CASCADE_STAGES)
     # The policy kills reject framings that already PASSED every pair gate —
@@ -134,7 +134,7 @@ def test_leg_sentences_never_carry_engineer_vocabulary():
     tokens), no retired jargon words — as whole words, plain chart language."""
     import re
 
-    from engine_alpha.structure.trace_export import _LEG_PHRASES
+    from engine_alpha.structure.box.trace_export import _LEG_PHRASES
 
     for leg, phrase in _LEG_PHRASES.items():
         assert not re.search(r"\b[A-Z][A-Z_]{2,}\b", phrase), (leg, phrase)

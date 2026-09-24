@@ -6,7 +6,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from services.episode_cache import VersionedCache
+from domains.archive.episode_cache import VersionedCache
 
 
 def _counter():

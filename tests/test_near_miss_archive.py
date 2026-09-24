@@ -27,7 +27,7 @@ import archive_models  # noqa: E402
 import database  # noqa: E402
 from config import settings  # noqa: E402
 from core.archive import near_miss_writer as nmw  # noqa: E402
-from services import startup  # noqa: E402
+from app import startup  # noqa: E402
 
 pytestmark = pytest.mark.regression
 

@@ -1,6 +1,6 @@
 """Small persistence helpers for scan run status.
 
-The ``kind`` column is guaranteed by the boot migrations (services/startup.py
+The ``kind`` column is guaranteed by the boot migrations (app/startup.py
 creates scan_runs WITH it and carries an idempotent ALTER) — no per-call schema
 sniffing here. The COALESCE keeps any explicit-NULL row reading as 'scan'.
 """

@@ -22,9 +22,9 @@ import pytest
 
 import config.settings as settings
 from engine_alpha.evaluation import _prepare_eval_frame
-from engine_alpha.structure.narrative import read_structure
-from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
-from engine_alpha.structure.segmentation import segment_swings
+from engine_alpha.structure.narrative.reader import read_structure
+from engine_alpha.structure.metrics.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.phases.segmentation import segment_swings
 
 
 # ── Shared fixture: real Structures over the committed shadow fixture ─────────
@@ -317,7 +317,7 @@ _ENGINE_EVAL_PATH_MODULES = (
     "engine_alpha.scoring.scoring",
     "engine_alpha.scoring.taxonomy",
     "engine_alpha.evaluation",
-    "core.pipeline.screener",
+    "core.pipeline.screening.screener",
     "core.regime.scan_context",
     "core.regime.rs_line",
     "core.regime.sector_ranking",
@@ -328,7 +328,7 @@ _ENGINE_EVAL_PATH_MODULES = (
 
 def _engine_eval_path_sources():
     """Source files of the engine eval path: the explicit conductor modules
-    plus EVERY ``core/structure/*.py`` (globbed)."""
+    plus EVERY ``engine_alpha/structure/**/*.py`` (globbed recursively)."""
     import importlib
     from pathlib import Path
 
@@ -336,8 +336,11 @@ def _engine_eval_path_sources():
 
     paths = [Path(importlib.import_module(m).__file__)
              for m in _ENGINE_EVAL_PATH_MODULES]
-    paths += sorted(Path(engine_alpha.structure.__file__).parent.glob("*.py"))
-    return paths
+    structure_files = sorted(Path(engine_alpha.structure.__file__).parent.rglob("*.py"))
+    # The detectors live in subpackages; a non-recursive glob once matched only
+    # __init__.py and silently emptied this guard. Keep it from going vacuous.
+    assert len(structure_files) >= 30, structure_files
+    return paths + structure_files
 
 
 def test_every_scoring_settings_symbol_is_in_manifest():
@@ -398,7 +401,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     unaccounted = sorted(referenced - set(ENGINE_SETTINGS_KEYS) - ALLOWED_OPS_EXCLUSIONS)
     assert not unaccounted, (
         "score/structure-affecting settings read by the engine eval path "
-        f"({', '.join(_ENGINE_EVAL_PATH_MODULES)} + core/structure/*) are absent from "
+        f"({', '.join(_ENGINE_EVAL_PATH_MODULES)} + engine_alpha/structure/**) are absent from "
         "engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
         "engine output WITHOUT bumping engine_config_version, corrupting archive "
         f"provenance): {unaccounted}. Add them to the manifest allow-list, or, if "

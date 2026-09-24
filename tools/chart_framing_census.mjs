@@ -5,7 +5,7 @@
 // reads as the cute tight one. This measures the claim, and the fix, on the live
 // screener artifact rather than on fixtures.
 //
-// It imports the SHIPPED framing math (webapp/frontend/src/components/chartGeometry.js)
+// It imports the SHIPPED framing math (webapp/frontend/src/shared/charts/chartGeometry.js)
 // so the "after" column can never drift from what the app actually draws; the
 // "before" column is a self-contained transcription of the retired model, kept
 // here because the code it describes was deleted. The two are checked against
@@ -25,7 +25,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
 const GEOMETRY = pathToFileURL(
-  path.join(REPO, 'webapp', 'frontend', 'src', 'components', 'chartGeometry.js'),
+  path.join(REPO, 'webapp', 'frontend', 'src', 'shared', 'charts', 'chartGeometry.js'),
 ).href;
 const { miniFocusLogicalRange, modalFocusLogicalRange, CHART_FRAMING } = await import(GEOMETRY);
 

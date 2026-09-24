@@ -69,7 +69,7 @@ def frame_digest(df: pd.DataFrame) -> str:
 def capture(df: pd.DataFrame) -> dict:
     """The two reads the ratchet freezes, on ONE fixture frame."""
     from engine_alpha.evaluation import _prepare_eval_frame_with_reason
-    from engine_alpha.structure.narrative import read_structure
+    from engine_alpha.structure.narrative.reader import read_structure
     from engine_alpha.evaluation import species_watch
 
     watch, stats = species_watch(df)

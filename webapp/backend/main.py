@@ -3,11 +3,9 @@ Chrollo API - FastAPI backend for Trading Journal & Wyckoff Screener.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import sys
-from contextlib import asynccontextmanager
 
 _ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if _ROOT_DIR not in sys.path:
@@ -17,37 +15,35 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from broker_config import settings
-from ibkr import get_ibkr_service
 from middleware.request_id import RequestIDMiddleware
 from middleware.same_app import DEV_ORIGINS, SameAppOriginGuard
-from routers import analytics as analytics_router
-from routers import archive as archive_router
-from routers import calibration as calibration_router
-from routers import candles as candles_router
-from routers import engine_edge as engine_edge_router
-from routers import ibkr as ibkr_router
-from routers import journal as journal_router
-from routers import market_data as market_data_router
-from routers import portfolio as portfolio_router
-from routers import portfolio_streams as portfolio_streams_router
-from routers import prices as prices_router
-from routers import screener as screener_router
-from routers import tags as tags_router
-from routers import trade_risk as trade_risk_router
-from routers import trades as trades_router
-from routers import watchlist as watchlist_router
-from services import auto_import, scan_diagnosis, scheduler
-from services.frontend import mount_frontend_assets, serve_frontend_index
+from domains.trading import analytics as analytics_router
+from domains.archive import router as archive_router
+from domains.calibration import router as calibration_router
+from domains.market_data import candles as candles_router
+from domains.archive import edge_router as engine_edge_router
+from domains.ibkr import router as ibkr_router
+from domains.trading import journal as journal_router
+from domains.market_data import router as market_data_router
+from domains.portfolio import router as portfolio_router
+from domains.portfolio import streams as portfolio_streams_router
+from domains.market_data import prices as prices_router
+from domains.screener import router as screener_router
+from domains.trading import tags as tags_router
+from domains.trading import risk_router as trade_risk_router
+from domains.trading import router as trades_router
+from domains.watchlist import router as watchlist_router
+from app.frontend import mount_frontend_assets, serve_frontend_index
 from services.health import build_health_report
-from services.log_encoding import force_utf8
-from services.startup import initialize_database
+from app.log_encoding import force_utf8
+from app.startup import initialize_database
+from app.lifecycle import lifespan
 
 # UTF-8 BEFORE the handlers are built, or the split below writes through the
 # Windows locale codec: under NSSM these two streams are files on cp1252, and a
 # record carrying a char cp1252 lacks (the "→" the scan relay repeats) is not
 # written at all — emit() raises and logging drops the line. Same defect the
-# scan child was already immunised against; see services/log_encoding.py for
+# scan child was already immunised against; see app/log_encoding.py for
 # why there is nothing to fold with it.
 force_utf8(sys.stdout)
 force_utf8(sys.stderr)
@@ -92,42 +88,6 @@ _FRONTEND_INDEX = os.path.join(_FRONTEND_DIST, "index.html")
 _FRONTEND_ASSETS = os.path.join(_FRONTEND_DIST, "assets")
 
 screener_router.configure_screener_routes(_SCREENER_JSON)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Start/stop background services around the app lifecycle."""
-    # Work out WHY any interrupted scan run died, off the event loop. It reads
-    # the Windows event log, which is only up at a real service start — never at
-    # the import-time boot migrations, where the reconcile itself can run inside
-    # a dying Windows session. Best-effort by construction: an unresolved row
-    # simply stays pending for the next start, so startup never waits on it.
-    asyncio.get_running_loop().run_in_executor(None, scan_diagnosis.resolve_pending)
-    auto_import.start_writer()
-    scheduler.start_scheduler()
-    svc = get_ibkr_service()
-    svc.add_execution_listener(auto_import.submit_execution)
-    if settings.ibkr_auto_connect:
-        try:
-            svc.start()
-        except Exception:
-            logging.exception("Failed to start IBKR service")
-    try:
-        yield
-    finally:
-        _stop_services(svc)
-
-
-def _stop_services(svc) -> None:
-    for label, stop in (
-        ("IBKR service", svc.stop),
-        ("auto-import writer", auto_import.stop_writer),
-        ("scan scheduler", scheduler.stop_scheduler),
-    ):
-        try:
-            stop()
-        except Exception:
-            logging.exception("Failed to stop %s", label)
 
 
 app = FastAPI(title="Chrollo API", lifespan=lifespan)

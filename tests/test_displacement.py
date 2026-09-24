@@ -10,7 +10,7 @@ pinned by its own battery (test_power_play_*), which runs in the same suite.
 import numpy as np
 import pytest
 
-from engine_alpha.structure.displacement import (
+from engine_alpha.structure.events.displacement import (
     atr10_before,
     first_close_beyond,
     first_close_below,

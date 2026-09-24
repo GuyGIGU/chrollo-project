@@ -8,9 +8,9 @@
 #
 #   • Writes   output/screener_data.json  (+ per-universe variants) — the data
 #     artifact the React frontend loads. No writer => the UI never updates.
-#   • Called   on EVERY scan by core/pipeline/scan_job.py (~lines 176 & 186).
+#   • Called   on EVERY scan by core/pipeline/screening/scan_job.py (~lines 176 & 186).
 #   • Exports  SECTOR_ETF_NAMES — imported by
-#     webapp/backend/routers/screener.py (~line 89) for the sector drill-down.
+#     domains/screener/router.py (~line 89) for the sector drill-down.
 #   • Coupled  to DASHBOARD_CHART_TIERS (tiering of the chart payload).
 #   • Emits    the "UI update available on local webapp." stdout sentinel that
 #     the frontend's scan stream waits on to reveal fresh results.
@@ -36,13 +36,13 @@ import sys
 
 from config import settings
 from core.archive.writer import load_sector_etf_cache, save_sector_etf_cache
-from core.pipeline.candles import chart_candles, clean_daily_frame, daily_candles
+from core.pipeline.market_data.candles import chart_candles, clean_daily_frame, daily_candles
 from core.pipeline.json_safety import to_json_safe
-from core.pipeline.universe import resolve_universe
+from core.pipeline.universe.descriptor import resolve_universe
 from engine_alpha.scoring import taxonomy
-from engine_alpha.structure.event_map import narrative_chart_fields
-from engine_alpha.structure.htf import HTF_COLUMNS, chart_box
-from engine_alpha.structure.trace_export import election_trace_chart_fields
+from engine_alpha.structure.events.event_map import narrative_chart_fields
+from engine_alpha.structure.context.htf import HTF_COLUMNS, chart_box
+from engine_alpha.structure.box.trace_export import election_trace_chart_fields
 from engine_alpha.scoring.tags import traversal_density_from_counts
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -112,10 +112,10 @@ def _json_safe(obj):
 
 def _extract_chart_data(data, results_df, tickers):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
-    # Lazy: keeps output/ off core.pipeline.downloads at module load. Used to
+    # Lazy: keeps output/ off core.pipeline.market_data.downloads at module load. Used to
     # reproduce the DAILY_STRUCTURE_PERIOD eval-frame length so inner-box bar
     # indices (which are positional in THAT frame) map onto the candle window.
-    from core.pipeline.downloads import _trim_to_period
+    from core.pipeline.market_data.downloads import _trim_to_period
     chart_data = {}
     chart_candidates = results_df[results_df['Tier'].isin(settings.DASHBOARD_CHART_TIERS)]
     sector_etf_cache = _load_sector_etf_cache()
@@ -131,7 +131,7 @@ def _extract_chart_data(data, results_df, tickers):
             df = clean_daily_frame(data[ticker] if is_multi else data)
 
             # The complete D/W/M candle set from the ONE shared builder
-            # (core.pipeline.candles — the EC-3 fold with the watchlist candle
+            # (core.pipeline.market_data.candles — the EC-3 fold with the watchlist candle
             # endpoint); weekly/monthly resample from the FULL daily history,
             # caps live in settings only.
             tf_set = chart_candles(df)
@@ -397,7 +397,7 @@ def _extract_chart_data(data, results_df, tickers):
 def build_health_payload(members, unreadable, data, universe=None):
     """Assemble the ``health_board`` artifact section from classified members.
 
-    ``members`` maps ticker -> ``core.pipeline.health_board.MemberHealth`` and
+    ``members`` maps ticker -> ``core.pipeline.context.health_board.MemberHealth`` and
     ``unreadable`` is a list of ``{ticker, reason}`` (short_history / not_available
     / error). Emits ONE dict per member — the closed-set ``state``, the small
     scale-invariant sort fields, the box geometry (``R``/``S``/``base_len``, all
@@ -447,7 +447,7 @@ def build_health_payload(members, unreadable, data, universe=None):
     }
 
 
-# ⚠️ LIVE — invoked on every scan by core/pipeline/scan_job.py; writes the React
+# ⚠️ LIVE — invoked on every scan by core/pipeline/screening/scan_job.py; writes the React
 #    frontend's screener_data.json artifact. DO NOT delete as retired HTML residue.
 def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
                        universe=None, health_board=None, *, scan_date):

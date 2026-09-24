@@ -20,9 +20,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline import scan_job as sj
-from core.pipeline import screener as scr
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from core.pipeline.screening import scan_job as sj
+from core.pipeline.screening import screener as scr
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 from tools.marks_corpus import _FROZEN_BREADTH
 from tools.marks_corpus import _load_fixture as _load_marks_fixture
 from tools.replay import fixture_frame

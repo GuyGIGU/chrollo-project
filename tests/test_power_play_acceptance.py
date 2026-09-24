@@ -22,9 +22,9 @@ import pandas as pd
 import pytest
 
 from config import settings
-from engine_alpha.structure.box_primitives import collect_root_anchors
+from engine_alpha.structure.box.box_primitives import collect_root_anchors
 from engine_alpha.evaluation import species_watch
-from engine_alpha.structure.power_play import PP_STATES
+from engine_alpha.structure.context.power_play import PP_STATES
 from tools.power_play_fixture import frame_digest, load_fixture
 
 
@@ -83,7 +83,7 @@ def test_species_read_reproduces_the_ratchet_baseline(fixture, ticker):
 @pytest.mark.parametrize("ticker", ["MAN", "FTNT"])
 def test_default_read_reproduces_the_ratchet_baseline(fixture, ticker):
     from engine_alpha.evaluation import _prepare_eval_frame_with_reason
-    from engine_alpha.structure.narrative import read_structure
+    from engine_alpha.structure.narrative.reader import read_structure
 
     frames, baseline = fixture
     entry = baseline["tickers"][ticker]["default_read"]

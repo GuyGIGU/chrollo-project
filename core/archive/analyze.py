@@ -50,7 +50,7 @@ from core.archive.db_path import archive_db_path
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
 from core.archive.outcomes import HORIZON_BARS
 from core.backtest.edge_report import TAIL_MFE_COL, TAIL_THRESHOLDS
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 from engine_alpha.scoring import taxonomy
 
 # ------------------------------------------------------------------

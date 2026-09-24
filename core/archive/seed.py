@@ -33,17 +33,17 @@ from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
 from engine_alpha.evaluation import _run_eval_chain
 from core.archive.result_adapter import seed_row_from_result
-from core.pipeline.downloads import _batched_download, price_auto_adjust
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 from engine_alpha.scoring.scoring import (
     sub_score_archive_values,
     ta_grade_archive_values,
 )
-from engine_alpha.structure.event_map import event_map_archive_values
-from engine_alpha.structure.htf import htf_archive_values
-from engine_alpha.structure.power_play import power_play_archive_values
-from engine_alpha.structure.strategy_read import strategy_archive_values
-from engine_alpha.structure.trace_export import election_trace_archive_values
+from engine_alpha.structure.events.event_map import event_map_archive_values
+from engine_alpha.structure.context.htf import htf_archive_values
+from engine_alpha.structure.context.power_play import power_play_archive_values
+from engine_alpha.structure.context.strategy_read import strategy_archive_values
+from engine_alpha.structure.box.trace_export import election_trace_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -382,7 +382,7 @@ def seed_archive(
 
         sub = best_result.get("sub_scores", {})
 
-        # Build the row via the model-driven mapper (services.archive_queries.
+        # Build the row via the model-driven mapper (domains.archive.queries.
         # archive_row_from_result) — the SAME single-source assembler the manual-
         # add route uses. It iterates SetupArchive.__table__ and fills every flat
         # pass-through column from best_result.get(col); `overrides` below carry
@@ -394,7 +394,7 @@ def seed_archive(
         # and values; the mapper's extra pass-through columns are all None-valued
         # nullable columns a real seed result never carries — the persisted row is
         # unchanged). See tests/test_archive_row_assembly.py for the guard.
-        from services.archive_queries import archive_row_from_result
+        from domains.archive.queries import archive_row_from_result
 
         overrides = dict(
             ticker=ticker,

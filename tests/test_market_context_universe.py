@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-import core.pipeline.market_context as mc
+import core.pipeline.context.market_context as mc
 
 
 def _etf_panel(asof: str) -> pd.DataFrame:

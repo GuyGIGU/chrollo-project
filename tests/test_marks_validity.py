@@ -206,7 +206,7 @@ def test_the_marking_ui_offers_exactly_the_types_the_backend_accepts():
     above cannot see this seam."""
     import re
 
-    js = (ROOT / "webapp" / "frontend" / "src" / "utils"
+    js = (ROOT / "webapp" / "frontend" / "src" / "features" / "calibration" / "model"
           / "calibrationMarking.js").read_text(encoding="utf-8")
     m = re.search(r"MARK_EVENT_TYPES\s*=\s*\[(.*?)\]", js, re.DOTALL)
     assert m, "MARK_EVENT_TYPES not found in calibrationMarking.js"

@@ -16,7 +16,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.pipeline.file_lock import cache_lock  # noqa: E402
+from core.pipeline.market_data.file_lock import cache_lock  # noqa: E402
 
 
 def test_reentrant_within_process(tmp_path):
@@ -38,7 +38,7 @@ def test_excludes_a_second_process(tmp_path):
     holder = textwrap.dedent(f"""
         import sys, time
         sys.path.insert(0, {str(ROOT)!r})
-        from core.pipeline.file_lock import cache_lock
+        from core.pipeline.market_data.file_lock import cache_lock
         with cache_lock({cache!r}, timeout=5):
             open({str(ready)!r}, 'w').close()
             for _ in range(200):

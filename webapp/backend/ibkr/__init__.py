@@ -1,4 +1,2 @@
-"""IBKR integration package (ib_async-based)."""
-from .service import IBKRService, get_ibkr_service  # re-export
-
-__all__ = ["IBKRService", "get_ibkr_service"]
+"""Compatibility exports for the manual, read-only IBKR domain."""
+from domains.ibkr import IBKRService, get_ibkr_service

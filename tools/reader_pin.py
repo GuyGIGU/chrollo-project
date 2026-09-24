@@ -76,14 +76,14 @@ from tools.fold_parity import diff_paths, exact_equal, jsonable
 from tools.replay import MARK_ATR_OFFSET, enrich_marked_frame, load_sealed_fixture
 
 from engine_alpha.freeze.manifest import manifest_hash
-from engine_alpha.structure.bricks import find_lps, find_spring
-from engine_alpha.structure.box_events import read_box_events
-from engine_alpha.structure.event_map import (
+from engine_alpha.structure.narrative.bricks import find_lps, find_spring
+from engine_alpha.structure.events.box_events import read_box_events
+from engine_alpha.structure.events.event_map import (
     episode_sequence_stats,
     read_rail_episodes,
     read_role_labels,
 )
-from engine_alpha.structure.inner_box import mini_consolidation_position
+from engine_alpha.structure.box.inner_box import mini_consolidation_position
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
 _BASELINE_PATH = os.path.join(_BASELINE_DIR, "reader_pin_baseline.json")

@@ -137,7 +137,7 @@ def test_story_chapter_membership_mirrors_the_frontend_set():
                       if t.key.startswith("story_")}
     assert story_chapters == {"consolidation", "phase_d"}, (
         "story terms re-chaptered — update STORY_CHAPTERS in "
-        "webapp/frontend/src/components/chapterStrip.js in the SAME change")
+        "webapp/frontend/src/shared/setup/chapterStrip.js in the SAME change")
 
 
 def test_chapter_map_is_the_one_projection_the_manifest_hashes():

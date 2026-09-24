@@ -3,7 +3,7 @@
 The durable home of the 2026-07-25 sequence probe (Event Map program, PLAN
 Task 4): reads every Guided List drawn box and every respect-surviving junk
 candidate as a chronological rail-episode sentence, through the ONE engine
-reader (``engine_alpha.structure.event_map.read_rail_episodes`` — this tool
+reader (``engine_alpha.structure.events.event_map.read_rail_episodes`` — this tool
 contains no reading logic and no mark-loading of its own). Research-grade
 computation lives HERE, permanently off the scan path.
 
@@ -56,13 +56,13 @@ import database  # noqa: E402
 
 from config import settings  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.event_map import (  # noqa: E402
+from engine_alpha.structure.events.event_map import (  # noqa: E402
     episode_sequence_stats,
     read_rail_episodes,
     story_admission,
 )
-from engine_alpha.structure.metrics import measure_equilibrium  # noqa: E402
-from engine_alpha.structure.narrative import read_structure  # noqa: E402
+from engine_alpha.structure.metrics.base import measure_equilibrium  # noqa: E402
+from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
 from tools.marks_corpus import load_corpus, setup_key  # noqa: E402

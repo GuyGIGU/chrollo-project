@@ -17,7 +17,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from engine_alpha.structure.indicators import trend_template
+from engine_alpha.structure.metrics.indicators import trend_template
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 
 

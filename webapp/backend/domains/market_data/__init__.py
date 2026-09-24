@@ -1,0 +1,1 @@
+"""Market Data backend domain."""

@@ -183,7 +183,7 @@ def _planted_spike_panel(ticker: str, scan_date: str):
 
 def test_forward_returns_never_read_a_bar_at_or_before_scan(monkeypatch):
     import core.archive.forward_returns as fr
-    import core.pipeline.downloads as downloads
+    import core.pipeline.market_data.downloads as downloads
     from sqlalchemy.orm import sessionmaker
 
     import archive_models
@@ -242,7 +242,7 @@ def test_trigger_flip_to_zero_clears_stale_pair(monkeypatch):
     # recomputed against a tape that never reaches the trigger (e.g. after a
     # price-scale repair), must clear ALL four trigger columns — not just the
     # triggered/trigger_date half of the pair (EC-23).
-    import core.pipeline.downloads as downloads
+    import core.pipeline.market_data.downloads as downloads
     from sqlalchemy.orm import sessionmaker
 
     import archive_models
@@ -348,15 +348,17 @@ def test_shadow_guard_fails_when_ticker_drops_out():
 
 @pytest.mark.parametrize("engine_dir", ["scoring", "structure"])
 def test_engines_do_not_import_archive(engine_dir):
-    base = ROOT / "core" / engine_dir
+    base = ROOT / "engine_alpha" / engine_dir
+    files = sorted(base.rglob("*.py"))
+    assert files, f"no engine files under {base}"  # the old core/ path scanned nothing
     offenders = []
-    for py in base.rglob("*.py"):
+    for py in files:
         text = py.read_text(encoding="utf-8")
         for line in text.splitlines():
             stripped = line.strip()
             if stripped.startswith(("import ", "from ")) and "core.archive" in stripped:
                 offenders.append(f"{py.name}: {stripped}")
     assert not offenders, (
-        "core/{} must not import core.archive (scoring/structure judge facts, "
+        "engine_alpha/{} must not import core.archive (scoring/structure judge facts, "
         "they never read outcomes): {}".format(engine_dir, offenders)
     )

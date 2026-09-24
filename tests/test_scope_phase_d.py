@@ -17,7 +17,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from engine_alpha.structure.scope import _resolve_phase_d_start, scope_consolidation
+from engine_alpha.structure.context.scope import _resolve_phase_d_start, scope_consolidation
 
 
 def test_support_test_evidence_reads_the_raw_staircase():
@@ -25,7 +25,7 @@ def test_support_test_evidence_reads_the_raw_staircase():
     # footprints legitimately count toward rising-support runs. (The DRAWN
     # staircase this once contrasted against was retired 2026-08-09 — operator
     # ruling: one drawn LPS per setup — but the evidence read is unchanged.)
-    from engine_alpha.structure.phase_d import support_test_evidence_starts
+    from engine_alpha.structure.phases.phase_d import support_test_evidence_starts
 
     raw_tests = [
         {"start_index": 20, "end_index": 21, "low": 100.0, "descent_frac": 0.20, "zone_type": "INSIDE"},
@@ -82,7 +82,7 @@ def test_resolve_phase_d_start_matches_scope_rule():
 
 
 def test_resolve_phase_d_boundary_lps_fallback_respects_search_start_floor():
-    from engine_alpha.structure.phase_d import resolve_phase_d_boundary
+    from engine_alpha.structure.phases.phase_d import resolve_phase_d_boundary
     # The LPS fallback must not open Phase D before the declared search-start
     # floor (the floor includes search_start_bar, not only the spring reclaim).
     pb = resolve_phase_d_boundary(last=119, has_lps_window=True, lps_start=90,
@@ -95,7 +95,7 @@ def test_resolve_phase_d_boundary_lps_fallback_respects_search_start_floor():
 
 
 def test_resolve_phase_d_boundary_earliest_evidence_after_floor_wins():
-    from engine_alpha.structure.phase_d import resolve_phase_d_boundary
+    from engine_alpha.structure.phases.phase_d import resolve_phase_d_boundary
 
     pb = resolve_phase_d_boundary(
         last=119,
@@ -117,7 +117,7 @@ def test_resolve_phase_d_boundary_earliest_evidence_after_floor_wins():
 
 
 def test_phase_d_boundary_evidence_carries_full_vocabulary():
-    from engine_alpha.structure.phase_d import PHASE_D_EVIDENCE_SOURCES, resolve_phase_d_boundary
+    from engine_alpha.structure.phases.phase_d import PHASE_D_EVIDENCE_SOURCES, resolve_phase_d_boundary
 
     pb = resolve_phase_d_boundary(
         last=119,
@@ -137,7 +137,7 @@ def test_phase_d_boundary_evidence_carries_full_vocabulary():
 
 
 def test_support_test_evidence_starts_classifies_cluster_sos_and_rising_support():
-    from engine_alpha.structure.phase_d import support_test_evidence_starts
+    from engine_alpha.structure.phases.phase_d import support_test_evidence_starts
 
     starts = support_test_evidence_starts([
         {"start_index": 20, "end_index": 22, "low": 101.0, "zone_type": "INSIDE"},

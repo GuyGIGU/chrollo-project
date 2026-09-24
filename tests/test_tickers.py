@@ -8,8 +8,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import core.pipeline.tickers as tickers_module
-from core.pipeline import ticker_admission
+import core.pipeline.universe.tickers as tickers_module
+from core.pipeline.universe import ticker_admission
 from config import settings
 
 

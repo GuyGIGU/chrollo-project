@@ -1,6 +1,6 @@
 """Trigger-timing grader — the no-lookahead classifier contract (Task 6 spec).
 
-Authored BEFORE its target (`services.trigger_grade`, built in Task 11). It
+Authored BEFORE its target (`domains.calibration.trigger_grade`, built in Task 11). It
 auto-skips until that module exists, then holds the build to this contract:
 three HONEST outcomes and a never-fired that is never silently collapsed into
 "fired late". The engine reads only bars <= each session (the no-lookahead guard
@@ -10,17 +10,15 @@ fire date and the trigger date — never brand an absent read as late.
 import sys
 from pathlib import Path
 
-import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-trigger_grade = pytest.importorskip(
-    "services.trigger_grade",
-    reason="grader lands in Task 11 — this spec activates when it does",
-)
+# A plain import, not importorskip: the grader has landed, and a broken import
+# path must fail this spec loudly instead of quietly skipping it.
+from domains.calibration import trigger_grade  # noqa: E402
 classify = trigger_grade.classify_fire_timing
 
 

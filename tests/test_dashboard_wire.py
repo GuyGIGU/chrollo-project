@@ -243,7 +243,7 @@ def test_wire_covers_every_registry_term_and_family_column(monkeypatch):
 def test_setupout_covers_every_term_and_family_column():
     """SetupOut drift-tripwire: a registry term or family column the archive
     API cannot serve fails at add time (the ArchiveSummary 7th-copy lesson)."""
-    from routers.archive_schemas import SetupOut
+    from domains.archive.schemas import SetupOut
     fields = set(SetupOut.model_fields)
     for t in taxonomy.REGISTRY:
         assert t.column in fields, f"SetupOut is missing {t.column!r}"
@@ -259,7 +259,7 @@ def test_min_ta_grade_filter_excludes_ungraded_rows():
     from sqlalchemy.orm import sessionmaker
     from database import Base
     from archive_models import SetupArchive
-    from services.archive_queries import _apply_setup_filters
+    from domains.archive.queries import _apply_setup_filters
 
     eng = create_engine("sqlite://")
     Base.metadata.create_all(eng)
@@ -296,7 +296,7 @@ def test_episode_grade_floor_is_the_current_grade_and_keeps_the_anchor():
     from database import Base
     from archive_models import SetupArchive
     import models
-    from routers.archive_browse import list_episodes
+    from domains.archive.browse import list_episodes
 
     eng = create_engine("sqlite://")
     Base.metadata.create_all(eng)

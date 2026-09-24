@@ -1,7 +1,7 @@
 """Watchlist ledger router + service (Finviz plan Tasks 6-7), EC-22 mold:
 real handlers against a throwaway in-memory SQLite — never a mocked session,
 never the live DB, never a booted app. The artifact read is monkeypatched at
-the service's own reference (services.screener_data.read_screener_data); the
+the service's own reference (domains.screener.data.read_screener_data); the
 universe registry runs for real so the closed-registry refusal is genuine.
 
 Pins: EC-37 (pin copied VERBATIM from the artifact, never a clock), EC-26
@@ -28,9 +28,9 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import archive_models  # noqa: E402
 import models  # noqa: E402
-from routers import watchlist  # noqa: E402
-from routers.calibration import require_same_app  # noqa: E402
-from services import watchlist_ledger  # noqa: E402
+from domains.watchlist import router as watchlist  # noqa: E402
+from domains.calibration.router import require_same_app  # noqa: E402
+from domains.watchlist import ledger as watchlist_ledger  # noqa: E402
 
 FIXTURE_PATH = ROOT / "tests" / "fixtures" / "watchlist_snapshot_v1.json"
 FIXTURE_TEXT = FIXTURE_PATH.read_text(encoding="utf-8")

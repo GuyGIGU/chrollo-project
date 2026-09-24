@@ -39,7 +39,7 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import archive_models  # noqa: E402
 from database import make_sqlite_engine  # noqa: E402
-from services.startup import migrate_near_miss_framing_identity  # noqa: E402
+from app.startup import migrate_near_miss_framing_identity  # noqa: E402
 
 _NEW_UNIQUE = ('CONSTRAINT uq_near_miss_framing_identity UNIQUE (ticker, '
                'universe_type, r_anchor_date, s_anchor_date)')

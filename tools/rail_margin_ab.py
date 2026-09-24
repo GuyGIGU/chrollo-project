@@ -39,7 +39,7 @@ _ROOT = configure_path(backend=True)
 
 from engine_alpha.evaluation import EVAL_ERROR  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.narrative import read_structure  # noqa: E402
+from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.marks_corpus import _replay_setup, load_corpus, setup_key  # noqa: E402
 from tools.replay import (  # noqa: E402

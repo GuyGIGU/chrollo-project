@@ -1,6 +1,6 @@
 """Near-miss margin census — the evidence instrument the Task-6 ruling reads.
 
-The complete signed-margin vector (engine_alpha.structure.gate_margins —
+The complete signed-margin vector (engine_alpha.structure.box.gate_margins —
 native quanta, raw integer numerators, sign-locked against the gates) over
 three populations:
 
@@ -56,14 +56,14 @@ import database  # noqa: E402
 
 from engine_alpha.election_identity import framing_date_key  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.box_gates import GATE_LEGS  # noqa: E402
-from engine_alpha.structure.gate_margins import (  # noqa: E402
+from engine_alpha.structure.box.box_gates import GATE_LEGS  # noqa: E402
+from engine_alpha.structure.box.gate_margins import (  # noqa: E402
     NEAR_MISS_RULESET,
     coarse_failing_legs,
     complete_leg_vector,
     ruled_near_miss,
 )
-from engine_alpha.structure.narrative import read_structure  # noqa: E402
+from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
 from tools.marks_corpus import load_corpus, setup_key  # noqa: E402

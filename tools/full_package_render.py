@@ -53,13 +53,13 @@ import pandas as pd
 
 from config import settings
 from tools._bootstrap import refuse_sealed_output
-from engine_alpha.structure.market_structure import (
+from engine_alpha.structure.events.market_structure import (
     elected_trend_leg_base,
     read_market_structure,
     segment_trends,
 )
-from engine_alpha.structure.metrics import read_box_events
-from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.metrics.base import read_box_events
+from engine_alpha.structure.narrative.reader import read_structure
 # Reuse the ONE faithful frame + AR-capture path (single source of truth).
 from tools.operator_marks_diff import _prep_live
 
@@ -447,7 +447,7 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
 
     # --- P9: macro bridge (optional) -----------------------------------------
     if show_macro:
-        from engine_alpha.structure.phase_a import macro_bridge_zigzag
+        from engine_alpha.structure.phases.phase_a import macro_bridge_zigzag
         zz = macro_bridge_zigzag(df["High"].values.astype(float),
                                  df["Low"].values.astype(float))
         if len(zz) >= 2:

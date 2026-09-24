@@ -22,10 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline import cache as cache_module
-from core.pipeline import downloads as dl
-from core.pipeline import fetch_health
-from core.pipeline import ticker_admission
+from core.pipeline.market_data import cache as cache_module
+from core.pipeline.market_data import downloads as dl
+from core.pipeline.market_data import fetch_health
+from core.pipeline.universe import ticker_admission
 
 
 def _panel(close_by_ticker: dict[str, list], dates) -> pd.DataFrame:

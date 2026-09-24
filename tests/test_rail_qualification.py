@@ -23,9 +23,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-import engine_alpha.structure.box_primitives as bp
-import engine_alpha.structure.rail_qualification as rq
-from engine_alpha.structure.rail_qualification import (
+import engine_alpha.structure.box.box_primitives as bp
+import engine_alpha.structure.box.rail_qualification as rq
+from engine_alpha.structure.box.rail_qualification import (
     _merge_spans,
     _qualify_band,
     _spans,
@@ -332,7 +332,7 @@ def _shakeout_frame():
 
 
 def test_phase_c_feed_flag_off_never_consults_the_band_read(monkeypatch):
-    import engine_alpha.structure.phase_features as bf
+    import engine_alpha.structure.phases.phase_features as bf
     monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", False)
     monkeypatch.setattr(bf, "_terminal_shakeout",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError(
@@ -347,7 +347,7 @@ def test_phase_c_feed_types_the_terminal_shakeout(monkeypatch):
     # Hand-reasoned coordinates (EC-8 value pinning, no ranges): the collapse
     # troughs at bar 31 (low 82.6 → undercut 7.4 = 3.7 ATR), first close back
     # inside the band at bar 34.
-    import engine_alpha.structure.phase_features as bf
+    import engine_alpha.structure.phases.phase_features as bf
     monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", True)
     df = _shakeout_frame()
     r = bf._phase_c_candidate(df, df, box_start=0, base_len=len(df),
@@ -363,7 +363,7 @@ def test_phase_c_feed_types_the_terminal_shakeout(monkeypatch):
 def test_phase_c_feed_never_retypes_a_calibrated_spring(monkeypatch):
     # An in-caps spring is the ordinary detector's find; the fallback must be
     # unreachable — a calibrated SPRING can never come back re-typed.
-    import engine_alpha.structure.phase_features as bf
+    import engine_alpha.structure.phases.phase_features as bf
     monkeypatch.setattr(settings, "BAND_RAILS_ENABLED", True)
     monkeypatch.setattr(bf, "_terminal_shakeout",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError(

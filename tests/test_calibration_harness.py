@@ -608,7 +608,7 @@ def test_fired_binding_gate_margin_picks_the_tightest_gate(session):
 def test_backend_fired_signature_carries_the_policy_version():
     # The chip cache key must rotate when grading SEMANTICS change even though
     # no numeric constant moved and the engine hash never rotates.
-    from webapp.backend.services.calibration_fired import _fired_sig
+    from domains.calibration.fired import _fired_sig
     assert f"v{HARNESS_POLICY_VERSION}:" in _fired_sig()
 
 

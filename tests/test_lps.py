@@ -17,26 +17,26 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from engine_alpha.structure.metrics import (
+from engine_alpha.structure.metrics.base import (
     _vol_trend_from_contractions,
     measure_bar_compression,
     measure_contractions,
     measure_dwell_balance,
     measure_equilibrium,
 )
-from engine_alpha.structure.box_gates import _validate_base_quality
-from engine_alpha.structure.box_primitives import select_phase_b_candidate
-from engine_alpha.structure.inner_box import (
+from engine_alpha.structure.box.box_gates import _validate_base_quality
+from engine_alpha.structure.box.box_primitives import select_phase_b_candidate
+from engine_alpha.structure.box.inner_box import (
     _detect_inner_phase_b_start,
     detect_inner_root_swing,
 )
-from engine_alpha.structure.lps import (
+from engine_alpha.structure.lps.detection import (
     detect_lps,
     detect_lps_candidates,
     detect_lps_tests,
     select_active_lps_candidate,
 )
-import engine_alpha.structure.lps as lps_module
+import engine_alpha.structure.lps.detection as lps_module
 
 
 _VCP_LEVELS = [

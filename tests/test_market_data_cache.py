@@ -18,7 +18,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from webapp.backend.services import market_data  # noqa: E402
+from domains.market_data import service as market_data  # noqa: E402
 
 
 class _CountingProvider:

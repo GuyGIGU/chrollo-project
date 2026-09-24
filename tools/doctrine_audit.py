@@ -51,8 +51,8 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha import evaluation
-from engine_alpha.structure import bricks
-from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.narrative import bricks
+from engine_alpha.structure.narrative.reader import read_structure
 
 _PAYLOAD = os.path.join(_PROJECT_ROOT, "output", "screener_data.json")
 _CACHE = os.path.join(_PROJECT_ROOT, "market_data_cache_5y.parquet")

@@ -1,4 +1,4 @@
-"""The ONE-vocabulary projection (engine_alpha.structure.event_vocabulary).
+"""The ONE-vocabulary projection (engine_alpha.structure.events.event_vocabulary).
 
 Literal-fixture tests (Beck: expected values stated, never computed): the
 inputs are hand-written reader-output dicts, the expectations are typed out.
@@ -9,7 +9,7 @@ import copy
 
 import pytest
 
-from engine_alpha.structure.event_vocabulary import (
+from engine_alpha.structure.events.event_vocabulary import (
     WORD_BY_PUZZLE_TYPE,
     unify_events,
 )
@@ -119,7 +119,7 @@ def test_basis_and_origin_ride_every_record():
 
 
 def test_window_span_converts_on_declared_offset_and_refuses_without():
-    from engine_alpha.structure.event_vocabulary import window_span
+    from engine_alpha.structure.events.event_vocabulary import window_span
 
     with_offset = unify_events(
         box_events=PUZZLE, episode_read=EPISODES,
@@ -273,7 +273,7 @@ def test_every_declared_episode_outcome_folds_to_its_signed_verdict():
     # genuinely emits all four outcomes, and a mutation mapping failed->held
     # (a breached support reading as held on the tape) or dropping the
     # unreadable row must go red here, in the dark module's only cascade.
-    from engine_alpha.structure.event_vocabulary import VERDICT_BY_EPISODE_OUTCOME
+    from engine_alpha.structure.events.event_vocabulary import VERDICT_BY_EPISODE_OUTCOME
 
     assert set(VERDICT_BY_EPISODE_OUTCOME) == {
         "completed", "failed", "open", "unreadable"}

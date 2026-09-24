@@ -15,20 +15,20 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from engine_alpha.structure.metrics import (
+from engine_alpha.structure.metrics.base import (
     _vol_trend_from_contractions,
     measure_bar_compression,
     measure_contractions,
     measure_dwell_balance,
     measure_equilibrium,
 )
-from engine_alpha.structure.box_gates import _dwell_bar_basis, _validate_base_quality
-from engine_alpha.structure.box_primitives import select_phase_b_candidate
-from engine_alpha.structure.inner_box import (
+from engine_alpha.structure.box.box_gates import _dwell_bar_basis, _validate_base_quality
+from engine_alpha.structure.box.box_primitives import select_phase_b_candidate
+from engine_alpha.structure.box.inner_box import (
     _detect_inner_phase_b_start,
     detect_inner_root_swing,
 )
-from engine_alpha.structure.segmentation import segment_swings
+from engine_alpha.structure.phases.segmentation import segment_swings
 
 
 def test_segment_swings_finds_root_bridge(_ramp_frame, monkeypatch):
@@ -37,7 +37,7 @@ def test_segment_swings_finds_root_bridge(_ramp_frame, monkeypatch):
     # read to ABSTAIN so segment_swings exercises the order-N zigzag asserted
     # below through the real fallback seam; the macro STORY path (a different,
     # valid skeleton) is exercised in test_phase_a.
-    from engine_alpha.structure import phase_a
+    from engine_alpha.structure.phases import phase_a
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     # Up-trend (with small pullbacks) into a climax at 60, then a big counter-
     # burst down to 53 (the AR), then a tight range. The root swing is the
@@ -101,7 +101,7 @@ def test_collapse_swings_absorbs_never_deletes_a_committed_swing():
     """EC-48 correction (2026-08-25 sweep): a committed swing followed by a
     sub-threshold counter-pivot is ABSORBED (the committed extreme stays),
     never deleted — the old pop form erased it, permanently at the tail."""
-    from engine_alpha.structure.pivots import _collapse_swings
+    from engine_alpha.structure.metrics.pivots import _collapse_swings
 
     v0, p5, v8 = (0, "valley", 100.0), (5, "peak", 110.0), (8, "valley", 108.5)
     # The tail case: the small pullback must not erase the committed peak.
@@ -173,7 +173,7 @@ def test_measure_gate_margins_reports_the_gates_own_statistics():
     # respect fraction is 1.0 and the close-residence dwell is all-mid — the
     # GATE's statistic, not the range-occupancy twin (which reads 1.0 in every
     # third for these bars). Hand-specified, not read off the code.
-    from engine_alpha.structure.metrics import measure_gate_margins
+    from engine_alpha.structure.metrics.base import measure_gate_margins
     frame = pd.DataFrame([
         {"High": 106.0, "Low": 104.0, "Close": 105.0},
         {"High": 106.0, "Low": 104.0, "Close": 105.0},
@@ -191,7 +191,7 @@ def test_measure_gate_margins_reports_the_gates_own_statistics():
 
 
 def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
-    from engine_alpha.structure.metrics import measure_gate_margins
+    from engine_alpha.structure.metrics.base import measure_gate_margins
     # One of four bars wicks above R + 0.5*ATR buffer -> respect 0.75.
     frame = pd.DataFrame([
         {"High": 106.0, "Low": 104.0, "Close": 105.0},
@@ -290,7 +290,7 @@ def test_engagement_measure_hangs_are_bounded_and_close_confirmed():
     discriminate in BOTH directions. Hand-specified (R 110, S 100, ATR 1 ->
     ceiling 110.5; bound 1.5 ATR): a 1.0-ATR poke that closes back inside
     hangs; a close-out bar and a deep 2.5-ATR poke NEVER hang."""
-    from engine_alpha.structure.metrics import measure_gate_margins
+    from engine_alpha.structure.metrics.base import measure_gate_margins
 
     def _frame(high_last, close_last):
         rows = [{"High": 106.0, "Low": 104.0, "Close": 105.0}] * 3
@@ -314,7 +314,7 @@ def test_engagement_measure_hangs_are_bounded_and_close_confirmed():
     # day. Pinned at the helper (live frames are finite; only the masks own
     # this route): a refactor flipping the comparison direction would quietly
     # inflate every archived engagement_respect_frac with the battery green.
-    from engine_alpha.structure.box_gates import (
+    from engine_alpha.structure.box.box_gates import (
         _engagement_hang_masks,
         _rail_outside_masks,
     )
@@ -334,7 +334,7 @@ def test_engagement_measure_hangs_are_bounded_and_close_confirmed():
 def test_worked_window_end_trims_only_a_held_late_breakout():
     # The SOS -> BUEC rescue: a worked range whose right side has broken out above
     # R and HELD above support is validated over its cause, not the breakout tail.
-    from engine_alpha.structure.box_primitives import _worked_window_end
+    from engine_alpha.structure.box.box_primitives import _worked_window_end
     R, S, atr = 110.0, 100.0, 1.0          # buffer = BOUNDARY_ATR_BUFFER * atr
     base_h, base_l = [105.0] * 20, [104.0] * 20
     # A sustained breakout above R that holds above S -> trim exactly the tail.

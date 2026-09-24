@@ -8,7 +8,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.pipeline.market_data_health import (
+from core.pipeline.market_data.market_data_health import (
     DEGRADED_COVERAGE_STATES,
     HEALTH_STATES,
     REFRESH_FAILURE_STATES,
@@ -39,7 +39,7 @@ def _write_tagged_meta(meta_file, last_full_refresh="recent"):
     derived from meta rather than defaulting to False — without it every classifier
     test would also be asserting "a weekly cold refetch is overdue", which is a
     different concern. Pass None to exercise the overdue case."""
-    from core.pipeline.downloads import _price_regime
+    from core.pipeline.market_data.downloads import _price_regime
 
     meta = {"price_series": _price_regime()}
     if last_full_refresh == "recent":
@@ -87,7 +87,7 @@ def test_raw_partial_but_eligible_healthy_is_green(tmp_path, monkeypatch):
         }),
         encoding="utf-8",
     )
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
     health = compute_market_data_health(
         _panel(["AAA", "SPY", "QQQ"], "2026-06-25"),
@@ -112,7 +112,7 @@ def test_index_less_universe_is_healthy_on_its_own_coverage(tmp_path, monkeypatc
     universe so it read as stale_session on every run (un-archivable forever)."""
     meta_file = tmp_path / "cache_meta_commodities_etf.json"
     _write_tagged_meta(meta_file)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
 
     panel = _panel(["GLD", "USO", "UNG"], "2026-06-29")  # ETFs only, no SPY/QQQ
     health = compute_market_data_health(
@@ -314,7 +314,7 @@ def test_the_expected_session_itself_is_never_discounted(tmp_path):
 def test_lag_tolerance_is_disabled_at_zero(tmp_path, monkeypatch):
     """MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS = 0 restores the prior hard block."""
     monkeypatch.setattr(
-        "core.pipeline.market_data_health.settings.MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS",
+        "core.pipeline.market_data.market_data_health.settings.MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS",
         0,
         raising=False,
     )
@@ -394,9 +394,9 @@ def test_shallow_deep_history_is_not_trusted(tmp_path, monkeypatch):
     shallow_history, which drives a full cold refetch, not a no-op repair."""
     meta_file = tmp_path / "cache_meta.json"
     _write_tagged_meta(meta_file)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_HISTORY_BARS", 100)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_HISTORY_COVERAGE", 0.5)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_MIN_HISTORY_BARS", 100)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_MIN_HISTORY_COVERAGE", 0.5)
 
     tickers = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"]
     panel = _multi_row_panel(tickers + ["SPY", "QQQ"], 150, {"SPY", "QQQ"}, "2026-06-29")
@@ -413,8 +413,8 @@ def test_full_history_panel_stays_healthy(tmp_path, monkeypatch):
     """The depth gate must NOT reject a genuinely healthy full-history cache."""
     meta_file = tmp_path / "cache_meta.json"
     _write_tagged_meta(meta_file)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_MIN_HISTORY_BARS", 100)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_MIN_HISTORY_BARS", 100)
 
     tickers = ["AAA", "BBB", "CCC"]
     panel = _multi_row_panel(tickers + ["SPY", "QQQ"], 150,
@@ -429,7 +429,7 @@ def test_full_history_panel_stays_healthy(tmp_path, monkeypatch):
 def test_short_panel_is_not_flagged_shallow(tmp_path):
     """A short/new cache (fewer rows than the bar floor) can't carry deep symbols
     and must NOT be flagged shallow — the gate only judges long-span panels."""
-    from core.pipeline.downloads import _history_too_shallow
+    from core.pipeline.market_data.downloads import _history_too_shallow
 
     syms = ["AAA", "BBB", "CCC", "DDD", "SPY", "QQQ"]
     short = _multi_row_panel(syms, 30, {"SPY", "QQQ"}, "2026-06-29")
@@ -444,8 +444,8 @@ def test_sparse_repair_uses_10_then_20_minute_retry_windows(tmp_path, monkeypatc
     meta_file = tmp_path / "cache_meta.json"
     meta_file.write_text("{}", encoding="utf-8")
     now = datetime(2026, 6, 25, 20, 0, tzinfo=timezone.utc)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_REPAIR_FIRST_RETRY_MINUTES", 10)
-    monkeypatch.setattr("core.pipeline.market_data_health.settings.MARKET_DATA_REPAIR_SECOND_RETRY_MINUTES", 20)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_REPAIR_FIRST_RETRY_MINUTES", 10)
+    monkeypatch.setattr("core.pipeline.market_data.market_data_health.settings.MARKET_DATA_REPAIR_SECOND_RETRY_MINUTES", 20)
 
     first = record_repair_attempt(
         str(meta_file),

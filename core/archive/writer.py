@@ -59,7 +59,7 @@ def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> No
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
 from core.archive.db_path import archive_db_path
-from engine_alpha.structure.htf import HTF_COLUMN_SQL, htf_archive_values
+from engine_alpha.structure.context.htf import HTF_COLUMN_SQL, htf_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
     "score_rs_bonus":       "FLOAT",
@@ -226,14 +226,14 @@ _NEW_COLUMNS: dict[str, str] = {
 # and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 
 # HTF (higher-timeframe) context columns — single source of truth in
-# engine_alpha.structure.htf so the writer / model / migrations / seed stay in sync.
+# engine_alpha.structure.context.htf so the writer / model / migrations / seed stay in sync.
 _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 
-# Event Map tape-summary columns — single source in engine_alpha.structure.event_map.
+# Event Map tape-summary columns — single source in engine_alpha.structure.events.event_map.
 # MODEL-ONLY schema adds (see archive_models.SetupArchive): deliberately NOT
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
-from engine_alpha.structure.event_map import event_map_archive_values
+from engine_alpha.structure.events.event_map import event_map_archive_values
 # TA-grade family (grade pair + setup grades + flag-gated term points) and
 # the per-term sub-score fold — single source in engine_alpha.scoring.scoring
 # (same model-only convention).
@@ -241,12 +241,12 @@ from engine_alpha.scoring.scoring import (
     sub_score_archive_values,
     ta_grade_archive_values,
 )
-# Election-trace evidence cell — single source in engine_alpha.structure.trace_export
+# Election-trace evidence cell — single source in engine_alpha.structure.box.trace_export
 # (same model-only convention as the event_map family).
-from engine_alpha.structure.power_play import power_play_archive_values
-from engine_alpha.structure.trace_export import election_trace_archive_values
-# Strategy-read family — single source in engine_alpha.structure.strategy_read.
-from engine_alpha.structure.strategy_read import strategy_archive_values
+from engine_alpha.structure.context.power_play import power_play_archive_values
+from engine_alpha.structure.box.trace_export import election_trace_archive_values
+# Strategy-read family — single source in engine_alpha.structure.context.strategy_read.
+from engine_alpha.structure.context.strategy_read import strategy_archive_values
 
 
 def _ensure_new_columns(engine) -> None:
@@ -307,7 +307,7 @@ def archive_scan_results(
 
     import yfinance as yf
     from archive_models import SetupArchive, get_market_context, get_sector_trend, resolve_sector_etf
-    from core.pipeline.universe import resolve_universe
+    from core.pipeline.universe.descriptor import resolve_universe
     from database import make_sqlite_engine
 
     # Which universe these rows belong to (default us_stocks -> 'us_equities'),
@@ -411,7 +411,7 @@ def archive_scan_results(
     # Batch-download each unique sector ETF ONCE over the global base window.
     etf_close: dict[str, "pd.Series"] = {}
     if unique_etfs and starts and ends:
-        from core.pipeline.downloads import price_auto_adjust  # noqa: PLC0415 — call-site import; module-level would trip the backend config-shadow trap
+        from core.pipeline.market_data.downloads import price_auto_adjust  # noqa: PLC0415 — call-site import; module-level would trip the backend config-shadow trap
         g_start, g_end = min(starts), max(ends)
         print(f"  Fetching {len(unique_etfs)} sector ETF series...", flush=True)
         for etf in unique_etfs:

@@ -50,6 +50,12 @@ def test_backend_boots_from_service_cwd_and_registers_routes():
         # paths with index.html — the proven service_stale incident).
         "for must in ('/calibration/chart', '/calibration/marks'):\n"
         "    assert must in paths, f'{must} not registered'\n"
+        # Importing main does not run the lifespan, whose first act is the
+        # scheduler reading the root settings through this loader. A loader that
+        # only breaks at lifespan passes the import and then kills the restarted
+        # service, so exercise it here too.
+        "from app.core_settings import load_core_settings\n"
+        "assert load_core_settings().SCAN_SCHEDULE_HOUR_ET is not None\n"
     )
     proc = subprocess.run(
         [sys.executable, "-c", code],

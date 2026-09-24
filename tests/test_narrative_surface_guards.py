@@ -40,13 +40,13 @@ sys.path.insert(1, str(BACKEND_DIR))
 import pandas as pd  # noqa: E402
 
 from config import settings  # noqa: E402
-from core.pipeline.screener import _evaluate_ticker  # noqa: E402
-from engine_alpha.structure.event_map import (  # noqa: E402
+from core.pipeline.screening.screener import _evaluate_ticker  # noqa: E402
+from engine_alpha.structure.events.event_map import (  # noqa: E402
     EVENT_MAP_COLUMN_SQL,
     event_map_archive_values,
     narrative_chart_fields,
 )
-from engine_alpha.structure.trace_export import (  # noqa: E402
+from engine_alpha.structure.box.trace_export import (  # noqa: E402
     election_trace_archive_values,
     election_trace_chart_fields,
 )
@@ -194,7 +194,7 @@ def test_strategy_read_happy_path_through_the_real_cascade(monkeypatch):
     assert on_minus == off, (
         f"{hit['key']}: the strategy read changed the evaluation it measures")
 
-    from engine_alpha.structure.strategy_read import strategy_archive_values
+    from engine_alpha.structure.context.strategy_read import strategy_archive_values
     archived = strategy_archive_values(on.get, prefixed=True)
     assert archived == {"strategy_correction_depth_pct": depth,
                         "strategy_floor_above_ar": held}
@@ -203,7 +203,7 @@ def test_strategy_read_happy_path_through_the_real_cascade(monkeypatch):
 
 
 def test_serve_boundary_legs_stay_distinguishable():
-    from routers.archive_schemas import SetupOut
+    from domains.archive.schemas import SetupOut
 
     base = dict(id=1, ticker="T", scan_date="2026-08-04", setup_type="LPS",
                 tier="A", score=100.0)
@@ -233,7 +233,7 @@ def test_serve_boundary_degrades_wrong_container_shapes_per_row():
     not-JSON leg — never escape the validator to 500 the whole list at
     response-model time. One anomalous archive row must never blank the
     archive browse."""
-    from routers.archive_schemas import SetupOut
+    from domains.archive.schemas import SetupOut
 
     base = dict(id=1, ticker="T", scan_date="2026-08-04", setup_type="LPS",
                 tier="A", score=100.0)

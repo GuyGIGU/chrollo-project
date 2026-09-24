@@ -16,21 +16,24 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from webapp.backend.routers import ibkr as ibkr_router
-from webapp.backend.routers import portfolio, portfolio_streams
-from webapp.backend.routers.archive_schemas import SetupOut
+from domains.ibkr import router as ibkr_router
+from domains.portfolio import router as portfolio
+from domains.portfolio import streams as portfolio_streams
+from domains.archive.schemas import SetupOut
 from core.archive import forward_returns as archive_forward_returns
 from core.archive import writer as archive_writer
 import archive_models
 import broker_config
-from webapp.backend.ibkr import service as ibkr_service
-from webapp.backend.services.journal_stats import calculate_journal_stats
-from webapp.backend.services import portfolio_snapshot, screener_data, startup
+from domains.ibkr import service as ibkr_service
+from domains.trading.statistics import calculate_journal_stats
+from domains.portfolio import snapshot as portfolio_snapshot
+from domains.screener import data as screener_data
+from app import startup
 from webapp.backend.services import health as health_service
 from webapp.backend.services import scan_runner
-from core.pipeline import cache_status as cache_status_module
-from core.pipeline import downloads as downloads_module
-from core.pipeline import scan_job as scan_job_module
+from core.pipeline.market_data import cache_status as cache_status_module
+from core.pipeline.market_data import downloads as downloads_module
+from core.pipeline.screening import scan_job as scan_job_module
 
 
 def trade(pnl, entry_price=10, stop_loss=9, quantity=100):
@@ -77,8 +80,8 @@ def test_get_trade_or_404_returns_row_and_raises(tmp_path):
 def test_trade_routers_share_the_lookup_dependency():
     """E2: both routers route their per-trade lookup through the one shared
     helper — neither still defines its own copy."""
-    from routers import journal as journal_router
-    from routers import trades as trades_router
+    from domains.trading import journal as journal_router
+    from domains.trading import router as trades_router
 
     assert trades_router.get_trade_or_404 is journal_router.get_trade_or_404
     # The old per-router duplicates are gone.
@@ -223,7 +226,7 @@ def test_engine_config_version_is_modeled_and_auto_migrated():
 
 def test_event_map_columns_are_modeled_and_auto_migrated():
     """The Event Map tape-summary family (Task 7) is declared ONCE in
-    engine_alpha.structure.event_map (EVENT_MAP_COLUMN_SQL) and enters the schema as
+    engine_alpha.structure.events.event_map (EVENT_MAP_COLUMN_SQL) and enters the schema as
     MODEL-ONLY adds (the engine_config_version precedent): every declared column
     is a real SetupArchive column, none is hand-listed in the writer's
     _NEW_COLUMNS or startup._MIGRATIONS, and Track B's model-derived
@@ -231,7 +234,7 @@ def test_event_map_columns_are_modeled_and_auto_migrated():
     import sqlalchemy as sa
     from sqlalchemy import text
 
-    from engine_alpha.structure.event_map import EVENT_MAP_COLUMN_SQL
+    from engine_alpha.structure.events.event_map import EVENT_MAP_COLUMN_SQL
 
     model_columns = set(archive_models.SetupArchive.__table__.columns.keys())
     assert set(EVENT_MAP_COLUMN_SQL) <= model_columns
@@ -314,7 +317,7 @@ def test_archive_outcome_columns_are_modeled_and_migrated():
 # or typo'd field name fails the build — and (b) the API shape itself does not drift
 # silently: changing SetupOut must update this snapshot, which forces a deliberate
 # review. Regenerate with:
-#   python -c "import routers.archive_schemas as s; print(tuple(s.SetupOut.model_fields))"
+#   python -c "import domains.archive.schemas as s; print(tuple(s.SetupOut.model_fields))"
 _SETUP_OUT_FIELDS = (
     'id', 'ticker', 'scan_date', 'setup_type',
     'tier', 'score', 'current_price', 'r_level',
@@ -382,7 +385,7 @@ def test_archive_row_from_result_maps_passthrough_and_respects_overrides():
     filled by the route's **fwd_returns splat or left NULL); and (d) build a
     valid SetupArchive whose column values match. This pins the byte-parity of
     the refactor that replaced the ~80-line inline result.get(...) block."""
-    from services.archive_queries import (
+    from domains.archive.queries import (
         archive_row_from_result,
         _MANUAL_UNMAPPED_COLUMNS,
     )
@@ -432,7 +435,7 @@ def test_archive_row_partition_is_exhaustive():
     auto-increment id. Guards against a new column being silently neither — which
     would otherwise mean a flat column the route stops populating, or an unmapped
     column with no documented reason."""
-    from services.archive_queries import (
+    from domains.archive.queries import (
         archive_row_from_result,
         _MANUAL_UNMAPPED_COLUMNS,
     )
@@ -593,7 +596,7 @@ def test_screener_summary_strips_heavy_cells_and_keeps_narrative_scalars(monkeyp
     freshness check with nothing going red."""
     from types import SimpleNamespace
 
-    from routers import screener as sr
+    from domains.screener import router as sr
 
     payload = {
         "chart_data": {"AAA": {
@@ -651,7 +654,7 @@ def test_screener_data_bad_first_read_returns_empty(tmp_path):
 
 
 def test_run_all_universe_scans_isolates_failures(monkeypatch):
-    from core.pipeline import scan_job as sj
+    from core.pipeline.screening import scan_job as sj
 
     calls = []
 
@@ -672,7 +675,7 @@ def test_run_all_universe_scans_isolates_failures(monkeypatch):
 
 def test_screener_data_endpoint_rejects_unknown_universe():
     from fastapi import HTTPException
-    from routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     with pytest.raises(HTTPException) as exc:
         screener_router.get_screener_data(universe="../../etc/passwd")
@@ -680,7 +683,7 @@ def test_screener_data_endpoint_rejects_unknown_universe():
 
 
 def test_screener_data_endpoint_status_never_scanned(monkeypatch):
-    from routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     monkeypatch.setattr(screener_router, "read_screener_data",
                         lambda path: {"ordered_tickers": [], "chart_data": {}})
@@ -692,7 +695,7 @@ def test_screener_data_endpoint_status_never_scanned(monkeypatch):
 
 
 def test_screener_data_endpoint_status_ready(monkeypatch):
-    from routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     monkeypatch.setattr(screener_router, "read_screener_data",
                         lambda path: {"ordered_tickers": ["AAA"], "chart_data": {"AAA": {}}})
@@ -715,7 +718,7 @@ def _valid_health_member(**overrides):
 
 
 def test_screener_data_endpoint_passes_valid_health_board_through(monkeypatch):
-    from routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     hb = {"members": [_valid_health_member()], "unreadable": [], "member_count": 1}
     monkeypatch.setattr(screener_router, "read_screener_data",
@@ -731,7 +734,7 @@ def test_screener_data_endpoint_surfaces_buy_language_in_health(monkeypatch):
     # A stray score/tier/trigger on a member violates the "no buy language" contract;
     # extra='forbid' makes the boundary SURFACE it (raise) rather than serve it.
     from pydantic import ValidationError
-    from routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     hb = {"members": [_valid_health_member(score=88, tier="S")], "unreadable": [], "member_count": 1}
     monkeypatch.setattr(screener_router, "read_screener_data",
@@ -744,7 +747,7 @@ def test_screener_data_endpoint_surfaces_buy_language_in_health(monkeypatch):
 
 def test_screener_data_endpoint_surfaces_unknown_health_state(monkeypatch):
     from pydantic import ValidationError
-    from routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     hb = {"members": [_valid_health_member(state="buy_now")], "unreadable": [], "member_count": 1}
     monkeypatch.setattr(screener_router, "read_screener_data",
@@ -758,14 +761,14 @@ def test_screener_data_endpoint_surfaces_unknown_health_state(monkeypatch):
 def test_health_state_literal_matches_engine_taxonomy():
     # The serve-boundary Literal must stay equal to the engine's closed set.
     from typing import get_args
-    from routers import screener as screener_router
-    from core.pipeline.health_board import HEALTH_STATE_ORDER
+    from domains.screener import router as screener_router
+    from core.pipeline.context.health_board import HEALTH_STATE_ORDER
 
     assert get_args(screener_router.HealthStateName) == HEALTH_STATE_ORDER
 
 
 def test_drilldown_resolves_sector_commodity_and_none(monkeypatch):
-    from routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     us = {
         "ordered_tickers": ["AAA", "BBB", "CCC"],
@@ -863,7 +866,7 @@ def _status_panel(symbols, day):
 
 def _wire_cache_status(tmp_path, monkeypatch, panel=None, tickers=None,
                        expected="2026-06-25", meta=None, admission=None):
-    from core.pipeline.downloads import _price_regime
+    from core.pipeline.market_data.downloads import _price_regime
 
     cache_file = tmp_path / "market_cache.parquet"
     meta_file = tmp_path / "cache_meta.json"
@@ -1138,7 +1141,7 @@ def test_canonical_setups_excludes_etf_rows_by_default(tmp_path):
     from sqlalchemy.orm import sessionmaker
 
     import archive_models
-    from services.archive_queries import _canonical_setups
+    from domains.archive.queries import _canonical_setups
 
     eng = create_engine(f"sqlite:///{tmp_path / 'arch.db'}")
     archive_models.SetupArchive.__table__.create(bind=eng)
@@ -1562,7 +1565,7 @@ def test_reattach_serves_done_when_no_job_is_running(monkeypatch):
 def test_scan_stream_active_route_reports_the_running_job(monkeypatch):
     """The client asks the SERVER which job is running (EC-28) — it never infers
     that from a status row."""
-    from webapp.backend.routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     monkeypatch.setattr(screener_router.scan_runner, "active_job", lambda: None)
     assert screener_router.get_active_scan_stream() == {
@@ -1581,7 +1584,7 @@ def test_scan_stream_active_route_reports_the_running_job(monkeypatch):
 def test_scan_stream_cancel_route_reports_whether_anything_was_stopped(monkeypatch):
     """The server decides whether a stop actually stopped anything; the client
     only asks (EC-28)."""
-    from webapp.backend.routers import screener as screener_router
+    from domains.screener import router as screener_router
 
     monkeypatch.setattr(screener_router.scan_runner, "cancel_active_job", lambda: False)
     assert screener_router.cancel_scan_stream() == {"stopped": False}
@@ -1889,7 +1892,7 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
     # backfill matures already-archived rows and is independent of the scan, so a
     # crashing scan can no longer silently starve outcome maturation.
     import services.scan_status as scan_status_mod
-    import services.core_settings as core_settings_mod
+    import app.core_settings as core_settings_mod
 
     calls = {"backfill": 0, "finish_status": None}
     result = SimpleNamespace(output="boom", returncode=1, n_setups=None, n_errored=0)
@@ -1946,7 +1949,7 @@ def _verdict_db(tmp_path):
 
 
 def _verdict_in(**overrides):
-    from routers.archive_schemas import ReadVerdictIn
+    from domains.archive.schemas import ReadVerdictIn
 
     base = {"ticker": "AAA", "scan_date": "2026-08-05"}
     base.update(overrides)
@@ -1954,7 +1957,7 @@ def _verdict_in(**overrides):
 
 
 def test_read_verdict_agree_lands_and_get_serves_it(tmp_path):
-    from routers.archive_reviews import get_read_verdict, set_read_verdict
+    from domains.archive.reviews import get_read_verdict, set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -1972,7 +1975,7 @@ def test_read_verdict_agree_lands_and_get_serves_it(tmp_path):
 
 def test_read_verdict_disagree_overwrites_in_place_one_row(tmp_path):
     from models import ReadVerdict
-    from routers.archive_reviews import set_read_verdict
+    from domains.archive.reviews import set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -1987,7 +1990,7 @@ def test_read_verdict_disagree_overwrites_in_place_one_row(tmp_path):
 
 def test_read_verdict_null_clears_the_row(tmp_path):
     from models import ReadVerdict
-    from routers.archive_reviews import set_read_verdict
+    from domains.archive.reviews import set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -2005,7 +2008,7 @@ def test_read_verdict_empty_string_is_422_never_a_clear(tmp_path):
     from fastapi import HTTPException
 
     from models import ReadVerdict
-    from routers.archive_reviews import set_read_verdict
+    from domains.archive.reviews import set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -2021,7 +2024,7 @@ def test_read_verdict_empty_string_is_422_never_a_clear(tmp_path):
 def test_read_verdict_unknown_vocabulary_is_422(tmp_path):
     from fastapi import HTTPException
 
-    from routers.archive_reviews import set_read_verdict
+    from domains.archive.reviews import set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -2035,7 +2038,7 @@ def test_read_verdict_unknown_vocabulary_is_422(tmp_path):
 def test_read_verdict_blank_ticker_is_400(tmp_path):
     from fastapi import HTTPException
 
-    from routers.archive_reviews import set_read_verdict
+    from domains.archive.reviews import set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -2060,7 +2063,7 @@ def test_read_verdict_malformed_identity_refused_at_the_schema():
 
 
 def test_read_verdict_mixed_case_ticker_normalizes(tmp_path):
-    from routers.archive_reviews import get_read_verdict, set_read_verdict
+    from domains.archive.reviews import get_read_verdict, set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -2073,7 +2076,7 @@ def test_read_verdict_mixed_case_ticker_normalizes(tmp_path):
 
 
 def test_read_verdict_get_serves_nulls_when_absent(tmp_path):
-    from routers.archive_reviews import get_read_verdict
+    from domains.archive.reviews import get_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -2088,10 +2091,10 @@ def test_read_verdict_universe_type_separates_same_day_rows(tmp_path):
     """council F6: the identity is the archive TRIPLE — the same ticker+date in
     two universes must hold two independent verdicts, and the omitted-universe
     default must resolve to the equities scope (EC-1 one source)."""
-    from core.pipeline.universe import default_universe_type
+    from core.pipeline.universe.descriptor import default_universe_type
 
     from models import ReadVerdict
-    from routers.archive_reviews import get_read_verdict, set_read_verdict
+    from domains.archive.reviews import get_read_verdict, set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:
@@ -2115,7 +2118,7 @@ def test_read_verdict_stamps_and_refreshes_engine_config_version(tmp_path):
     """council F6: the verdict carries the evidence version the operator SAW;
     re-recording re-stamps it (the archive row may have been upserted since)."""
     from models import ReadVerdict
-    from routers.archive_reviews import set_read_verdict
+    from domains.archive.reviews import set_read_verdict
 
     db = _verdict_db(tmp_path)
     try:

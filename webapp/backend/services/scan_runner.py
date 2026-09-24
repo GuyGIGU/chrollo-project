@@ -208,7 +208,7 @@ def _alert_decision(status: str, n_setups: int | None, fetch_health: dict | None
 
 def alert_if_needed(trigger: str, status: str, n_setups: int | None,
                     error: str | None = None, errored_tickers: int | None = None) -> None:
-    from services.core_settings import load_core_settings
+    from app.core_settings import load_core_settings
 
     settings = load_core_settings()
     # Only consult fetch-health for an otherwise-ok scan: a failed/stale run
@@ -426,7 +426,7 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
 
 def _invalidate_screener_cache() -> None:
     try:
-        from services.screener_data import invalidate_screener_cache
+        from domains.screener.data import invalidate_screener_cache
 
         invalidate_screener_cache()
     except Exception:
@@ -604,7 +604,7 @@ def run_scheduled_scan_and_forward_returns() -> None:
             # log line (the historical silent-stall root cause).
             mat_run_id = scan_status.start_run("scheduled", kind="maturation")
             try:
-                from services.core_settings import load_core_settings
+                from app.core_settings import load_core_settings
 
                 root_settings = load_core_settings()
                 updated = update_forward_returns(

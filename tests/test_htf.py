@@ -19,8 +19,8 @@ for _p in (str(_ROOT), str(_BACKEND)):
         sys.path.insert(0, _p)
 
 from config import settings
-from engine_alpha.structure import htf
-from engine_alpha.structure.bricks import EquilibriumBox
+from engine_alpha.structure.context import htf
+from engine_alpha.structure.narrative.bricks import EquilibriumBox
 
 
 def _daily(n=600, lo=20.0, hi=80.0, start="2022-01-03"):
@@ -186,8 +186,8 @@ def test_orm_model_has_htf_columns():
 
 
 def test_backend_schema_and_startup_migrations_have_htf_columns():
-    from routers.archive_schemas import SetupOut
-    from services.startup import _MIGRATIONS
+    from domains.archive.schemas import SetupOut
+    from app.startup import _MIGRATIONS
 
     fields = getattr(SetupOut, "model_fields", None) or getattr(SetupOut, "__fields__")
     for col in htf.HTF_COLUMNS:

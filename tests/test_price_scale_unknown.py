@@ -36,7 +36,7 @@ from core.archive import forward_returns as fr  # noqa: E402
 from core.archive import near_miss_outcomes as nmo  # noqa: E402
 from core.archive import near_miss_writer as nmw  # noqa: E402
 from core.archive.outcomes import HORIZON_BARS  # noqa: E402
-from core.pipeline import downloads as dl  # noqa: E402
+from core.pipeline.market_data import downloads as dl  # noqa: E402
 
 
 # ── the three outcomes ────────────────────────────────────────────────────────

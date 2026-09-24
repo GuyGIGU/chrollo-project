@@ -5,7 +5,7 @@ SQLite can't retrofit a CHECK, but the two trigger COLUMNS arrive via idempotent
 true: the migration is registered, a re-run is a clean duplicate-column skip
 (the runner's idempotency contract), and a pre-trigger row still loads with NULL
 triggers after it applies. Hermetic — a throwaway sqlite file, never the live DB,
-and no backend boot (importing `services.startup` builds only a lazy engine).
+and no backend boot (importing `app.startup` builds only a lazy engine).
 """
 import sqlite3
 import sys
@@ -20,7 +20,7 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import models  # noqa: E402  (resolves via BACKEND_DIR)
 from sqlalchemy import create_engine  # noqa: E402
-from services import startup  # noqa: E402  (lazy engine only; no connection)
+from app import startup  # noqa: E402  (lazy engine only; no connection)
 
 TRIGGER_MIGRATIONS = (
     "ALTER TABLE calibration_marks ADD COLUMN trigger_date VARCHAR",

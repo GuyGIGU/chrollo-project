@@ -1,6 +1,6 @@
 """Session candle cache + resilient-fetch behaviour (Calibration workbench WP-0).
 
-Pure unit tests against ``services.candle_cache`` with the market-data doorway
+Pure unit tests against ``domains.market_data.candle_cache`` with the market-data doorway
 and the rate-limit cooldown mocked — never a live network call, never a booted
 app. The three outcomes the calibration chart endpoint depends on (served,
 throttled, genuinely empty) are pinned here so the endpoint tests can stay
@@ -16,7 +16,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from services import candle_cache  # noqa: E402
+from domains.market_data import candle_cache  # noqa: E402
 
 
 def _wide_frame():
@@ -28,7 +28,7 @@ def _wide_frame():
 
 
 def test_covered_window_is_served_from_cache_without_refetch(monkeypatch):
-    import services.market_data as market_data
+    import domains.market_data.service as market_data
     calls = {"n": 0}
 
     def counting(*a, **k):
@@ -37,7 +37,7 @@ def test_covered_window_is_served_from_cache_without_refetch(monkeypatch):
 
     monkeypatch.setattr(candle_cache, "_CACHE", {})
     monkeypatch.setattr(market_data, "daily_candle_frame", counting)
-    monkeypatch.setattr("core.pipeline.rate_limit.in_cooldown", lambda: False)
+    monkeypatch.setattr("core.pipeline.market_data.rate_limit.in_cooldown", lambda: False)
 
     f1, s1 = candle_cache.load_candles("KLAC", "2023-06-01", "2025-08-01", False)
     f2, s2 = candle_cache.load_candles("KLAC", "2023-07-01", "2025-08-15", False)
@@ -51,9 +51,9 @@ def test_covered_window_is_served_from_cache_without_refetch(monkeypatch):
 
 
 def test_cache_miss_during_cooldown_is_rate_limited_and_never_fetches(monkeypatch):
-    import services.market_data as market_data
+    import domains.market_data.service as market_data
     monkeypatch.setattr(candle_cache, "_CACHE", {})
-    monkeypatch.setattr("core.pipeline.rate_limit.in_cooldown", lambda: True)
+    monkeypatch.setattr("core.pipeline.market_data.rate_limit.in_cooldown", lambda: True)
     monkeypatch.setattr(market_data, "daily_candle_frame",
                         lambda *a, **k: (_ for _ in ()).throw(
                             AssertionError("must not hit the vendor during a cooldown")))
@@ -64,10 +64,10 @@ def test_cache_miss_during_cooldown_is_rate_limited_and_never_fetches(monkeypatc
 
 
 def test_empty_without_throttle_signal_is_no_data(monkeypatch):
-    import services.market_data as market_data
+    import domains.market_data.service as market_data
     monkeypatch.setattr(candle_cache, "_CACHE", {})
     monkeypatch.setattr(candle_cache, "_TRANSIENT_RETRY_WAIT_S", 0.0)
-    monkeypatch.setattr("core.pipeline.rate_limit.in_cooldown", lambda: False)
+    monkeypatch.setattr("core.pipeline.market_data.rate_limit.in_cooldown", lambda: False)
     monkeypatch.setattr(market_data, "daily_candle_frame", lambda *a, **k: pd.DataFrame())
 
     frame, status = candle_cache.load_candles("ZZZZ", "2025-06-01", "2025-08-01", False)
@@ -78,7 +78,7 @@ def test_empty_without_throttle_signal_is_no_data(monkeypatch):
 def test_a_regime_change_is_a_miss_not_a_stale_hit(monkeypatch):
     # auto_adjust is part of the cache identity: a frame fetched as-traded must
     # never be served to a dividend-adjusted request (regime mixing corrupts reads).
-    import services.market_data as market_data
+    import domains.market_data.service as market_data
     calls = {"n": 0}
 
     def counting(*a, **k):
@@ -87,7 +87,7 @@ def test_a_regime_change_is_a_miss_not_a_stale_hit(monkeypatch):
 
     monkeypatch.setattr(candle_cache, "_CACHE", {})
     monkeypatch.setattr(market_data, "daily_candle_frame", counting)
-    monkeypatch.setattr("core.pipeline.rate_limit.in_cooldown", lambda: False)
+    monkeypatch.setattr("core.pipeline.market_data.rate_limit.in_cooldown", lambda: False)
 
     candle_cache.load_candles("KLAC", "2023-06-01", "2025-08-01", False)
     candle_cache.load_candles("KLAC", "2023-06-01", "2025-08-01", True)

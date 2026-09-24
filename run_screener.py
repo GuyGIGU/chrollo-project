@@ -21,13 +21,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.pipeline.scan_job import (
+from core.pipeline.screening.scan_job import (
     StaleMarketDataError,
     refresh_market_data_cache,
     run_all_universe_scans,
     run_scan_and_export,
 )
-from core.pipeline.universe import DEFAULT_UNIVERSE_KEY
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_KEY
 
 
 def _print_result_json(n_setups: int, n_archived: int, n_errored: int = 0,

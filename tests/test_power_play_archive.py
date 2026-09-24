@@ -17,7 +17,7 @@ _BACKEND_DIR = os.path.join(_PROJECT_ROOT, "webapp", "backend")
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-from engine_alpha.structure.power_play import (
+from engine_alpha.structure.context.power_play import (
     POWER_PLAY_COLUMN_SQL,
     PP_STATES,
     power_play_archive_values,

@@ -49,14 +49,14 @@ import database  # noqa: E402
 from config import settings  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.lps import (  # noqa: E402
+from engine_alpha.structure.lps.detection import (  # noqa: E402
     _profile_unit,
     _spread_series,
     _zone_tolerance,
     detect_lps_candidates,
     lps_range_threshold,
 )
-from engine_alpha.structure.market_structure import _pairwise_descent_fraction  # noqa: E402
+from engine_alpha.structure.events.market_structure import _pairwise_descent_fraction  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
 from tools.replay import (  # noqa: E402
     MARK_ATR_OFFSET,

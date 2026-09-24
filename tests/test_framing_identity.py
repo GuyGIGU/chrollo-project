@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from engine_alpha.election_identity import framing_date_key, framing_window_key
-from engine_alpha.structure.box_trace import _trace_find, _trace_pair
+from engine_alpha.structure.box.box_trace import _trace_find, _trace_pair
 
 pytestmark = pytest.mark.regression
 
@@ -29,8 +29,8 @@ def test_trace_identity_slots_match_the_candidate_contract():
     real field order (it cannot import the producer without a cycle) — a
     slot insertion in box_primitives goes RED here instead of silently
     skewing every trace annotation (2026-08-25 sweep)."""
-    from engine_alpha.structure import box_trace
-    from engine_alpha.structure.box_primitives import Candidate
+    from engine_alpha.structure.box import box_trace
+    from engine_alpha.structure.box.box_primitives import Candidate
 
     fields = Candidate._fields
     assert fields.index("r_anchor_bar") == box_trace._CAND_R_ANCHOR_BAR

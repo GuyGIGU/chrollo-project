@@ -5,12 +5,12 @@ endpoint — asserting the Daily/Weekly/Monthly candle and volume lists are
 VALUE-equal: same date strings, same prices, same volumes, same caps.
 
 Assertions are on outputs only — never on which module called which — so the
-shared builder (core/pipeline/candles.py) can be refactored freely while any
+shared builder (core/pipeline/market_data/candles.py) can be refactored freely while any
 second, drifting copy of a builder fails loudly here.
 
 The frame carries the features that make drift visible:
 - the REAL cache dtypes (float32 prices, nullable Int64 volume — what
-  core/pipeline/cache.py's optimizer actually stores; a dtype-divergent
+  core/pipeline/market_data/cache.py's optimizer actually stores; a dtype-divergent
   path shows immediately),
 - an all-NaN session mid-history (dropped by the shared price-subset prep)
   and a Volume-only-NaN session inside the daily window (KEPT, volume
@@ -41,9 +41,9 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.pipeline import universe as universe_mod  # noqa: E402
+from core.pipeline.universe import descriptor as universe_mod  # noqa: E402
 from output import dashboard as dashboard_module  # noqa: E402
-from services import watchlist_candles as wc  # noqa: E402
+from domains.market_data import watchlist_candles as wc  # noqa: E402
 
 # 1700 business days ending mid-week (2026-08-12 is a Wednesday): crosses the
 # 300-daily / 110-weekly / 60-monthly caps, ends on a partial week and month.
@@ -60,7 +60,7 @@ def _awkward_frame() -> pd.DataFrame:
         "Close": 20.3 + step * 0.01,
         "Volume": 1_000_000.0 + step * 13.0,
     }, index=idx).astype({
-        # The REAL cache dtypes (core/pipeline/cache.py optimizer): float32
+        # The REAL cache dtypes (core/pipeline/market_data/cache.py optimizer): float32
         # prices, nullable Int64 volume — the endpoint leg must read the
         # substrate production actually serves.
         "Open": "float32", "High": "float32", "Low": "float32",

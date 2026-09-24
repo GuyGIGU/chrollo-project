@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screening.screener import _evaluate_ticker
 from tools import shadow_diff
 from tools.marks_corpus import _FROZEN_BREADTH
 from tools.marks_corpus import _load_fixture as _load_marks_fixture

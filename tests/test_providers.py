@@ -7,8 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-import core.pipeline.providers as providers_module
-from core.pipeline.providers import (
+import core.pipeline.market_data.providers as providers_module
+from core.pipeline.market_data.providers import (
     MarketDataProvider,
     YahooProvider,
     available_providers,
@@ -59,7 +59,7 @@ def test_yahoo_provider_delegates_to_fetch_data(monkeypatch):
         captured["universe"] = universe
         return "PANEL"
 
-    import core.pipeline.downloads as downloads_module
+    import core.pipeline.market_data.downloads as downloads_module
     monkeypatch.setattr(downloads_module, "fetch_data", fake_fetch_data)
 
     out = YahooProvider().fetch(["AAA", "BBB"], "us_sectors")

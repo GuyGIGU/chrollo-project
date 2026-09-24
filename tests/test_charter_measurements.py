@@ -17,8 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from engine_alpha.structure.market_structure import classify_window_descent
-from engine_alpha.structure.metrics import (
+from engine_alpha.structure.events.market_structure import classify_window_descent
+from engine_alpha.structure.metrics.base import (
     measure_lps_contraction,
     measure_story_richness,
 )
@@ -142,7 +142,7 @@ def test_richness_is_always_bounded():
 
 import pandas as pd
 
-from engine_alpha.structure import market_structure as ms_mod
+from engine_alpha.structure.events import market_structure as ms_mod
 
 
 def _frame(closes):
@@ -167,7 +167,7 @@ def _scripted_bricks(monkeypatch, roots, boxes_by_climax):
     """Script the walk's brick calls: find_root_swing pops chronological
     roots >= search_from; validate_equilibrium returns the box scripted for
     that climax (or None)."""
-    import engine_alpha.structure.bricks as bricks_mod
+    import engine_alpha.structure.narrative.bricks as bricks_mod
 
     def fake_find_root(sub, search_from, atr):
         for r in roots:

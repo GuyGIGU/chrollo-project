@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 configure_path(backend=True)
 
 from engine_alpha.evaluation import EVAL_ERROR                 # noqa: E402
-from engine_alpha.structure.market_structure import (          # noqa: E402
+from engine_alpha.structure.events.market_structure import (          # noqa: E402
     measure_trend_bases,
 )
 from tools import shadow_diff                                  # noqa: E402

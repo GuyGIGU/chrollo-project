@@ -33,8 +33,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import engine_alpha.evaluation as evaluation
-import core.pipeline.screener as screener
-import core.pipeline.scan_metrics as scan_metrics
+import core.pipeline.screening.screener as screener
+import core.pipeline.telemetry.scan_metrics as scan_metrics
 
 
 # --------------------------------------------------------------------------- #

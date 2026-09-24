@@ -1,6 +1,6 @@
 """Event Map mechanical layer — Task 4 guards.
 
-Pins the three load-bearing properties of ``engine_alpha.structure.event_map``:
+Pins the three load-bearing properties of ``engine_alpha.structure.events.event_map``:
 
 1. **The in-box slice IS the staircase** — the tape's ``region == "box"`` swings,
    re-based and stripped of tape-only fields, equal ``read_box_staircase`` over
@@ -25,14 +25,14 @@ import pandas as pd
 import pytest
 
 from config import settings
-from engine_alpha.structure.box_events import read_box_staircase
-from engine_alpha.structure.event_map import (
+from engine_alpha.structure.events.box_events import read_box_staircase
+from engine_alpha.structure.events.event_map import (
     episode_sequence_stats,
     read_rail_episodes,
     read_role_labels,
     read_swing_map,
 )
-from engine_alpha.structure.pivots import _find_pivots
+from engine_alpha.structure.metrics.pivots import _find_pivots
 
 pytestmark = pytest.mark.regression
 
@@ -304,7 +304,7 @@ def _first_firing_fixture_ticker():
     """One real firing (ticker, frame, result, spy, breadth) off the committed
     shadow fixture — loud if the fixture stopped firing entirely."""
     from engine_alpha.evaluation import EVAL_ERROR
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from tools.shadow_diff import _load_fixture
 
     frames, scalars = _load_fixture()
@@ -326,7 +326,7 @@ def test_event_map_flag_off_never_computes(monkeypatch):
     by default since 2026-07-25 (Event Map program Task 13) — this pins that
     the off branch remains a pure short-circuit, which every flag-off A/B
     replay and the parity contract depend on."""
-    import engine_alpha.structure.event_map as em
+    import engine_alpha.structure.events.event_map as em
     from config import settings
 
     monkeypatch.setattr(settings, "EVENT_MAP_ENABLED", False)
@@ -359,7 +359,7 @@ def test_event_map_flag_on_is_additive_only(monkeypatch):
     byte-identical; only the underscore Event Map diagnostics are ADDED.
     Both sides pinned explicitly (the flag ships LIVE since 2026-07-25)."""
     from config import settings
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
 
     monkeypatch.setattr(settings, "EVENT_MAP_ENABLED", False)
     ticker, df, off, spy, breadth = _first_firing_fixture_ticker()
@@ -429,7 +429,7 @@ def test_event_map_archive_values_live_and_seed_mapping():
     """The tape-summary archive family (Task 7): the owning extraction maps a
     live (prefixed) or seed (unprefixed) row to exactly EVENT_MAP_COLUMN_SQL,
     NaN-scrubbed (EC-2), INTEGER cells as plain int, absent -> None (NULL)."""
-    from engine_alpha.structure.event_map import EVENT_MAP_COLUMN_SQL, event_map_archive_values
+    from engine_alpha.structure.events.event_map import EVENT_MAP_COLUMN_SQL, event_map_archive_values
 
     live_row = {"_event_map_n_swings": np.int64(7),
                 "_event_map_pre_box_trend": "up",
@@ -451,7 +451,7 @@ def test_narrative_chart_fields_projects_the_same_family_with_a_parsed_tape():
     writers — same keys, same NULL fidelity — with ONLY the tape cell parsed
     from JSON text to structure. An unparseable tape degrades to None while
     the scalars stay measured (tape-unreadable ≠ not-measured)."""
-    from engine_alpha.structure.event_map import EVENT_MAP_COLUMN_SQL, narrative_chart_fields
+    from engine_alpha.structure.events.event_map import EVENT_MAP_COLUMN_SQL, narrative_chart_fields
 
     tape = '[{"rail":"S","outcome":"completed","posture":false,' \
            '"span":["2026-05-01","2026-05-02"],"knowable":"2026-05-05"}]'
@@ -639,7 +639,7 @@ def test_story_admission_pins_the_ruled_form_option_a():
     terminal resistance posture AND no terminal support drift. This truth
     table IS the mechanical drift check against the Reading Model's canonical
     spec — a predicate edit that no longer matches the ruled form fails here."""
-    from engine_alpha.structure.event_map import story_admission
+    from engine_alpha.structure.events.event_map import story_admission
 
     base = {"n_completed_s": 2, "n_completed_r": 0, "alternations": 0,
             "terminal_s_drift": False, "terminal_r_posture": True}
@@ -734,7 +734,7 @@ def test_episode_substrate_producer_is_as_of_at_the_window_edge():
     owning module)."""
     import json as _json
 
-    from engine_alpha.structure.event_map import episode_substrate_fields
+    from engine_alpha.structure.events.event_map import episode_substrate_fields
 
     bars = [
         (12.5, 11.5, 12.0),
@@ -770,7 +770,7 @@ def test_episode_substrate_zone_coverage_companion():
     masquerade as zero-by-drift downstream. NULL exactly when the reader's
     own preconditions failed (the family's "NULL = not measured" law)."""
     from config import settings
-    from engine_alpha.structure.event_map import episode_substrate_fields
+    from engine_alpha.structure.events.event_map import episode_substrate_fields
 
     bars = [(12.5, 11.5, 12.0)] * 6
     df = _episode_frame(bars)

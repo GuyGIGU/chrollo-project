@@ -17,7 +17,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from engine_alpha.structure.phase_features import measure_phases
+from engine_alpha.structure.phases.phase_features import measure_phases
 
 
 def test_measure_phases_slices_named_regions_at_lps(_flat_ohlc):
@@ -153,7 +153,7 @@ def test_cog_interior_nan_closes_route_to_excluded():
     """A NaN close leaked raw into cog_end/cog_rng and its sign comparisons
     counted phantom mid-line crossings (2026-08-25 sweep). NaN routes to
     excluded; the emissions stay JSON-safe."""
-    from engine_alpha.structure.phase_features import _cog_interior
+    from engine_alpha.structure.phases.phase_features import _cog_interior
 
     closes = [101, 103, 105, 107, 109, 107, 105, 103] * 3
     seg = pd.DataFrame({"Close": [float(c) for c in closes]})
@@ -175,7 +175,7 @@ def test_last_supper_reclaim_refuses_an_unreadable_final_close():
     fabricated zero reclaim), and a NaN close sailed through the clamp into
     a fabricated FULL reclaim. Both now refuse: quality stays None while the
     pullback depth (which never read the close) still emits."""
-    from engine_alpha.structure.phase_features import _last_supper_measurements
+    from engine_alpha.structure.phases.phase_features import _last_supper_measurements
 
     closes = [100.0, 104.0, 108.0, 112.0, 106.0, 103.0, 104.0, 105.0]
     df = pd.DataFrame({"High": [c + 1 for c in closes],

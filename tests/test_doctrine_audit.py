@@ -31,8 +31,8 @@ import pandas as pd
 
 import config.settings as settings
 from engine_alpha import evaluation
-from engine_alpha.structure import bricks
-from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.narrative import bricks
+from engine_alpha.structure.narrative.reader import read_structure
 from tools import doctrine_audit
 
 

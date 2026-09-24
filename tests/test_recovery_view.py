@@ -9,12 +9,12 @@ raw operands ride the result precisely so the census can re-band offline.
 import numpy as np
 import pandas as pd
 
-from engine_alpha.structure.event_map import (
+from engine_alpha.structure.events.event_map import (
     RECOVERY_CHARACTERS,
     RECOVERY_DESTINATIONS,
     read_recovery_view,
 )
-from engine_alpha.structure.pivots import _find_pivots
+from engine_alpha.structure.metrics.pivots import _find_pivots
 
 R, S, ATR = 110.0, 100.0, 2.0     # parent rails; tol = 2.0, min_amp = 1.5
 

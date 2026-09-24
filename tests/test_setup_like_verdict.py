@@ -29,8 +29,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 import models  # noqa: E402
-from routers import archive_reviews  # noqa: E402
-from routers.archive_schemas import ReviewToggleIn  # noqa: E402
+from domains.archive import reviews as archive_reviews  # noqa: E402
+from domains.archive.schemas import ReviewToggleIn  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 

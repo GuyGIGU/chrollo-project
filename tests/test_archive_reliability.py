@@ -22,9 +22,10 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.pipeline import scan_job as scan_job_module
+from core.pipeline.screening import scan_job as scan_job_module
 from core.archive import forward_returns as fr
-from webapp.backend.services import scan_runner, scan_watchdog, startup
+from webapp.backend.services import scan_runner, scan_watchdog
+from app import startup
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ def _ohlcv_panel(ticker, start, periods):
 
 
 def _wire_scanjob(tmp_path, monkeypatch, expected="2026-06-25"):
-    from core.pipeline.downloads import _price_regime
+    from core.pipeline.market_data.downloads import _price_regime
 
     meta_file = tmp_path / "cache_meta.json"
     meta_file.write_text(
@@ -84,7 +85,7 @@ def test_scheduled_maturation_records_own_run_and_alerts_on_failure(monkeypatch)
     kind='maturation' scan_runs row, closes it 'failed' on error, and fires a
     maturation-specific alert — so a stalled maturation can't hide."""
     import services.scan_status as scan_status_mod
-    import services.core_settings as core_settings_mod
+    import app.core_settings as core_settings_mod
     import core.archive.forward_returns as fr_mod
 
     started, finishes, alerts = [], [], []
@@ -308,7 +309,7 @@ def test_download_degraded_all_stale_tickers_raises_not_silent(tmp_path, monkeyp
 def test_forward_returns_pads_start_for_non_trading_earliest(monkeypatch):
     import database
     import archive_models
-    import core.pipeline.downloads as downloads
+    import core.pipeline.market_data.downloads as downloads
     from sqlalchemy.orm import sessionmaker
 
     engine = database.make_sqlite_engine(":memory:")
@@ -350,7 +351,7 @@ def test_forward_returns_window_widened_and_decoupled():
 def test_forward_returns_matures_straggler_past_old_120d_window(monkeypatch):
     import database
     import archive_models
-    import core.pipeline.downloads as downloads
+    import core.pipeline.market_data.downloads as downloads
     from sqlalchemy.orm import sessionmaker
 
     engine = database.make_sqlite_engine(":memory:")

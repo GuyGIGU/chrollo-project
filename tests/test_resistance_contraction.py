@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from config import settings
-from engine_alpha.structure.event_map import (
+from engine_alpha.structure.events.event_map import (
     episode_sequence_stats,
     read_rail_episodes_arrays,
     resistance_contraction_admission,

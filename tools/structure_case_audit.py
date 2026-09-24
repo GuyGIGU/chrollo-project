@@ -2,7 +2,7 @@
 "stale root sees through to a modern box" question (ROIV / TDAY / ADM / BWMX ...).
 
 For each named ticker this REPLICATES the live spine's root walk
-(``read_structure`` in engine_alpha.structure.narrative): it enumerates the candidate
+(``read_structure`` in engine_alpha.structure.narrative.reader): it enumerates the candidate
 root swings oldest-first exactly as the spine does, and for every root reports
 whether its Phase-B equilibrium validates, how far the worked box starts AFTER
 the automatic-reaction low (the "root-to-box gap"), the box's rail-to-rail
@@ -41,16 +41,16 @@ import pandas as pd
 from config import settings
 from core.archive.seed import _evaluate_at_date
 from engine_alpha.evaluation import apply_baseline_filters
-from engine_alpha.structure import bricks
-from engine_alpha.structure.box_gates import (
+from engine_alpha.structure.narrative import bricks
+from engine_alpha.structure.box.box_gates import (
     _is_boundary_respected,
     _validate_base_quality,
 )
-from engine_alpha.structure.box_primitives import _pivot_order
-from engine_alpha.structure.indicators import calculate_atr
-from engine_alpha.structure.metrics import measure_equilibrium
-from engine_alpha.structure.narrative import read_structure
-from engine_alpha.structure.pivots import _build_zigzag, _find_pivots
+from engine_alpha.structure.box.box_primitives import _pivot_order
+from engine_alpha.structure.metrics.indicators import calculate_atr
+from engine_alpha.structure.metrics.base import measure_equilibrium
+from engine_alpha.structure.narrative.reader import read_structure
+from engine_alpha.structure.metrics.pivots import _build_zigzag, _find_pivots
 
 # The cases that drove the Root-Swing + Box-Integrity repair discussion.
 DEFAULT = ["ROIV", "TDAY", "ADM", "BWMX", "NMM", "BBVA"]

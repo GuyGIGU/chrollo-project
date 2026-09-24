@@ -9,9 +9,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import core.pipeline.downloads as downloads_module
+import core.pipeline.market_data.downloads as downloads_module
 
-from core.pipeline.fetch_health import (
+from core.pipeline.market_data.fetch_health import (
     count_quarantined,
     is_healthy,
     load_quarantine,

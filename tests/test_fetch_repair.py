@@ -17,17 +17,17 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.pipeline.cache import _atomic_write_parquet, _weekly_refresh_due, _write_meta
+from core.pipeline.market_data.cache import _atomic_write_parquet, _weekly_refresh_due, _write_meta
 from core.pipeline.json_safety import to_json_safe
-from core.pipeline.market_context import get_market_context
-import core.pipeline.downloads as downloads_module
-import core.pipeline.market_calendar as market_calendar_module
-import core.pipeline.market_context as market_context_module
-import core.pipeline.scan_job as scan_job_module
+from core.pipeline.context.market_context import get_market_context
+import core.pipeline.market_data.downloads as downloads_module
+import core.pipeline.market_data.market_calendar as market_calendar_module
+import core.pipeline.context.market_context as market_context_module
+import core.pipeline.screening.scan_job as scan_job_module
 import output.dashboard as dashboard_module
-import webapp.backend.routers.prices as prices_module
-from webapp.backend.routers.market_data import _clean_symbol, _is_number
-from webapp.backend.services.portfolio_snapshot import (
+import domains.market_data.prices as prices_module
+from domains.market_data.router import _clean_symbol, _is_number
+from domains.portfolio.snapshot import (
     flatten_summary,
     has_portfolio_data,
     with_cached_snapshot,
@@ -749,7 +749,7 @@ def test_patch_market_data_whole_frame_combine_matches_loop_semantics():
 
 
 def test_weekly_refresh_due_shared_judgment():
-    """EC-3 fold: the ONE _weekly_refresh_due (core.pipeline.cache) replaces the
+    """EC-3 fold: the ONE _weekly_refresh_due (core.pipeline.market_data.cache) replaces the
     three drifted copies. The stamp is written by this codebase in UTC (_now_iso),
     so a tz-naive stamp is treated as UTC — never compared against a local wall
     clock — and a missing or malformed stamp counts as due."""
@@ -803,7 +803,7 @@ def test_parse_scan_result_reads_json_before_stale_traceback():
         "Aborting archive write: stale market data: latest-session close coverage 3/4",
         'SCAN_RESULT_JSON:{"n_setups": 140, "n_archived": 0}',
         "Traceback (most recent call last):",
-        "core.pipeline.scan_job.StaleMarketDataError: stale market data",
+        "core.pipeline.screening.scan_job.StaleMarketDataError: stale market data",
     ])
 
     assert _parse_scan_result(output) == (140, 0)
@@ -853,7 +853,7 @@ def test_fetch_yfinance_price_unwraps_provider_result(monkeypatch):
     # lazily inside the function, so patch it at its source module.
     from types import SimpleNamespace
 
-    import core.pipeline.providers as providers_module
+    import core.pipeline.market_data.providers as providers_module
 
     monkeypatch.setattr(
         providers_module,
@@ -866,7 +866,7 @@ def test_fetch_yfinance_price_unwraps_provider_result(monkeypatch):
 def test_fetch_yfinance_price_absent_symbol_is_none(monkeypatch):
     from types import SimpleNamespace
 
-    import core.pipeline.providers as providers_module
+    import core.pipeline.market_data.providers as providers_module
 
     monkeypatch.setattr(
         providers_module,
@@ -882,7 +882,7 @@ def test_fetch_yfinance_price_cannot_stall_on_yahoo_hang(monkeypatch):
     # path returns None promptly instead of stalling the one worker thread.
     import time
 
-    import core.pipeline.providers as providers_module
+    import core.pipeline.market_data.providers as providers_module
 
     monkeypatch.setattr(providers_module, "_INFO_TIMEOUT_S", 0.05)
 

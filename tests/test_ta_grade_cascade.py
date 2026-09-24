@@ -112,7 +112,7 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     # 5. The mapper path assembles a REAL model row (no DB required) and the
     #    grade columns ride it end to end.
     from archive_models import SetupArchive
-    from services.archive_queries import archive_row_from_result
+    from domains.archive.queries import archive_row_from_result
     kwargs = archive_row_from_result(seed_result, overrides={
         "ticker": ticker,
         "scan_date": "2026-01-01",
@@ -185,7 +185,7 @@ def test_manual_writer_shape_commits_a_flag_on_row_to_a_real_db(monkeypatch):
     import json as _json
 
     from core.archive.result_adapter import seed_row_from_result
-    from services.archive_queries import archive_row_from_result
+    from domains.archive.queries import archive_row_from_result
 
     ticker, row = _first_fired_result()
     seed_result = seed_row_from_result(row)

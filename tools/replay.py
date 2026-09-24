@@ -44,19 +44,19 @@ except ModuleNotFoundError:
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from core.pipeline.downloads import _trim_to_period
+from core.pipeline.market_data.downloads import _trim_to_period
 from engine_alpha.evaluation import _prepare_eval_frame_with_reason
-from engine_alpha.structure.gate_margins import (
+from engine_alpha.structure.box.gate_margins import (
     count_allowed,
     count_needed,
     outside_allowed,
 )
-from engine_alpha.structure.indicators import calculate_atr
-from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.metrics.indicators import calculate_atr
+from engine_alpha.structure.narrative.reader import read_structure
 
 # count_needed / count_allowed / outside_allowed are re-exported here for the
 # sibling instruments (near-miss lane Task 5): the ONE integer translation of
-# the gate's fraction thresholds lives in engine_alpha.structure.gate_margins
+# the gate's fraction thresholds lives in engine_alpha.structure.box.gate_margins
 # (EC-3); instruments import it from THIS seam so tooling never grows a twin.
 _COUNT_MATH = (count_needed, count_allowed, outside_allowed)
 
@@ -222,7 +222,7 @@ def flag_capture(**overrides):
     for name in overrides:
         if not hasattr(settings, name):
             raise AttributeError(f"flag_capture: settings.{name} does not exist")
-    from engine_alpha.structure.htf import window_override
+    from engine_alpha.structure.context.htf import window_override
     with window_override(dict(overrides)):
         yield
 

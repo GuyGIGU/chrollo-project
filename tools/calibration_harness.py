@@ -186,7 +186,7 @@ def _vetoed_cause_absent(df, atr, variant: dict) -> bool:
     outcome under the variant's flags — never a re-implementation of the
     veto predicate. Cheap: only consulted for a box mark that already read
     None, and the pivot walk it drives is the same one the election ran."""
-    from engine_alpha.structure.narrative import read_structure  # noqa: PLC0415
+    from engine_alpha.structure.narrative.reader import read_structure  # noqa: PLC0415
 
     trace: list = []
     with replay.flag_capture(**variant):

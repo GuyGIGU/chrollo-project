@@ -9,7 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from services import scan_status
-from services.core_settings import load_core_settings
+from app.core_settings import load_core_settings
 from services.scan_runner import run_scheduled_scan_and_forward_returns
 from services.scan_watchdog import run_scan_health_watchdog
 

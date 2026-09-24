@@ -9,12 +9,16 @@ portfolio pane, the health tick and the broker-status pill for the duration of
 an import (council 2026-09-07, finding 12).
 
 The check is AST-only — no imports, no app boot, no DB — so it walks every
-router file including ones that do not exist yet.
+backend domain file (the routers live in ``webapp/backend/domains/<domain>/``),
+including ones that do not exist yet.
 """
 import ast
 from pathlib import Path
 
-ROUTERS = Path(__file__).resolve().parents[1] / "webapp" / "backend" / "routers"
+DOMAINS = Path(__file__).resolve().parents[1] / "webapp" / "backend" / "domains"
+# The 21 router modules that lived flat in routers/ before the domain split; a
+# scan that finds fewer files than that is looking in the wrong place.
+_MIN_DOMAIN_FILES = 21
 
 # The ONLY handlers that may be async: they return a StreamingResponse over an
 # async generator that awaits an asyncio queue. There is no blocking work to
@@ -22,8 +26,8 @@ ROUTERS = Path(__file__).resolve().parents[1] / "webapp" / "backend" / "routers"
 # nothing and would break the streaming. Anything else added to this set needs
 # the same argument written next to it.
 _ALLOWED_ASYNC = {
-    ("portfolio_streams.py", "stream_portfolio"),
-    ("portfolio_streams.py", "stream_executions"),
+    ("portfolio/streams.py", "stream_portfolio"),
+    ("portfolio/streams.py", "stream_executions"),
 }
 
 _HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
@@ -39,14 +43,16 @@ def _is_route_decorator(node: ast.expr) -> bool:
 
 
 def _async_handlers() -> list[tuple[str, str]]:
+    paths = sorted(DOMAINS.rglob("*.py"))
+    assert len(paths) >= _MIN_DOMAIN_FILES, f"scanned only {len(paths)} files under {DOMAINS}"
     found = []
-    for path in sorted(ROUTERS.glob("*.py")):
+    for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if not isinstance(node, ast.AsyncFunctionDef):
                 continue
             if any(_is_route_decorator(d) for d in node.decorator_list):
-                found.append((path.name, node.name))
+                found.append((path.relative_to(DOMAINS).as_posix(), node.name))
     return found
 
 
@@ -62,7 +68,7 @@ def test_no_route_handler_is_async_without_an_argument_for_it():
 def test_the_ibkr_statement_import_is_a_threadpool_handler():
     """The named regression: a 5 MB statement parse plus a full trade-log
     rebuild, inline on the loop."""
-    assert ("portfolio.py", "import_ibkr_csv") not in _async_handlers()
+    assert ("portfolio/router.py", "import_ibkr_csv") not in _async_handlers()
 
 
 def test_the_allowlist_still_describes_real_handlers():
@@ -73,7 +79,7 @@ def test_the_allowlist_still_describes_real_handlers():
     plain ``FunctionDef`` too would let it pass (fix review 2026-09-07,
     finding 5)."""
     for entry in sorted(_ALLOWED_ASYNC):
-        module = ROUTERS / entry[0]
+        module = DOMAINS / entry[0]
         assert module.exists(), f"allowlisted module is gone: {entry[0]}"
         names = {n.name for n in ast.walk(ast.parse(module.read_text(encoding="utf-8")))
                  if isinstance(n, ast.AsyncFunctionDef)}

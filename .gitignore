@@ -45,7 +45,7 @@ output/*_analysis.md
 # Runtime artifacts written at scan time (not source)
 ticker_quarantine.json
 ticker_admission.json
-# Cross-process cache lock sidecars (core/pipeline/file_lock.py)
+# Cross-process cache lock sidecars (core/pipeline/market_data/file_lock.py)
 *.lock
 
 # Generated screener / backtest CSVs — regenerated on every run, no value in git history.

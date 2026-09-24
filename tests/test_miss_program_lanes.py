@@ -47,9 +47,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screening.screener import _evaluate_ticker
 from engine_alpha.evaluation import apply_baseline_filters_with_reason
-from engine_alpha.structure.narrative import Structure, read_structure
+from engine_alpha.structure.narrative.reader import Structure, read_structure
 from tools import shadow_diff
 from tools.marks_corpus import _FROZEN_BREADTH
 from tools.marks_corpus import _load_fixture as _load_marks_fixture
@@ -445,7 +445,7 @@ def test_ceiling_rest_razor_sanctions_just_inside_and_refuses_just_outside(monke
     so a drifted construction or a moved razor fails loudly. The corpus-wide
     ENIC boolean cannot carry this alone: if ENIC ever refuses at an earlier
     leg, the razor's refusing side would lose its only witness silently."""
-    from engine_alpha.structure.lps import detect_lps_candidates
+    from engine_alpha.structure.lps.detection import detect_lps_candidates
 
     sup_avg, res_avg, atr = 90.0, 100.0, 2.0
     box_height = res_avg - sup_avg
@@ -537,7 +537,7 @@ def test_bottoming_lane_opens_the_seeding_gate_under_the_same_condition(monkeypa
     """The sma200 rule's SECOND layer: collect_root_anchors refuses to seed
     any frame under its 200-bar SMA (`below_trend_sma`). The lane opens both
     layers together — same flag, same reclaimed-50-day condition."""
-    from engine_alpha.structure.box_primitives import collect_root_anchors
+    from engine_alpha.structure.box.box_primitives import collect_root_anchors
 
     df = _v_recovery_frame()
 
@@ -566,7 +566,7 @@ def test_bottoming_lane_never_seeds_a_nan_sma200_frame(monkeypatch):
     bottoming base: the lane may open ONLY the known-below leg (council
     review 2026-08-30, McKinney — NaN-fail-closed doctrine). 60 bars: the
     50-bar mean is finite and reclaimed, the 200-bar mean is NaN."""
-    from engine_alpha.structure.box_primitives import collect_root_anchors
+    from engine_alpha.structure.box.box_primitives import collect_root_anchors
 
     n = 60
     closes = np.linspace(10.0, 12.0, n)

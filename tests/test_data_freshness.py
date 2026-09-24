@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from core.pipeline.data_freshness import (
+from core.pipeline.market_data.data_freshness import (
     close_coverage_on,
     has_all_closes_on,
     last_complete_reference_date,

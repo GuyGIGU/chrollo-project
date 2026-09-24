@@ -52,7 +52,7 @@ from core.archive.missed_winners import (  # reused verbatim
 )
 from core.backtest import edge_report, is_oos, null_model, stats
 from core.backtest.loader import DEFAULT_DB_PATH, load_episodes
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 
 # Outcome-maturity floors below which a number is "directional at best".
 MATURE_MIN_N = 25          # mirrors analyze.EDGE_MIN_N
@@ -464,7 +464,7 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         refuse_sealed_output(out)   # pre-flight: fail before the expensive pass (EC-14)
     # Stock-only standalone-edge population by default: the ETF universes now
     # archive under source='screener' too, so pin universe_type to keep this
-    # calibration ground truth uncontaminated (mirrors services/engine_edge.py).
+    # calibration ground truth uncontaminated (mirrors domains/archive/edge.py).
     df = load_episodes(db_path=db_path, source=source, universe_type=universe_type)
 
     header("CHROLLO STANDALONE-EDGE BACKTEST HARNESS  (PRELIMINARY)")

@@ -19,12 +19,12 @@ sys.path.insert(0, str(ROOT))
 
 from config import settings
 from engine_alpha.evaluation import evaluate_ticker_with_near_miss
-from engine_alpha.structure.gate_margins import (
+from engine_alpha.structure.box.gate_margins import (
     complete_leg_vector,
     ruled_near_miss,
 )
-from engine_alpha.structure.narrative import read_structure
-from engine_alpha.structure.near_miss import (
+from engine_alpha.structure.narrative.reader import read_structure
+from engine_alpha.structure.box.near_miss import (
     NearMissRecorder,
     _kill_leg_screen,
     deferred_rows,
@@ -113,7 +113,7 @@ def test_kill_leg_screen_is_a_necessary_condition_of_the_ruling():
     pool laws exactly as deferred_rows does (review 2026-07-26 findings 1/8
     — the sweep used to skip band, leaving the screen unproven on the class
     the deep-event pool exists to observe)."""
-    from engine_alpha.structure.rail_qualification import qualify_pair_events
+    from engine_alpha.structure.box.rail_qualification import qualify_pair_events
     rec, _e, _frames = _egbn_recorder()
     assert rec.records
     frame, atr = rec.frame, rec.atr
@@ -201,7 +201,7 @@ def test_flag_off_twin_degrades_to_the_plain_evaluation(monkeypatch):
     # "Degrades to the plain evaluation" pinned as canonical-field EQUALITY,
     # not just firing (review 2026-07-26 finding 10): a drifted degrade
     # branch must red here, not in a live scan whose flag flipped mid-run.
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from tools import shadow_diff
     plain = _evaluate_ticker(e["ticker"], sliced,
                              float(e["spy_6m_return"]), _FROZEN_BREADTH)

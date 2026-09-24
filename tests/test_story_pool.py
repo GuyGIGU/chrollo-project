@@ -22,8 +22,8 @@ import pandas as pd
 import pytest
 
 from config import settings
-from engine_alpha.structure import box_primitives
-from engine_alpha.structure.box_primitives import (
+from engine_alpha.structure.box import box_primitives
+from engine_alpha.structure.box.box_primitives import (
     _story_pool_candidates,
     collect_zigzag_candidates,
 )
@@ -160,7 +160,7 @@ def test_prefilter_equals_the_reader_posture_at_both_zone_edges():
     zone-entry edge, the close-above edge, and NaN, pinning that a future
     edit cannot silently split the two copies apart (a split prefilter
     refuses windows the reader would admit, with no trace and no log)."""
-    from engine_alpha.structure.event_map import (
+    from engine_alpha.structure.events.event_map import (
         frame_terminal_posture, read_rail_episodes)
 
     R_test, S_test = 14.0, 10.0

@@ -20,8 +20,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-import engine_alpha.structure.box_primitives as bp
-from engine_alpha.structure.box_gates import (
+import engine_alpha.structure.box.box_primitives as bp
+from engine_alpha.structure.box.box_gates import (
     GATE_LEG_INDEX,
     GATE_LEGS,
     _occupancy_failures,

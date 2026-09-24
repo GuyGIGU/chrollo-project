@@ -22,7 +22,7 @@ from core.archive.episodes import (
     canonical_ids,
     episode_by_member_id,
 )
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 from core.archive.db_path import archive_db_path
 
 # Absolute path to the production archive. Read-only here; the harness never

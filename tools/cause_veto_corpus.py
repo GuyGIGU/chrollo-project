@@ -46,7 +46,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screening.screener import _evaluate_ticker
 from tools import replay
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")

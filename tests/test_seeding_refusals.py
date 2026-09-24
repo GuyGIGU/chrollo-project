@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from config import settings
-from engine_alpha.structure.box_primitives import SEEDING_LEGS, collect_root_anchors
+from engine_alpha.structure.box.box_primitives import SEEDING_LEGS, collect_root_anchors
 
 
 def _pole_frame(n=476):
@@ -36,7 +36,7 @@ def _pole_frame(n=476):
 
 def test_vocabulary_is_its_own_closed_set():
     assert SEEDING_LEGS == ("frame_short", "below_trend_sma", "ar_age")
-    from engine_alpha.structure.box_gates import GATE_LEGS
+    from engine_alpha.structure.box.box_gates import GATE_LEGS
     assert not set(SEEDING_LEGS) & set(GATE_LEGS)   # never an overload
 
 

@@ -22,7 +22,7 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import database
 import models
-from webapp.backend.services import csv_import
+from domains.trading import csv_import
 
 ACCOUNT = "U1234567"
 

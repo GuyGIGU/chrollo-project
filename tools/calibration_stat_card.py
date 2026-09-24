@@ -37,17 +37,17 @@ import database  # noqa: E402  binds the live SQLite engine + SessionLocal
 from config import settings  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.indicators import (  # noqa: E402
+from engine_alpha.structure.metrics.indicators import (  # noqa: E402
     adr_pct,
     distance_to_52w_high_pct,
     trend_template,
 )
-from engine_alpha.structure.box_gates import (  # noqa: E402
+from engine_alpha.structure.box.box_gates import (  # noqa: E402
     _is_boundary_respected,
     _occupancy_failures,
     _validate_base_quality,
 )
-from engine_alpha.structure.metrics import (  # noqa: E402
+from engine_alpha.structure.metrics.base import (  # noqa: E402
     measure_bar_compression,
     measure_contractions,
     measure_dwell_balance,
@@ -57,8 +57,8 @@ from engine_alpha.structure.metrics import (  # noqa: E402
     measure_touch_volume,
     descent_tail_rejects,
 )
-from engine_alpha.structure.lps import lps_range_threshold, _profile_unit  # noqa: E402
-from engine_alpha.structure.market_structure import _pairwise_descent_fraction  # noqa: E402
+from engine_alpha.structure.lps.detection import lps_range_threshold, _profile_unit  # noqa: E402
+from engine_alpha.structure.events.market_structure import _pairwise_descent_fraction  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
 from tools.replay import (  # noqa: E402
     MARK_ATR_OFFSET,

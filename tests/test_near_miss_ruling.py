@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from engine_alpha.structure.gate_margins import (
+from engine_alpha.structure.box.gate_margins import (
     NEAR_MISS_RULESET,
     OCCUPANCY_FAMILY,
     coarse_failing_legs,

@@ -37,7 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screening.screener import _evaluate_ticker
 from tools import shadow_diff
 from tools.marks_corpus import _FROZEN_BREADTH
 from tools.marks_corpus import _load_fixture as _load_marks_fixture
@@ -177,7 +177,7 @@ def test_pool_label_stamping_point_refuses_unknown_labels():
     single stamping point — a future rung that mislabels (or leaves the
     Candidate slot unset) fails loudly instead of persisting 'None' and
     silently forking the rescued cohort."""
-    from engine_alpha.structure.bricks import _pool_label
+    from engine_alpha.structure.narrative.bricks import _pool_label
 
     for ok in ("strict", "rescued", "band", "story"):
         assert _pool_label(ok) == ok

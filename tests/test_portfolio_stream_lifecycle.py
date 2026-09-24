@@ -26,8 +26,8 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from webapp.backend.ibkr.broadcaster import Broadcaster  # noqa: E402
-from webapp.backend.routers import portfolio_streams  # noqa: E402
+from domains.ibkr.broadcaster import Broadcaster  # noqa: E402
+from domains.portfolio import streams as portfolio_streams  # noqa: E402
 
 
 async def _never_disconnected():

@@ -1,6 +1,6 @@
 """scan_runs status helpers run on the boot-migrated schema only (council
 2026-08-22, Ramirez F7): the per-call PRAGMA sniff and the no-kind SQL twins
-are deleted — services/startup.py creates scan_runs WITH the kind column and
+are deleted — app/startup.py creates scan_runs WITH the kind column and
 carries the idempotent ALTER, so these tests pin the helpers against exactly
 that boot schema (built from startup's own CREATE statement)."""
 from __future__ import annotations
@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 import services.scan_status as scan_status_mod  # noqa: E402
-from services.startup import _MIGRATIONS  # noqa: E402
+from app.startup import _MIGRATIONS  # noqa: E402
 
 
 @pytest.fixture()
@@ -73,7 +73,7 @@ def test_latest_and_history_agree_on_reason_and_solution(status_engine, monkeypa
     """The single-item route and its list sibling resolve every row through the
     SAME function, so the topbar pill and the diagnostics registry cannot tell
     the operator two different stories about one run."""
-    import routers.screener as screener_router
+    import domains.screener.router as screener_router
 
     run_id = scan_status_mod.start_run("scheduled")
     scan_status_mod.finish_run(run_id, "aborted", error="client disconnected mid-stream")
@@ -93,7 +93,7 @@ def test_history_widens_to_the_other_jobs_only_when_asked(status_engine, monkeyp
     """`kind=all` is what surfaces the outcome-backfill and download failures no
     surface had ever shown; the Archive header's Scan History button opens it.
     Pinning the route back to scans alone must not pass silently."""
-    import routers.screener as screener_router
+    import domains.screener.router as screener_router
 
     monkeypatch.setattr(screener_router.scan_diagnosis, "current_missed_slot_notice",
                         lambda: None)
@@ -116,7 +116,7 @@ def test_history_widens_to_the_other_jobs_only_when_asked(status_engine, monkeyp
 def test_the_never_row_still_carries_the_resolved_fields(status_engine):
     """A fresh install must not serve a row shaped differently from every other
     row — the 'never' fallback goes through the same enrichment."""
-    import routers.screener as screener_router
+    import domains.screener.router as screener_router
 
     payload = screener_router.get_latest_scan_status()
 

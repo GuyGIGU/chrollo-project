@@ -81,8 +81,8 @@ import database  # noqa: E402  binds the SQLite engine + SessionLocal
 
 from config import settings  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.box_events import measure_resistance_events  # noqa: E402
-from engine_alpha.structure.narrative import read_structure  # noqa: E402
+from engine_alpha.structure.events.box_events import measure_resistance_events  # noqa: E402
+from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.calibration_harness import load_box_marks  # noqa: E402
 from tools.replay import (  # noqa: E402

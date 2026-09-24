@@ -14,7 +14,7 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import archive_models  # noqa: E402
 from database import make_sqlite_engine  # noqa: E402
-from services.startup import migrate_universe_type  # noqa: E402
+from app.startup import migrate_universe_type  # noqa: E402
 
 
 def test_migration_is_noop_when_universe_type_present(tmp_path):

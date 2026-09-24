@@ -46,7 +46,8 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import models  # noqa: E402
 from database import get_db  # noqa: E402
-from routers import journal, portfolio  # noqa: E402
+from domains.trading import journal
+from domains.portfolio import router as portfolio  # noqa: E402
 
 _BOUNDARY = "----chrollo-upload-test"
 # Starlette spools a part in memory up to 1 MB, then spills it to a real temp

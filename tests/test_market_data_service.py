@@ -1,4 +1,4 @@
-"""Service-shape guards for webapp.backend.services.market_data (Track C / C2).
+"""Service-shape guards for domains.market_data.service (Track C / C2).
 
 The chart routes were refactored to route their single-symbol fetch + candle
 shaping through this service instead of calling yfinance raw. These tests pin
@@ -18,7 +18,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from webapp.backend.services import market_data as md_service
+from domains.market_data import service as md_service
 
 
 def _flat_ohlcv(rows):
@@ -186,7 +186,7 @@ def test_latest_prices_delegates_to_provider(monkeypatch):
 
 # ── Route-level: chart endpoint still returns the same JSON shape ──────────
 def test_chart_route_returns_expected_payload(monkeypatch):
-    from webapp.backend.routers import market_data as md_router
+    from domains.market_data import router as md_router
 
     raw = _flat_ohlcv([
         {"time": "2026-06-01", "open": 10.0, "high": 11.0, "low": 9.5, "close": 10.8, "volume": 1000},

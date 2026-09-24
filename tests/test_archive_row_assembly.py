@@ -63,11 +63,11 @@ from engine_alpha.scoring.scoring import (  # noqa: E402
     sub_score_archive_values,
     ta_grade_archive_values,
 )
-from engine_alpha.structure.event_map import event_map_archive_values  # noqa: E402
-from engine_alpha.structure.htf import htf_archive_values  # noqa: E402
-from engine_alpha.structure.power_play import power_play_archive_values  # noqa: E402
-from engine_alpha.structure.strategy_read import strategy_archive_values  # noqa: E402
-from engine_alpha.structure.trace_export import election_trace_archive_values  # noqa: E402
+from engine_alpha.structure.events.event_map import event_map_archive_values  # noqa: E402
+from engine_alpha.structure.context.htf import htf_archive_values  # noqa: E402
+from engine_alpha.structure.context.power_play import power_play_archive_values  # noqa: E402
+from engine_alpha.structure.context.strategy_read import strategy_archive_values  # noqa: E402
+from engine_alpha.structure.box.trace_export import election_trace_archive_values  # noqa: E402
 
 
 def _model_columns() -> frozenset[str]:
@@ -250,7 +250,7 @@ def test_seed_values_dict_is_subset_of_model_columns():
     columns are therefore: the mapper's auto-mapped flat columns, PLUS the seed
     ``overrides`` (special-cased keys), PLUS the ``**`` splats inside ``overrides``.
     Every one of those must be a real SetupArchive column."""
-    from services.archive_queries import (
+    from domains.archive.queries import (
         _MANUAL_UNMAPPED_COLUMNS,
         archive_row_from_result,
     )

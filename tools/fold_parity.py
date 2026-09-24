@@ -39,7 +39,7 @@ except ModuleNotFoundError:
 configure_path()
 
 from engine_alpha.evaluation import EVAL_ERROR
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screening.screener import _evaluate_ticker
 from tools.shadow_diff import _load_fixture
 
 _REJECT = "__REJECT__"

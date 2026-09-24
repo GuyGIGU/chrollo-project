@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 
-from engine_alpha.structure.strategy_read import (
+from engine_alpha.structure.context.strategy_read import (
     STRATEGY_COLUMN_SQL,
     strategy_archive_values,
     strategy_read_fields,

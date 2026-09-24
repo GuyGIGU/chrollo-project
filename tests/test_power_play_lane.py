@@ -20,7 +20,7 @@ from engine_alpha.evaluation import (
     species_watch,
     wire_status,
 )
-from engine_alpha.structure.power_play import PP_STATES
+from engine_alpha.structure.context.power_play import PP_STATES
 from tools.replay import flag_capture
 
 # The census battery's hand-reasoned pole frame (self-contained copy — Beck's
@@ -113,7 +113,7 @@ def test_twin_composes_with_the_near_miss_triple():
 
 def test_wire_vocabulary_is_pinned_exactly():
     # Widening PP_WIRE_STATUS must be a CONSCIOUS two-sided diff: the JS
-    # label mirror (webapp/frontend/src/components/wireVocabulary.js,
+    # label mirror (webapp/frontend/src/shared/presentation/wireVocabulary.js,
     # POWER_PLAY_STATUS_LABELS) moves in the SAME change. A membership-only
     # assertion let a server-side widening ship with every gate green and
     # the operator's first sight of it a raw slug (2026-08-17 review,
@@ -292,7 +292,7 @@ def test_conductor_publishes_the_watch_to_market_context(monkeypatch):
     # frame and assert the row lands in the published block with its stats
     # and the phase timer — and that the dark fundamentals pass leaves NO
     # phantom phase (finding 7's regression pin).
-    import core.pipeline.screener as screener_module
+    import core.pipeline.screening.screener as screener_module
 
     df = _species_frame()
 

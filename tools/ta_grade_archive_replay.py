@@ -175,8 +175,8 @@ def build_records(session, panel, *, source: str, since: str | None,
     import hashlib
 
     from archive_models import SetupArchive
-    from core.pipeline.screener import _evaluate_ticker
-    from core.pipeline.universe import default_universe_type
+    from core.pipeline.screening.screener import _evaluate_ticker
+    from core.pipeline.universe.descriptor import default_universe_type
     from tools.replay import FROZEN_BREADTH, FROZEN_SPY_6M, flag_capture
 
     universe = default_universe_type()

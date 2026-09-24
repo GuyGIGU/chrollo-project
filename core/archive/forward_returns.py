@@ -479,7 +479,7 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     # extra fetch. De-duped so a setup ON SPY itself doesn't double-list it.
     download_tickers = list(dict.fromkeys([*all_tickers, SPY_TICKER]))
     log.info(f"Downloading data for {len(all_tickers)} tickers (+SPY) from {start.date()} to {end.date()}...")
-    from core.pipeline.downloads import _batched_download, price_auto_adjust
+    from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
     raw = _batched_download(
         download_tickers,
         {"start": start_str, "end": end_str, "auto_adjust": price_auto_adjust()},

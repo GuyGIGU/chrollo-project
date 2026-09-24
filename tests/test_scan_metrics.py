@@ -8,8 +8,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import core.pipeline.scan_metrics as scan_metrics
-import core.pipeline.screener as screener_module
+import core.pipeline.telemetry.scan_metrics as scan_metrics
+import core.pipeline.screening.screener as screener_module
 
 
 def test_persist_scan_metrics_updates_meta_and_appends_history(tmp_path, monkeypatch):

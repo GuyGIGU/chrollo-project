@@ -21,8 +21,8 @@ import pandas as pd
 import pytest
 
 from config import settings
-from engine_alpha.structure.box_primitives import collect_root_anchors
-from engine_alpha.structure.power_play import first_legal_look, ticker_episodes
+from engine_alpha.structure.box.box_primitives import collect_root_anchors
+from engine_alpha.structure.context.power_play import first_legal_look, ticker_episodes
 
 # ── the shared hand-reasoned pole ───────────────────────────────────────────
 # pre   [0, 400)   : linear 40 -> 50

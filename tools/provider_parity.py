@@ -25,7 +25,7 @@ It compares two "sources" on two layers:
 
 A "source" is one of:
   - ``cache``            the live incumbent parquet (settings.CACHE_FILENAME); no fetch
-  - ``<provider-name>``  a registered provider (core.pipeline.providers), fetched live
+  - ``<provider-name>``  a registered provider (core.pipeline.market_data.providers), fetched live
   - ``<path>.parquet``   a frozen snapshot written earlier by ``--snapshot``
 
 Usage:
@@ -62,8 +62,8 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
-from core.pipeline.providers import available_providers, get_provider
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.market_data.providers import available_providers, get_provider
+from core.pipeline.screening.screener import _evaluate_ticker
 from tools.shadow_diff import CANONICAL_FIELDS, canonical_fields
 
 # Tolerances. PRICE_REL_TOL mirrors "noise" (sub-0.1% is rounding/feed jitter);

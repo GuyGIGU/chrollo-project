@@ -32,15 +32,15 @@ from engine_alpha.structure import (
 )
 from engine_alpha.scoring import taxonomy as _taxonomy
 from engine_alpha.scoring.scoring import compose_ta_grade
-from engine_alpha.structure.market_structure import measure_trend_bases
-from engine_alpha.structure.metrics import (
+from engine_alpha.structure.events.market_structure import measure_trend_bases
+from engine_alpha.structure.metrics.base import (
     base_rail_touches,
     base_swing_skeleton,
     measure_lps_contraction,
     measure_story_richness,
 )
-from engine_alpha.structure.narrative import read_structure
-from engine_alpha.structure.phase_d import (
+from engine_alpha.structure.narrative.reader import read_structure
+from engine_alpha.structure.phases.phase_d import (
     final_v_tip_bar,
     support_test_evidence_starts,
 )
@@ -622,7 +622,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # inside the flag: flag-off pays zero cost and spreads {} -> byte-identical.
     event_map_fields = {}
     if settings.EVENT_MAP_ENABLED:
-        from engine_alpha.structure.event_map import (
+        from engine_alpha.structure.events.event_map import (
             episode_substrate_fields,
             read_role_labels,
             read_swing_map,
@@ -738,7 +738,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # spreads {} -> byte-identical.
     strategy_fields = {}
     if settings.STRATEGY_READ_ENABLED:
-        from engine_alpha.structure.strategy_read import strategy_read_fields
+        from engine_alpha.structure.context.strategy_read import strategy_read_fields
         strategy_fields = strategy_read_fields(df, structure_ctx["structure"])
 
     # Election-trace export (Surface the Read, flag-dark): the walk's own
@@ -749,7 +749,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     trace_fields = {}
     if settings.ELECTION_TRACE_EXPORT_ENABLED:
         import json
-        from engine_alpha.structure.trace_export import export_election_trace
+        from engine_alpha.structure.box.trace_export import export_election_trace
         _exported = export_election_trace(structure_ctx.get("election_trace"), df)
         if _exported is not None:
             trace_fields = {
@@ -1134,7 +1134,7 @@ def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
     keeps a mid-scan flag flip harmless. Top-level for pickling."""
     if not settings.NEAR_MISS_LANE_ENABLED:
         return _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct), [], {}
-    from engine_alpha.structure.near_miss import (  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.box.near_miss import (  # noqa: PLC0415 — inside the flag
         NearMissRecorder, deferred_rows)
     recorder = NearMissRecorder()
     result = _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct,
@@ -1163,13 +1163,13 @@ def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
 
 # ── The live species watch (the lane's core — Power-Play program Task 8) ────
 # Lives HERE, beside the composed twin that is its only caller: structure
-# measures (engine_alpha.structure.power_play owns the family + episode
+# measures (engine_alpha.structure.context.power_play owns the family + episode
 # mechanics), the lane coordinates (2026-08-17 review, Fowler — the old
 # structure-layer home forced a two-way lazy-import cycle).
 
 # The publisher's closed-set status vocabulary — derived SERVER-SIDE in the
 # lane twin; no client code may reconstruct it from null patterns (EC-28/33).
-# The client label mirror (webapp/frontend/src/components/wireVocabulary.js
+# The client label mirror (webapp/frontend/src/shared/presentation/wireVocabulary.js
 # POWER_PLAY_STATUS_LABELS) moves in the SAME change as this tuple.
 PP_WIRE_STATUS = ("fired", "watched_ungraded", "not_watched_clock",
                   "refused_occupancy", "refused_story")
@@ -1225,8 +1225,8 @@ def species_watch(df):
     episode's own record is typed from its own roots' cascades. If the
     episode's shelf was never framed at all, nothing is recorded
     (``pp_shelf_unframed`` counts it) — never a fabricated refusal."""
-    from engine_alpha.structure.htf import window_override  # noqa: PLC0415 — species-only
-    from engine_alpha.structure.power_play import (  # noqa: PLC0415 — species-only
+    from engine_alpha.structure.context.htf import window_override  # noqa: PLC0415 — species-only
+    from engine_alpha.structure.context.power_play import (  # noqa: PLC0415 — species-only
         first_legal_look, ticker_episodes)
 
     pole_gain = float(settings.POWER_PLAY_POLE_MIN_GAIN)
@@ -1372,7 +1372,7 @@ def evaluate_ticker_with_power_play(ticker: str, df: pd.DataFrame,
     stats: dict = {}
     row = None
     try:
-        from engine_alpha.structure.power_play import power_play_fields  # noqa: PLC0415
+        from engine_alpha.structure.context.power_play import power_play_fields  # noqa: PLC0415
         watch, w_stats = species_watch(df)
         stats.update(w_stats)
         if watch is not None:

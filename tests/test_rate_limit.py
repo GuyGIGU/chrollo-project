@@ -1,4 +1,4 @@
-"""Tests for the global Yahoo download throttle (core.pipeline.rate_limit).
+"""Tests for the global Yahoo download throttle (core.pipeline.market_data.rate_limit).
 
 Hermetic — no live network. The timing tests prove the bucket enforces the rate
 and that the throttle is ONE global ceiling shared across threads (not per-thread);
@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from config import settings
-from core.pipeline import rate_limit
+from core.pipeline.market_data import rate_limit
 
 
 def teardown_function():
@@ -66,7 +66,7 @@ def test_throttle_is_noop_when_disabled(monkeypatch):
 
 
 def test_batched_download_gates_each_ticker_and_uses_single_history(monkeypatch):
-    from core.pipeline import downloads
+    from core.pipeline.market_data import downloads
 
     seen = []
     history_calls = []
@@ -102,7 +102,7 @@ def test_batched_download_gates_each_ticker_and_uses_single_history(monkeypatch)
 
 
 def test_batched_download_dedupes_duplicate_ohlcv_columns(monkeypatch):
-    from core.pipeline import downloads
+    from core.pipeline.market_data import downloads
 
     monkeypatch.setattr(rate_limit, "throttle", lambda n=1: None)
 
@@ -136,7 +136,7 @@ def test_archive_download_paths_use_shared_batched_downloader():
     for rel in (
         "core/archive/forward_returns.py",
         "core/archive/seed.py",
-        "webapp/backend/routers/archive_actions.py",
+        "webapp/backend/domains/archive/actions.py",
     ):
         text = (root / rel).read_text(encoding="utf-8")
         assert "yf.download" not in text

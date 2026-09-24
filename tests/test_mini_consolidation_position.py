@@ -15,8 +15,8 @@ import math
 import pandas as pd
 
 from config import settings
-from engine_alpha.structure.bricks import EquilibriumBox, find_inner_box
-from engine_alpha.structure.inner_box import (
+from engine_alpha.structure.narrative.bricks import EquilibriumBox, find_inner_box
+from engine_alpha.structure.box.inner_box import (
     mini_consolidation_position,
     select_inner_box,
 )

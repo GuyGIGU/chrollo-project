@@ -31,9 +31,9 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import archive_models  # noqa: E402
 import database  # noqa: E402
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE  # noqa: E402
-from routers.archive_actions import add_setup_manually  # noqa: E402
-from routers.archive_schemas import ManualSetupIn  # noqa: E402
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE  # noqa: E402
+from domains.archive.actions import add_setup_manually  # noqa: E402
+from domains.archive.schemas import ManualSetupIn  # noqa: E402
 
 SCAN_DATE = "2026-06-25"
 
@@ -76,9 +76,9 @@ def _call_add(db, monkeypatch, ticker="AAA", scan_date=SCAN_DATE):
     """Drive the real route handler; returns (persisted row, the constructor
     kwargs the route assembled — i.e. exactly what a live INSERT is built from)."""
     import core.archive.seed as seed_mod
-    import core.pipeline.downloads as downloads
+    import core.pipeline.market_data.downloads as downloads
     import engine_alpha.freeze.manifest as manifest_mod
-    import routers.archive_actions as actions_mod
+    import domains.archive.actions as actions_mod
 
     monkeypatch.setattr(downloads, "_batched_download",
                         lambda tickers, params, label: _flat_ohlcv(scan_date))
@@ -115,7 +115,7 @@ def test_manual_row_lands_with_universe_tag_and_is_default_scope_visible(db, mon
     # And the row is visible to the default-scoped read surface (the shared
     # filter layer under /setups, /episodes, analyze) — a NULL-universe row
     # falls out of exactly this query.
-    from services.archive_queries import _apply_setup_filters
+    from domains.archive.queries import _apply_setup_filters
 
     scoped = _apply_setup_filters(db.query(archive_models.SetupArchive)).all()
     assert [(r.ticker, r.scan_date) for r in scoped] == [("AAA", SCAN_DATE)]
@@ -139,7 +139,7 @@ def test_existence_check_uses_the_3col_identity(db, monkeypatch):
     assert exc.value.status_code == 409
 
     # Contrast: the sectors row stays outside the default equities scope.
-    from services.archive_queries import _apply_setup_filters
+    from domains.archive.queries import _apply_setup_filters
 
     scoped = _apply_setup_filters(db.query(archive_models.SetupArchive)).all()
     assert [(r.ticker, r.universe_type) for r in scoped] == [("AAA", DEFAULT_UNIVERSE_TYPE)]

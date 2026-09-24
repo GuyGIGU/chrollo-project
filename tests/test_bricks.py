@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 
-from engine_alpha.structure.bricks import (
+from engine_alpha.structure.narrative.bricks import (
     EquilibriumBox,
     RootSwing,
     _enforce_bc_downswing,
@@ -146,7 +146,7 @@ def test_backext_extends_elected_start_to_the_earliest_shared_rail_pivot(monkeyp
     # must walk onto the EARLIEST qualifying pivot (bar 1), not the nearer one
     # (bar 4). The pinned baseline is measured by neutral-pinning the extension
     # seam itself (return cand_start) — the post-fold analog of flag-OFF.
-    from engine_alpha.structure import bricks
+    from engine_alpha.structure.narrative import bricks
 
     pre = [105, 101, 105, 106, 101, 106]      # S-touch valleys @1 AND @4
     worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
@@ -215,7 +215,7 @@ def test_backext_pivot_must_touch_its_own_rail_kind():
     # matching is kind-aware (peak~R / valley~S), the worked-cause-vs-drift
     # distinction the lever exists for. The span from the valley conforms, so
     # only the kind check blocks; a kind-blind mutation would extend to bar 2.
-    from engine_alpha.structure.box_primitives import backext_shared_rail
+    from engine_alpha.structure.box.box_primitives import backext_shared_rail
 
     bars = [
         (112.0, 108.0),   # 0
@@ -236,7 +236,7 @@ def test_backext_span_includes_the_pivot_bar_and_the_last_bar():
     # at EITHER edge must block the extension — the qualifying pivot's own bar
     # (its High can breach R+buf even while its Low touches S) and the bar
     # just before the pinned start.
-    from engine_alpha.structure.box_primitives import backext_shared_rail
+    from engine_alpha.structure.box.box_primitives import backext_shared_rail
 
     filler = [(106.0, 104.0), (105.5, 103.8), (106.2, 104.2),
               (105.8, 104.0), (106.0, 104.1), (105.9, 104.0)]
@@ -260,8 +260,8 @@ def test_backext_applies_to_the_diagnostic_mirror_too(monkeypatch):
     # extended box as the live reader, or diagnostic tools drift from
     # production. The pinned control arm neutral-pins the extension seam
     # (return cand_start) — the post-fold analog of flag-OFF.
-    from engine_alpha.structure import box_primitives
-    from engine_alpha.structure.box_primitives import phase_b_zigzag
+    from engine_alpha.structure.box import box_primitives
+    from engine_alpha.structure.box.box_primitives import phase_b_zigzag
 
     pre = [105, 101, 105, 106, 105, 106]
     worked = [101, 103, 105, 107, 109, 107, 105, 103] * 4
@@ -616,7 +616,7 @@ def test_enforce_climax_terminality_collapses_to_box_open_extreme():
 
 def _floor(n, *, direction, terminal_bar=0):
     """A TrendFloor covering every bar with one confirmed segment."""
-    from engine_alpha.structure.market_structure import TrendFloor
+    from engine_alpha.structure.events.market_structure import TrendFloor
     return TrendFloor(np.full(n, terminal_bar, dtype=int),
                       np.full(n, np.nan, dtype=float),
                       np.full(n, direction, dtype=int))
@@ -756,8 +756,8 @@ def _swing_tape(pre_trend, box_trend):
 def test_cause_maturity_validated_bridge_short_circuits(monkeypatch):
     # A validated macro bridge is a matured cause, full stop: the O(n) swing walk
     # (Operand B) must not even run, and the trend fields stay empty.
-    import engine_alpha.structure.phase_a as phase_a
-    import engine_alpha.structure.event_map as event_map
+    import engine_alpha.structure.phases.phase_a as phase_a
+    import engine_alpha.structure.events.event_map as event_map
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag",
                         lambda *a, **k: [(0, "peak", 110.0), (5, "valley", 100.0)])
 
@@ -774,8 +774,8 @@ def test_cause_maturity_validated_bridge_short_circuits(monkeypatch):
 def test_cause_maturity_vetoes_on_abstain_and_live_up_run(monkeypatch):
     # Abstention AND a live up-staircase on both sides AND a loose LPS shelf =
     # cause absent -> veto (the MIDD class: shelf never tightened, ratio 0.957).
-    import engine_alpha.structure.phase_a as phase_a
-    import engine_alpha.structure.event_map as event_map
+    import engine_alpha.structure.phases.phase_a as phase_a
+    import engine_alpha.structure.events.event_map as event_map
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     monkeypatch.setattr(event_map, "read_swing_map",
                         lambda *a, **k: _swing_tape("up", "up"))
@@ -792,8 +792,8 @@ def test_cause_maturity_rescued_by_tight_shelf(monkeypatch):
     # Operand C (the AND-narrowing third leg): abstain + a live up-run but a TIGHT
     # LPS shelf -> the cause is NOT proven absent -> no veto. This is exactly what
     # keeps the seeded tight-shelf winners (BP/LECO/MEOH/NTCT/VLO) alive.
-    import engine_alpha.structure.phase_a as phase_a
-    import engine_alpha.structure.event_map as event_map
+    import engine_alpha.structure.phases.phase_a as phase_a
+    import engine_alpha.structure.events.event_map as event_map
 
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     monkeypatch.setattr(event_map, "read_swing_map",
@@ -808,8 +808,8 @@ def test_cause_maturity_rescued_by_tight_shelf(monkeypatch):
 def test_cause_maturity_fails_open_on_missing_shelf(monkeypatch):
     # A missing LPS (or a NaN ratio) reads 0.0 -> not loose -> never vetoes, even
     # under abstain + up/up. Fail-open is the law; recall is the gate.
-    import engine_alpha.structure.phase_a as phase_a
-    import engine_alpha.structure.event_map as event_map
+    import engine_alpha.structure.phases.phase_a as phase_a
+    import engine_alpha.structure.events.event_map as event_map
 
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     monkeypatch.setattr(event_map, "read_swing_map",
@@ -826,8 +826,8 @@ def test_cause_maturity_keeps_when_only_one_side_reads_up(monkeypatch):
     # proven absent -> no veto. Pass a LOOSE shelf so this ISOLATES live_up_run —
     # without it a mutant that drops the up-run guard (matured = not loose_lps)
     # would still veto here and slip the suite (a dropped-winner regression).
-    import engine_alpha.structure.phase_a as phase_a
-    import engine_alpha.structure.event_map as event_map
+    import engine_alpha.structure.phases.phase_a as phase_a
+    import engine_alpha.structure.events.event_map as event_map
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     monkeypatch.setattr(event_map, "read_swing_map",
                         lambda *a, **k: _swing_tape("up", "range"))
@@ -840,8 +840,8 @@ def test_cause_maturity_keeps_when_only_one_side_reads_up(monkeypatch):
 def test_cause_maturity_boundary_shelf_at_threshold_keeps(monkeypatch):
     # Strict `>`: a shelf at EXACTLY CAUSE_LPS_LOOSE_MAX is NOT loose, so abstain
     # + up/up still KEEPS. Pins the `>` (not `>=`) semantics against a mutation.
-    import engine_alpha.structure.phase_a as phase_a
-    import engine_alpha.structure.event_map as event_map
+    import engine_alpha.structure.phases.phase_a as phase_a
+    import engine_alpha.structure.events.event_map as event_map
     from config import settings
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     monkeypatch.setattr(event_map, "read_swing_map",

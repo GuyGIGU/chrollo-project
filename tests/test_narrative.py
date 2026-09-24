@@ -9,7 +9,7 @@ fails, regardless of what the bricks are.
 from types import SimpleNamespace
 
 from config import settings
-from engine_alpha.structure.narrative import Structure, read_structure
+from engine_alpha.structure.narrative.reader import Structure, read_structure
 
 
 def _root(climax, ar, R=110.0, S=100.0):

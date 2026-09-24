@@ -25,8 +25,8 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import models  # noqa: E402
 from models import CalibrationMark, CalibrationMarkEvent  # noqa: E402
-from routers import calibration  # noqa: E402
-from routers.calibration import (  # noqa: E402
+from domains.calibration import router as calibration  # noqa: E402
+from domains.calibration.router import (  # noqa: E402
     MarkIn,
     MarkOut,
     calibration_agreement,
@@ -461,10 +461,10 @@ def _frame(dates, close=100.0):
 
 def _chart(monkeypatch, frame, tmp_path, ticker="KLAC", as_of="2025-09-11"):
     import frame_store
-    import services.market_data as market_data
+    import domains.market_data.service as market_data
     import webapp.backend.frame_store as wb_frame_store
-    from core.pipeline import rate_limit
-    from services import candle_cache
+    from core.pipeline.market_data import rate_limit
+    from domains.market_data import candle_cache
     monkeypatch.setattr(market_data, "daily_candle_frame",
                         lambda *a, **k: frame)
     # WP-0: the endpoint fetches through the session candle cache. Give each case
@@ -483,7 +483,7 @@ def _chart(monkeypatch, frame, tmp_path, ticker="KLAC", as_of="2025-09-11"):
 def test_chart_validation_refusals(monkeypatch):
     # The vendor must be unreachable here: if a validation rule regresses,
     # this test fails loud and OFFLINE, never with a live network call.
-    import services.market_data as market_data
+    import domains.market_data.service as market_data
     monkeypatch.setattr(market_data, "daily_candle_frame",
                         lambda *a, **k: (_ for _ in ()).throw(
                             AssertionError("refusal must fire before any fetch")))
@@ -575,8 +575,8 @@ def test_chart_freezes_a_loadable_forward_grading_frame(monkeypatch, tmp_path):
 # The chip reuses the harness's grade_one, so its ELECTION grade is pinned in
 # test_calibration_harness.py; here we pin the SERVICE mapping + the endpoint
 # plumbing with an injected/patched grader (no real engine, no frozen frame).
-import services.calibration_agreement as agreement_service  # noqa: E402
-from services.calibration_agreement import (  # noqa: E402
+import domains.calibration.agreement as agreement_service  # noqa: E402
+from domains.calibration.agreement import (  # noqa: E402
     _chip_from_fragment,
     agreement_for_marks,
     reset_agreement_cache,
@@ -763,8 +763,8 @@ def test_frame_thumb_caches_by_digest_never_re_reads(digest, monkeypatch):
 # ── Fired-in-window grade (the sharper "Engine" chip) ────────────────
 import threading  # noqa: E402
 
-import services.calibration_fired as fired_service  # noqa: E402
-from services.calibration_fired import (  # noqa: E402
+import domains.calibration.fired as fired_service  # noqa: E402
+from domains.calibration.fired import (  # noqa: E402
     _chip_from_fired,
     _nearest_reject,
     fired_for_marks,
@@ -810,7 +810,7 @@ def test_fired_chip_maps_fired_missed_and_unassessable(monkeypatch):
 
 
 def test_miss_reason_degrades_to_none_when_the_frame_is_gone():
-    from services.calibration_fired import _miss_reason
+    from domains.calibration.fired import _miss_reason
     reason = _miss_reason(
         {"ticker": "ZZZZ", "as_of_date": "2020-01-01", "resistance": 1.0, "support": 0.0},
         frame_loader=lambda *_a, **_k: None)
@@ -938,7 +938,7 @@ def test_fired_endpoint_rejects_a_bad_ticker(db):
 
 
 # ── Trigger grade ("did the engine fire by my buy?") ─────────────────
-from services.trigger_grade import (  # noqa: E402
+from domains.calibration.trigger_grade import (  # noqa: E402
     classify_fire_timing,
     trigger_grade_for_marks,
 )
@@ -1007,7 +1007,7 @@ def test_trigger_grade_streams_pending_like_fired(db):
 def test_trigger_grade_endpoint_filters_to_the_requested_ticker(db, monkeypatch):
     _add_mark(db, ticker="BODI", trigger_date="2026-04-16", trigger_price=12.55)
     _add_mark(db, ticker="KLAC", as_of_date="2025-09-11", frame_digest="d2")
-    import services.trigger_grade as tg
+    import domains.calibration.trigger_grade as tg
     seen = {}
 
     def fake(marks, **_k):

@@ -17,8 +17,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import core.pipeline.providers as providers_module
-from core.pipeline.providers import YahooProvider
+import core.pipeline.market_data.providers as providers_module
+from core.pipeline.market_data.providers import YahooProvider
 
 
 class _FakeYF:

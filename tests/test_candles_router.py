@@ -30,10 +30,10 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from core.pipeline import universe as universe_mod  # noqa: E402
-from routers import candles as candles_router  # noqa: E402
-from routers.calibration import require_same_app  # noqa: E402
-from services import watchlist_candles as wc  # noqa: E402
+from core.pipeline.universe import descriptor as universe_mod  # noqa: E402
+from domains.market_data import candles as candles_router  # noqa: E402
+from domains.calibration.router import require_same_app  # noqa: E402
+from domains.market_data import watchlist_candles as wc  # noqa: E402
 
 # ── fixtures ────────────────────────────────────────────────────────────────
 

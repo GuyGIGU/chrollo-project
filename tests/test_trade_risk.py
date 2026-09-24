@@ -1,8 +1,8 @@
 """Parity + behavior guard for the backend live-risk port.
 
-This is the cutover gate for Trade Enrich — Layer A: it pins ``services.trade_risk``
+This is the cutover gate for Trade Enrich — Layer A: it pins ``domains.trading.risk``
 (the Python single source of truth) against the JavaScript oracle it was ported
-from (``webapp/frontend/src/utils/tradeTableUtils.js``). Every case mirrored from
+from (``webapp/frontend/src/features/journal/model/tradeTableUtils.js``). Every case mirrored from
 ``tradeTableUtils.test.js`` must hold BEFORE any frontend consumer is swapped, so
 no displayed number silently changes — except the two settled additions
 (planned_stop R-basis, pnlPct / distToStopR).
@@ -21,7 +21,7 @@ import pytest
 
 _MOD_PATH = (
     Path(__file__).resolve().parent.parent
-    / "webapp" / "backend" / "services" / "trade_risk.py"
+    / "webapp" / "backend" / "domains" / "trading" / "risk.py"
 )
 _spec = importlib.util.spec_from_file_location("trade_risk_under_test", _MOD_PATH)
 trade_risk = importlib.util.module_from_spec(_spec)

@@ -87,10 +87,10 @@ import pandas as pd                                          # noqa: E402
 
 from config import settings                                  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash       # noqa: E402
-from engine_alpha.structure.box_primitives import (          # noqa: E402
+from engine_alpha.structure.box.box_primitives import (          # noqa: E402
     collect_root_anchors,
 )
-from engine_alpha.structure.power_play import (              # noqa: E402
+from engine_alpha.structure.context.power_play import (              # noqa: E402
     first_legal_look,                                        # noqa: F401 — the battery's seam
     ticker_episodes,
 )
@@ -274,7 +274,7 @@ def run_census(frames, clocks, pole_gain=POLE_MIN_GAIN,
     # wrapped the elections while the stamp claimed otherwise. One scope, no
     # halves.
     if extra_overrides:
-        from engine_alpha.structure.htf import window_override
+        from engine_alpha.structure.context.htf import window_override
         with window_override(dict(extra_overrides)):
             episodes = screen_episodes(frames, pole_gain, pole_window)
     else:

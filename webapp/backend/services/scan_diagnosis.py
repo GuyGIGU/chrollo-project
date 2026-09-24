@@ -2,7 +2,7 @@
 
 Two moments, deliberately kept apart:
 
-* The boot reconcile (``services/startup.py``) STAMPS A FACT — a row left
+* The boot reconcile (``app/startup.py``) STAMPS A FACT — a row left
   'running' becomes failed and is tagged ``interrupted_unknown``. It claims no
   cause, because at that instant the cause is usually unknowable. Measured
   2026-09-05: NSSM restarted uvicorn *inside* the dying Windows session, so the
@@ -224,7 +224,7 @@ def scan_slot() -> tuple[int, int]:
     """
     # Local import for the same reason the rest of this module uses them: it
     # keeps scan_diagnosis standalone-importable.
-    from services.core_settings import load_core_settings
+    from app.core_settings import load_core_settings
 
     settings = load_core_settings()
     return (

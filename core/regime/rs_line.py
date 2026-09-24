@@ -84,7 +84,7 @@ def compute_rs_line(
     defaults lazily to ``settings.RS_LINE_NEW_HIGH_LOOKBACK``.
     """
     if provider is None:
-        from core.pipeline.providers import get_provider
+        from core.pipeline.market_data.providers import get_provider
 
         provider = get_provider()
     if lookback is None:

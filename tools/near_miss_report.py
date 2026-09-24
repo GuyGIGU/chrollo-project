@@ -47,7 +47,7 @@ BATCH = 8   # bounded default review batch (plan: 5-10, forced-ranked)
 # enforces, and the occupancy membership comes from the ruled taxonomy —
 # a re-ruling re-scores this surface instead of desyncing it.
 from core.archive.near_miss_writer import _FAILING_LEGS as _LEGS
-from engine_alpha.structure.gate_margins import OCCUPANCY_FAMILY
+from engine_alpha.structure.box.gate_margins import OCCUPANCY_FAMILY
 
 # The failing coarse leg's native margin lives in these cohort columns; the
 # occupancy concept displays its BINDING member (min of the family margins).

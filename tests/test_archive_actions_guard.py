@@ -13,8 +13,8 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from routers import archive_actions  # noqa: E402
-from routers.calibration import require_same_app  # noqa: E402
+from domains.archive import actions as archive_actions  # noqa: E402
+from domains.calibration.router import require_same_app  # noqa: E402
 
 
 def _guard_declared(path: str) -> bool:

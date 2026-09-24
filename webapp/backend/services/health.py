@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import text
 
 from database import engine
-from ibkr import get_ibkr_service
+from domains.ibkr import get_ibkr_service
 from services import scan_diagnosis, scan_status, scheduler
 
 

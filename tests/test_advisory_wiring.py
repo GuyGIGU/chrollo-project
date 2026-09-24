@@ -203,7 +203,7 @@ def test_post_pass_with_mocked_yfinance(tmp_path, monkeypatch):
     fake_yf = SimpleNamespace(Ticker=_Ticker)
     monkeypatch.setitem(sys.modules, "yfinance", fake_yf)
 
-    from core.pipeline.providers import YahooProvider
+    from core.pipeline.market_data.providers import YahooProvider
 
     row = {"Ticker": "AAA"}
     _post([row], {"AAA": _price_df([10.0] * 300, end="2026-06-01")},

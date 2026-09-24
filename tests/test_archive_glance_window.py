@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 import archive_models  # noqa: E402
-from routers import archive_browse  # noqa: E402
+from domains.archive import browse as archive_browse  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
@@ -90,7 +90,7 @@ def provider(monkeypatch):
                       "auto_adjust": auto_adjust, "days": days})
         return frame["df"]
 
-    import services.market_data as market_data
+    import domains.market_data.service as market_data
 
     monkeypatch.setattr(market_data, "daily_candle_frame", fake_daily_candle_frame)
     return {"calls": calls, "frame": frame}

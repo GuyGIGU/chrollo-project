@@ -71,11 +71,11 @@ import database  # noqa: E402  binds the SQLite engine + SessionLocal
 from config import settings  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.box_events import (  # noqa: E402
+from engine_alpha.structure.events.box_events import (  # noqa: E402
     assemble_box_narrative,
     read_box_events,
 )
-from engine_alpha.structure.event_map import (  # noqa: E402
+from engine_alpha.structure.events.event_map import (  # noqa: E402
     episode_sequence_stats,
     read_rail_episodes,
 )
@@ -283,7 +283,7 @@ def census_mark(mark) -> dict:
         out["upthrust_terminal"] = bool(nar.get("upthrust_terminal"))
 
     # --- reader 3: the LPS form verdict on the drawn window -------------
-    from engine_alpha.structure.bricks import find_lps  # leaf import
+    from engine_alpha.structure.narrative.bricks import find_lps  # leaf import
     lps, err = _safe(find_lps, window, box_ns, atr)
     if err:
         out["errors"].append(f"lps: {err}")

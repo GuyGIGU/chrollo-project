@@ -49,7 +49,7 @@ def election_stability(raw_df, reference_structure, reference_df) -> dict:
         _prepare_eval_frame,
         structure_atr_row,
     )
-    from engine_alpha.structure.narrative import read_structure
+    from engine_alpha.structure.narrative.reader import read_structure
 
     reference = projection(reference_structure, reference_df)
     lookback = int(settings.ELECTION_STABILITY_LOOKBACK)

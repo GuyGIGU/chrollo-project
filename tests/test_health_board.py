@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 from config import settings
-from core.pipeline.health_board import (
+from core.pipeline.context.health_board import (
     HEALTH_STATE_ORDER,
     HealthState,
     InsufficientHistoryError,
@@ -216,10 +216,10 @@ def test_classify_universe_members_isolates_failures(monkeypatch):
     panel = pd.concat({"AAA": box, "BBB": short}, axis=1)
 
     monkeypatch.setattr(
-        "core.pipeline.tickers.get_cached_tickers",
+        "core.pipeline.universe.tickers.get_cached_tickers",
         lambda _csv: ["AAA", "BBB", "CCC"],  # CCC has no column in the panel
     )
-    monkeypatch.setattr("core.pipeline.health_board._resolve", lambda _u: _FakeUniverse())
+    monkeypatch.setattr("core.pipeline.context.health_board._resolve", lambda _u: _FakeUniverse())
 
     members, unreadable = classify_universe_members(panel, _FakeUniverse())
 
@@ -334,12 +334,12 @@ def _boom_if_classified(monkeypatch):
     an empty payload)."""
     def _explode(*_a, **_k):  # pragma: no cover - must never run behind the gate
         raise AssertionError("classify_universe_members ran behind the gate")
-    monkeypatch.setattr("core.pipeline.health_board.classify_universe_members", _explode)
+    monkeypatch.setattr("core.pipeline.context.health_board.classify_universe_members", _explode)
 
 
 def test_maybe_build_health_board_skips_equities_even_when_flag_on(monkeypatch):
-    from core.pipeline import scan_job
-    from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+    from core.pipeline.screening import scan_job
+    from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 
     class _Equities:
         key = "us_equities"
@@ -354,7 +354,7 @@ def test_maybe_build_health_board_skips_equities_even_when_flag_on(monkeypatch):
 
 
 def test_maybe_build_health_board_returns_none_when_flag_off(monkeypatch):
-    from core.pipeline import scan_job
+    from core.pipeline.screening import scan_job
 
     class _Sectors:
         key = "us_sectors"

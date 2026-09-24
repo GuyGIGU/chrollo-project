@@ -13,9 +13,9 @@ import os
 import pytest
 
 from config import settings
-from core.pipeline import tickers as tickers_mod
-from core.pipeline.cache import _cache_paths
-from core.pipeline.universe import (
+from core.pipeline.universe import tickers as tickers_mod
+from core.pipeline.market_data.cache import _cache_paths
+from core.pipeline.universe.descriptor import (
     DEFAULT_UNIVERSE_KEY,
     Universe,
     default_universe,
@@ -57,7 +57,7 @@ def test_index_bearing_universes_declare_a_non_empty_index_set():
 def test_cache_paths_default_unchanged():
     # The historical hardcoded tuple: project root + the two settings filenames.
     legacy_root = _norm(
-        os.path.join(os.path.dirname(os.path.abspath(tickers_mod.__file__)), "..", "..")
+        os.path.join(os.path.dirname(os.path.abspath(tickers_mod.__file__)), "..", "..", "..")
     )
     expected = (
         os.path.join(legacy_root, settings.CACHE_FILENAME),
@@ -113,7 +113,7 @@ def test_universe_artifact_and_cache_paths_are_distinct():
 
 
 def test_etf_ticker_lists_load():
-    from core.pipeline.tickers import get_cached_tickers
+    from core.pipeline.universe.tickers import get_cached_tickers
 
     sectors = get_cached_tickers(resolve_universe("us_sectors").ticker_csv)
     assert "XLK" in sectors and "SPY" in sectors
@@ -122,7 +122,7 @@ def test_etf_ticker_lists_load():
 
 
 def test_drilldown_map_loads_and_is_clean():
-    from core.pipeline.universe import drilldown_map
+    from core.pipeline.universe.descriptor import drilldown_map
 
     m = drilldown_map()
     assert isinstance(m, dict)
@@ -133,7 +133,7 @@ def test_drilldown_map_loads_and_is_clean():
 
 
 def test_all_universes_orders_stocks_first():
-    from core.pipeline.universe import all_universes
+    from core.pipeline.universe.descriptor import all_universes
 
     unis = all_universes()
     assert [u.key for u in unis][0] == 'us_stocks'  # context source must run first

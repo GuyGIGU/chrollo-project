@@ -46,11 +46,11 @@ _ROOT = configure_path(backend=True)
 
 from config import settings  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.box_gates import (  # noqa: E402
+from engine_alpha.structure.box.box_gates import (  # noqa: E402
     _is_boundary_respected,
     _validate_base_quality,
 )
-from engine_alpha.structure.narrative import read_structure  # noqa: E402
+from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools import negative_corpus  # noqa: E402
 from tools.marks_corpus import load_corpus, setup_key  # noqa: E402
 from tools.replay import (  # noqa: E402
@@ -74,7 +74,7 @@ _RESPECT_DETAIL = re.compile(r"respect (\d\.\d+) <")
 
 
 # --- count math: the gate's fraction thresholds as integer bars -------------
-# The canonical forms live in engine_alpha.structure.gate_margins and arrive
+# The canonical forms live in engine_alpha.structure.box.gate_margins and arrive
 # through the tools.replay seam (near-miss lane Task 5 promotion); the
 # campaign names below are kept as aliases so the sealed protocol vocabulary
 # (docs/rail_program_protocol_2026-07.md) still reads.

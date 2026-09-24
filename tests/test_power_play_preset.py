@@ -5,7 +5,7 @@ import pytest
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS, collect_manifest
-from engine_alpha.structure.htf import timeframe_windows, window_override
+from engine_alpha.structure.context.htf import timeframe_windows, window_override
 
 
 def test_flag_is_live_and_the_dict_moves_exactly_two_names():

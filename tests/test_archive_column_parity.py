@@ -63,11 +63,11 @@ from engine_alpha.scoring.scoring import (  # noqa: E402
     sub_score_archive_values,
     ta_grade_archive_values,
 )
-from engine_alpha.structure.event_map import event_map_archive_values  # noqa: E402
-from engine_alpha.structure.htf import htf_archive_values  # noqa: E402
-from engine_alpha.structure.power_play import power_play_archive_values
-from engine_alpha.structure.strategy_read import strategy_archive_values  # noqa: E402
-from engine_alpha.structure.trace_export import election_trace_archive_values  # noqa: E402
+from engine_alpha.structure.events.event_map import event_map_archive_values  # noqa: E402
+from engine_alpha.structure.context.htf import htf_archive_values  # noqa: E402
+from engine_alpha.structure.context.power_play import power_play_archive_values
+from engine_alpha.structure.context.strategy_read import strategy_archive_values  # noqa: E402
+from engine_alpha.structure.box.trace_export import election_trace_archive_values  # noqa: E402
 
 
 # ── Intentional divergence allowlist ─────────────────────────────────────────
@@ -223,7 +223,7 @@ def _mapper_auto_cols() -> frozenset[str]:
     result (everything on the model except ``id`` / ``_MANUAL_UNMAPPED_COLUMNS``).
     These are populated on the seed row whether or not they carry a real value —
     part of the seed path's effective column set."""
-    from services.archive_queries import archive_row_from_result
+    from domains.archive.queries import archive_row_from_result
     return frozenset(archive_row_from_result({}, overrides={}))
 
 
@@ -350,7 +350,7 @@ def test_all_score_subscores_covered_by_exactly_one_producer():
 
 def _manual_overrides_dict():
     """The ``overrides = {...}`` ast.Dict inside the manual-add route."""
-    from routers import archive_actions
+    from domains.archive import actions as archive_actions
     src = inspect.getsource(archive_actions.add_setup_manually)
     tree = ast.parse(src)
     for node in ast.walk(tree):
@@ -367,7 +367,7 @@ def test_manual_route_score_coverage_with_declared_exclusions():
     twice-coherently — in the route's ``exclude`` and in the mapper's frozen
     ``_MANUAL_UNMAPPED_COLUMNS`` — never hand-omitted. A new score_* column
     neither producer covers on this path fails here at add time."""
-    from services.archive_queries import _MANUAL_UNMAPPED_COLUMNS
+    from domains.archive.queries import _MANUAL_UNMAPPED_COLUMNS
     d = _manual_overrides_dict()
     literal_keys = {k.value for k in d.keys
                     if k is not None and isinstance(k, ast.Constant)}

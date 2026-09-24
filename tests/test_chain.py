@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 
 from config import settings
-from engine_alpha.structure.chain import (
+from engine_alpha.structure.narrative.chain import (
     CHAIN_STATES,
     ChainRead,
     FrozenParent,

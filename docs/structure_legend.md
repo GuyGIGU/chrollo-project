@@ -235,7 +235,7 @@ it ever influences ranking.
 > **Shipped (Stage 2A).** The stretch is now a raw archived measure:
 > `_lps_stretch_atr` and `_lps_stretch_box` — the LPS foot's distance above the
 > box ceiling R, in ATR and in box-heights — from
-> [phase_features.py](../engine_alpha/structure/phase_features.py). Component **b**
+> [phase_features.py](../engine_alpha/structure/phases/phase_features.py). Component **b**
 > ("distance from the last consolidation") is the box-relative form; the
 > innermost range *is* the operative box the detector returned. Measure-first:
 > archived, never yet scored.

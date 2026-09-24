@@ -1,6 +1,6 @@
 """The default-on browser-origin guard (council 2026-09-07, finding 3).
 
-The opt-in header guard (``routers.calibration.require_same_app``) reached 15
+The opt-in header guard (``domains.calibration.router.require_same_app``) reached 15
 of 85 routes and structurally could never reach the three scan/download SSE
 streams, because ``EventSource`` cannot send a header. Left unguarded: all four
 IBKR control routes, every archive write, the journal writes — reachable by any

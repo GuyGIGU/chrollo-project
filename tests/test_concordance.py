@@ -51,7 +51,7 @@ def _verdict(ticker, scan_date, ecv, **kw):
 
 
 def test_concordance_surfaces_orphans_and_flags_version_mismatch():
-    from services.concordance import read_verdict_concordance
+    from domains.archive.concordance import read_verdict_concordance
 
     session = _mem_session()
     session.add_all([
@@ -86,8 +86,8 @@ def test_grade_verdict_closed_vocabulary_at_the_router():
     through the real route handler; an illegal one is a 422 refusal; None
     clears. The route runs as a plain function (never a booted server)."""
     from fastapi import HTTPException
-    from routers.archive_reviews import set_read_verdict
-    from routers.archive_schemas import ReadVerdictIn
+    from domains.archive.reviews import set_read_verdict
+    from domains.archive.schemas import ReadVerdictIn
     from models import ReadVerdict
 
     session = _mem_session()
@@ -120,8 +120,8 @@ def test_grade_verdict_round_trips_and_the_clear_coupling_refuses():
     grade-verdict-with-null-read payload is a 422 (not an accept-and-drop),
     and the clear branch returns the same keys as its two siblings."""
     from fastapi import HTTPException
-    from routers.archive_reviews import get_read_verdict, set_read_verdict
-    from routers.archive_schemas import ReadVerdictIn
+    from domains.archive.reviews import get_read_verdict, set_read_verdict
+    from domains.archive.schemas import ReadVerdictIn
     from models import ReadVerdict
 
     session = _mem_session()
@@ -154,6 +154,6 @@ def test_read_verdicts_is_registered_with_the_auto_migrator():
     """The table joined _MIGRATED_ARCHIVE_MODELS when it gained its first
     model-only column — otherwise grade_verdict would silently never reach
     the live DB (the mechanism's own registration rule)."""
-    from services.startup import _MIGRATED_ARCHIVE_MODELS
+    from app.startup import _MIGRATED_ARCHIVE_MODELS
 
     assert "read_verdicts" in {name for name, _fn in _MIGRATED_ARCHIVE_MODELS}

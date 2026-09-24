@@ -23,7 +23,7 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from webapp.backend.ibkr import service as ibkr_service
+from domains.ibkr import service as ibkr_service
 
 
 # ── read-only house law ──────────────────────────────────────────

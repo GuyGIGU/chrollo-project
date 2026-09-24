@@ -1,9 +1,10 @@
 """
 THE CONDUCTOR — runs the screen end to end.
 
-This package owns data loading (``data.py``) and the orchestration that wires
-the Structure Engine and the Scoring Engine together for every ticker
-(``screener.py``). It holds no strategy opinion of its own.
+The public data doorway is ``data.py``. ``market_data/`` owns acquisition and
+cache health, ``universe/`` owns symbol membership, and ``context/`` owns market
+regime. ``screening/`` coordinates evaluation, payload assembly, and archiving;
+``telemetry/`` records stage timings. This package holds no strategy opinion.
 
 Public API:
     run_screener -> (ranked_results_df, market_data, tickers)
@@ -18,7 +19,7 @@ engine import, and engine import failures must never block the journal).
 
 def __getattr__(name):
     if name == "run_screener":
-        from core.pipeline.screener import run_screener
+        from core.pipeline.screening.screener import run_screener
         return run_screener
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

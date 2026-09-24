@@ -16,7 +16,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from engine_alpha.structure.market_structure import trend_terminal_floor
+from engine_alpha.structure.events.market_structure import trend_terminal_floor
 
 
 def _ohlc_from_closes(closes, *, band=1.0, volume=1000.0):

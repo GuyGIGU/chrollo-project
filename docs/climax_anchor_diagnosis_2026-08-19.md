@@ -22,7 +22,7 @@ evidence too.
 dot the overlay draws — is **reconstructed backward from the elected box**, not
 read off the trend.
 
-`_enforce_climax_terminality` ([`bricks.py:591-642`](../engine_alpha/structure/bricks.py))
+`_enforce_climax_terminality` ([`bricks.py:591-642`](../engine_alpha/structure/narrative/bricks.py))
 discards the raw resolver's pair whenever the pair is non-terminal and
 re-anchors to the extreme of a **fixed 60-trading-day window ending at the box
 open**:
@@ -67,7 +67,7 @@ box happens to open.**
 | BCPC | −60 | −22 | −82 | his peak sits 22 days **past** the box open — unreachable at any polarity |
 
 `A ∈ [-60, 0]` is mechanically guaranteed: `base_len = int(len(df) - start_bar)`
-([`bricks.py:344`](../engine_alpha/structure/bricks.py)) makes the segmentation
+([`bricks.py:344`](../engine_alpha/structure/narrative/bricks.py)) makes the segmentation
 window start at exactly `box.start_bar - 60`, and all four return paths of
 `_resolve_phase_a_raw` plus both enforcers are bounded to `[pbs-60, pbs]`
 (bricks.py:576, 625, 758-759, 784-796).
@@ -176,7 +176,7 @@ is a maximum-order-statistic sample on exactly the term that drives it.
 ## Standing facts this does not change
 
 The anchors are overlay + Phase-A diagnostics only. The guard's own docstring
-([`bricks.py:609-610`](../engine_alpha/structure/bricks.py)) states it: *"no
+([`bricks.py:609-610`](../engine_alpha/structure/narrative/bricks.py)) states it: *"no
 rail, gate, score, or tier reads these anchors."* Nothing the operator trades is
 affected by any error described here. The two flags that depend on the anchor
 (`TREND_TERMINAL_BOX_GATE_ENABLED`, `AR_FIRST_REACTION_ENABLED`) are both dark.

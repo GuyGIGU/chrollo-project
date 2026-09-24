@@ -21,13 +21,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from engine_alpha.structure.box_gates import (
+from engine_alpha.structure.box.box_gates import (
     _is_boundary_respected,
     _measure_close_residence,
     _respect_stats,
     _validate_base_quality,
 )
-from engine_alpha.structure.gate_margins import (
+from engine_alpha.structure.box.gate_margins import (
     complete_leg_vector,
     count_allowed,
     count_needed,
@@ -125,7 +125,7 @@ def test_completion_vector_reproduces_the_real_gate_verdicts():
         # Set-equality against the registry, not a count: a 16th leg landing
         # in GATE_LEGS but forgotten here must go RED, not stay green behind
         # a stale "== 14" (review 2026-07-26 finding 9).
-        from engine_alpha.structure.box_gates import GATE_LEG_INDEX
+        from engine_alpha.structure.box.box_gates import GATE_LEG_INDEX
         assert set(rows) == set(GATE_LEG_INDEX) - {"window"}
         # The vector's respect verdicts recompose the gate's own verdict.
         respected, *_ = _is_boundary_respected(

@@ -8,7 +8,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.pipeline import ticker_admission
+from core.pipeline.universe import ticker_admission
 
 UTC = timezone.utc
 NOW = datetime(2026, 6, 25, 12, 0, tzinfo=UTC)

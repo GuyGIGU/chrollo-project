@@ -240,7 +240,7 @@ def test_departure_wall_ignores_peak_hugging_crossings(monkeypatch):
     # (100.5) by 0.2 — inside one ATR — are base-building; the resolution is
     # the DEPARTURE close. The RULED production value is 1.0 (operator
     # 2026-08-18); 0.0 is the retained legacy close-above-peak branch.
-    from engine_alpha.structure.power_play import ticker_episodes
+    from engine_alpha.structure.context.power_play import ticker_episodes
 
     df = _hug_frame()
     assert settings.POWER_PLAY_BREAKOUT_DEPARTURE_ATR == 1.0   # the ruling

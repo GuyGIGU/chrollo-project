@@ -54,7 +54,7 @@ from engine_alpha.evaluation import (  # noqa: E402
     EVAL_ERROR,
     apply_baseline_filters_with_reason,
 )
-from core.pipeline.screener import _evaluate_ticker  # noqa: E402
+from core.pipeline.screening.screener import _evaluate_ticker  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from tools.replay import flag_capture  # noqa: E402
 

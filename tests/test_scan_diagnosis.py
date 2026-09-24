@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 import services.scan_diagnosis as diag  # noqa: E402
-from services.startup import _MIGRATIONS  # noqa: E402
+from app.startup import _MIGRATIONS  # noqa: E402
 
 UTC = timezone.utc
 
@@ -240,7 +240,7 @@ def test_the_scan_hour_in_the_prose_is_the_one_config_actually_holds():
     """The half the monkeypatch above cannot prove: the live read is the SAME
     setting the scheduler builds its cron from, not a second copy that could
     drift from it."""
-    from services.core_settings import load_core_settings
+    from app.core_settings import load_core_settings
 
     settings = load_core_settings()
     assert diag.scan_slot() == (int(settings.SCAN_SCHEDULE_HOUR_ET),

@@ -6,7 +6,7 @@ so every expectation here is synthetic and reasoned from the rule text)."""
 import pytest
 
 from config import settings
-from engine_alpha.structure.market_structure import (
+from engine_alpha.structure.events.market_structure import (
     TREND_STATES,
     classify_trend_state,
 )

@@ -31,10 +31,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker, evaluate_ticker_with_near_miss
-from engine_alpha.structure import near_miss as near_miss_mod
-from engine_alpha.structure.box_gates import GATE_LEG_INDEX
-from engine_alpha.structure.narrative import read_structure
+from core.pipeline.screening.screener import _evaluate_ticker, evaluate_ticker_with_near_miss
+from engine_alpha.structure.box import near_miss as near_miss_mod
+from engine_alpha.structure.box.box_gates import GATE_LEG_INDEX
+from engine_alpha.structure.narrative.reader import read_structure
 from tools import negative_corpus, shadow_diff
 from tools.marks_corpus import _FROZEN_BREADTH
 from tools.marks_corpus import _load_fixture as _load_marks_fixture

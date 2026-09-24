@@ -45,22 +45,22 @@ from config import settings  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from engine_alpha.scoring.tags import traversal_density_from_counts  # noqa: E402
-from engine_alpha.structure.box_events import (  # noqa: E402
+from engine_alpha.structure.events.box_events import (  # noqa: E402
     measure_resistance_events,
     measure_support_tests,
 )
-from engine_alpha.structure.box_gates import (  # noqa: E402
+from engine_alpha.structure.box.box_gates import (  # noqa: E402
     _dwell_bar_basis,
     _engagement_hang_masks,
     _rail_outside_masks,
     _respect_stats,
 )
-from engine_alpha.structure.bricks import find_spring  # noqa: E402
-from engine_alpha.structure.event_map import (  # noqa: E402
+from engine_alpha.structure.narrative.bricks import find_spring  # noqa: E402
+from engine_alpha.structure.events.event_map import (  # noqa: E402
     episode_sequence_stats,
     read_rail_episodes,
 )
-from engine_alpha.structure.metrics import (  # noqa: E402
+from engine_alpha.structure.metrics.base import (  # noqa: E402
     base_rail_touches,
     measure_bar_compression,
     measure_equilibrium,

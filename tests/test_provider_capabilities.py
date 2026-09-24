@@ -21,8 +21,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 import archive_models  # noqa: E402  (resolved via BACKEND_DIR above)
-import core.pipeline.providers as providers_module
-from core.pipeline.providers import YahooProvider
+import core.pipeline.market_data.providers as providers_module
+from core.pipeline.market_data.providers import YahooProvider
 
 
 # ── Fake yfinance plumbing ────────────────────────────────────────────────

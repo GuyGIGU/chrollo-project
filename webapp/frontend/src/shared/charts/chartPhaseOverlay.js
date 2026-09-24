@@ -1,0 +1,579 @@
+import { episodeSpans } from '../setup/narrativeRead.js';
+import { PHASE_NAMES } from '../presentation/wireVocabulary.js';
+
+const TOKEN_FALLBACKS = {
+  '--accent-blue': '#5B8AFF',
+  '--accent-pink': '#E07AA0',
+  '--accent-purple': '#9B70F7',
+  '--accent-yellow': '#D4B85A',
+  '--border-strong': '#3B4159',
+  '--text-faint': '#8A93A8',
+};
+
+const REGION_DEFS = {
+  a: { label: 'A', name: PHASE_NAMES.a, detail: 'Initial swing setting support/resistance', token: '--text-faint' },
+  b: { label: 'B', name: PHASE_NAMES.b, detail: 'Two-sided range work', token: '--accent-purple' },
+  c: { label: 'C', name: PHASE_NAMES.c, detail: 'Support shakeout or test', token: '--accent-pink' },
+  d: { label: 'D', name: PHASE_NAMES.d, detail: 'Right-side tightening range', token: '--accent-blue' },
+  lps: { label: 'LPS', name: PHASE_NAMES.lps, detail: 'Last support-test zone', token: '--accent-yellow' },
+  // Rail episodes (Surface the Read): the tape describes, it never judges —
+  // the neutral faint ink, deliberately no outcome color on the chart.
+  episode: { label: 'EP', name: 'Rail episode', detail: 'One rail engagement', token: '--text-faint' },
+};
+
+const PHASE_A_MAX_BARS = 16;
+const LPS_COLOR = '#F6D86B';
+
+const dateKey = (value) => (typeof value === 'string' ? value.slice(0, 10) : null);
+
+const finiteNumber = (value) => {
+  if (value == null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const candleDate = (candle) => {
+  if (!candle?.time) return '';
+  if (typeof candle.time === 'string') return candle.time.slice(0, 10);
+  if (typeof candle.time === 'object') {
+    const month = String(candle.time.month).padStart(2, '0');
+    const day = String(candle.time.day).padStart(2, '0');
+    return `${candle.time.year}-${month}-${day}`;
+  }
+  return '';
+};
+
+const indexOnOrAfter = (candles, rawDate) => {
+  const target = dateKey(rawDate);
+  if (!target) return null;
+  const firstDate = candleDate(candles[0]);
+  const lastDate = candleDate(candles[candles.length - 1]);
+  if (!firstDate || !lastDate || target < firstDate || target > lastDate) return null;
+
+  const index = candles.findIndex((candle) => candleDate(candle) >= target);
+  return index >= 0 ? index : null;
+};
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const setupEndIndex = (data, candles) => {
+  const forwardBars = Math.max(0, Math.trunc(finiteNumber(data?.forward_bars) ?? 0));
+  return clamp(candles.length - 1 - forwardBars, 0, candles.length - 1);
+};
+
+// The box's first bar. r_anchor / s_anchor are emitted as offsets from THIS bar
+// (engine: `_r_anchor_bar - phase_b_start`), so it is the origin the root swing
+// resolves against.
+const setupStartIndex = (data, candles) => {
+  const baseLen = Math.max(0, Math.trunc(finiteNumber(data?.base_len) ?? 0));
+  return clamp(setupEndIndex(data, candles) - baseLen + 1, 0, candles.length - 1);
+};
+
+const setupBoxRange = (data) => {
+  const support = finiteNumber(data?.S ?? data?._S);
+  const resistance = finiteNumber(data?.R ?? data?._R);
+  if (support == null || resistance == null) return null;
+  return {
+    high: Math.max(support, resistance),
+    low: Math.min(support, resistance),
+  };
+};
+
+const parsePhaseDEvidence = (data) => {
+  const raw = data?.phase_d_evidence_json ?? data?.phase_d_evidence;
+  if (!raw) return null;
+  if (typeof raw === 'object') return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const PHASE_D_SOURCE_DETAILS = {
+  support_tests: 'Support-test cluster',
+  sos_reclaim: 'Sign-of-strength reclaim',
+  rising_support: 'Rising support',
+  inner_box: 'Inner tightening range',
+  v_tip: 'Recovered late-base low',
+  lps: 'LPS support shelf',
+};
+
+const phaseDSourceDetail = (source) => (
+  PHASE_D_SOURCE_DETAILS[source] || 'Right-side tightening range'
+);
+
+const phaseDSignalLabels = (signals) => {
+  if (!Array.isArray(signals)) return [];
+  const seen = new Set();
+  const labels = [];
+  for (const signal of signals) {
+    const source = signal?.source;
+    if (!source || seen.has(source)) continue;
+    seen.add(source);
+    labels.push(phaseDSourceDetail(source));
+  }
+  return labels;
+};
+
+const phaseDMetadata = (data) => {
+  // The spring recovery only FLOORS Phase D (it ends Phase C); the boundary
+  // source is the earliest right-side evidence after it, with the LPS as the
+  // mandatory fallback/gate. There is no 'spring' source.
+  const evidence = parsePhaseDEvidence(data);
+  const source = evidence?.selected?.source || data?.bin_d_boundary_source;
+  const signalLabels = phaseDSignalLabels(evidence?.signals);
+  return {
+    detail: phaseDSourceDetail(source),
+    evidenceSignals: signalLabels,
+    evidenceSource: source || null,
+    evidenceSummary: signalLabels.length ? signalLabels.join(', ') : null,
+  };
+};
+
+const phaseCDetail = (data) => {
+  if (data?.bin_c_type === 'SPRING') return 'Undercut and recovery';
+  return 'Support shakeout or test';
+};
+
+const priceRangeForBars = (candles, startIndex, endIndex) => {
+  let low = null;
+  let high = null;
+  for (let index = startIndex; index <= endIndex; index += 1) {
+    const candle = candles[index];
+    const values = [
+      finiteNumber(candle?.low),
+      finiteNumber(candle?.high),
+      finiteNumber(candle?.open),
+      finiteNumber(candle?.close),
+    ].filter((value) => value != null);
+    for (const value of values) {
+      low = low == null ? value : Math.min(low, value);
+      high = high == null ? value : Math.max(high, value);
+    }
+  }
+  return low == null || high == null ? null : { high, low };
+};
+
+const priceRangeForRegion = (data, candles, region) => {
+  if (region.low != null && region.high != null) {
+    return {
+      high: Math.max(region.low, region.high),
+      low: Math.min(region.low, region.high),
+    };
+  }
+
+  if (region.range === 'setupBox') {
+    return setupBoxRange(data) ?? priceRangeForBars(candles, region.startIndex, region.endIndex);
+  }
+
+  return priceRangeForBars(candles, region.startIndex, region.endIndex);
+};
+
+const phaseIndexes = (data, candles) => ({
+  phaseBStart: indexOnOrAfter(candles, data?._phase_b_start_date),
+  phaseDStart: indexOnOrAfter(candles, data?._phase_d_start_date),
+  lpsZoneEnd: indexOnOrAfter(candles, data?._lps_zone_end_date),
+  lpsZoneStart: indexOnOrAfter(candles, data?._lps_zone_start_date),
+});
+
+// THE ROOT SWING — the grey highlighted bars.
+//
+// DEFINITION (operator, governs always): the two limbs the consolidation is built
+// from — "the two anchors from where you draw Support and Resistance respectively".
+// The engine hands us exactly that pair: r_anchor is the bar whose HIGH sets R, and
+// s_anchor is the bar whose LOW sets S (verified 234/234 against the live payload),
+// both as offsets from the box start. The root swing is the span between them.
+//
+// This sits INSIDE the box, not before it — the rails are drawn from bars some way
+// into the consolidation (FHI: 15 and 18 bars in). That is exactly why Phase A (the
+// climax + automatic-reaction that ends the TREND) is the WRONG span for this grey:
+// Phase A lives outside the consolidation entirely. It is a separate concept with its
+// own helper (phaseARange, below) driving the 'A' region band.
+//
+// Deliberately NOT min(rBar, sBar, baseStart): folding the box start into the span was
+// the long-standing "root-swing grey drag" bug — it stretched the grey from the box
+// OPEN to the later anchor (FHI: 18 bars, Mar 17 -> Apr 13) instead of marking the
+// anchor pair itself (4 bars, Apr 8 -> Apr 13). Real spans run 1-17 bars fleet-wide.
+//
+// SINGLE SOURCE OF TRUTH for the grey bars — the modal candle tint (colorBase) and the
+// mini-card candle tint (colorMiniCandles) both read it, so the big and small charts
+// colour the IDENTICAL bars. Returns null when the engine emitted no anchor pair.
+export const rootSwingRange = (data, candles) => {
+  if (!candles?.length) return null;
+  const rOffset = finiteNumber(data?.r_anchor);
+  const sOffset = finiteNumber(data?.s_anchor);
+  if (rOffset == null || sOffset == null) return null;
+
+  const last = candles.length - 1;
+  const baseStart = setupStartIndex(data, candles);
+  const rBar = clamp(baseStart + Math.trunc(rOffset), 0, last);
+  const sBar = clamp(baseStart + Math.trunc(sOffset), 0, last);
+  return { startIndex: Math.min(rBar, sBar), endIndex: Math.max(rBar, sBar) };
+};
+
+// Phase A — the climax + automatic reaction that marks where the TREND ends, straight
+// from the engine's own decision (_phase_a_start_date -> _phase_a_end_date, bc_anchor =
+// structure.climax_bar). This is the lead-in BEFORE the consolidation — a different
+// question from the root swing above, and never the grey bars: it drives the 'A'
+// region band only. Clamped to stop strictly before the box so Phase B always owns its
+// first bar. Returns null when Phase A can't be placed.
+export const phaseARange = (data, candles) => {
+  if (!candles?.length) return null;
+  const start = indexOnOrAfter(candles, data?._phase_a_start_date);
+  if (start == null) return null;
+  const phaseBStart = indexOnOrAfter(candles, data?._phase_b_start_date);
+  const ceiling = phaseBStart != null ? phaseBStart - 1 : candles.length - 1;
+  const arEnd = indexOnOrAfter(candles, data?._phase_a_end_date) ?? start + PHASE_A_MAX_BARS - 1;
+  const end = Math.min(arEnd, ceiling);
+  return end >= start ? { startIndex: start, endIndex: end } : null;
+};
+
+const buildRegion = (key, candles, startIndex, endIndex, extra = {}) => {
+  if (startIndex == null || endIndex == null) return null;
+  const lastIndex = candles.length - 1;
+  const start = clamp(startIndex, 0, lastIndex);
+  const end = clamp(endIndex, 0, lastIndex);
+  if (end < start) return null;
+
+  const def = REGION_DEFS[key];
+  const id = extra.id || key;
+  return {
+    ...def,
+    ...extra,
+    endIndex: end,
+    id,
+    key,
+    startIndex: start,
+  };
+};
+
+// The ONE drawn LPS zone (operator ruling 2026-08-09: a setup has a single
+// LPS — the chronological terminal one in Phase D — so the historical
+// support-test staircase is no longer drawn; the overlap-dedupe machinery it
+// needed retired with it).
+const addLpsRegion = (regions, candles, startDate, endDate, lowValue, highValue, extra = {}) => {
+  const startIndex = indexOnOrAfter(candles, startDate);
+  const endIndex = indexOnOrAfter(candles, endDate);
+  const low = finiteNumber(lowValue);
+  const high = finiteNumber(highValue);
+  if (startIndex == null || endIndex == null || low == null || high == null) return;
+
+  const region = buildRegion('lps', candles, startIndex, endIndex, {
+    high,
+    low,
+    ...extra,
+  });
+  if (region) regions.push(region);
+};
+
+export const buildPhaseRegions = (data) => {
+  const candles = data?.candles || [];
+  if (candles.length === 0) return [];
+
+  const indexes = phaseIndexes(data, candles);
+  const baseEnd = setupEndIndex(data, candles);
+  const regions = [];
+
+  // The 'A' band is Phase A proper — the climax -> AR lead-in that ends the trend,
+  // which sits BEFORE the box. Not the root swing (the r/s anchor pair inside the box,
+  // drawn as the grey bars via rootSwingRange): those are two different questions.
+  const phaseA = phaseARange(data, candles);
+  if (phaseA) {
+    const region = buildRegion('a', candles, phaseA.startIndex, phaseA.endIndex);
+    if (region) regions.push(region);
+  }
+  if (indexes.phaseBStart != null) {
+    const region = buildRegion('b', candles, indexes.phaseBStart, baseEnd, { range: 'setupBox' });
+    if (region) regions.push(region);
+  }
+  // Phase C — the measured spring. A spring is a 0-1 bar undercut-and-recover, so
+  // a single-bar marker reads as "nothing happened". Draw a band from the spring
+  // low up to support: the band's HEIGHT is the undercut depth, so the shakeout
+  // stays legible even when it spans one bar. Driven by the bin_c measurement
+  // (which carries the recovery span) rather than the bare scope marker.
+  if (data?.bin_c_present && data?.bin_c_event_date) {
+    const eventIndex = indexOnOrAfter(candles, data.bin_c_event_date);
+    if (eventIndex != null) {
+      const recoveryBars = Math.max(0, Math.trunc(finiteNumber(data.bin_c_recovery_bars) ?? 0));
+      const endIndex = clamp(eventIndex + recoveryBars, eventIndex, candles.length - 1);
+      const support = finiteNumber(data.S ?? data._S);
+      const springRange = priceRangeForBars(candles, eventIndex, endIndex);
+      const extra = { detail: phaseCDetail(data) };
+      if (springRange && support != null && springRange.low < support) {
+        extra.low = springRange.low;
+        extra.high = support;
+      }
+      const region = buildRegion('c', candles, eventIndex, endIndex, extra);
+      if (region) regions.push(region);
+    }
+  }
+  if (indexes.phaseDStart != null) {
+    const region = buildRegion('d', candles, indexes.phaseDStart, baseEnd, {
+      ...phaseDMetadata(data),
+      range: 'setupBox',
+    });
+    if (region) regions.push(region);
+  }
+  // The single LPS chip — the ACTIVE elected zone only (operator ruling
+  // 2026-08-09): one LPS per setup, the chronological terminal support test
+  // in Phase D. The prior-test staircase still exists as measurement (it
+  // feeds Phase-D boundary evidence) but is no longer drawn.
+  addLpsRegion(
+    regions,
+    candles,
+    data?._lps_zone_start_date,
+    data?._lps_zone_end_date,
+    data?._lps_zone_low,
+    data?._lps_zone_high,
+    { color: LPS_COLOR, detail: 'Active support-test zone', id: 'lps:active' },
+  );
+
+  return regions;
+};
+
+// Paint LPS candles from the SAME phase-region read the overlay uses, so every
+// surface (screener mini card + modal) colors the single active LPS zone the
+// identical gold. `fallbackColor` is the flat tint used ONLY when no LPS
+// *region* resolves (dense mini cards pass a muted gold, the modal passes full
+// gold): it then falls back to the lps_offset window, preserving the
+// pre-unification behavior. Mutates the passed candle array in place (callers
+// pass a clone).
+export const colorLpsCandles = (candles, data, fallbackColor) => {
+  let colored = false;
+  const lpsRegions = buildPhaseRegions(data).filter((region) => region.key === 'lps');
+  for (const region of lpsRegions) {
+    for (let index = region.startIndex; index <= region.endIndex; index += 1) {
+      if (index >= 0 && index < candles.length) {
+        candles[index].color = region.color || fallbackColor;
+        colored = true;
+      }
+    }
+  }
+  if (colored) return candles;
+
+  // No resolved LPS region (e.g. tests missing price bounds) — flat-paint the
+  // active lps_offset window, the same last-resort both sites used before.
+  if (!(data?.lps_len > 0) || data?.lps_offset === undefined) return candles;
+  const baseEnd = setupEndIndex(data, candles);
+  const lpsEnd = baseEnd - data.lps_offset;
+  const lpsStart = Math.max(0, lpsEnd - data.lps_len + 1);
+  for (let index = lpsStart; index <= lpsEnd; index += 1) {
+    if (index >= 0 && index < candles.length) candles[index].color = fallbackColor;
+  }
+  return candles;
+};
+
+const tokenColor = (container, token) => {
+  const computed = container ? getComputedStyle(container).getPropertyValue(token).trim() : '';
+  return computed || TOKEN_FALLBACKS[token] || TOKEN_FALLBACKS['--border-strong'];
+};
+
+const colorToRgba = (color, alpha) => {
+  const hex = color.trim().match(/^#?([0-9a-f]{6})$/i)?.[1];
+  if (hex) {
+    const value = parseInt(hex, 16);
+    return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`;
+  }
+
+  const rgb = color.trim().match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (rgb) return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${alpha})`;
+  return color;
+};
+
+// Rail-episode spans (Surface the Read): date-anchored highlight targets for
+// the tape's hover/focus — they ride the SAME activeRegion channel as the
+// phase bins, so the chart can only ever highlight one thing. Deliberately
+// NOT part of buildPhaseRegions: the phase-bin panel lists phases, the tape
+// lists these. The ids, span validity, and alignment-degrade rule all come
+// from narrativeRead.episodeSpans — the ONE shaper of the tape (council
+// review 2026-08-05, finding 14: re-deriving the mapping here let the two
+// modules disagree on which glyphs are highlightable); this module only
+// resolves dates to candle indexes.
+export const buildEpisodeRegions = (data) => {
+  const candles = data?.candles || [];
+  if (candles.length === 0) return [];
+  const regions = [];
+  episodeSpans(data).forEach((span) => {
+    const startIndex = indexOnOrAfter(candles, span.from);
+    const endIndex = indexOnOrAfter(candles, span.to);
+    const region = buildRegion('episode', candles, startIndex, endIndex, {
+      id: span.id,
+    });
+    if (region) regions.push(region);
+  });
+  return regions;
+};
+
+const styledRegions = (data, container) =>
+  [...buildPhaseRegions(data), ...buildEpisodeRegions(data)].map((region) => {
+    const color = region.color || tokenColor(container, region.token);
+    return {
+      ...region,
+      fillStyle: colorToRgba(color, region.key === 'lps' ? 0.08 : 0.045),
+      strokeStyle: colorToRgba(color, region.key === 'd' ? 0.72 : 0.56),
+    };
+  });
+
+class PhaseRegionRenderer {
+  constructor(drawData) {
+    this.drawData = drawData;
+  }
+
+  draw() {}
+
+  drawBackground(target) {
+    target.useMediaCoordinateSpace(({ context }) => {
+      context.save();
+      for (const region of this.drawData) {
+        const { height, left, strokeStyle, top, width, fillStyle } = region;
+        context.fillStyle = fillStyle;
+        context.strokeStyle = strokeStyle;
+        context.lineWidth = 1;
+        context.fillRect(left, top, width, height);
+        context.strokeRect(left + 0.5, top + 0.5, Math.max(1, width - 1), Math.max(1, height - 1));
+      }
+      context.restore();
+    });
+  }
+}
+
+class PhaseRegionPaneView {
+  constructor(source) {
+    this.drawData = null;
+    this.source = source;
+  }
+
+  update() {
+    this.drawData = this.source.calculateDrawData();
+  }
+
+  zOrder() {
+    return 'bottom';
+  }
+
+  renderer() {
+    return this.drawData ? new PhaseRegionRenderer(this.drawData) : null;
+  }
+}
+
+class PhaseRegionPrimitive {
+  constructor({ activeRegion, chart, container, data, series }) {
+    this.activeRegion = activeRegion;
+    this.chart = chart;
+    this.container = container;
+    this.data = data;
+    this.regions = styledRegions(data, container);
+    this.series = series;
+    this.view = new PhaseRegionPaneView(this);
+    this.views = [this.view];
+    this.handleTimeScaleChange = () => {
+      this.updateAllViews();
+      this.requestUpdate?.();
+    };
+  }
+
+  attached({ chart, requestUpdate, series }) {
+    this.chart = chart;
+    this.requestUpdate = requestUpdate;
+    this.series = series;
+    this.chart.timeScale().subscribeVisibleLogicalRangeChange(this.handleTimeScaleChange);
+    this.updateAllViews();
+  }
+
+  detached() {
+    this.chart?.timeScale().unsubscribeVisibleLogicalRangeChange(this.handleTimeScaleChange);
+  }
+
+  updateAllViews() {
+    this.view.update();
+  }
+
+  paneViews() {
+    return this.views;
+  }
+
+  setActiveRegion(activeRegion) {
+    this.activeRegion = activeRegion;
+    this.updateAllViews();
+    this.requestUpdate?.();
+  }
+
+  barWidth(index) {
+    const timeScale = this.chart.timeScale();
+    const current = timeScale.logicalToCoordinate(index);
+    const next = timeScale.logicalToCoordinate(index + 1);
+    if (current != null && next != null) return Math.max(2, Math.abs(next - current));
+
+    const previous = timeScale.logicalToCoordinate(index - 1);
+    if (current != null && previous != null) return Math.max(2, Math.abs(current - previous));
+
+    return 6;
+  }
+
+  xForBar(index) {
+    const candle = this.data?.candles?.[index];
+    const timeCoordinate = candle ? this.chart.timeScale().timeToCoordinate(candle.time) : null;
+    return timeCoordinate ?? this.chart.timeScale().logicalToCoordinate(index);
+  }
+
+  calculateDrawData() {
+    if (!this.activeRegion || !this.chart || !this.series) return null;
+
+    const candles = this.data?.candles || [];
+    const paneWidth = this.chart.timeScale().width();
+    const paneHeight = Math.max(0, this.container?.clientHeight ?? 0);
+    const drawRegions = this.regions
+      .filter((item) => item.id === this.activeRegion || item.key === this.activeRegion)
+      .map((region) => {
+        const priceRange = priceRangeForRegion(this.data, candles, region);
+        if (!priceRange) return null;
+
+        const spacing = this.barWidth(region.startIndex);
+        const x1 = this.xForBar(region.startIndex);
+        const x2 = this.xForBar(region.endIndex);
+        const yLow = this.series.priceToCoordinate(priceRange.low);
+        const yHigh = this.series.priceToCoordinate(priceRange.high);
+        if (x1 == null || x2 == null || yLow == null || yHigh == null) return null;
+
+        const left = Math.round(clamp(Math.min(x1, x2) - spacing * 0.45, 0, paneWidth));
+        const right = Math.round(clamp(Math.max(x1, x2) + spacing * 0.45, 0, paneWidth));
+        const top = Math.round(clamp(Math.min(yLow, yHigh), 0, paneHeight));
+        const bottom = Math.round(clamp(Math.max(yLow, yHigh), 0, paneHeight));
+        if (right - left < 2 || bottom - top < 2) return null;
+
+        return {
+          fillStyle: region.fillStyle,
+          height: bottom - top,
+          left,
+          strokeStyle: region.strokeStyle,
+          top,
+          width: right - left,
+        };
+      })
+      .filter(Boolean);
+
+    return drawRegions.length ? drawRegions : null;
+  }
+}
+
+export const attachPhaseOverlay = ({ activeRegion = null, candleSeries, chart, container, data }) => {
+  if (!chart || !candleSeries || !data?.candles?.length) {
+    return { remove: () => {}, setActiveRegion: () => {} };
+  }
+
+  const primitive = new PhaseRegionPrimitive({
+    activeRegion,
+    chart,
+    container,
+    data,
+    series: candleSeries,
+  });
+  candleSeries.attachPrimitive(primitive);
+
+  return {
+    remove: () => candleSeries.detachPrimitive(primitive),
+    setActiveRegion: (region) => primitive.setActiveRegion(region),
+  };
+};

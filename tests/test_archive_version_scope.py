@@ -21,9 +21,9 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import archive_models  # noqa: E402
 import database  # noqa: E402
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE  # noqa: E402
-from services import archive_queries  # noqa: E402
-from services.episode_cache import VersionedCache  # noqa: E402
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE  # noqa: E402
+from domains.archive import queries as archive_queries  # noqa: E402
+from domains.archive.episode_cache import VersionedCache  # noqa: E402
 
 
 @pytest.fixture()

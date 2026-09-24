@@ -81,7 +81,7 @@ _PROJECT_ROOT = configure_path(backend=True)
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
 from engine_alpha.freeze.manifest import manifest_hash
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screening.screener import _evaluate_ticker
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo

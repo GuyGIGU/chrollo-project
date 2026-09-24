@@ -45,12 +45,12 @@ if _ROOT not in sys.path:
 import pandas as pd
 
 from config import settings
-from core.pipeline.downloads import _trim_to_period
+from core.pipeline.market_data.downloads import _trim_to_period
 from engine_alpha.evaluation import apply_baseline_filters
-from engine_alpha.structure.indicators import calculate_atr
-from engine_alpha.structure.market_structure import (
+from engine_alpha.structure.metrics.indicators import calculate_atr
+from engine_alpha.structure.events.market_structure import (
     read_market_structure, segment_trends)
-from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.narrative.reader import read_structure
 from tools._bootstrap import refuse_sealed_output
 from tools.marks_json import load_marks_json, marks_json_fingerprint
 

@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from engine_alpha.evaluation import EVAL_ERROR
-from core.pipeline.screener import _evaluate_ticker
+from core.pipeline.screening.screener import _evaluate_ticker
 from tools.shadow_diff import _load_fixture
 
 _WRITER = Path(__file__).resolve().parent.parent / "core" / "archive" / "writer.py"

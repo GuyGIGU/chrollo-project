@@ -168,3 +168,16 @@ def test_preview_series_drops_non_finite_and_tolerates_empty():
     assert out["n"] == 2  # the NaN row is dropped, like the chart render
     empty = frame_store.preview_series(pd.DataFrame())
     assert empty == {"series": [], "lo": None, "hi": None, "n": 0}
+
+
+def test_the_root_safe_import_survives_the_domain_move():
+    """Tools import this as ``webapp.backend.frame_store`` with only the repo root
+    on sys.path. The compatibility alias must not need the backend cwd: it once
+    did, and every frame replay died with ``No module named 'domains'``."""
+    import subprocess
+    code = ("import sys; sys.path[:] = [p for p in sys.path if 'backend' not in p]; "
+            "import webapp.backend.frame_store as f, webapp.backend.marks_validity as m; "
+            "assert callable(f.ohlcv_digest) and callable(m.validate_mark)")
+    proc = subprocess.run([sys.executable, "-c", code], cwd=str(ROOT),
+                          capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr

@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 
 from core.archive.episodes import SetupRow
-from core.pipeline.universe import (
+from core.pipeline.universe.descriptor import (
     DEFAULT_UNIVERSE_TYPE,
     _build_registry,
     default_universe,
@@ -63,8 +63,8 @@ def test_archive_model_write_side_matches_constant():
 
 
 def test_read_surface_defaults_route_through_the_constant():
-    from routers.archive_browse import _resolve_universe_type
-    from services.archive_queries import _apply_setup_filters
+    from domains.archive.browse import _resolve_universe_type
+    from domains.archive.queries import _apply_setup_filters
 
     # the filter helper's default scope is the constant, not a bare literal
     default = inspect.signature(_apply_setup_filters).parameters["universe_type"].default

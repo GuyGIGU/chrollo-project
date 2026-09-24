@@ -100,7 +100,7 @@ def update_near_miss_outcomes(min_age_days: int = 5,
             for r in rows)
         end = min(pd.Timestamp.now() + pd.Timedelta(days=2), latest_needed)
 
-        from core.pipeline.downloads import _batched_download, price_auto_adjust
+        from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
         raw = _batched_download(
             list(dict.fromkeys([*by_ticker, SPY_TICKER])),
             {"start": start.strftime("%Y-%m-%d"), "end": end.strftime("%Y-%m-%d"),

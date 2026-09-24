@@ -26,11 +26,11 @@ configure_path()
 import pandas as pd
 
 from config import settings
-from core.pipeline.downloads import _trim_to_period
+from core.pipeline.market_data.downloads import _trim_to_period
 from engine_alpha.evaluation import apply_baseline_filters
-from engine_alpha.structure import htf
-from engine_alpha.structure.indicators import calculate_atr
-from engine_alpha.structure.narrative import read_structure
+from engine_alpha.structure.context import htf
+from engine_alpha.structure.metrics.indicators import calculate_atr
+from engine_alpha.structure.narrative.reader import read_structure
 
 DEFAULT = ["NVDA", "AAPL", "MSFT", "AMD", "AVGO", "SPY"]
 

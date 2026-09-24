@@ -67,7 +67,7 @@ def _flag(name: str, default=False):
 
 
 def _cache_path() -> str:
-    from core.pipeline.cache import _project_root
+    from core.pipeline.market_data.cache import _project_root
     return os.path.join(_project_root(), "output", CACHE_BASENAME)
 
 
@@ -171,7 +171,7 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
     from core.fundamentals.advisory import _trailing_return
 
     if provider is None:
-        from core.pipeline.providers import get_provider
+        from core.pipeline.market_data.providers import get_provider
         provider = get_provider()
 
     path = cache_path or _cache_path()
