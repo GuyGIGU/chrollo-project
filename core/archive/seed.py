@@ -42,7 +42,6 @@ from engine_alpha.scoring.scoring import (
 from engine_alpha.structure.events.event_map import event_map_archive_values
 from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
 from engine_alpha.structure.context.htf import htf_archive_values
-from engine_alpha.structure.context.power_play import power_play_archive_values
 from engine_alpha.structure.context.strategy_read import strategy_archive_values
 from engine_alpha.structure.box.trace_export import election_trace_archive_values
 
@@ -477,8 +476,6 @@ def seed_archive(
             **election_trace_archive_values(best_result.get, prefixed=False),
             # Strategy read (held-through-correction) — NULL when dark
             **strategy_archive_values(best_result.get, prefixed=False),
-            # Power-Play species family — NULL until the species lane runs
-            **power_play_archive_values(best_result.get, prefixed=False),
             # Forward returns (computed above for this historical date)
             **fwd_returns,
         )

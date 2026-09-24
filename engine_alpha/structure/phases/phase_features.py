@@ -447,14 +447,22 @@ def _phase_c_candidate(df: "pd.DataFrame", base_seg: "pd.DataFrame", *,
 
     n = len(df)
     Sf = float(S)
-    late_start = box_start + int(base_len * settings.BIN_C_LATE_BOX_FRACTION)
+    # R17 (final method step 2, dark): a spring may sit anywhere in the box
+    # and its depth is bounded by the ATR cap alone - both box-relative bounds
+    # refused the operator's own SYRE spring.
+    bounds_lifted = settings.SPRING_BOUNDS_LIFTED_ENABLED
+    late_fraction = 0.0 if bounds_lifted else settings.BIN_C_LATE_BOX_FRACTION
+    late_start = box_start + int(base_len * late_fraction)
     late_start = max(box_start + 1, min(late_start, n - 1))
     min_undercut = settings.BIN_C_UNDERCUT_ATR_MIN * atr
-    max_undercut = settings.BIN_C_UNDERCUT_ATR_MAX * atr
+    # Point 8 of the final method (step 7, dark): no raw depth number refuses
+    # a spring (his Q8); the depth stays a fact on the read.
+    max_undercut = (float("inf") if settings.DEPTH_CAPS_GRADED_ENABLED
+                    else settings.BIN_C_UNDERCUT_ATR_MAX * atr)
     box_height = float(R) - Sf
     max_box_undercut = (
         settings.BIN_C_UNDERCUT_BOX_MAX * box_height
-        if _finite(box_height) and box_height > 0
+        if _finite(box_height) and box_height > 0 and not bounds_lifted
         else None
     )
     reclaim_max = int(settings.BIN_C_RECOVERY_BARS_MAX)

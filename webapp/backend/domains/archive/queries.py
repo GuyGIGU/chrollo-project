@@ -26,8 +26,13 @@ def _apply_setup_filters(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE,
+    ticker: Optional[str] = None,
 ):
     """Apply the shared setup_archive filters used by the list + episode views.
+
+    ``ticker`` narrows to one symbol (the ticker page's "fired ..., crossed ..."
+    lookup, final method point 23: a read of the dates the archive already
+    stores, never a new pick).
 
     ``universe_type`` defaults to ``'us_equities'`` so every equities read surface
     (/setups, /episodes, /missed-winners, calibration stats) excludes the ETF /
@@ -37,6 +42,8 @@ def _apply_setup_filters(
     every universe."""
     if universe_type:
         q = q.filter(SetupArchive.universe_type == universe_type)
+    if ticker:
+        q = q.filter(SetupArchive.ticker == ticker.strip().upper())
     if tier:
         q = q.filter(SetupArchive.tier == tier.upper())
     if setup_type:

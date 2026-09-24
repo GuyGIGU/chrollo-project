@@ -50,6 +50,8 @@ def list_setups(
     ),
     sort_by: str = Query("scan_date"),
     sort_dir: str = Query("desc"),
+    ticker: Optional[str] = Query(None, min_length=1, max_length=12,
+                                  description="One symbol: the ticker page's fired / crossed lookup."),
     db: Session = Depends(get_db),
 ):
     """List archived setups with filtering and sorting."""
@@ -60,6 +62,7 @@ def list_setups(
         min_ta_grade=min_ta_grade,
         date_from=date_from, date_to=date_to,
         universe_type=_resolve_universe_type(universe_type),
+        ticker=ticker,
     )
 
     sort_col = getattr(SetupArchive, sort_by, SetupArchive.scan_date)

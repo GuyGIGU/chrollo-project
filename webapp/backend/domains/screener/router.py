@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -136,6 +137,24 @@ def get_screener_data(
     if identity is not None:
         ScanIdentity.model_validate(identity)
     return {**payload, "universe": uni.key, "status": status, "scanned_at": scanned_at}
+
+
+_TICKER_RE = re.compile(r"^[A-Z0-9.\-]{1,12}$")
+
+
+@router.get("/screener-data/state/{ticker}")
+def get_chart_state(
+    ticker: str,
+    universe: str | None = Query(None, description="Pin the cache read to one universe; default: the shared walk."),
+):
+    """One chart's state word (the final method, points 22 and 24): the same table the scan's watch lane
+    speaks, read on demand off the cached frame for a ticker the payload does not list. Never a new pick."""
+    from services.chart_state import read_chart_state
+
+    symbol = ticker.strip().upper()
+    if not _TICKER_RE.match(symbol):
+        raise HTTPException(status_code=400, detail="invalid ticker")
+    return read_chart_state(symbol, universe)
 
 
 @router.get("/screener-summary/")

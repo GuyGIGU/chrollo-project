@@ -83,6 +83,8 @@ npm --prefix webapp\frontend run build                       # build the React a
 npm --prefix webapp\frontend run lint                        # eslint
 .\.venv\Scripts\python.exe -m tools.audits.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
 .\.venv\Scripts\python.exe -m tools.regression.marks_corpus --check      # the operator-marks ratchet (~2 min): fails on a lost pinned hit, and as STALE once the operator redraws (refresh: tools.calibration.guided_list_export, then --build-fixture)
+.\.venv\Scripts\python.exe -m tools.regression.negative_corpus --check   # labeled junk must NOT fire on any day of the 10-day fired window (~1.5 min: 16 cases x 10 days)
+.\.venv\Scripts\python.exe -m tools.regression.shadow_diff --check       # fleet canonical output + first/last fire day on the same window (~2.5 min: 37 tickers x 10 days)
 .\.venv\Scripts\python.exe -m tools.regression.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
 .\.venv\Scripts\python.exe -m tools.audits.doctrine_audit --check    # Reading-Model invariants vs the live payload (~2min; needs output/screener_data.json + the cache)
 .\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC; refuses while a scan is running)

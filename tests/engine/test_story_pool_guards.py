@@ -123,8 +123,11 @@ def test_story_flag_on_shadow_panel_is_identical(monkeypatch):
         scored.append((ticker, float(result["Score"])))
 
     ranking = [t for t, _ in sorted(scored, key=lambda x: (-x[1], x[0]))]
+    # The baseline records each ticker's LAST fire in the fired window (build
+    # step 1, 2026-09-13); this twin replays the frozen day alone, so it
+    # compares against the baseline's frozen-day view.
     with open(shadow_diff._BASELINE_PATH, "r", encoding="utf-8") as f:
-        baseline = json.load(f)
+        baseline = shadow_diff.frozen_day_view(json.load(f), frames)
     ok, lines = shadow_diff.diff_against_baseline(
         {"fields": fields, "ranking": ranking}, baseline)
     assert ok, ("story-pool-ON canonical drift vs committed baseline:\n"

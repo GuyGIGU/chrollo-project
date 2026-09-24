@@ -18,6 +18,7 @@ import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import partial
 
 import pandas as pd
 
@@ -29,8 +30,8 @@ from engine_alpha.evaluation import (
     _evaluate_ticker,
     apply_baseline_filters,
     evaluate_ticker_with_near_miss,
-    evaluate_ticker_with_power_play,
     evaluate_ticker_with_rescue_stats,
+    evaluate_ticker_with_watch,
 )
 from core.pipeline.market_data.market_data_health import (
     compute_market_data_health,
@@ -76,7 +77,7 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
                      breadth_pct: float | None,
                      near_miss_sink: dict | None = None,
-                     power_play_sink: dict | None = None,
+                     watch_sink: dict | None = None,
                      rescue_sink: dict | None = None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
 
@@ -85,6 +86,14 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     lazily at call time), workers run the lane-carrying evaluation twin and
     the deduped ruled rows + counters accumulate here; otherwise the exact
     legacy submission runs (flag-off stays byte-identical and sink-empty).
+
+    ``watch_sink``: the watch lane's ``{"rows": [], "stats": {}}`` (build step
+    8, ``LPS_LEAVES_ELECTION_ENABLED``): its twin wraps whatever rung the ladder
+    picked, so the state word is typed off the one paying read.
+
+    ``rescue_sink``: the rescue lanes' attempt rows + counters (consolidation-
+    method Task 10, ``CONTRACTION_RESCUE_ENABLED`` / ``BAR_POSTURE_RESCUE_ENABLED``):
+    its cost twin is the OUTERMOST rung, wrapping the watch twin when both ride.
 
     Returns ``(results, errored)`` where ``errored`` is the number of tickers
     whose eval chain THREW (and was swallowed by the skip-guard) — distinct from a
@@ -97,24 +106,19 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
     lane_on = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
-    # The species lane COMPOSES with the near-miss lane: its twin wraps the
-    # near-miss-aware submission (which re-checks its own flag in-worker), so
-    # the selection stays a single ladder and flag-off is byte-identical.
-    pp_on = power_play_sink is not None and settings.POWER_PLAY_PRESET_ENABLED
+    worker_fn = evaluate_ticker_with_near_miss if lane_on else _evaluate_ticker
+    watch_on = watch_sink is not None and settings.LPS_LEAVES_ELECTION_ENABLED
+    if watch_on:
+        worker_fn = partial(evaluate_ticker_with_watch, inner=worker_fn)
     # The rescue lanes' cost twin (consolidation-method Task 10) is the
-    # OUTERMOST rung: it always wraps the species twin (stable inner shape),
-    # so the unwrap below stays deterministic whatever flips in-worker.
+    # OUTERMOST rung: it wraps whatever rung the ladder picked below it (it
+    # wrapped the species twin until that lane was deleted, final method build
+    # step 12), so the unwrap below stays deterministic whatever flips in-worker.
     rescue_on = (rescue_sink is not None
                  and (settings.CONTRACTION_RESCUE_ENABLED
                       or settings.BAR_POSTURE_RESCUE_ENABLED))
     if rescue_on:
-        worker_fn = evaluate_ticker_with_rescue_stats
-    elif pp_on:
-        worker_fn = evaluate_ticker_with_power_play
-    elif lane_on:
-        worker_fn = evaluate_ticker_with_near_miss
-    else:
-        worker_fn = _evaluate_ticker
+        worker_fn = partial(evaluate_ticker_with_rescue_stats, inner=worker_fn)
 
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
         futures = {
@@ -134,33 +138,21 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
 
             result = future.result()
             if rescue_on:
-                # Outermost unwrap: (species_triple, rescue_row, rescue_stats).
+                # Outermost unwrap: (inner_base, rescue_row, rescue_stats).
                 result, rescue_row, rescue_stats = result
                 if rescue_row is not None:
                     rescue_sink.setdefault("rows", []).append(rescue_row)
                 racc = rescue_sink.setdefault("stats", {})
                 for k, v in rescue_stats.items():
                     racc[k] = racc.get(k, 0) + v
-            if rescue_on or pp_on:
-                result, pp_row, pp_stats = result
-                if power_play_sink is not None:
-                    if pp_row is not None:
-                        power_play_sink["rows"].append(pp_row)
-                    pstats = power_play_sink.setdefault("stats", {})
-                    for k, v in pp_stats.items():
-                        pstats[k] = pstats.get(k, 0) + v
-                if isinstance(result, tuple):
-                    # The composed near-miss triple (the nm flag was on
-                    # in-worker). Rows flow to the sink when one rides;
-                    # without one they drop with the same no-sink semantics
-                    # as the legacy ladder (archive off = no lane rows).
-                    result, lane_rows, lane_stats = result
-                    if lane_on:
-                        near_miss_sink["rows"].extend(lane_rows)
-                        stats = near_miss_sink.setdefault("stats", {})
-                        for k, v in lane_stats.items():
-                            stats[k] = stats.get(k, 0) + v
-            elif lane_on:
+            if watch_on:
+                result, watch_row, watch_stats = result
+                if watch_row is not None:
+                    watch_sink["rows"].append(watch_row)
+                wstats = watch_sink.setdefault("stats", {})
+                for k, v in watch_stats.items():
+                    wstats[k] = wstats.get(k, 0) + v
+            if lane_on:
                 result, lane_rows, lane_stats = result
                 near_miss_sink["rows"].extend(lane_rows)
                 stats = near_miss_sink.setdefault("stats", {})
@@ -285,11 +277,6 @@ def run_screener(mode: str = "download",
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
 
-    # The species lane's sink is created HERE (not scan_job): its rows ride the
-    # payload through market_context, never the archive writer — the archive
-    # half of the family travels on firing result rows via the Task 7 producer.
-    power_play_sink = ({"rows": [], "stats": {}}
-                       if settings.POWER_PLAY_PRESET_ENABLED else None)
     # The rescue lanes' sink (consolidation-method Task 10): attempt rows +
     # counters for the full-refusal second look. Rows ride the payload through
     # market_context — the same vehicle as the fires, so they publish only on
@@ -297,15 +284,23 @@ def run_screener(mode: str = "download",
     rescue_sink = ({"rows": [], "stats": {}}
                    if (settings.CONTRACTION_RESCUE_ENABLED
                        or settings.BAR_POSTURE_RESCUE_ENABLED) else None)
+    # The watch lane's sink (build step 8): rows and counts ride the payload
+    # through market_context["watch"]; absent flag-off (byte-identical).
+    watch_sink = ({"rows": [], "stats": {}}
+                  if settings.LPS_LEAVES_ELECTION_ENABLED else None)
     with timer.phase("evaluation"):
         # Number of tickers whose eval chain THREW and was swallowed (distinct from
         # a structural reject) is returned in-band alongside the results, so there
         # is no cross-call stale-read hazard.
+        # The watch sink rides as a kwarg only when it exists (flag-on), so an
+        # injected fake without the parameter keeps working flag-off (the
+        # near-miss floor's own rule).
+        watch_kw = {"watch_sink": watch_sink} if watch_sink is not None else {}
         results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return,
                                                     breadth_pct,
                                                     near_miss_sink=near_miss_sink,
-                                                    power_play_sink=power_play_sink,
-                                                    rescue_sink=rescue_sink)
+                                                    rescue_sink=rescue_sink,
+                                                    **watch_kw)
     if rescue_sink is not None:
         r_stats = dict(rescue_sink.get("stats") or {})
         if r_stats or rescue_sink.get("rows"):
@@ -322,17 +317,10 @@ def run_screener(mode: str = "download",
                                    key=lambda r: r["ticker"]),
                 "counts": {k: int(v) for k, v in sorted(r_stats.items())},
             }
-    if power_play_sink is not None:
-        pp_stats = dict(power_play_sink.get("stats") or {})
-        # The lane's OWN cost attribution (EC-8's bound cites this production
-        # instrument): summed in-worker time, recorded as its own phase entry —
-        # an aggregate across workers, not wall clock, and named so.
-        timer.phases["power_play_lane_worker_s"] = round(
-            float(pp_stats.pop("pp_eval_ms", 0.0)) / 1000.0, 2)
-        market_context["power_play"] = {
-            "candidates": sorted(power_play_sink["rows"],
-                                 key=lambda r: r["ticker"]),
-            "counts": {k: int(v) for k, v in sorted(pp_stats.items())},
+    if watch_sink is not None:
+        market_context["watch"] = {
+            "candidates": sorted(watch_sink["rows"], key=lambda r: r["ticker"]),
+            "counts": {k: int(v) for k, v in sorted(watch_sink["stats"].items())},
         }
 
     # Conductor-level fundamentals/RS-line post-pass (species program Task 12):

@@ -27,6 +27,7 @@ from engine_alpha.structure.box.box_gates import (
     _occupancy_leg_failures,
     _respect_stats,
     _validate_base_quality,
+    _width_refuses,
     _worked_window_end,
     leg_threshold,
 )
@@ -434,9 +435,41 @@ def _oriented_pairs(zigzag):
         yield R_val, S_val, r_anchor_bar, s_anchor_bar
 
 
+def _still_backing_up(last_close, R_val, atr_val) -> bool:
+    """Is price still backing up to a broken-out box, so its rescue may keep it? R11 (final method step 2, dark):
+    the box hands over to the next framing once the close sits more than BOX_HANDOVER_MAX_ABOVE_R_ATR daily
+    ranges above its R; the percent-of-price form stays the flag-off path."""
+    if settings.BOX_END_ENABLED:
+        return True           # build step 11: the box's end decides staleness, never a close level
+    if settings.BOX_HANDOVER_RANGES_ENABLED:
+        return bool(last_close <= R_val + settings.BOX_HANDOVER_MAX_ABOVE_R_ATR * atr_val)
+    return bool(last_close <= R_val * settings.EXTENSION_FILTER_MULT)
+
+
+def _dethrone_armed(n_pool: int) -> bool:
+    """The dethrone pass runs on a pool of two or more, flag-on, and never under the box's end (build step 11:
+    an ended box is not in the walk's way any more)."""
+    return bool(settings.ELECTION_DETHRONE_ENABLED and not settings.BOX_END_ENABLED and n_pool > 1)
+
+
+def _answered(zigzag, R_val, S_val, second_anchor_bar, area) -> bool:
+    """Point 4 of the final method (build step 10): a pair is a candidate once the swings after it answer to
+    its rails, a later committed turn of the line inside R's area and one inside S's area."""
+    at_r = at_s = False
+    for bar, kind, price in zigzag:
+        if bar <= second_anchor_bar:
+            continue
+        if kind == "peak" and abs(price - R_val) <= area:
+            at_r = True
+        elif kind == "valley" and abs(price - S_val) <= area:
+            at_s = True
+    return at_r and at_s
+
+
 def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
                               enforce_traversal=False, trace=None,
-                              recorder=None, forms=None):
+                              recorder=None, forms=None, zigzag=None, extra_pairs=None,
+                              answer_area=None, answer_line=None):
     """Build valid R/S candidates from consecutive zigzag limbs.
 
     ``trace``: optional list; when given, every pair examined is recorded with
@@ -460,16 +493,25 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     caller that means the ordinary read) = the baseline roster derived from
     settings at call time by ``event_map.baseline_admission_roster`` —
     byte-identical to the pre-roster behavior by construction.
+
+    Build step 10 (``CLIMAX_FIRST_WALK_ENABLED``, all three None flag-off = byte-identical): ``zigzag`` is
+    the line's own committed turns over this window in place of the order-N skeleton; ``extra_pairs`` are
+    pairs examined BEFORE the consecutive limbs (the climax and its reaction, his first candidate);
+    ``answer_area`` arms the answering stage, point 4's "the first pair whose rails the following swings
+    answer to": a pair not yet answered (``_answered``) is refused at stage "answering", trace only; the
+    answer is read on ``answer_line`` (the whole line after the pair) when given, else on ``zigzag``.
     """
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values
 
-    peaks_idx, valleys_idx, zigzag = _swing_skeleton(
-        eq_highs, eq_lows, _pivot_order(len(eq_df)), _find_pivots)
-    if not peaks_idx or not valleys_idx:
-        return []
+    if zigzag is None:
+        peaks_idx, valleys_idx, zigzag = _swing_skeleton(
+            eq_highs, eq_lows, _pivot_order(len(eq_df)), _find_pivots)
+        if not peaks_idx or not valleys_idx:
+            return []
     if len(zigzag) < 2:
         return []
+    pairs = list(extra_pairs or []) + list(_oriented_pairs(zigzag))
 
     # Two pools: STRICT framings pass respect + occupancy over the full window
     # (the legacy rule, byte-identical); RESCUED framings only pass once a
@@ -478,9 +520,9 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # in-range setup is never re-framed — the trim can only save a box that would
     # otherwise be rejected outright (NMM's break above R, then a rest on it).
     strict, rescued = [], []
-    for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
+    for R_val, S_val, r_anchor_bar, s_anchor_bar in pairs:
         box_width = (R_val - S_val) / S_val
-        if box_width > settings.MAX_BOX_WIDTH:
+        if _width_refuses(box_width, settings.MAX_BOX_WIDTH):
             if recorder is not None:
                 cs = min(r_anchor_bar, s_anchor_bar)
                 recorder.refusal("width", "strict", r_anchor_bar, s_anchor_bar,
@@ -495,6 +537,15 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
                             R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
                             min(r_anchor_bar, s_anchor_bar),
                             legs=[_leg_record("width", float(box_width), width_max)])
+            continue
+        if answer_area is not None and not _answered(answer_line if answer_line is not None else zigzag,
+                                                     R_val, S_val, max(r_anchor_bar, s_anchor_bar),
+                                                     answer_area):
+            if trace is not None:
+                _trace_pair(trace, "rejected", "answering",
+                            "no later turn of the line inside each rail's area yet",
+                            R_val, S_val, box_width, r_anchor_bar, s_anchor_bar,
+                            min(r_anchor_bar, s_anchor_bar))
             continue
 
         cand_start = min(r_anchor_bar, s_anchor_bar)
@@ -531,8 +582,8 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
         if enforce_traversal:
             work_end = _worked_window_end(cand_highs, cand_lows, R_val, S_val, atr_val)
             last_close = float(cand_eq_df['Close'].iloc[-1])
-            if work_end < len(cand_highs) \
-                    and last_close <= R_val * settings.EXTENSION_FILTER_MULT:
+            still_backing_up = _still_backing_up(last_close, R_val, atr_val)
+            if work_end < len(cand_highs) and still_backing_up:
                 tup = _build_candidate(
                     cand_highs[:work_end], cand_lows[:work_end],
                     cand_eq_df.iloc[:work_end], R_val, S_val, box_width,
@@ -574,7 +625,7 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # shelf). Dethroned only IN FAVOR OF a later valid framing — never into
     # an emptier read. One trailing pass over the already-loaded window;
     # pure function of the frame, no cross-session state.
-    if settings.ELECTION_DETHRONE_ENABLED and len(pool) > 1:
+    if _dethrone_armed(len(pool)):
         buf = settings.BOUNDARY_ATR_BUFFER * atr_val
         k = settings.ELECTION_DETHRONE_SESSIONS
         rescued_ids = {id(c) for c in rescued}
@@ -665,7 +716,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
     pool = []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
-        if box_width > settings.BAND_MAX_BOX_WIDTH:
+        if _width_refuses(box_width, settings.BAND_MAX_BOX_WIDTH):
             continue
 
         cand_start = min(r_anchor_bar, s_anchor_bar)
@@ -759,7 +810,7 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     pool = []
     for R_val, S_val, r_anchor_bar, s_anchor_bar in _oriented_pairs(zigzag):
         box_width = (R_val - S_val) / S_val
-        if box_width > settings.MAX_BOX_WIDTH:
+        if _width_refuses(box_width, settings.MAX_BOX_WIDTH):
             continue
         # O(1) EXACT necessary condition of an ARMED form's terminal leg —
         # each roster form contributes its own leg through shared event_map
@@ -886,8 +937,11 @@ def backext_shared_rail(eq_df, R_val, S_val, cand_start, atr_val):
     (base-age, traversal, contractions, support slope, dwell, touch-volume,
     bar compression), the spring / inner-box / LPS windows, bin evidence,
     the event story. Returns the (possibly unchanged) window-relative start.
+
+    Point 5 of the final method (build step 9, dark, ``BOX_OPENS_ON_ANCHORS_ENABLED``): the box opens on the
+    earlier anchor day and never extends left, so under the switch the start is the anchor pair's own.
     """
-    if cand_start <= 0:
+    if cand_start <= 0 or settings.BOX_OPENS_ON_ANCHORS_ENABLED:
         return cand_start
     eq_highs = eq_df['High'].values
     eq_lows = eq_df['Low'].values

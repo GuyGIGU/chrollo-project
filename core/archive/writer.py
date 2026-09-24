@@ -244,7 +244,6 @@ from engine_alpha.scoring.scoring import (
 )
 # Election-trace evidence cell — single source in engine_alpha.structure.box.trace_export
 # (same model-only convention as the event_map family).
-from engine_alpha.structure.context.power_play import power_play_archive_values
 from engine_alpha.structure.box.trace_export import election_trace_archive_values
 # Strategy-read family — single source in engine_alpha.structure.context.strategy_read.
 from engine_alpha.structure.context.strategy_read import strategy_archive_values
@@ -530,6 +529,18 @@ def archive_scan_results(
             eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
             eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
             eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
+            # The outside-bar vocabulary (engine-eyes Task 1) — descriptors,
+            # model-only columns (AP-7: the hand list above does not grow)
+            eq_rest_above_r_frac=row.get("_eq_rest_above_r_frac"),
+            eq_hold_below_s_frac=row.get("_eq_hold_below_s_frac"),
+            eq_respect_forms_frac=row.get("_eq_respect_forms_frac"),
+            eq_outside_last_third_share=row.get("_eq_outside_last_third_share"),
+            eq_terminal_run_bars=row.get("_eq_terminal_run_bars"),
+            eq_terminal_run_form=row.get("_eq_terminal_run_form"),
+            eq_rail_overshoot_depth_atr=row.get("_eq_rail_overshoot_depth_atr"),
+            eq_touch_spacing_evenness=row.get("_eq_touch_spacing_evenness"),
+            eq_whole_bar_early_share=row.get("_eq_whole_bar_early_share"),
+            eq_traversals_per_20d=row.get("_eq_traversals_per_20d"),
             # Electing-pool provenance (strict/rescued/band/story, Task 11)
             elected_pool=row.get("_elected_pool"),
             story_admission_profile=row.get("_story_admission_profile"),
@@ -665,8 +676,6 @@ def archive_scan_results(
             **election_trace_archive_values(row.get, prefixed=True),
             # Strategy read (held-through-correction) — NULL when dark
             **strategy_archive_values(row.get, prefixed=True),
-            # Power-Play species family — NULL until the species lane runs
-            **power_play_archive_values(row.get, prefixed=True),
             # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
             # Per-ticker fundamentals / RS-line / days-to-earnings come from the
             # eval result (set by core.fundamentals.advisory when the flags are on;

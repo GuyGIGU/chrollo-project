@@ -29,7 +29,7 @@ def test_reader_pin_reports_no_reading_drift():
     committed baseline.
 
     `check_baseline()` returns True iff every pinned reader surface on all 88
-    charts (33 marks + 18 junk + 37 shadow, including the 5 rejecting tickers
+    charts (35 marks + 16 junk + 37 shadow, including the 5 rejecting tickers
     every other guard is blind to) matches the baseline exactly, and the
     position grid still holds its stated literals.
     """
@@ -53,10 +53,11 @@ def test_baseline_parses_and_covers_all_three_populations():
     baseline = _baseline()
     pops = baseline["populations"]
     assert set(pops) == {"marks", "junk", "shadow"}
-    # The junk corpus (18) and the shadow fixture (37, including its 5 rejecting
-    # tickers - the population every other guard is blind to) are FIXED
-    # populations, so their counts stay pinned here.
-    assert len(pops["junk"]) == 18
+    # The junk corpus (16: NVT left on the operator's Thu 10/09/2026 ruling,
+    # CHCT on his Sun 13/09/2026 "The setups is valid" ruling) and the shadow fixture (37, including its
+    # 5 rejecting tickers - the population every other guard is blind to) are
+    # FIXED populations, so their counts stay pinned here.
+    assert len(pops["junk"]) == 16
     assert len(pops["shadow"]) == 37
     # The marks population is NOT fixed: it follows the operator's drawings by
     # his 2026-09-08 ruling, so a literal here would break this guard every time

@@ -42,6 +42,13 @@ def _refusing_frame(n=300):
                          "Volume": np.full(n, 2_000_000.0)}, index=idx)
 
 
+def _verdict(base):
+    """The fire verdict under whatever lane triples the ladder wrapped it in."""
+    while isinstance(base, tuple):
+        base = base[0]
+    return base
+
+
 def test_flags_off_the_twin_contributes_nothing():
     assert settings.CONTRACTION_RESCUE_ENABLED is False
     assert settings.BAR_POSTURE_RESCUE_ENABLED is False
@@ -57,9 +64,7 @@ def test_full_refusal_books_one_escalation_with_cost(monkeypatch):
     monkeypatch.setattr(settings, "BAR_POSTURE_RESCUE_ENABLED", True)
     base, row, stats = evaluate_ticker_with_rescue_stats(
         "RISER", _refusing_frame(), 0.0, _FROZEN_BREADTH)
-    result = base[0]
-    if isinstance(result, tuple):
-        result = result[0]
+    result = _verdict(base)
     assert result is None, "the riser must stay a structural refusal"
     assert row == {"ticker": "RISER", "escalated": ["s_test_bar_posture"],
                    "outcome": "refused"}
@@ -76,82 +81,10 @@ def test_conversion_books_elected_and_the_fire_rides_the_base(monkeypatch):
         :pd.Timestamp("2026-01-07")]
     base, row, stats = evaluate_ticker_with_rescue_stats(
         "EGBN", sliced, 0.0, _FROZEN_BREADTH)
-    result = base[0]
-    if isinstance(result, tuple):
-        result = result[0]
+    result = _verdict(base)
     assert isinstance(result, dict), "the banked conversion must fire"
     assert row["outcome"] == "elected"
     assert stats["rescue_elected"] == 1 and stats["rescue_walks"] == 1
-
-
-def _baseline_fire_frame():
-    """A marked setup whose PAYING read elects at BASELINE — no escalation, so
-    the sink stays empty unless something else books into it."""
-    frames, baseline = _load_marks_fixture()
-    e = next(x for x in baseline["setups"]
-             if x["status"] == "hit" and x["key"].startswith("VLO"))
-    sliced = fixture_frame(frames, e["key"], e["ticker"]).loc[
-        :pd.Timestamp(e["first_fire"])]
-    return e["ticker"], sliced, float(e["spy_6m_return"])
-
-
-def test_the_species_lanes_dark_read_books_nothing(monkeypatch):
-    """Council review 2026-09-01, finding 1, under the exact planned flag pair
-    (bar-posture armed, the power-play preset live): the species lane runs its
-    own scoped second read, which escalates the SAME armed form — and the
-    sink's booking is last-write-wins over summed wall-time. A ticker whose
-    PAYING read elects while that dark read fully refuses must produce NO
-    attempt row and NO rescue milliseconds, or the attempts sheet and the cost
-    bound BOTH flip rulings are read from describe the dark read.
-
-    The stand-in's anti-vacuity evidence is RECORDED here and judged in the
-    body below, never asserted in place: the stand-in runs inside
-    ``evaluate_ticker_with_power_play``'s except-Exception, which eats an
-    assertion raised there and leaves this test green on a stand-in that
-    never escalated at all (round-two completeness critic, 2026-09-01)."""
-    monkeypatch.setattr(settings, "BAR_POSTURE_RESCUE_ENABLED", True)
-    monkeypatch.setattr(settings, "POWER_PLAY_PRESET_ENABLED", True)
-    from engine_alpha.structure.narrative import reader as narrative
-    from engine_alpha.structure.narrative import read_structure
-
-    dark_frame = _refusing_frame()
-    seen: dict = {}
-
-    def _scoped_dark_read(_df):
-        # Stands in for species_watch's scoped read (the real one runs under
-        # the power-play window override): a FULL refusal, which arms the
-        # escalation. Its own probe sink records whether the read really did
-        # escalate — the body asserts on it, out of reach of the swallow.
-        prep, _reason = evaluation._prepare_eval_frame_with_reason(dark_frame)
-        pdf = prep["df"]
-        atr = float(evaluation.structure_atr_row(pdf)["ATR_10"])
-        probe: dict = {}
-        with narrative.rescue_sink(probe):
-            seen["read"] = read_structure(pdf, atr)
-        seen["probe"] = dict(probe)
-        return None, {"pp_watched": 1}
-
-    monkeypatch.setattr(evaluation, "species_watch", _scoped_dark_read)
-    ticker, sliced, spy = _baseline_fire_frame()
-    base, row, stats = evaluate_ticker_with_rescue_stats(
-        ticker, sliced, spy, _FROZEN_BREADTH)
-    result = base[0]
-    if isinstance(result, tuple):
-        result = result[0]
-    # The lane's OWN counters are state the swallow cannot eat: a stand-in
-    # that raised books pp_errored and never books pp_watched.
-    pp_stats = base[2]
-    assert "pp_errored" not in pp_stats, (
-        f"the species lane swallowed the stand-in: {pp_stats}")
-    assert pp_stats.get("pp_watched") == 1, (
-        f"the stand-in dark read never completed: {pp_stats}")
-    assert seen["read"] is None, "the stand-in read must be a full refusal"
-    assert seen["probe"].get("rescue_walks") == 1, (
-        "the stand-in read did not escalate — the pin below proves nothing "
-        "unless the dark read really does book into whatever sink it finds")
-    assert isinstance(result, dict), "the paying read must elect at baseline"
-    assert row is None and stats == {}, (
-        "the species lane's dark read booked into the paying walk's sink")
 
 
 def test_a_nested_arm_never_clobbers_the_paying_sink():
@@ -176,9 +109,9 @@ def test_a_nested_arm_never_clobbers_the_paying_sink():
 def test_crashed_base_contributes_nothing(monkeypatch):
     monkeypatch.setattr(settings, "BAR_POSTURE_RESCUE_ENABLED", True)
     # Route the ladder through the plain evaluation so the fake below IS the
-    # walk (the live nm/species twins would otherwise run the real chain).
+    # walk (the twin's default rung; the live near-miss twin would otherwise
+    # run the real chain).
     monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", False)
-    monkeypatch.setattr(settings, "POWER_PLAY_PRESET_ENABLED", False)
 
     def crashing_eval(ticker, df, *a, **k):
         # Book into the armed sink first — proving partial telemetry from an
@@ -252,6 +185,48 @@ def test_conductor_publishes_the_lane_block_and_pseudo_phase(monkeypatch):
     assert block["counts"]["rescue_walks"] == 1
     metrics = market_context["_scan_metrics"]
     assert "rescue_lane_worker_s" in metrics["phases_s"]
+
+
+def test_rescue_rung_wraps_the_watch_and_near_miss_rungs(monkeypatch):
+    """The full ladder the conductor builds with every rung armed: the rescue
+    cost twin OUTERMOST (it wrapped the species twin until that lane was
+    deleted, final method build step 12), the watch twin (build step 8) under
+    it, the near-miss twin innermost. Each sink gets its own rung's output,
+    unwrapped in that order, off the ONE paying read of the refusing frame."""
+    import core.pipeline.screening.screener as screener_module
+
+    df = _refusing_frame()
+
+    class _Provider:
+        def fetch(self, tickers, universe=None):
+            return df
+
+    monkeypatch.setattr(screener_module, "ProcessPoolExecutor", _InlinePool)
+    monkeypatch.setattr(screener_module, "as_completed",
+                        lambda futures: iter(list(futures)))
+    monkeypatch.setattr(screener_module, "get_tickers", lambda *a, **k: ["AAA"])
+    monkeypatch.setattr(screener_module, "get_provider", lambda: _Provider())
+    monkeypatch.setattr(
+        screener_module, "get_market_context",
+        lambda data, frames, *a, **k: {"spy_6m_return": 0.0, "breadth_pct": 1.0})
+    monkeypatch.setattr(screener_module, "persist_scan_metrics",
+                        lambda metrics, universe=None: None)
+
+    near_miss_sink = {"rows": [], "stats": {}}
+    with flag_capture(BAR_POSTURE_RESCUE_ENABLED=True,
+                      LPS_LEAVES_ELECTION_ENABLED=True,
+                      NEAR_MISS_LANE_ENABLED=True):
+        _results, _data, _tickers, market_context = screener_module.run_screener(
+            near_miss_sink=near_miss_sink)
+
+    block = market_context["rescue_lane"]
+    assert [r["ticker"] for r in block["attempts"]] == ["AAA"]
+    assert block["counts"]["rescue_walks"] == 1
+    watch = market_context["watch"]
+    assert sum(watch["counts"].values()) == 1, watch["counts"]
+    assert set(watch["counts"]) <= set(evaluation.WATCH_WIRE_STATES) | {
+        "below the floor"}, watch["counts"]
+    assert "lane_errored" not in near_miss_sink["stats"], near_miss_sink["stats"]
 
 
 def test_dark_scan_metrics_carry_no_rescue_phase(monkeypatch):

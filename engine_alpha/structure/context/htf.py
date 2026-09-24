@@ -124,12 +124,12 @@ def resample_ohlc(df: pd.DataFrame, tf: str) -> Optional[pd.DataFrame]:
 
 @contextlib.contextmanager
 def window_override(preset: dict):
-    """Temporarily set the given settings overrides (bar-count windows and,
-    for the species preset, its in-read form flag), restoring every value
-    (even on exception) — the ONE scoped override mechanism inside the
-    engine. ``timeframe_windows`` (HTF weekly/monthly) and the Power-Play
-    species preset (``settings.POWER_PLAY_WINDOWS``, dark) are its declared
-    presets; a differently-clocked read enters HERE, never through a forked
+    """Temporarily set the given settings overrides (bar-count windows and
+    the rescue lane's in-read form flag), restoring every value (even on
+    exception) — the ONE scoped override mechanism inside the engine.
+    ``timeframe_windows`` (HTF weekly/monthly) is its declared preset (the
+    Power-Play species preset was deleted with its lane, build step 12); a
+    differently-clocked read enters HERE, never through a forked
     collector or a hand-threaded parameter, and the evidence instruments'
     ``tools.calibration.replay.flag_capture`` delegates to this same core (EC-3). Safe
     because the detectors read ``settings.X`` lazily at call-time and each

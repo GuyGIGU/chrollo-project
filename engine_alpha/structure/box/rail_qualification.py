@@ -118,8 +118,8 @@ def _qualify_band(closes, lows, highs, S_val, R_val, buf,
     for i, (start, end) in enumerate(below_spans):
         if end >= n:
             return None            # still outside at the window edge: unresolved
-        if (end - start) > settings.BAND_EVENT_MAX_BARS:
-            return None            # months below the rail is a markdown leg, not an episode
+        if (end - start) > settings.BAND_EVENT_MAX_BARS and not settings.DEPTH_CAPS_GRADED_ENABLED:
+            return None            # months below the rail is a markdown leg, not an episode (point 8, step 7: no day count)
         extreme = float(lows[start:end].min())
         if max_depth is not None and (S_val - extreme) > max_depth:
             return None            # beyond terminal-shakeout scale: a breakdown
@@ -145,8 +145,8 @@ def _qualify_band(closes, lows, highs, S_val, R_val, buf,
         # (DBD negative-corpus regression at the 2026-07-16 flip: a 15-bar,
         # 4.1-ATR rally above R rode the uncapped above loop into a tier-S
         # dead-space election.)
-        if (end - start) > settings.MAX_CONSECUTIVE_OUTSIDE_DAYS:
-            return None
+        if (end - start) > settings.MAX_CONSECUTIVE_OUTSIDE_DAYS and not settings.RESPECT_GRADED_ENABLED:
+            return None            # point 6 (step 7, dark): a run beyond a rail refuses nothing
         extreme = float(highs[start:end].max())
         # FAIL-BACK: the poke high is never exceeded after the return.
         if float(highs[end:].max()) > extreme:
@@ -238,8 +238,11 @@ def qualify_pair_events(eq_df, S_val: float, R_val: float,
     lows = eq_df["Low"].values.astype(float)
     highs = eq_df["High"].values.astype(float)
     buf = _band_buffer(atr_val)
-    read = _qualify_band(closes, lows, highs, S_val, R_val, buf,
-                         max_depth=settings.BAND_EVENT_MAX_DEPTH_ATR * float(atr_val))
+    # Point 8 of the final method (step 7, dark, DEPTH_CAPS_GRADED_ENABLED): no
+    # depth number refuses a below-rail event; the depth stays a fact.
+    max_depth = (None if settings.DEPTH_CAPS_GRADED_ENABLED
+                 else settings.BAND_EVENT_MAX_DEPTH_ATR * float(atr_val))
+    read = _qualify_band(closes, lows, highs, S_val, R_val, buf, max_depth=max_depth)
     if read is None:
         return None
     # A terminal shakeout ends a MATURED cause: the judged (post-excision)

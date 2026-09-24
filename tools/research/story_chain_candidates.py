@@ -51,8 +51,26 @@ configure_path()
 import numpy as np                                           # noqa: E402
 import pandas as pd                                          # noqa: E402
 
+from config import settings                                  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash       # noqa: E402
-from tools.research.power_play_census import load_panel               # noqa: E402
+
+
+def load_panel(path=None, tickers=None):
+    """The cached OHLC panel as {ticker: frame}. ``path`` defaults to the
+    live cache; pass another checkout's parquet to read it in place."""
+    path = path or settings.CACHE_FILENAME
+    data = pd.read_parquet(path, engine=settings.PARQUET_ENGINE)
+    level0 = sorted(set(data.columns.get_level_values(0)))
+    if tickers:
+        wanted = {t.strip().upper() for t in tickers}
+        level0 = [t for t in level0 if t in wanted]
+    frames = {}
+    for t in level0:
+        df = data[t].dropna()
+        if len(df):
+            frames[t] = df
+    return frames, os.path.basename(str(path))
+
 
 # Screen constants — heuristic yardsticks for the CANDIDATE screen only; they
 # are not engine knobs, are not registered anywhere, and the operator's sheet

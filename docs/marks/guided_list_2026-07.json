@@ -2,10 +2,10 @@
   "_about": "The Guided List \u2014 the operator's curated engine-test standard (35 setups / 34 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
   "_provenance": {
     "population": "guided-list",
-    "marks_fingerprint": "02e1d21c8c79d0af398deec47b33b960e8a9be196e5a012e0a3b32f1868de121",
+    "marks_fingerprint": "88db0fcfa4e4f3eac6cd24aafb34a8a3bba67097a3b55a42004407c47335b28d",
     "engine_config_version": "0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42",
     "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-    "exported_at": "2026-09-08T10:58:50+00:00",
+    "exported_at": "2026-09-13T16:41:16+00:00",
     "n_setups": 35
   },
   "setups": [
@@ -479,19 +479,23 @@
     },
     {
       "ticker": "SYRE",
-      "setup": "2026-02-12",
+      "setup": "2026-02-19",
       "source": "operator",
-      "as_of": "2026-02-12",
-      "frame_digest": "b0a09ec241c1ca2784dceea0bffb89b84effecf125ff5915cdb79612a7cea644",
+      "as_of": "2026-02-19",
+      "frame_digest": "47c6bcd6578dd2900471d16c0c2a3ac0dae9e7c6202b0f837e9a70c679acb000",
       "lps": [
         "2026-02-09",
         "2026-02-11"
       ],
-      "trigger": "2026-02-12",
+      "trigger": "2026-02-18",
       "rails_drawn": {
-        "R": 34.209999084472656,
-        "S": 31.6200008392334
-      }
+        "R": 35.310001373291016,
+        "S": 32.2599983215332
+      },
+      "lps2": [
+        "2026-02-13",
+        "2026-02-17"
+      ]
     },
     {
       "ticker": "UNF",

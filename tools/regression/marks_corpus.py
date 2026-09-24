@@ -161,6 +161,16 @@ STAGE_TAGS: dict[str, str] = {
     "EGBN:2026-01-15": "rail-placement",
     "NOK:2026-02-17": "rail-placement",
     "SKYT:2026-04-13": "universe-gate",
+    # 2026-09-13 (final method, build step 1): the two marks that entered as
+    # unreviewed-new-mark at the 2026-09-08 seal are re-sealed with the stage the
+    # measurements name (docs/final_method_2026-09.md, docs/decisions.md rows of
+    # 2026-09-13). MDT is refused by the universe door's 200-day leg on every
+    # read day (3.77 daily ranges under its 200-day average), the same class as
+    # SKYT. ST's LPS low sits 1.30 daily ranges ABOVE his resistance and the
+    # LPS zone's ceiling is 0.5 today; the operator's R12 ceiling of 1.35 ranges
+    # (build step 3, LPS refusals to grades) is its measured converting stage.
+    "MDT:2026-07-24": "universe-gate",
+    "ST:2026-04-17": "lps-ceiling",
 }
 
 # The stage a mark carries when the operator has just drawn it and the engine

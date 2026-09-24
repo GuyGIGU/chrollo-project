@@ -185,6 +185,31 @@ class SetupArchive(Base):
     eq_close_lower_dwell = Column(Float, nullable=True)       # gate's close residence, lower third
     eq_close_mid_dwell = Column(Float, nullable=True)         # gate's close residence, middle third
     eq_close_upper_dwell = Column(Float, nullable=True)       # gate's close residence, upper third
+    # ── The outside-bar vocabulary (engine-eyes Task 1, 2026-09-05; never-
+    # gated DESCRIPTORS, NULL = engine version predates the measure). The
+    # operator's four respect forms (decisions.md row 71 (2)) named per bar
+    # and per contiguous run on the elected box, from the SAME masks the
+    # respect gate reads; the whole-bar forms are judged against the rail
+    # LINE, not the buffered rail. MODEL-ONLY registration (AP-7): the boot
+    # pass and the writer's second pass derive the ALTERs from this table.
+    # Tested-DEAD tags — read the row before ANY recalibration against the
+    # archive (measure-first's "recalibrate later" is not a road a dead lever
+    # walks back on): eq_respect_forms_frac = the respect forms as an
+    # ADMISSION rule (2026-09-04 bench: 5/18 junk fire, SILC's pinned fire
+    # lost; the ruling row lands with this build's record task);
+    # eq_rail_overshoot_depth_atr = the overshoot-MAGNITUDE family
+    # (decisions.md:25, falsified 3x); eq_whole_bar_early_share = the
+    # harshness-by-POSITION family (decisions.md row 68).
+    eq_rest_above_r_frac = Column(Float, nullable=True)       # share of bars wholly above the R line ("rest above resistance")
+    eq_hold_below_s_frac = Column(Float, nullable=True)       # share of bars wholly below the S line ("hold below support")
+    eq_respect_forms_frac = Column(Float, nullable=True)      # respect with sub-cap runs that RESOLVED in-window forgiven; right edge + over-cap charged
+    eq_outside_last_third_share = Column(Float, nullable=True) # share of the outside bars in the window's last third
+    eq_terminal_run_bars = Column(Integer, nullable=True)     # trading days in the outside run reaching the last bar; 0 = last bar inside
+    eq_terminal_run_form = Column(String, nullable=True)      # inside | rest_above_r | hold_below_s | poke_close_back | straddle_close_out
+    eq_rail_overshoot_depth_atr = Column(Float, nullable=True) # mean excursion beyond the buffered rail (ATR) over non-hang outside bars
+    eq_touch_spacing_evenness = Column(Float, nullable=True)  # 1 - longest touchless stretch / n (1.0 = touched throughout)
+    eq_whole_bar_early_share = Column(Float, nullable=True)   # share of the whole-bar rests/holds in the first three quarters
+    eq_traversals_per_20d = Column(Float, nullable=True)      # rail-to-rail trips per 20 trading days (trav_n_full_traversals re-based)
 
     # ── Limb-traversal read (raw, no scoring; v1 measure-first) ──
     # Do the swing limbs travel rail-to-rail, or hang off a rail (dead space)?
@@ -399,13 +424,13 @@ class SetupArchive(Base):
     strategy_correction_depth_pct = Column(Float, nullable=True)
     strategy_floor_above_ar = Column(Integer, nullable=True)
 
-    # ── Power-Play species family — flag-gated (dark), measure-first ──
-    # Owning declaration in engine_alpha/structure/context/power_play.py
-    # (POWER_PLAY_COLUMN_SQL); MODEL-ONLY adds (AP-7). NULL = never evaluated;
-    # "watched but refused" is the closed-set pp_state (fresh-DB CHECK below;
-    # the live DB's operative constraint is the write-time refusal in
-    # power_play_archive_values). Anchor-family from birth: the pp_* numerics
-    # join the PHASE_A_ANCHOR_FEATURES epoch partition in core/archive/analyze.
+    # ── Power-Play species family — RETIRED with the species lane (the final
+    # method, build step 12, point 25, Sat 19/09/2026). The columns stay for
+    # the rows the lane wrote (2026-08-19 to the deletion); every writer leaves
+    # them NULL from here on (NULL = never evaluated, as from birth). The
+    # closed-set pp_state CHECK below is the fresh-DB defence only. The pp_*
+    # numerics keep their PHASE_A_ANCHOR_FEATURES epoch partition in
+    # core/archive/analyze for the rows that carry them.
     pp_state = Column(String, nullable=True)
     pp_clock = Column(Integer, nullable=True)
     pp_climax_date = Column(String, nullable=True)
@@ -490,6 +515,16 @@ class SetupArchive(Base):
             "inner_position IN ('at_ceiling', 'mid_range', 'on_support', "
             "'touching_both')",
             name="ck_setup_archive_inner_position",
+        ),
+        # The terminal outside run's form (engine-eyes Task 1): the ONE
+        # declaration is box_gates.TERMINAL_RUN_FORMS; the label is chosen
+        # FROM that tuple at its stamping point (_terminal_run_form), so this
+        # CHECK is the fresh-DB defence like its siblings.
+        CheckConstraint(
+            "eq_terminal_run_form IS NULL OR "
+            "eq_terminal_run_form IN ('inside', 'rest_above_r', 'hold_below_s', "
+            "'poke_close_back', 'straddle_close_out')",
+            name="ck_setup_archive_eq_terminal_run_form",
         ),
         # Same precedent for the setup chronology grade: fresh-DB defence
         # only (the ADD COLUMN path strips CHECKs); the live DB's operative

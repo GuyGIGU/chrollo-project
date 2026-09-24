@@ -151,6 +151,13 @@ class Structure:
     phase_d_source: str
     phase_d_evidence: dict
     terminator: str              # "spring" | "lps" — what ended Phase B (provenance)
+    # Build step 10 (dark): the run the climax ended (launch_bar, ranges, days, end_bar), the trend-context fact
+    # that replaces the cause veto; None flag-off.
+    trend: Optional[dict] = None
+    # Build step 11 (dark): the unconfirmed child's anchors after a breakout (the chart's "root candidate,
+    # unconfirmed") and the frozen unit (the election day's ATR); None flag-off.
+    child: Optional[dict] = None
+    unit: Optional[float] = None
 
     @property
     def has_spring(self) -> bool:
@@ -252,10 +259,12 @@ def _support_evidence_starts(df, atr, box, *, inner_present: bool):
 
 
 def _phase_d_boundary(df, atr, box, inner, spring, lps):
+    # A structure may carry no LPS yet (build step 8): Phase D then opens on the right-side evidence alone.
+    lps_start = int(lps.start_bar) if lps is not None else None
     evidence_starts = {"support_tests": None, "sos_reclaim": None,
                       "rising_support": None}
     if df is None or len(df) == 0:
-        last = max(int(lps.start_bar), int(getattr(box, "start_bar", 0)))
+        last = max(lps_start if lps_start is not None else 0, int(getattr(box, "start_bar", 0)))
         v_tip = None
     else:
         last = len(df) - 1
@@ -269,8 +278,8 @@ def _phase_d_boundary(df, atr, box, inner, spring, lps):
 
     return resolve_phase_d_boundary(
         last=last,
-        has_lps_window=True,
-        lps_start=int(lps.start_bar),
+        has_lps_window=lps_start is not None,
+        lps_start=lps_start,
         b=int(box.start_bar),
         phase_c_recovery_bar=(int(spring.recovery_bar) if spring is not None else None),
         phase_d_start_bar=(int(inner.start_bar) if inner is not None else None),
@@ -541,7 +550,9 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
         from engine_alpha.structure.narrative import bricks  # noqa: PLC0415 — lazy: real validators
 
     search_from = 0
-    for i in range(_MAX_ANCHORS):
+    # Build step 10 (dark): the roots are the line's runs, finite and each visited once; the loop cap stays
+    # the percent-recipe seed's guard flag-off.
+    for i in range(len(df) if settings.CLIMAX_FIRST_WALK_ENABLED else _MAX_ANCHORS):
         # Phase A: the next root swing at/after the cursor (oldest-first = longest cause).
         root = bricks.find_root_swing(df, search_from_bar=search_from, atr=atr)
         if root is None:
@@ -583,6 +594,30 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
         if rec is not None:
             rec["box"] = _box_brief(box)
             rec["tape"] = _tape_brief(df, box, atr)
+
+        # The 15-day floor from the first anchor (final method build step 6, dark): the box's AGE counts from its
+        # first rail anchor as day 1, his "15 for a base minimum". A younger box is forming: never elected,
+        # graded or fired; the walk moves on as after every refusal (a later root only finds a younger box).
+        if settings.BASE_AGE_FROM_ANCHOR_ENABLED:
+            age = len(df) - min(int(box.r_anchor_bar), int(box.s_anchor_bar))
+            if age < settings.BASE_AGE_MIN_DAYS:
+                if rec is not None:
+                    rec["outcome"] = "forming"
+                    rec["forming"] = {"age": int(age), "of": int(settings.BASE_AGE_MIN_DAYS)}
+                continue
+
+        # Build step 11 (dark): has the box ENDED before today (the hand-over confirmed, or a breakdown)? An
+        # ended box is never the structure: the walk moves on to the next run (the child's own run owns the
+        # child's pairs, step 10). A live box carries its unconfirmed child and its frozen unit. Injected fakes
+        # without the read keep working (no method = no read).
+        child = unit = None
+        if settings.BOX_END_ENABLED and getattr(bricks, "read_box_end", None) is not None:
+            end, child, unit = bricks.read_box_end(df, box, atr)
+            if end is not None:
+                if rec is not None:
+                    rec["outcome"] = "ended"
+                    rec["end"] = dict(end)
+                continue
 
         # Phase C (optional) and the nested Phase-D mini-range (tighter trigger).
         spring = bricks.find_spring(df, box, atr)          # don't force it; may be None
@@ -629,8 +664,12 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
                                                                 inner, atr):
                     rec["outcome"] = "lps_before_spring"
                     rec["lps_floor_bar"] = int(lps_floor)
-            continue                                      # no Phase-D minimum -> not a setup
-        if rec is not None:
+            if not settings.LPS_LEAVES_ELECTION_ENABLED:
+                continue                                  # no Phase-D minimum -> not a setup
+            # Point 22 of the final method (build step 8, dark): the LPS is not a brick of the election. The
+            # first valid box IS the structure, with or without a window (lines, no LPS yet); a structure
+            # without an LPS never fires (evaluation refuses it) and rides the watch lane instead.
+        elif rec is not None:
             rec["lps"] = _lps_brief(lps, lps_in_inner)
             rec["outcome"] = "complete"
             rec["roles"] = _roles_brief(df, box, atr, spring, lps)
@@ -665,7 +704,8 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
         # re-elect the identical causeless geometry — abstaining is the
         # operator's "no setup at all". Flag-gated: OFF -> the block is dead, no
         # call, zero cost, byte-identical.
-        if settings.CAUSE_BEFORE_EFFECT_VETO_ENABLED:
+        # Build step 10 (dark): the veto folds into a graded trend fact (the root's run, below); no abstention.
+        if settings.CAUSE_BEFORE_EFFECT_VETO_ENABLED and not settings.CLIMAX_FIRST_WALK_ENABLED:
             cause = bricks.cause_maturity(df, box, atr, lps)
             if not cause.matured:
                 if rec is not None:
@@ -684,11 +724,15 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
         if spring is not None:
             phase_b_end = int(spring.tip_bar)
             terminator = "spring"
-        else:
+        elif lps is not None:
             phase_b_end = int(lps.start_bar)
             terminator = "lps"
+        else:
+            phase_b_end = len(df) - 1                     # no terminator yet: Phase B runs to the right edge
+            terminator = "none"
         phase_d = _phase_d_boundary(df, atr, box, inner, spring, lps)
-        phase_d_start = int(phase_d.start_bar)
+        # Without an LPS the resolver may find no right-side evidence: Phase D has not opened (one past the edge).
+        phase_d_start = int(phase_d.start_bar) if phase_d.start_bar is not None else len(df)
 
         return Structure(
             climax_bar=int(climax_bar),
@@ -707,6 +751,9 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
             phase_d_source=phase_d.source,
             phase_d_evidence=phase_d.evidence,
             terminator=terminator,
+            trend=getattr(root, "run", None),
+            child=child,
+            unit=unit,
         )
 
     return None

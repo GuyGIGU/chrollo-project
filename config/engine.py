@@ -261,7 +261,9 @@ TRAVERSAL_MIN_DENSITY = 0.08     # >= this share of significant swings must be r
 # left the low rail (last_support_time_pos <= LSF_MAX, the time-position 0..1 of the
 # last support touch) then coiled in DEAD SPACE above it (low_position_in_box >= CFP_MIN,
 # the box-position of the lowest Low after that touch) — is a mis-anchored /
-# dead-space framing (CHCT, DGII). Read on the ACTIVE box (the inner box when the
+# dead-space framing (DGII; CHCT too, which he ruled a valid setup on Sun 13/09/2026,
+# so under the final method, LPS_LEAVES_ELECTION_ENABLED, the tail is a COMMENT on
+# the fire and refuses nothing: build step 12). Read on the ACTIVE box (the inner box when the
 # LPS re-anchored there, else the parent), so a setup with a clean PROMOTABLE inner
 # survives (QUAD). TIGHT boxes (box_width <= BASE_AGE_DEADSPACE_WIDTH) are EXEMPT —
 # their dead band is small in absolute terms so the tell is a false positive
@@ -365,12 +367,24 @@ STORY_POOL_ENABLED = True
 # (event_map.resistance_contraction_admission — the operator ruled its
 # EGBN/PKE conversions real, 2026-08-19). Scoped to full refusals by
 # construction: it can never displace an existing election or re-frame a box,
-# which is exactly what refused the global POWER_PLAY_STORY_FORM_ENABLED flip
+# which is exactly what refused the global POWER_PLAY_STORY_FORM_ENABLED flip (2026-08-19)
 # (the WCC 2.2x-wider re-election). A rescued fire stamps
 # elected_pool='story' with the self-naming contraction profile. Flip =
 # operator decision vs the miss-program A/B (docs/miss_program_2026-08.md);
 # flipping re-seals the marks ratchet (EGBN/PKE leave the expected-miss list).
 CONTRACTION_RESCUE_ENABLED = False
+# The resistance-contraction STORY form the rescue lane arms (event_map.
+# resistance_contraction_admission, the second named ruled form inside the one
+# story admission; named by operator ruling 2026-08-18: the record says the
+# behavior, never an invented umbrella word). Dark and toggled ONLY under the
+# scoped override (htf.window_override) around the rescue re-walk, so the
+# paying scan's admission never consults it. Its global flip was refused on
+# 2026-08-19 (EGBN and PKE fired, a ratchet break; the WCC 2.2x-wider
+# re-election). The Power-Play species lane that once rode it under its own
+# 8-day clock was DELETED at the final method's build step 12, point 25 (Sat
+# 19/09/2026), with its preset, pole and breakout-wall keys; this flag stays
+# because the rescue lane above is its remaining consumer.
+POWER_PLAY_STORY_FORM_ENABLED = False
 
 # --- Bar-posture rescue lane (consolidation-method Task 7; DARK) ------------
 # The measured bar-as-unit fix to the story pool's ceiling leg, landed as a
@@ -675,6 +689,264 @@ LPS_DRAW_MIN_DESCENT_FRAC = 0.40
 #   UNDERCUT_S    : S - k*ATR <= low < S       (spring)
 LPS_ZONE_ATR_MULT = 0.5
 
+# ── The final method, build step 2 (Sun 13/09/2026): the ruled stack behind ──
+# ── flags, DARK (every flag default OFF; flag-off is byte-identical).       ──
+# The operator's rulings R1 and R7 to R18 (docs/decisions.md, 2026-09-05 to
+# 2026-09-12), each as it was MEASURED in process on his 37 LPS windows, the
+# junk corpus and the fleet fixture (rulings ledger, rulings_ab2 to ab8). One
+# flag per ruling SITE so each can be measured alone (six flip only together); the values
+# are placed from his drawings, never tuned. Every name here rides the engine
+# manifest so a flip rotates engine_config_version from day one.
+#
+# R1 (respect): a bar is OUTSIDE the box only when the WHOLE bar sits beyond
+# the rail area (low above R + area, or high under S - area); a poke or a
+# straddle is respect. Today a wick beyond the area counts as outside.
+RESPECT_WHOLE_BAR_ENABLED = False
+# R13 (the bar is the unit of dwell; graded): the whole occupancy exam never
+# refuses a box (both end-third dwells, the mid churn, the coverage; their
+# values stay facts). Alone it regresses MATX: live only with the stack.
+DWELL_GRADED_ENABLED = False
+# R11 (hand-over): the break-above-R rescue keeps an old box only while the
+# last close sits within this many daily ranges above its R (today: within
+# 15% of PRICE, EXTENSION_FILTER_MULT). Measured: PBT's exact box, EWTX's
+# January box, at no fleet cost.
+BOX_HANDOVER_RANGES_ENABLED = False
+BOX_HANDOVER_MAX_ABOVE_R_ATR = 1.5
+# R17 (Phase C): a noticeable dip under support that recovers shortly. The
+# box-height depth cap (BIN_C_UNDERCUT_BOX_MAX) and the late-half rule
+# (BIN_C_LATE_BOX_FRACTION) both refused his own SYRE spring and are lifted;
+# depth stays bounded by BIN_C_UNDERCUT_ATR_MAX (3.0 ranges).
+SPRING_BOUNDS_LIFTED_ENABLED = False
+# R8 + R12 (the LPS in daily ranges): the three box-height clauses of the LPS
+# read re-cut to daily ranges, placed from his 36 windows (max height 2.43,
+# above-R launch max 2.40), and the zone's R-side ceiling at 1.35 ranges (his
+# farthest above-R LPS low: ST at 1.30; "Lets go with that ceiling 1.35").
+LPS_RANGES_YARDSTICK_ENABLED = False
+LPS_WINDOW_SPAN_ATR_MAX = 2.5        # window height, wick to wick (was 0.85 box heights)
+LPS_LAUNCH_ABOVE_R_ATR_MAX = 2.5     # an INSIDE window's poke above R (was 0.35 box AND 0.75 ranges)
+LPS_SHELF_ABOVE_R_ATR_MAX = 1.5      # the resistance shelf's close lift above R (was 0.35 box)
+LPS_ZONE_CEILING_ATR = 1.35          # the LPS zone's ceiling above R, in ranges (floor: the zone tolerance)
+# R9/R9b + R15 (the LPS is defined by graded traits): rest-on-its-low, the
+# markup-leg test, the depth minimum, the bar-spread cap, the final-spread
+# expansion cap and every volume ask stop refusing (their values stay facts;
+# quality is volume-free). What stays a refusal is the story position, "it
+# must be a PULLBACK": the window's high comes before its low, the dig from
+# the first high to the window low is at least 0.68 ranges (his minimum under
+# R18's last-run window, ORMP Thu 09/04/2026; 0.71 on his windows as drawn,
+# where the first build placed 0.70: review finding RF-13, Mon 14/09/2026),
+# and the last day's high is not back at the first high (R15: read on the
+# HIGH; his 36 windows: last high <= first high + 0.25 ranges, WTS 0.21).
+LPS_GRADED_TRAITS_ENABLED = False
+LPS_CORRECTION_DIG_MIN_ATR = 0.68
+LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR = 0.25
+# R18 + the sixteenth sitting (one window per read day): a receding day makes
+# a lower high OR a lower low than the day before (his 37 of 37); the window
+# is the last run of receding days with the day before the run as its top,
+# it ends ON the last receding day of the frame, the trigger is that day's
+# high, and a window may not end on a breakout day (a close more than 0.10
+# ranges above the prior day's high; his 36: at most +0.06). The 2..7 length
+# enumeration goes; length is archived. One-day runs are legal.
+LPS_WINDOW_RECEDING_ENABLED = False
+LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR = 0.10
+# The narrow buy-day clause (his Q9 default): the "still live" test reads the
+# HIGH. Once a later day's high crossed the trigger the setup was bought and
+# shows nothing, even when that day closed back under the trigger.
+LPS_BUY_DAY_READS_HIGH_ENABLED = False
+
+# ── The final method, build step 3 (Sun 13/09/2026): LPS refusals to grades, ──
+# ── DARK. His points 18, 19 and 20 in ONE flag (docs/final_method_2026-09.md). ──
+# 18: no refusal on the support side. The LPS low's position is a fact (JAZZ's
+# low sits 0.67 ranges under S and the next day is the buy); the zone word on
+# the support side is read on WHOLE BARS: more than half of the window's
+# high-to-low travel under the support area refuses (his Q18, "not below the
+# support area"), more than half under S types it UNDERCUT_S, so a poke never
+# refuses (his JAZZ answer: on support "since most of the move is above it").
+# The ceiling above R stays (R12).
+# 19: the three post-window checks go (the close 5 percent under the LPS low,
+# the post-window low test, the post-window spread test): under one window per
+# read day there is no post-window day to check. The depth cap in profile units
+# goes with them; the window height in ranges is the one "too deep" refusal left.
+# 20: volume never refuses and never elects (quality is volume-free); the ratio
+# stays a fact on the card. No points is the grade ledger's job (step 12).
+LPS_REFUSALS_TO_GRADES_ENABLED = False
+# 19, his answer on AEF (Mon 14/09/2026), DARK: "3 bars with huge increases in both spread and price
+# changes meaning the pull back is increasing with sellers" (R9: an LPS is broken when seller strength
+# rises). FATAL in the election, never the measure-only staircase: the window's last three days each wider
+# than the day before and each falling further (a day's fall is the mean of its high's and its low's drop),
+# and the last fall bigger than the whole range of the day before (the prior bar is the yardstick: his 37
+# windows reach 0.66 of it, AEF Thu 04/06/2026 1.29, the nearest fleet fire JAKK 0.85).
+LPS_SELLERS_RISING_FATAL_ENABLED = False
+
+# ── The final method, build step 4 (Sun 13/09/2026): the ONE turn line, DARK. ──
+# His points 1 and 2 (docs/final_method_2026-09.md): one line over the WHOLE
+# chart, ONE floor of TURN_LINE_FLOOR_ATR daily ranges, wick to wick, no
+# retracement ratio; the first bar is a turn by its shape and the running
+# extreme at the right edge is a FORMING turn, so the line carries no edge
+# mask and no five-day right-edge reserve. Not built: named events as turns
+# by law (the LPS valley, the trigger cross), final method point 1.
+#
+# MEASURED on his 35 drawn marks (186 named turns: both rail anchors, every
+# LPS peak and low, every spring and spring-test tip, every SOS peak):
+#   today's order-1 walk + the 15 percent collapse   112 of 186,   0 of 35 marks complete
+#   the line at 0.75, one range from the read day    183 of 186,  32 of 35
+#   the line at 0.75, each day's OWN range           186 of 186,  35 of 35
+# The three the read-day unit misses are support anchors on the box's first
+# days, 26 to 35 trading days back, each 2 trading days off (corrected Mon
+# 14/09/2026: not "two years back"). Extra turns inside his boxes: about 6.2
+# per 10 trading days (today's walk: 2.4). The recall is density, not proof:
+# his day moved three trading days still lands 173 of 186 (exact day: 175).
+#
+# One flag per SITE so each can be measured alone. The box
+# election is deliberately NOT a site: it stays on today's skeleton until
+# build step 10.
+TURN_LINE_ENABLED = False          # the event map's swing layer reads the line
+TURN_LINE_TREND_ENABLED = False    # the HH/HL/LH/LL trend labels read the line
+TURN_LINE_FLOOR_ATR = 0.75         # placed by the sweep on his 186 turns (his Q1 asked for a search)
+
+# ── The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK. ──
+# His points 10 to 15 (docs/final_method_2026-09.md): a MEASURE-ONLY reader
+# (engine_alpha/structure/line_words.py) over the one turn line, the elected
+# rails, the elected LPS and the mini. Nothing that elects, vetoes, grades or
+# displays reads it; each flag only adds its own word to ONE JSON diagnostic
+# on a fire (_line_words_json). The words read the line whatever
+# TURN_LINE_ENABLED says, so they flip with or after it. THE SOS, the
+# upthrust and the last supper follow his SOS answers of Tue 15/09/2026 and
+# his upthrust tweaks of Wed 16/09/2026, on defaults of mine (docs/decisions.md). Not built: the shakeout (parked by
+# him), the dead-space pardon keyed to a named leg (21: a grade change, his
+# question still open).
+#
+# MEASURED on his 35 marks, his rails, fed his drawn LPS windows
+# (python -m tools.word_recall; a hit is within one trading day; CHANCE is
+# the same score with his day moved three trading days either way):
+#   a thrust at his SOS top   25 of 26 (chance 12)   THE SOS  23 of 25 (chance 0)
+#   last supper               10 of 10 (chance 0.5)  Phase C  10 of 10 (chance 0)
+#   spring test                4 of 6  (chance 1)    mini      0 of 5
+#   upthrust: his UNF named, ONE per box (listed, not scored: the app cannot
+#             record one). On his words to Sat 19/09/2026, 3 named on his
+#             35 boxes: his UNF, FOSL and his VIK.
+# Under all six flags nothing moves: ratchet 30 of 35, junk clean on every
+# unpinned day, fleet and reader pin PASS. The rules' defaults that are mine
+# (his word owed) are listed in line_words.py and the decisions record.
+LINE_WORD_SOS_ENABLED = False          # 11: every thrust, and THE SOS by the LPS after it
+LINE_WORD_LAST_SUPPER_ENABLED = False  # 15: the last supper, in hindsight only
+LINE_WORD_PHASE_C_ENABLED = False      # 14: one Phase C per box, and its spring test
+LINE_WORD_PHASE_D_ENABLED = False      # 12: where the right side opens
+LINE_WORD_MINI_ENABLED = False         # 13: today's elected mini, as facts
+LINE_WORD_UPTHRUST_ENABLED = False     # 10: his upthrust, ONE per box (Tue 15/09 + Wed 16/09/2026)
+LINE_WORD_AREA_ATR = 0.5               # the ruled rail area, in daily ranges (as TOUCH_TOLERANCE_ATR, MINI_POSITION_TOL_ATR)
+LINE_WORD_UPTHRUST_MIN_POKE_ATR = 1.25  # an upthrust climbs this far over R: between the breach he crossed out (his UNF, 0.94) and his smallest (his VIK note, 1.55)
+LINE_WORD_SOS_MIN_GROUND_ATR = 1.70    # his smallest SOS, launch low to top, on his own spans
+LINE_WORD_SUPPER_DIG_ATR = 1.5         # a last supper digs this far (his ten: 1.75 to 3.76); a pause this deep ends a thrust
+LINE_WORD_SUPPER_MAX_DAYS = 4          # his longest last supper, in trading days
+
+# ── The final method, build step 6 (Mon 14/09/2026): the 15-day floor from the first anchor, DARK ──
+# His answers: "Lets go with 15 days" (Q9 of the 26) and "15 for a base minimum yes" (the twelve
+# follow-ups). Point 9 of docs/final_method_2026-09.md: the floor applies to the box's AGE, counted from
+# its FIRST RAIL ANCHOR as day 1, not from the root's reaction bar, where MIN_BASE_DAYS counts today (the
+# seed clock of bricks.find_root_swing and validate_equilibrium). Flag-on the seed clock yields to
+# BASE_AGE_MIN_DAYS less the edge reserve (never above MIN_BASE_DAYS, so the weekly, monthly and Power
+# Play presets keep their own), and the root walk refuses a box whose first anchor is younger than
+# BASE_AGE_MIN_DAYS: that box is "forming, N of 15" in the walk trace, never elected, graded or fired.
+# MIN_BASE_DAYS keeps every other use (the matured-cause 2x floors, the richness denominator, the age
+# points, the mini, the transition zone, the live cause veto's import-time copy). Flag-off byte-identical.
+BASE_AGE_FROM_ANCHOR_ENABLED = False
+BASE_AGE_MIN_DAYS = 15                 # his number
+
+# ── The final method, build step 7 (Tue 15/09/2026): box gates to grades, DARK ──
+# Point 7 of docs/final_method_2026-09.md, his Q7: "a box is a box because of its consolidating Zig zag
+# behavior not it's height ... as long as we can understand the Price action within the box and it acts like
+# a consolidation then we should be able to scan it". No height gate in any unit: the three percent-of-price
+# width caps stop refusing a box and stop demoting a tier, MAX_BOX_WIDTH (18 percent: the strict, rescued
+# and story pools and the occupancy judge, the inner search included), BAND_MAX_BOX_WIDTH (23 percent: the
+# band pool) and S_MAX_BOX_WIDTH (15 percent: the tier-S ceiling). The width stays a fact and a grade (the
+# ADR tightness term reads it); whether tier S keeps a ceiling in daily ranges is step 12's grade ledger.
+# At his own rails the 18 percent cap refuses BODI (21 percent of price, 2.1 daily ranges) and the 15 percent
+# ceiling holds ANRO (16 percent) out of tier S.
+BOX_WIDTH_CAPS_GRADED_ENABLED = False
+# Point 8, his Q8, asked on BODI's drawn Phase C against the 3-range spring cap: "It's hard to gate using a
+# raw number in case we reject a valid setups because of a small neumeric gap". No depth number decides that a
+# dip is too deep to be a spring: the box's crash floor (a low under CRASH_FILTER_MULT of S refuses the pair;
+# at his rails it touches only BODI), the read day's crash floor (a close under it drops the chart), the
+# spring's 3.0-range depth cap (BIN_C_UNDERCUT_ATR_MAX) and the band pool's two caps on a below-rail event
+# (BAND_EVENT_MAX_DEPTH_ATR 5.0 ranges deep, BAND_EVENT_MAX_BARS 20 trading days long) stop refusing; the
+# depth stays a fact. The spring's box-height cap is R17's switch (SPRING_BOUNDS_LIFTED_ENABLED); its day
+# counts (reclaim, linger, hold) give way to recovery by the swing (point 14), not here.
+DEPTH_CAPS_GRADED_ENABLED = False
+# Point 6, his Q6: "a whole lone bar beyond the rail area isn't respecting it but if we come to learn that price
+# action before that bar and after that bar DO then it changes the way we treat it, a Long run of bars beyond the
+# rail could mean a long Spring or UP thrust as well". Respect refuses nothing: the respect share
+# (MIN_BOUNDARY_RESPECT_PCT, 80 percent of days inside the rail area) and the run cap (MAX_CONSECUTIVE_OUTSIDE_DAYS,
+# 10 trading days beyond a rail) stop refusing a pair, and the band pool stops refusing a stay above R longer than
+# that cap; the outside share, the longest run and the deepest excursion stay facts. What a run beyond a rail was
+# (a spring, an upthrust, the end of the box) is read from what follows it (the words, steps 5 and 11).
+RESPECT_GRADED_ENABLED = False
+
+# ── The final method, build step 8 (Sat 19/09/2026): the LPS leaves the election, DARK ──
+# Point 22 of docs/final_method_2026-09.md: "The LPS stops being a brick of the box election (today no LPS means
+# the walk skips to the next root and the chart returns nothing; 72 of the study's 224 day-reads had lines but no
+# window and showed nothing). The 'no LPS yet' charts sit in a watch lane apart from the leaderboard, with a
+# display floor of two turns at each rail on the line (all 35 of yours clear it) that touches no fire." Under the
+# switch the root walk (narrative._walk_structure) returns the first valid box with or without an LPS (a
+# Structure whose lps is None: lines, no LPS yet); a structure without an LPS never fires; and every chart the
+# door admits carries ONE state word from the closed table (evaluation.WATCH_WIRE_STATES) into
+# market_context["watch"]: fired, crossed, lines no LPS yet, forming N of 15, beyond R undetermined, under S
+# undetermined (point 6's precedence row 5, the open right edge), not scanned (the door's leg named, point 24),
+# no lines; "root candidate, unconfirmed" and "broke down" are step 11's words, on the table and never typed
+# before it. The lane's rows are the charts with lines and no fire that clear the display floor below; the floor
+# touches no fire. Flag-off byte-identical: no recorder, no trace, no block on the wire. Display is step 12.
+LPS_LEAVES_ELECTION_ENABLED = False
+WATCH_LANE_MIN_TURNS_PER_RAIL = 2      # his display floor (point 22): committed turns of the line inside each rail's area
+
+# ── The final method, build step 9 (Sat 19/09/2026): the box opens on the anchors, DARK ──
+# Point 5 of docs/final_method_2026-09.md, his ruling of Sat 12/09/2026: "No, Box opens on the anchors of each of the
+# Boundary rail (Resistance & Support)". The box opens on the earlier anchor day, each rail from its own anchor, and
+# never extends left: the shared-rail back-extension (box_primitives.backext_shared_rail, folded unconditional on
+# 2026-07-18) stops moving the elected start to an earlier rail-touching pivot. Both its callers read the one
+# function (bricks.validate_equilibrium, the live walk; find_outer_box's diagnostic mirror). Measured before the
+# build (the critics' count, Sun 13/09/2026): the extension moves 0 days on 10 of the 11 early-opening boxes and 4
+# days on ROIV; the early openings are older roots, steps 10 and 11's.
+BOX_OPENS_ON_ANCHORS_ENABLED = False
+
+# ── The final method, build step 10 (Sat 19/09/2026): the climax first, and the walk from it, DARK ──
+# Points 3 and 4 of docs/final_method_2026-09.md and his rule of Sat 19/09/2026: "the swings for BC and AR are
+# needed to be decided before the Root Swing, because said root swing can either be them, or a swing later".
+# Under the switch the roots are the runs the ONE turn line prints (higher highs and higher lows, or the mirror;
+# a run ends at the first swing that fails to continue it), each run's climax and its reaction low (the lowest low
+# of the reaction before the first higher low, point 4's reaction-low rule) decided FIRST
+# (engine_alpha/structure/climax.py, bricks.find_root_swing); the window opens AT the climax and the candidate
+# pairs are the line's own turns walked forward from it, the climax and its reaction the first pair; a pair is a
+# candidate once the following swings answer to its rails (a later committed turn of the line inside each
+# rail's area, LINE_WORD_AREA_ATR); first in time wins as before (R4). Retired under the switch: the seed's
+# percent recipe (TREND_MIN_GAIN_PCT 15 percent in TREND_MIN_MOVE_BARS 20 days, AR_MIN_DROP_PCT, AR_MAX_BARS,
+# LOCAL_PEAK_BARS, TREND_PRIOR_LOOKBACK) and its ROOT_TREND_SMA gate; the Phase A painter and the macro bridge
+# (resolve_phase_a returns the root's own pair; PIP_MACRO_MIN_BASE_BARS then has no reader); the
+# cause-before-effect veto (no abstention any more: the run's size in ranges and its length ride on the fire as
+# facts, _trend_run_ranges / _trend_run_days, for step 12's trend-context grade); the two RF-4 sites read the
+# line. T5, the opening leg's direction on the line, is the test of the anchoring, never a veto (Tested-DEAD).
+# Flag-off byte-identical.
+CLIMAX_FIRST_WALK_ENABLED = False
+
+# ── The final method, build step 11 (Sat 19/09/2026): the box's end and the hand-over by swings, DARK ──
+# Points 6, 8 and 26 of docs/final_method_2026-09.md, his Q6 ("if the price continues to Rise/Fall with out
+# recovering we can deduce that either that the consolidating structure we measured ended and the price began to
+# trend") and his dead-space drawings of Sat 19/09/2026. Under the switch an elected box is read for its END on the
+# line (engine_alpha/structure/box_end.py): upward, the hand-over by swings (after the breakout day, R15's one use
+# of the close, every swing whose valley holds in or above the parent's R area is a child root candidate, and the
+# parent ends when a child's own answering completes, a later turn of the line inside the area of EACH of its
+# anchors: one turn at one anchor is the parent's own LPS above R, row 1 of point 6's table, and the parent goes on
+# and fires; a run that comes back into the box hands nothing over; no close level ends a box, a close-dated
+# hand-over is Tested-DEAD); downward, the mirror (after the breakdown day, a swing whose peak holds in or below
+# the S area is a child candidate below, confirmed by its own answering; a dip that confirms no child below is
+# under S, undetermined). The parent freezes at its last turn before price left. An ended box is never the
+# structure: the walk moves on to the next run. The unit of the area and the end tests is FROZEN with the rails: the ATR of the election day (the day the
+# answering completed). An unconfirmed child rides as the chart's state, "root candidate, unconfirmed" (point 6's
+# precedence row 4, a flag never a word); a breakdown with nothing after it reads "broke down". Retired under the
+# switch: the read day's extension veto (a close 15 percent over R), the stale-box rescue's percent test, the
+# dethrone pass, and a mini whose bottom holds the parent's R area (that band is the child, point 26's seam).
+# Flag-off byte-identical.
+BOX_END_ENABLED = False
+BOX_END_BREAKOUT_ATR = 0.10            # R15: the breakout day closes this far over R, in daily ranges (his placed margin)
+
 # Spread rules (core quality signal):
 # Final LPS bar range must be < P-percentile of bar ranges across the base.
 # 0.5 = median ("less than most bars in consolidation"); 0.33 stricter.
@@ -765,66 +1037,3 @@ HTF_MONTHLY_WINDOWS = {
     # Daily-clock-only lane pinned off, as in the weekly preset above.
     "BOTTOMING_BASE_LANE_ENABLED": False,
 }
-
-# ============================================================
-# POWER-PLAY SPECIES PRESET (dark — docs/power_play_program_2026-08.md)
-# ============================================================
-# Operator ruling c029555 (2026-08-14): Power Plays (Minervini; = O'Neil's High
-# Tight Flag — see docs/minervini_oneil_canon.md) are WANTED setups. The species
-# reads through the ONE cascade under a scoped window override
-# (engine_alpha.structure.context.htf.window_override) — never a forked collector. The
-# dict carries ONLY the keys the species moves: the reading clock, and its
-# import-time copy PIP_MACRO_MIN_BASE_BARS EXPLICITLY (a bare MIN_BASE_DAYS
-# patch would silently leave the macro-bridge overlay on the default clock —
-# program Task 1 §D). STRUCTURE_EDGE_SKIP_BARS deliberately stays 5: the edge
-# reserve is a data-integrity frame, not a maturity clock.
-# THE CLOCK VALUE 8 IS RULED (operator, 2026-08-18 — decisions.md): the census
-# evidence (clock 8's elected cohort the only forward-positive: median fwd_20
-# +2.8%, 54% winners, n=79) + his 40 sheet rulings (S2: 8/10 of the 8-day
-# wait's marginal catch KEPT). Species lane only; everything else stays the
-# same. FLIPPED LIVE 2026-08-19 on the operator's word ("flip the power play
-# thing... as long as everything works like I asked"), TOGETHER with
-# POWER_PLAY_STORY_FORM_ENABLED as the flag-ledger requires — gated on the
-# Guided-List ratchet holding 28/33 with both flags ON (it does) rather than on
-# the ScanTimer bound, which cannot be measured while the lane is dark: the cost
-# instrument only reports when this flag is on. The bound arrives with the first
-# nightly scan; if it is too dear, this line is the one-word revert.
-POWER_PLAY_PRESET_ENABLED = True   # the lane consults this (program Task 8); LIVE 2026-08-19
-POWER_PLAY_WINDOWS = {
-    "MIN_BASE_DAYS": 8,
-    "PIP_MACRO_MIN_BASE_BARS": 8,
-}
-# The species STORY form (program Task 6): the resistance contraction — price
-# contracting at or above resistance after the pole — as a second NAMED ruled
-# form inside event_map's one story admission (named by operator ruling
-# 2026-08-18: the record says the behavior, never an invented umbrella word).
-# A separate gate from the
-# lane chooser above BY DESIGN: the species read toggles it under the ONE
-# scoped override (htf.window_override, riding the preset dict) around its
-# own election only, so the paying scan's admission can never consult the
-# shelf form even after the lane flag flips (a passenger never touches the
-# paying read). Provisional form; calibrated by the operator's ruling sheets
-# (program Task 4).
-# FLIPPED LIVE 2026-08-19 with the preset above (the ledger's "the two flags flip
-# together or not at all"). This is the half that reaches the PAYING read's
-# admission, so it is the one the ratchet had to clear: Guided List 28/33 held,
-# same marks fingerprint, with it ON. The form stays PROVISIONAL — the ruling
-# sheets calibrate or re-rule it.
-POWER_PLAY_STORY_FORM_ENABLED = False
-# The breakout wall's departure yardstick (RULED 1.0, operator 2026-08-18 —
-# decisions.md): an episode counts RESOLVED only when a close clears the
-# pole peak by this many ATR10 — a close hugging the peak is base-building,
-# not a resolution (the drift-up misfile: the old close-above-peak wall
-# filed MAN not-watched at every clock while still basing). Evidence: the
-# S1 rulings (the departure form keeps all four named anchors, files all
-# four junks) + the full-cache A/B (MAN's breakout re-dates to 2026-08-13,
-# HIS date, and MAN elects; 903 filings regain their looks; newly-elected
-# cohort +2.6% med fwd_20 / 67% win; whole cohort quality preserved).
-# 0.0 reproduces the close-above-peak wall byte-identically (kept as the
-# legacy branch); species lane + instruments only — no paying consumer.
-POWER_PLAY_BREAKOUT_DEPARTURE_ATR = 1.0
-# The species precondition (the pole): literature anchors — Bulkowski >=90% in
-# <=2 months, O'Neil/Minervini ~100%/8 weeks. The census reads these as its
-# screen defaults; the engine lane consults them only behind the flag.
-POWER_PLAY_POLE_MIN_GAIN = 0.90    # prior-leg gain floor over the pole window
-POWER_PLAY_POLE_WINDOW_BARS = 40   # ~8 trading weeks

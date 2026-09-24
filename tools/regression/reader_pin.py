@@ -12,8 +12,8 @@ token. A fold that kept every fire and score identical while rewriting every
 event would pass all of them. This instrument pins the readers themselves, at
 per-event grain, on real bars from three committed populations:
 
-  * the 33 sealed marks-corpus frames  (``tests/baselines/marks_corpus.parquet``)
-  * the 18 negative-corpus junk frames (``tests/baselines/negative_corpus.parquet``)
+  * the 35 sealed marks-corpus frames  (``tests/baselines/marks_corpus.parquet``)
+  * the 16 negative-corpus junk frames (``tests/baselines/negative_corpus.parquet``; NVT left Sun 13/09/2026 on the Thu 10/09/2026 ruling, CHCT the same day on his "The setups is valid" ruling)
   * the 37 shadow-fixture frames       (``tests/baselines/shadow_fixture.parquet``)
     - including the 5 that REJECT, the population every other guard is blind to.
 

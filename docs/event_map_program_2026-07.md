@@ -8,7 +8,8 @@ and everything decision-bearing is reproduced below. Reproduce any of it fresh w
 standing instrument:
 
 ```bash
-python -m tools.research.event_map_census --check
+# --check RETIRED at the final method build step 12 (Sat 19/09/2026): its pins predated the re-draws;
+# the reader pin (tools.regression.reader_pin) and the marks ratchet (tools.regression.marks_corpus) are the gates now.
 ```
 
 (ChrolloDashboard venv python. `--check` recomputes everything from the sealed fixtures +

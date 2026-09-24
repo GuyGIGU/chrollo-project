@@ -13,6 +13,7 @@ import {
   fmtRound,
   dateTimeShort,
   fmtDateShort,
+  fmtDay,
 } from './format.js';
 
 test('finiteOrNull: the one guard — null/undefined/NaN/Infinity -> null', () => {
@@ -90,4 +91,12 @@ test('fmtDateShort: ISO prefix -> "Mon D", non-dates pass through', () => {
   assert.equal(fmtDateShort('2026-07-03'), 'Jul 3');
   assert.equal(fmtDateShort('2026-01-09T10:00:00'), 'Jan 9');
   assert.equal(fmtDateShort('pending'), 'pending');
+});
+
+test('fmtDay: the operator date, weekday dd/mm/yyyy, read in UTC', () => {
+  assert.equal(fmtDay('2026-02-11'), 'Wed 11/02/2026');
+  assert.equal(fmtDay('2026-02-12T21:00:00'), 'Thu 12/02/2026');
+  assert.equal(fmtDay('2026-09-19'), 'Sat 19/09/2026');
+  assert.equal(fmtDay(null), EMPTY);
+  assert.equal(fmtDay('pending'), 'pending');
 });

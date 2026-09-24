@@ -311,3 +311,37 @@ ADR_FULL_PCT = 5.0     # ADR% >= 5.0 earns full credit (~5% mover threshold)
 TOUCH_BONUS_INDIVIDUAL = 3       # Need >= 3 touches on EACH side
 TOUCH_BONUS_TOTAL = 6            # OR >= 6 total touches
 TOUCH_BONUS_POINTS = 10          # Bonus awarded (part of the 25 pts max)
+
+# ── The final method, build step 12 (Sat 19/09/2026): the grade ledger, DARK ──
+# Point 21 of docs/final_method_2026-09.md, his answer 10 ("Volume: no hard gates, no points") and his Wed
+# 12/08/2026 ruling (a setup is more complete with a clear Phase C). The ledger, docs/grade_ledger_2026-09.md,
+# gives every one of today's 171 points a fate; under the switch the grade reads three things: the box's height
+# in daily ranges (the tightness term, moved from ADR units to ATR_10 ranges), the spread profile (the LPS
+# window's mean bar spread in ranges; the box's own bar texture stays the multiplier it is) and the event map
+# (the committed turns at each rail on the line replace touch bars; the story's completeness keeps its small
+# weight). Base age, the volume dry-up, the ATR squeeze, the VCP contractions, ascending support, ADR and the
+# 52-week proximity go to zero weight and stay archived. The dead-space dock's pardon is keyed to a named leg
+# on the map (the spring's own leg, an upthrust, THE SOS, a last supper): a named leg is never dead space; an
+# unnamed lunge beyond a rail is docked as today, spring or no spring. Tier S keeps a ceiling, in ranges.
+# Every number below is placed from his 35 marks (Sat 19/09/2026, the ledger's table) and measured on the
+# junk; he sees the weights before they move. Flag-off byte-identical: every cap reads its setting above.
+GRADE_LEDGER_ENABLED = False
+GRADE_LEDGER_CAPS = {                  # the caps the ledger moves; every other cap stays as set above
+    "SCORE_BASE_AGE": 0,               # rank correlation with the tail 0.04; the age stays archived
+    "SCORE_VOL_CONTRACTION": 0,        # his answer 10: volume is shown, never graded
+    "SCORE_ATR_SQUEEZE": 0,            # a right-edge ATR ratio, not a read of the box
+    "SCORE_CONTRACTION": 0,            # the VCP footprint reads the old pivot recipe, not the line
+    "SCORE_ASCENDING_SUPPORT": 0,      # rising lows are the staircase, an event-map read, not a term
+    "SCORE_ADR": 0,                    # tradability, not structure; shown
+    "SCORE_52W_HIGH_PROXIMITY": 0,     # context, not structure; shown
+}
+BOX_HEIGHT_FULL_RANGES = 1.0           # the tightness term is full at or under this height in ranges (his tightest, UNF 1.00)
+BOX_HEIGHT_ZERO_RANGES = 4.0           # and zero at or over this (his widest ROIV 3.14; the junk boxes' median 3.50)
+TURNS_POINT_RATE = 1.5                 # points per committed turn at a rail on the line (his q25 of 10 turns earns the 15 base points)
+LPS_SPREAD_FULL_RANGES = 0.6           # the LPS term is full at or under this mean bar spread in ranges (his tightest window 0.55)
+LPS_SPREAD_ZERO_RANGES = 1.6           # and zero at or over this (his loosest, PBT 1.38); his median window 0.83
+TIER_S_MAX_HEIGHT_RANGES = 2.5         # tier S's ceiling in ranges (his q75 2.08; ROIV 3.14 and BWA 2.82 held to A)
+# The letter's cuts on the re-based 0-100 scale (85 points): one tier up from today's 62 / 52 / 42 / 32, which
+# the 171-point scale placed. Measured on the fire days under the whole method: at today's cuts his 20 fires
+# grade S 15 / A 5 and 2 of the 3 junk fires reach S; at these, his S 11 / A 8 / B 1 and the junk A 3.
+GRADE_LEDGER_TIER_CUTS = (72, 62, 52, 42)

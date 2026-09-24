@@ -235,7 +235,7 @@ def _anchor_family(df: pd.DataFrame) -> None:
              "epoch rotates on")
         emit("   every weight change, so a fresh one is thin until scans accrue.")
     # Only the family members the frame actually carries: the pp_* names are
-    # dark (species program) and absent until the lane populates rows.
+    # NULL outside the rows the retired species lane wrote (2026-08-19 to 2026-09-19).
     _fingerprint_table(sub, [f for f in PHASE_A_ANCHOR_FEATURES
                              if f in sub.columns])
 

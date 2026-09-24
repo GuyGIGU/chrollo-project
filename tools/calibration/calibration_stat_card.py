@@ -51,6 +51,8 @@ from engine_alpha.structure.box.box_gates import (  # noqa: E402
     _validate_base_quality,
 )
 from engine_alpha.structure.metrics.base import (  # noqa: E402
+    OUTSIDE_BAR_COUNTS,
+    OUTSIDE_BAR_MEASURES,
     measure_bar_compression,
     measure_contractions,
     measure_dwell_balance,
@@ -59,6 +61,7 @@ from engine_alpha.structure.metrics.base import (  # noqa: E402
     measure_support_slope,
     measure_touch_volume,
     descent_tail_rejects,
+    traversals_per_20d,
 )
 from engine_alpha.structure.lps.detection import lps_range_threshold, _profile_unit  # noqa: E402
 from engine_alpha.structure.events.market_structure import _pairwise_descent_fraction  # noqa: E402
@@ -196,6 +199,8 @@ def measure_mark(mark) -> dict:
                   "last_support_time_pos", "low_position_in_box"):
             if k in eqm and isinstance(eqm[k], (int, float)):
                 m[k] = round(float(eqm[k]), 3)
+        m["eq_traversals_per_20d"] = _round(
+            traversals_per_20d(eqm["n_full_traversals"], m["base_length"]), 3)
         # descent-tail reject (freshness of the coil)
         lsf = eqm.get("last_support_time_pos")
         cfp = eqm.get("low_position_in_box")
@@ -211,6 +216,16 @@ def measure_mark(mark) -> dict:
         for k in ("respect_frac", "close_lower_dwell", "close_mid_dwell", "close_upper_dwell"):
             if k in dwm and isinstance(dwm[k], (int, float)):
                 m[k] = round(float(dwm[k]), 3)
+        # The outside-bar vocabulary on the DRAWN window (engine-eyes Task 1):
+        # the same eq_* descriptor columns the archive carries on a fire, plus
+        # the raw counts in trading days behind them (the census the totals
+        # line sums — 414 outside / 218 pokes / 127 rests / 75 holds / 214 in
+        # the last third on the 35 marks of fingerprint 02e1d21c…).
+        for k in OUTSIDE_BAR_MEASURES:
+            v = dwm.get(k)
+            m[f"eq_{k}"] = round(float(v), 3) if isinstance(v, float) else v
+        for k in OUTSIDE_BAR_COUNTS:
+            m[k] = dwm.get(k)
 
     tv, err = _safe(measure_touch_volume, base_df, R, S, atr)
     if err:
@@ -406,6 +421,11 @@ def print_aggregate(cards):
         vals = fields[k]
         print(f"{k:28} {len(vals):>3} {statistics.median(vals):>9.3f} "
               f"{min(vals):>9.3f} {max(vals):>9.3f}")
+    # the outside-bar census, summed in trading days across the drawn boxes
+    totals = {k: sum(int(c["m"][k]) for c in good if c["m"].get(k) is not None)
+              for k in OUTSIDE_BAR_COUNTS}
+    print("\noutside bars across the drawn boxes (trading days): "
+          + "  ".join(f"{k}={v}" for k, v in totals.items()))
     # gate-fail tally
     failed = [c for c in good if c["gate_fails"]]
     print(f"\ndrawn boxes that FAIL >=1 measured gate: {len(failed)}/{len(good)}")

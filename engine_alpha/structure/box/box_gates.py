@@ -29,12 +29,21 @@ __all__ = [
     "_buffered_rails",
     "_rail_outside_masks",
     "_engagement_hang_masks",
+    "OUTSIDE_BAR_FORMS",
+    "TERMINAL_RUN_FORMS",
+    "RUN_RESOLUTIONS",
+    "_whole_bar_rest_masks",
+    "_outside_bar_forms",
+    "_run_spans",
+    "_outside_run_census",
+    "_terminal_run_form",
     "_max_excursion_atr",
     "_respect_stats",
     "_is_boundary_respected",
     "_worked_window_end",
     "_measure_close_residence",
     "_dwell_bar_basis",
+    "_width_refuses",
     "_validate_base_quality",
     "_occupancy_leg_failures",
     "_occupancy_failures",
@@ -172,6 +181,150 @@ def _engagement_hang_masks(above_r, below_s, highs, lows, closes,
     return hang_r, hang_s
 
 
+# The operator's respect-form taxonomy for a trading day OUTSIDE the buffered
+# rails (decisions.md row 71 (2), 2026-08-29: "bars that Touched the rail and
+# pivoted back, Bars that Slightly Poked above / Semi inside the box and bars
+# that are Resting Above Resistance / Holding Below support all of these
+# counts"). ONE declaration (EC-33): ``_terminal_run_form`` chooses its label
+# FROM these tuples (the stamping point), the archive CHECK on
+# ``eq_terminal_run_form`` mirrors them, the tests import them — never
+# re-type them.
+# Stored vocabulary; the SERVED plain phrases (provisional until signed):
+#   rest_above_r       "rest above resistance"   — whole bar above the R LINE
+#   hold_below_s       "hold below support"      — whole bar below the S LINE
+#   poke_close_back    "poke and close back inside" — the engagement hang
+#   straddle_close_out "straddle and close out"  — crossed the line, closed out
+# ``inside`` is the right-edge sentinel: the window's last trading day sits
+# inside the rails, so there is no terminal run to type.
+OUTSIDE_BAR_FORMS = ("rest_above_r", "hold_below_s", "poke_close_back",
+                     "straddle_close_out")
+TERMINAL_RUN_FORMS = ("inside",) + OUTSIDE_BAR_FORMS
+# How a contiguous outside run resolves INSIDE the judged window: pivot_back
+# = a later window bar wholly back under the line; hover = came back inside
+# the buffer, never wholly under the line; right_edge = the run reaches the
+# last judged bar (honestly undetermined — no-lookahead); over_cap = longer
+# than MAX_CONSECUTIVE_OUTSIDE_DAYS (the respect gate's fatal run).
+RUN_RESOLUTIONS = ("pivot_back", "hover", "right_edge", "over_cap")
+
+
+def _whole_bar_rest_masks(above_r, below_s, highs, lows, R_val, S_val):
+    """The two WHOLE-BAR respect forms, measured against the rail LINE (not
+    the buffered rail — the operator's 2026-08-29 wording, decisions.md row
+    71 (2)): ``rest_above_r`` = an outside bar whose Low is strictly above R
+    (the whole bar rests above resistance); ``hold_below_s`` = an outside bar
+    whose High is strictly below S (the whole bar holds below support).
+    Subsets of ``above_r`` / ``below_s`` — derived from THE per-bar
+    classification, never a second physics.
+
+    Strict comparisons by contract: a Low exactly ON the line is not a rest
+    (pinned by the tie case in tests). NaN route declared like the hang masks:
+    a NaN extreme compares False → inside, never a rest. A bar may be BOTH a
+    hang (``_engagement_hang_masks``) and a whole-bar rest — consumers count
+    it ONCE (union), never as a sum (a sum read respect > 1.0 on ALB).
+    Measure-only: no gate consults these masks. Returns
+    ``(rest_above_r, hold_below_s)``.
+    """
+    rest_above_r = above_r & (lows > R_val)
+    hold_below_s = below_s & (highs < S_val)
+    return rest_above_r, hold_below_s
+
+
+def _outside_bar_forms(above_r, below_s, hang_r, hang_s, rest_above_r,
+                       hold_below_s):
+    """Exactly ONE form per outside bar, keyed by ``OUTSIDE_BAR_FORMS`` — the
+    partition every count derives from, so forms always sum to the outside
+    count. Precedence where a bar qualifies twice: the whole-bar form first
+    (his taxonomy defines a rest by the whole bar being above the line, so a
+    rest that also closed back inside the buffer IS a rest), then the hang
+    (``poke_close_back``), and whatever remains crossed the line and closed
+    out (``straddle_close_out`` — this also holds the deep poke that closed
+    back inside but exceeded the hang bound). Pure mask arithmetic."""
+    outside = above_r | below_s
+    whole = rest_above_r | hold_below_s
+    hang = hang_r | hang_s
+    return {
+        "rest_above_r": rest_above_r,
+        "hold_below_s": hold_below_s,
+        "poke_close_back": hang & ~whole,
+        "straddle_close_out": outside & ~whole & ~hang,
+    }
+
+
+def _run_spans(mask):
+    """``(start, end)`` inclusive index pairs of every contiguous True run in
+    a boolean array — the ONE run arithmetic the respect gate's run maximum
+    and the outside-run census both read."""
+    d = np.diff(np.concatenate(([False], mask, [False])).astype(int))
+    starts = np.flatnonzero(d == 1)
+    ends = np.flatnonzero(d == -1) - 1
+    return list(zip(starts.tolist(), ends.tolist()))
+
+
+def _outside_run_census(forms, above_r, below_s, highs, lows, R_val, S_val,
+                        r_ceiling, s_floor, atr_val):
+    """Type every contiguous outside run of the judged window: side, length
+    in trading days, per-form counts, deepest excursion beyond the buffered
+    rail in ATR, and how the run RESOLVED inside the window
+    (``RUN_RESOLUTIONS``). Measure-only — no gate reads a run.
+
+    ``pivot_back`` is judged on a later window bar wholly back under the
+    line (R side: High <= R; S side: Low >= S) — a FOURTH bar basis beside
+    the three the engine already carries (the gate's wick basis against the
+    buffered rail, the hang's close basis, the whole-bar rest against the
+    line); declared here so it is never mistaken for one of them. A NaN
+    later bar compares False and proves nothing. ``over_cap`` takes
+    precedence over every other resolution (the respect gate's fatal run,
+    ``MAX_CONSECUTIVE_OUTSIDE_DAYS``, read lazily — AP-3), then
+    ``right_edge`` (the run reaches the last judged bar: undetermined,
+    no-lookahead). Side = the run's majority rail, ties to R. Caller owns a
+    finite positive ``atr_val`` (the excursion yardstick).
+    """
+    outside = above_r | below_s
+    n = len(outside)
+    cap = settings.MAX_CONSECUTIVE_OUTSIDE_DAYS
+    runs = []
+    for start, end in _run_spans(outside):
+        span = slice(start, end + 1)
+        side = "R" if above_r[span].sum() >= below_s[span].sum() else "S"
+        bars = end - start + 1
+        if bars > cap:
+            resolution = "over_cap"
+        elif end == n - 1:
+            resolution = "right_edge"
+        elif side == "R":
+            resolution = ("pivot_back" if bool((highs[end + 1:] <= R_val).any())
+                          else "hover")
+        else:
+            resolution = ("pivot_back" if bool((lows[end + 1:] >= S_val).any())
+                          else "hover")
+        over_r = np.where(above_r[span], highs[span] - r_ceiling, 0.0)
+        under_s = np.where(below_s[span], s_floor - lows[span], 0.0)
+        deepest = max(float(np.nanmax(over_r, initial=0.0)),
+                      float(np.nanmax(under_s, initial=0.0))) / float(atr_val)
+        runs.append({
+            "start": int(start), "end": int(end), "bars": int(bars),
+            "side": side, "resolution": resolution,
+            "forms": {name: int(mask[span].sum()) for name, mask in forms.items()},
+            "deepest_atr": deepest,
+        })
+    return runs
+
+
+def _terminal_run_form(runs, n):
+    """The closed-set label for the run at the window's right edge: the
+    run's majority form (ties break in ``OUTSIDE_BAR_FORMS`` order — the
+    whole-bar forms first), or ``inside`` when the last trading day sits
+    inside the rails. THE stamping point (EC-55): the label is chosen FROM
+    ``TERMINAL_RUN_FORMS`` itself, so membership holds by construction — a
+    separate assertion here would be vacuous; the archive CHECK guards a
+    fresh database and the tests pin every value's producing path (EC-22)."""
+    if not runs or runs[-1]["end"] != n - 1:
+        return "inside"
+    counts = runs[-1]["forms"]
+    return max(OUTSIDE_BAR_FORMS,
+               key=lambda f: (counts[f], -OUTSIDE_BAR_FORMS.index(f)))
+
+
 def _max_excursion_atr(above_r, below_s, highs, lows, r_ceiling, s_floor,
                        atr_val):
     """Deepest single-bar excursion beyond the buffered rails, in ATR — the
@@ -206,19 +359,22 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val):
     if n == 0:
         return False, False, False, 0, 0.0, 0, 0, 0
 
-    above_r, below_s, _r_ceiling, _s_floor = _rail_outside_masks(
+    above_r, below_s, r_ceiling, s_floor = _rail_outside_masks(
         highs, lows, R_val, S_val, atr_val)
+    if settings.RESPECT_WHOLE_BAR_ENABLED:
+        # R1 (operator, Sat 05/09/2026; final method step 2, dark): a bar is
+        # outside only when the WHOLE bar sits beyond the rail area - a poke
+        # or a straddle is respect. The per-bar masks above stay the one
+        # classification every other reader derives from.
+        above_r = lows > r_ceiling
+        below_s = highs < s_floor
     outside = above_r | below_s
     total_outside = int(outside.sum())
 
     def _max_consecutive(mask):
         """Max run length of True values in a boolean array."""
-        if not mask.any():
-            return 0
-        d = np.diff(np.concatenate(([False], mask, [False])).astype(int))
-        starts = np.flatnonzero(d == 1)
-        ends = np.flatnonzero(d == -1)
-        return int((ends - starts).max()) if len(starts) > 0 else 0
+        return max((end - start + 1 for start, end in _run_spans(mask)),
+                   default=0)
 
     max_consec = _max_consecutive(outside)
     r_consec_max = _max_consecutive(above_r)
@@ -226,8 +382,10 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val):
 
     respect_pct = 1.0 - (total_outside / n)
     max_outside = settings.MAX_CONSECUTIVE_OUTSIDE_DAYS
-    respected = (max_consec <= max_outside and
-                 respect_pct >= settings.MIN_BOUNDARY_RESPECT_PCT)
+    # Point 6 of the final method (step 7, dark): respect refuses nothing; the
+    # share and the runs stay facts, and what a run was is read from what follows.
+    respected = settings.RESPECT_GRADED_ENABLED or (
+        max_consec <= max_outside and respect_pct >= settings.MIN_BOUNDARY_RESPECT_PCT)
     r_broken = r_consec_max > max_outside
     s_broken = s_consec_max > max_outside
 
@@ -403,6 +561,15 @@ def _dwell_bar_basis(eq_df, R_val, S_val):
             round(float(np.mean(eng_u)), 4))
 
 
+def _width_refuses(box_width, cap):
+    """Does a percent-of-price width cap refuse this pair? The ONE width
+    judgment every pool reads (the strict, rescued, band and story pools and
+    the occupancy judge). Point 7 of the final method (step 7, dark,
+    ``BOX_WIDTH_CAPS_GRADED_ENABLED``): no height gate in any unit; the width
+    stays a fact and a grade."""
+    return box_width > cap and not settings.BOX_WIDTH_CAPS_GRADED_ENABLED
+
+
 def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     """
     Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
@@ -433,25 +600,36 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     # ``max_width`` widens the cap ONLY for the deep-event pool (a pair
     # carrying a qualified terminal-shakeout event, BAND_MAX_BOX_WIDTH);
     # every ordinary caller leaves it None = the unchanged MAX_BOX_WIDTH.
-    if box_width > (settings.MAX_BOX_WIDTH if max_width is None else max_width) \
+    if _width_refuses(box_width, settings.MAX_BOX_WIDTH if max_width is None else max_width) \
             or box_width <= 0:
         return 0, 0, None, False
 
-    if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT:
+    # Point 8 of the final method (step 7, dark): no depth number refuses a
+    # box; the deepest low stays a fact.
+    if eq_df['Low'].min() < S_val * settings.CRASH_FILTER_MULT \
+            and not settings.DEPTH_CAPS_GRADED_ENABLED:
         return 0, 0, None, False
 
     eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
     r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
+    # R13 (final method step 2, dark): the whole occupancy exam is graded,
+    # never a refusal. All four close-residence legs (the two end-third
+    # dwells, the mid churn, the coverage) stay measured facts; his ruling
+    # reads them on whole bars, which the grade does at step 12 (review
+    # finding RF-5, Mon 14/09/2026: the first build graded two of the four).
+    occupancy_ok = settings.DWELL_GRADED_ENABLED or (
+        eq["lower_dwell"] >= settings.EQ_MIN_HALF_DWELL
+        and eq["upper_dwell"] >= settings.EQ_MIN_HALF_DWELL
+        and eq["mid_dwell"] <= settings.EQ_MAX_MID_DWELL
+        and eq["coverage"] >= settings.EQ_MIN_COVERAGE
+    )
     is_valid = (
         r_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
         and s_touches >= settings.EQ_MIN_TOUCHES_PER_RAIL
         and eq["r_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
         and eq["s_touch_thirds"] >= settings.EQ_MIN_TOUCH_THIRDS
-        and eq["lower_dwell"] >= settings.EQ_MIN_HALF_DWELL
-        and eq["upper_dwell"] >= settings.EQ_MIN_HALF_DWELL
-        and eq["mid_dwell"] <= settings.EQ_MAX_MID_DWELL
-        and eq["coverage"] >= settings.EQ_MIN_COVERAGE
+        and occupancy_ok
     )
     return r_touches, s_touches, eq, is_valid
 

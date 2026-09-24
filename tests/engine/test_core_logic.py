@@ -187,6 +187,20 @@ def test_measure_gate_margins_reports_the_gates_own_statistics():
     # the wick basis, and the deepest excursion is a real measured 0.0.
     assert gm["engagement_respect_frac"] == 1.0
     assert gm["max_excursion_atr"] == 0.0
+    # The outside-bar vocabulary (engine-eyes Task 1) on a box with NO
+    # outside bar: every measure is a real 0.0 (never None — None is the
+    # degenerate-window route), the forms re-count equals full respect, the
+    # right edge is "inside", and rails never touched read evenness 0.0.
+    assert gm["rest_above_r_frac"] == 0.0
+    assert gm["hold_below_s_frac"] == 0.0
+    assert gm["respect_forms_frac"] == 1.0
+    assert gm["outside_last_third_share"] == 0.0
+    assert gm["terminal_run_bars"] == 0
+    assert gm["terminal_run_form"] == "inside"
+    assert gm["rail_overshoot_depth_atr"] == 0.0
+    assert gm["whole_bar_early_share"] == 0.0
+    assert gm["touch_spacing_evenness"] == 0.0
+    assert gm["outside_runs"] == []
 
 
 def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
@@ -206,11 +220,14 @@ def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
     # Hand-specified: High 111.0 vs ceiling 110.5 with ATR 1.0.
     assert gm["engagement_respect_frac"] == 1.0
     assert gm["max_excursion_atr"] == 0.5
-    # Degenerate inputs return the all-None dict, never a crash.
+    # Degenerate inputs return the all-None dict, never a crash — the
+    # outside-bar keys included (derived from the ONE tuple, never re-typed).
+    from engine_alpha.structure.metrics import OUTSIDE_BAR_MEASURES
     empty = measure_gate_margins(frame.iloc[:0], 110.0, 100.0, 1.0)
     assert empty == {"respect_frac": None, "close_lower_dwell": None,
                      "close_mid_dwell": None, "close_upper_dwell": None,
-                     "engagement_respect_frac": None, "max_excursion_atr": None}
+                     "engagement_respect_frac": None, "max_excursion_atr": None,
+                     **{key: None for key in OUTSIDE_BAR_MEASURES}}
     assert measure_gate_margins(frame, 100.0, 110.0, 1.0)["respect_frac"] is None
 
 
@@ -328,6 +345,185 @@ def test_engagement_measure_hangs_are_bounded_and_close_confirmed():
     hang_r, hang_s = _engagement_hang_masks(
         above_r, below_s, highs, lows, closes, r_ceiling, s_floor, 1.0)
     assert not hang_r.any() and not hang_s.any()   # NaN close never hangs
+
+
+# ── The outside-bar vocabulary (engine-eyes Task 1) ─────────────────────────
+# Hand frame throughout: R 110 / S 100 / ATR 1 -> buffered rails 110.5 / 99.5,
+# hang bound 1.5 ATR. Every expectation is hand-specified, never read off the
+# code. Measure-only helpers: no gate consults any of them.
+_IN = {"High": 106.0, "Low": 104.0, "Close": 105.0}       # inside, touches nothing
+_REST = {"High": 111.5, "Low": 110.2, "Close": 111.2}     # whole bar above the R LINE, closed out
+_POKE = {"High": 111.5, "Low": 104.0, "Close": 110.0}     # 1.0-ATR poke, closed back inside
+_STRADDLE = {"High": 111.5, "Low": 109.0, "Close": 111.2}  # crossed the line, closed out
+_HOLD = {"High": 99.0, "Low": 98.0, "Close": 98.5}        # whole bar below the S LINE
+_OVERLAP = {"High": 110.8, "Low": 110.2, "Close": 110.4}  # whole bar above R AND a hang
+
+
+def _outside_forms(rows):
+    from engine_alpha.structure.box_gates import (
+        _engagement_hang_masks,
+        _outside_bar_forms,
+        _rail_outside_masks,
+        _whole_bar_rest_masks,
+    )
+    frame = pd.DataFrame(rows)
+    highs = frame["High"].to_numpy(float)
+    lows = frame["Low"].to_numpy(float)
+    closes = frame["Close"].to_numpy(float)
+    above_r, below_s, r_ceiling, s_floor = _rail_outside_masks(
+        highs, lows, 110.0, 100.0, 1.0)
+    hang_r, hang_s = _engagement_hang_masks(
+        above_r, below_s, highs, lows, closes, r_ceiling, s_floor, 1.0)
+    rest, hold = _whole_bar_rest_masks(above_r, below_s, highs, lows, 110.0, 100.0)
+    forms = _outside_bar_forms(above_r, below_s, hang_r, hang_s, rest, hold)
+    return above_r | below_s, hang_r | hang_s, rest, hold, forms
+
+
+def test_whole_bar_rest_masks_read_the_line_not_the_buffered_rail():
+    """His four forms, one bar each: the whole bar above the R LINE is a rest
+    and NOT a hang (it closed out); the poke hangs and is NOT a rest (its Low
+    is deep inside); the straddle is neither; the whole bar below the S LINE
+    holds. Every outside bar lands in exactly ONE form."""
+    outside, hang, rest, hold, forms = _outside_forms([_REST, _POKE, _STRADDLE, _HOLD])
+    assert outside.tolist() == [True, True, True, True]
+    assert rest.tolist() == [True, False, False, False]
+    assert hang.tolist() == [False, True, False, False]
+    assert hold.tolist() == [False, False, False, True]
+    assert forms["rest_above_r"].tolist() == [True, False, False, False]
+    assert forms["poke_close_back"].tolist() == [False, True, False, False]
+    assert forms["straddle_close_out"].tolist() == [False, False, True, False]
+    assert forms["hold_below_s"].tolist() == [False, False, False, True]
+
+
+def test_whole_bar_rest_is_strict_on_the_line_and_nan_extremes_never_rest():
+    """The tie case pins the comparison direction: a Low exactly ON the line
+    (110.0) is NOT a rest (Low > R, strict) — flipping the helper to ``>=``
+    turns this RED. Declared NaN route like the hang masks: a NaN Low on an
+    outside bar (its High is finite and above the rail) compares False ->
+    never a rest; a NaN High on a below-S bar never holds."""
+    tie = {"High": 111.5, "Low": 110.0, "Close": 111.2}
+    outside, _hang, rest, _hold, forms = _outside_forms([tie])
+    assert bool(outside[0]) and not bool(rest[0])
+    assert bool(forms["straddle_close_out"][0])
+    nan_low = {"High": 111.5, "Low": float("nan"), "Close": 111.2}
+    nan_high = {"High": float("nan"), "Low": 98.0, "Close": 98.5}
+    outside, _hang, rest, hold, _forms = _outside_forms([nan_low, nan_high])
+    assert outside.tolist() == [True, True]
+    assert not rest.any() and not hold.any()
+
+
+def test_an_overlap_bar_is_a_hang_and_a_rest_but_is_counted_once():
+    """A bar wholly above the R line that also closed back inside the buffer
+    (High 110.8 / Low 110.2 / Close 110.4) is BOTH a hang and a rest. The
+    forms are a PARTITION of the outside bars — it lands once, as the
+    whole-bar form (his taxonomy defines a rest by the whole bar), and the
+    per-run form counts sum to the run's length. A sum of the two masks
+    reads 2 outside bars where there is 1 (ALB read respect > 1.0 that way)
+    — watched RED with a sum before this union landed."""
+    from engine_alpha.structure.metrics import measure_gate_margins
+    outside, hang, rest, _hold, forms = _outside_forms([_IN, _OVERLAP, _IN])
+    assert bool(hang[1]) and bool(rest[1])                     # both masks fire
+    assert int(hang.sum() + rest.sum()) == 2 > int(outside.sum()) == 1  # the trap
+    assert sum(int(m.sum()) for m in forms.values()) == int(outside.sum()) == 1
+    assert bool(forms["rest_above_r"][1]) and not bool(forms["poke_close_back"][1])
+    gm = measure_gate_margins(pd.DataFrame([_IN, _OVERLAP, _IN]), 110.0, 100.0, 1.0)
+    run = gm["outside_runs"][0]
+    assert run["bars"] == 1 and sum(run["forms"].values()) == run["bars"]
+    assert gm["rest_above_r_bars"] == 1 and gm["hang_bars"] == 1 and gm["outside_bars"] == 1
+
+
+def _runs(rows):
+    from engine_alpha.structure.metrics import measure_gate_margins
+    return measure_gate_margins(pd.DataFrame(rows), 110.0, 100.0, 1.0)
+
+
+def test_outside_run_census_types_each_resolution_inside_the_window():
+    """pivot_back reads ONLY when a later window bar is wholly back under the
+    line (High <= R): a later bar that came back inside the buffer but not
+    under the line (High 110.3) is a hover. The run reaching the last judged
+    bar is right_edge (undetermined, no-lookahead). Side S mirrors on Low >= S."""
+    back_under = {"High": 110.0, "Low": 108.0, "Close": 109.0}   # High <= R exactly
+    in_buffer = {"High": 110.3, "Low": 108.0, "Close": 109.5}    # inside the buffer, above the line
+    gm = _runs([_IN, _REST, _STRADDLE, back_under, _IN])
+    (run,) = gm["outside_runs"]
+    assert (run["start"], run["end"], run["bars"], run["side"]) == (1, 2, 2, "R")
+    assert run["resolution"] == "pivot_back"
+    assert run["forms"] == {"rest_above_r": 1, "hold_below_s": 0,
+                            "poke_close_back": 0, "straddle_close_out": 1}
+    assert run["deepest_atr"] == 1.0
+    (run,) = _runs([_IN, _REST, in_buffer, in_buffer])["outside_runs"]
+    assert run["resolution"] == "hover"
+    (run,) = _runs([_IN, _IN, _REST, _REST])["outside_runs"]
+    assert run["resolution"] == "right_edge"
+    s_back = {"High": 101.0, "Low": 100.0, "Close": 100.5}      # Low >= S exactly
+    (run,) = _runs([_IN, _HOLD, s_back])["outside_runs"]
+    assert run["side"] == "S" and run["resolution"] == "pivot_back"
+    (run,) = _runs([_IN, _HOLD, {"High": 101.0, "Low": 99.8, "Close": 100.5}])["outside_runs"]
+    assert run["resolution"] == "hover"
+
+
+def test_outside_run_census_reads_over_cap_past_the_respect_gates_run_cap():
+    """An 11-bar outside run (cap MAX_CONSECUTIVE_OUTSIDE_DAYS = 10) is
+    over_cap wherever it sits — even at the right edge, where a shorter run
+    would read right_edge; a 10-bar run at the edge is NOT over_cap."""
+    from config import settings
+    assert settings.MAX_CONSECUTIVE_OUTSIDE_DAYS == 10
+    (run,) = _runs([_IN] + [_REST] * 11)["outside_runs"]
+    assert run["bars"] == 11 and run["resolution"] == "over_cap"
+    (run,) = _runs([_IN] + [_REST] * 10)["outside_runs"]
+    assert run["bars"] == 10 and run["resolution"] == "right_edge"
+
+
+def test_measure_gate_margins_archives_the_outside_bar_vocabulary():
+    """The archived descriptors on one hand frame, every number derived by
+    hand: 12 bars, a 3-bar run (rest, rest, poke) that pivots back, one hold
+    below S in the last third that reaches the right edge."""
+    back_under = {"High": 110.0, "Low": 108.0, "Close": 109.0}
+    rows = [_IN, _REST, _REST, _POKE, back_under, _IN, _IN, _IN, _IN, _IN, _IN, _HOLD]
+    gm = _runs(rows)
+    n = 12
+    assert gm["respect_frac"] == pytest.approx(1.0 - 4 / n)
+    assert gm["rest_above_r_frac"] == pytest.approx(2 / n)
+    assert gm["hold_below_s_frac"] == pytest.approx(1 / n)
+    # forms re-count: the resolved sub-cap run is forgiven, the right-edge
+    # hold stays charged -> exactly one charged bar
+    assert gm["respect_forms_frac"] == pytest.approx(1.0 - 1 / n)
+    # last third = bars 8..11; only the hold sits there -> 1 of 4 outside bars
+    assert gm["outside_last_third_share"] == pytest.approx(1 / 4)
+    assert gm["terminal_run_bars"] == 1
+    assert gm["terminal_run_form"] == "hold_below_s"
+    # non-hang outside bars: the two rests (111.5 - 110.5 = 1.0 ATR each) and
+    # the hold (99.5 - 98.0 = 1.5 ATR) -> mean 3.5/3; the poke is a hang and
+    # excluded
+    assert gm["rail_overshoot_depth_atr"] == pytest.approx(3.5 / 3)
+    # rail touches (|High-R| or |Low-S| within 0.5 ATR): only back_under
+    # (High 110.0) touches -> longest untouched stretch is bars 5..11 = 7
+    assert gm["touch_spacing_evenness"] == pytest.approx(1.0 - 7 / n)
+    # whole-bar forms: the rests at bars 1-2 are early (< 9), the hold at 11
+    # is not -> 2 of 3 (asymmetric on purpose: a read of the LAST quarter
+    # would give 1 of 3)
+    assert gm["whole_bar_early_share"] == pytest.approx(2 / 3)
+    resolutions = [run["resolution"] for run in gm["outside_runs"]]
+    assert resolutions == ["pivot_back", "right_edge"]
+
+
+def test_terminal_run_form_is_the_runs_majority_with_whole_bar_first_on_ties():
+    from engine_alpha.structure.box_gates import TERMINAL_RUN_FORMS
+    gm = _runs([_IN, _STRADDLE, _STRADDLE, _REST])          # 2 straddles vs 1 rest
+    assert gm["terminal_run_form"] == "straddle_close_out"
+    gm = _runs([_IN, _STRADDLE, _REST])                     # tie -> whole-bar form
+    assert gm["terminal_run_form"] == "rest_above_r"
+    gm = _runs([_IN, _POKE, _POKE])
+    assert gm["terminal_run_form"] == "poke_close_back"
+    assert set(TERMINAL_RUN_FORMS) == {"inside", "rest_above_r", "hold_below_s",
+                                       "poke_close_back", "straddle_close_out"}
+
+
+def test_traversals_per_20d_rebases_the_measured_count():
+    from engine_alpha.structure.metrics import traversals_per_20d
+    assert traversals_per_20d(3, 60) == pytest.approx(1.0)
+    assert traversals_per_20d(0, 40) == 0.0
+    assert traversals_per_20d(2, 0) is None
 
 
 def test_worked_window_end_trims_only_a_held_late_breakout():

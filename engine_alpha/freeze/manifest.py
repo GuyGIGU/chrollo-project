@@ -159,6 +159,61 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_SHELF_MIN_LOW_POS_BOX",
     # Ceiling-rest launch-gate exception (miss program, operator ruling 2026-08-29, dark)
     "LPS_CEILING_REST_ENABLED",
+    # The final method, build step 2 (Sun 13/09/2026): the ruled stack R1..R18
+    # behind flags, dark; listed from birth so any flip rotates the version.
+    "RESPECT_WHOLE_BAR_ENABLED",
+    "DWELL_GRADED_ENABLED",
+    "BOX_HANDOVER_RANGES_ENABLED",
+    "BOX_HANDOVER_MAX_ABOVE_R_ATR",
+    "SPRING_BOUNDS_LIFTED_ENABLED",
+    "LPS_RANGES_YARDSTICK_ENABLED",
+    "LPS_WINDOW_SPAN_ATR_MAX",
+    "LPS_LAUNCH_ABOVE_R_ATR_MAX",
+    "LPS_SHELF_ABOVE_R_ATR_MAX",
+    "LPS_ZONE_CEILING_ATR",
+    "LPS_GRADED_TRAITS_ENABLED",
+    "LPS_CORRECTION_DIG_MIN_ATR",
+    "LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR",
+    "LPS_WINDOW_RECEDING_ENABLED",
+    "LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR",
+    "LPS_BUY_DAY_READS_HIGH_ENABLED",
+    "LPS_REFUSALS_TO_GRADES_ENABLED",
+    "LPS_SELLERS_RISING_FATAL_ENABLED",
+    "TURN_LINE_ENABLED",
+    "TURN_LINE_TREND_ENABLED",
+    "TURN_LINE_FLOOR_ATR",
+    "LINE_WORD_SOS_ENABLED",
+    "LINE_WORD_LAST_SUPPER_ENABLED",
+    "LINE_WORD_PHASE_C_ENABLED",
+    "LINE_WORD_PHASE_D_ENABLED",
+    "LINE_WORD_MINI_ENABLED",
+    "LINE_WORD_UPTHRUST_ENABLED",
+    "LINE_WORD_AREA_ATR",
+    "LINE_WORD_UPTHRUST_MIN_POKE_ATR",
+    "LINE_WORD_SOS_MIN_GROUND_ATR",
+    "LINE_WORD_SUPPER_DIG_ATR",
+    "LINE_WORD_SUPPER_MAX_DAYS",
+    "BASE_AGE_FROM_ANCHOR_ENABLED",
+    "BASE_AGE_MIN_DAYS",
+    "BOX_WIDTH_CAPS_GRADED_ENABLED",
+    "DEPTH_CAPS_GRADED_ENABLED",
+    "RESPECT_GRADED_ENABLED",
+    "LPS_LEAVES_ELECTION_ENABLED",
+    "WATCH_LANE_MIN_TURNS_PER_RAIL",
+    "BOX_OPENS_ON_ANCHORS_ENABLED",
+    "CLIMAX_FIRST_WALK_ENABLED",
+    "BOX_END_ENABLED",
+    "BOX_END_BREAKOUT_ATR",
+    # The final method, build step 12: the grade ledger (dark)
+    "GRADE_LEDGER_ENABLED",
+    "GRADE_LEDGER_CAPS",
+    "BOX_HEIGHT_FULL_RANGES",
+    "BOX_HEIGHT_ZERO_RANGES",
+    "TURNS_POINT_RATE",
+    "LPS_SPREAD_FULL_RANGES",
+    "LPS_SPREAD_ZERO_RANGES",
+    "TIER_S_MAX_HEIGHT_RANGES",
+    "GRADE_LEDGER_TIER_CUTS",
     "LPS_CEILING_REST_MAX_BELOW_R_ATR",
     # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
     # Deep-excursion pair events (Event Map Task 11, dark)
@@ -364,19 +419,11 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "HTF_STAGE_MA_SLOPE_BARS",
     "HTF_WEEKLY_WINDOWS",
     "HTF_MONTHLY_WINDOWS",
-    # Power-Play species preset (docs/power_play_program_2026-08.md Task 5 —
-    # ONE dark-add rotation, the program's declared EC-29 seam: flag + window
-    # dict + pole knobs land together so a later read can never slip the hash;
-    # the two epochs are output-identical, so pooled analytics may bridge them)
-    "POWER_PLAY_PRESET_ENABLED",
+    # The resistance-contraction story form (the miss program's rescue lane
+    # arms it; the Power-Play species lane that once rode it was deleted at
+    # the final method's build step 12, point 25, with its preset, pole and
+    # breakout-wall keys: ONE epoch rotation, Sat 19/09/2026)
     "POWER_PLAY_STORY_FORM_ENABLED",
-    "POWER_PLAY_WINDOWS",
-    "POWER_PLAY_POLE_MIN_GAIN",
-    "POWER_PLAY_POLE_WINDOW_BARS",
-    # The breakout wall's departure yardstick (dark-add 2026-08-18, ruling
-    # loop: 0.0 = the close-above-peak wall byte-identically; the S1
-    # misfile evidence is the flip's decision surface)
-    "POWER_PLAY_BREAKOUT_DEPARTURE_ATR",
 )
 
 # ─────────────────────────────────────────────────────────────────────────────

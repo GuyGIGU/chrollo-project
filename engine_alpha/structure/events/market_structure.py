@@ -31,6 +31,7 @@ from typing import NamedTuple, Optional
 
 import numpy as np
 
+from config import settings
 from engine_alpha.structure.metrics.pivots import _find_pivots, _pivot_order, _swing_skeleton
 
 
@@ -115,13 +116,17 @@ def label_market_structure(zigzag) -> dict:
     }
 
 
-def read_market_structure(df, *, order: Optional[int] = None) -> dict:
+def read_market_structure(df, *, order: Optional[int] = None, line: Optional[bool] = None) -> dict:
     """Build the swing skeleton off ``df`` and label it. Bar indices in the
     result are df-positional. Mirrors ``segment_swings``' pivot order selection,
     so the labels line up with the swings the rest of the engine reads. The
     MACRO Phase-A read (``phase_a.macro_bridge_zigzag``) deliberately does NOT
     apply here: event labels want the fine skeleton, the Phase-A bridge wants
-    the coarse one — same substrate, different zoom."""
+    the coarse one — same substrate, different zoom.
+
+    ``line`` pins the skeleton: None follows ``TURN_LINE_TREND_ENABLED`` (build
+    step 4); the Phase A climax repair passes False through
+    ``trend_terminal_floor``, because the painter is build step 10's."""
     n = len(df)
     if n < 5:
         return _empty()
@@ -130,6 +135,18 @@ def read_market_structure(df, *, order: Optional[int] = None) -> dict:
         lows = df["Low"].values.astype(float)
     except (KeyError, TypeError, ValueError):
         return _empty()
+
+    if (settings.TURN_LINE_TREND_ENABLED if line is None else line) and order is None:
+        # Build step 4 (dark): the trend labels read the one turn line. The line is measured in daily ranges,
+        # so a frame carrying no range column (a bare OHLC fixture, or a caller pinning an explicit order)
+        # falls back to today's skeleton rather than inventing a unit.
+        from engine_alpha.structure.pivots import turn_line, turn_line_floors
+        floors = turn_line_floors(df, None)
+        if np.any(np.isfinite(floors) & (floors > 0)):
+            line = turn_line(highs, lows, floors)
+            if len(line) < 2:
+                return _empty()
+            return label_market_structure([(int(b), k, float(p)) for (b, k, p, _) in line])
 
     if order is None:
         order = _pivot_order(n)
@@ -508,7 +525,10 @@ def trend_terminal_floor(df, *, segments=None) -> "TrendFloor":
     if n == 0:
         return floor
     if segments is None:
-        segments = segment_trends(read_market_structure(df).get("points", []))
+        # The Phase A climax repair kept today's skeleton until build step 10 (review finding RF-4); under the
+        # climax-first walk the trend floor reads the line like everything else.
+        segments = segment_trends(read_market_structure(
+            df, line=(None if settings.CLIMAX_FIRST_WALK_ENABLED else False)).get("points", []))
     for seg in segments:
         end = seg["end_bar"]
         if end is None:
