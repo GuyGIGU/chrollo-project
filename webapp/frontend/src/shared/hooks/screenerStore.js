@@ -1,4 +1,4 @@
-import { API_BASE } from '../../../api/base.js';
+import { API_BASE } from '../../api/base.js';
 
 export const DEFAULT_UNIVERSE = 'us_stocks';
 

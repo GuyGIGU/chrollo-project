@@ -7,7 +7,7 @@ import useWatchlist from '../hooks/useWatchlist';
 import useWatchlistRecords from '../hooks/useWatchlistRecords';
 import {
   getScreenerPayloads, revalidateScreenerUniverse, subscribeScreenerStore,
-} from '../../screener/hooks/screenerStore';
+} from '../../../shared/hooks/screenerStore';
 import { useCandleEnvelopes, useBatchCells } from '../hooks/useWatchlistCandles';
 import {
   fetchBatchCandles, fetchTickerCandles, getBatchCells, revalidateBatchCandles,

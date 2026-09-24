@@ -4,7 +4,7 @@ import useTradePlanEditor, {
   findBrokerMatch,
   formatInputPrice,
 } from '../hooks/useTradePlanEditor';
-import { fmtMoney as fmtPortfolioMoney, summaryValue } from '../../portfolio/presentation/portfolioFormat';
+import { fmtMoney as fmtPortfolioMoney, summaryValue } from '../../../shared/formatting/portfolioFormat';
 import {
   fmtInt,
   fmtMoney,

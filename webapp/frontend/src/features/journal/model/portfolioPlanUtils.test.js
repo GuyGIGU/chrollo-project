@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildPortfolioPlanMap, positionPlanKey } from './portfolioPlanUtils.js';
-import { isOptionSymbol, optionUnderlyingSymbol } from '../../journal/model/tradeUtils.js';
+import { isOptionSymbol, optionUnderlyingSymbol } from './tradeUtils.js';
 
 const baseTrade = {
   id: 1,

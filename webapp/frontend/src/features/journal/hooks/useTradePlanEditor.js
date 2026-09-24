@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { API_BASE } from '../../../api/base';
-import { buildPortfolioPlanMap, positionPlanKey } from '../../portfolio/model/portfolioPlanUtils';
+import { buildPortfolioPlanMap, positionPlanKey } from '../model/portfolioPlanUtils';
 import { inferDirection } from '../model/tradeUtils';
 import { deriveTradeRow } from '../model/tradeTableUtils';
 

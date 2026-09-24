@@ -1193,7 +1193,7 @@
   },
   {
    "old": "webapp/frontend/src/components/portfolioFormat.js",
-   "new": "webapp/frontend/src/features/portfolio/presentation/portfolioFormat.js",
+   "new": "webapp/frontend/src/shared/formatting/portfolioFormat.js",
    "area": "frontend",
    "similarity": 97,
    "source": "git"
@@ -1438,14 +1438,14 @@
   },
   {
    "old": "webapp/frontend/src/hooks/screenerStore.js",
-   "new": "webapp/frontend/src/features/screener/hooks/screenerStore.js",
+   "new": "webapp/frontend/src/shared/hooks/screenerStore.js",
    "area": "frontend",
    "similarity": 99,
    "source": "git"
   },
   {
    "old": "webapp/frontend/src/hooks/screenerStore.test.js",
-   "new": "webapp/frontend/src/features/screener/hooks/screenerStore.test.js",
+   "new": "webapp/frontend/src/shared/hooks/screenerStore.test.js",
    "area": "frontend",
    "similarity": 100,
    "source": "git"
@@ -1956,14 +1956,14 @@
   },
   {
    "old": "webapp/frontend/src/utils/portfolioPlanUtils.js",
-   "new": "webapp/frontend/src/features/portfolio/model/portfolioPlanUtils.js",
+   "new": "webapp/frontend/src/features/journal/model/portfolioPlanUtils.js",
    "area": "frontend",
    "similarity": 95,
    "source": "git"
   },
   {
    "old": "webapp/frontend/src/utils/portfolioPlanUtils.test.js",
-   "new": "webapp/frontend/src/features/portfolio/model/portfolioPlanUtils.test.js",
+   "new": "webapp/frontend/src/features/journal/model/portfolioPlanUtils.test.js",
    "area": "frontend",
    "similarity": 97,
    "source": "git"

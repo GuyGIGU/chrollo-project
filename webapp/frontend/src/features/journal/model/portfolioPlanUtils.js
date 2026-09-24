@@ -1,5 +1,5 @@
-import { buildTradeAlerts, deriveTradeRow } from '../../journal/model/tradeTableUtils.js';
-import { inferDirection, isOptionSymbol } from '../../journal/model/tradeUtils.js';
+import { buildTradeAlerts, deriveTradeRow } from './tradeTableUtils.js';
+import { inferDirection, isOptionSymbol } from './tradeUtils.js';
 
 export const positionPlanKey = (position) => [
   position?.account || '',

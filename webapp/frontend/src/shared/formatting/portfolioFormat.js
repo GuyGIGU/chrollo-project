@@ -1,4 +1,4 @@
-import { EMPTY, fmtMoneyUsd, fmtNum as sharedFmtNum, fmtPct as sharedFmtPct } from '../../../shared/formatting/format';
+import { EMPTY, fmtMoneyUsd, fmtNum as sharedFmtNum, fmtPct as sharedFmtPct } from './format.js';
 
 export const emptyValue = EMPTY;
 

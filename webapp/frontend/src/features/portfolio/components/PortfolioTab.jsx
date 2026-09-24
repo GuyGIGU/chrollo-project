@@ -5,8 +5,8 @@ import PortfolioDailyPnl from './PortfolioDailyPnl';
 import PortfolioPositionChart from './PortfolioPositionChart';
 import PortfolioStatusBar from './PortfolioStatusBar';
 import { LivePositionsTable, OpenOrdersTable, RecentExecutionsTable } from './PortfolioTables';
-import { summaryValue } from '../presentation/portfolioFormat';
-import { buildPortfolioPlanMap } from '../model/portfolioPlanUtils';
+import { summaryValue } from '../../../shared/formatting/portfolioFormat';
+import { buildPortfolioPlanMap } from '../../journal/model/portfolioPlanUtils';
 
 const unavailableStyle = {
   background: 'var(--bg-panel)',

@@ -1,6 +1,6 @@
 import React from 'react';
-import { fmtMoney, fmtNum, fmtPct, fmtTime, pnlColor } from '../presentation/portfolioFormat';
-import { positionPlanKey } from '../model/portfolioPlanUtils';
+import { fmtMoney, fmtNum, fmtPct, fmtTime, pnlColor } from '../../../shared/formatting/portfolioFormat';
+import { positionPlanKey } from '../../journal/model/portfolioPlanUtils';
 const thStyle = {
   padding: '11px 12px',
   fontSize: 10,
