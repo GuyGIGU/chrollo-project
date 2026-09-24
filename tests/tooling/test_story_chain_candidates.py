@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tools.story_chain_candidates import (
+from tools.research.story_chain_candidates import (
     mine,
     scan_base_on_base,
     scan_shakeout_recovery,
@@ -74,7 +74,7 @@ def test_mine_keeps_one_candidate_per_ticker_per_chain():
 
 
 def test_out_path_refuses_the_sealed_set(tmp_path, monkeypatch):
-    from tools import story_chain_candidates as mod
+    from tools.research import story_chain_candidates as mod
     import os
     from _paths import REPO_ROOT
     root = str(REPO_ROOT)

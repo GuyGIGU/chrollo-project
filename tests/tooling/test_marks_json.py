@@ -1,4 +1,4 @@
-"""tools.marks_json — the ONE validated loader for the docs/ JSON marks
+"""tools.calibration.marks_json — the ONE validated loader for the docs/ JSON marks
 corpora (EC-13): a malformed row refuses loudly NAMING the offender (never a
 silent skip), legal shapes from the real corpora load verbatim, and the
 fingerprint tracks exactly the set scored."""
@@ -8,7 +8,7 @@ import os
 import pytest
 
 from _paths import REPO_ROOT
-from tools.marks_json import VERDICTS, load_marks_json, marks_json_fingerprint
+from tools.calibration.marks_json import VERDICTS, load_marks_json, marks_json_fingerprint
 
 _ROOT = str(REPO_ROOT)
 

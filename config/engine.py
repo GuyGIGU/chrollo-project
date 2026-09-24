@@ -307,7 +307,7 @@ SOS_TRIM_MIN_PREFIX_FRAC = 0.30  # the worked cause before the breakout must be 
 # Implemented in box_primitives.backext_shared_rail; applied post-election in
 # BOTH bricks.validate_equilibrium (live) and phase_b_zigzag (diagnostics).
 # FLIPPED ON 2026-07-03 after the operator eyeballed the A/B renders
-# (tools/fidelity/box_backext/); shadow baseline re-captured at the flip.
+# (research/fidelity/box_backext/); shadow baseline re-captured at the flip.
 
 # ── Deep-excursion (terminal-shakeout) pair events (Event Map Task 11) ──────
 # DARK, default OFF. Last-resort pair-election pool (outer Phase B only,
@@ -658,13 +658,13 @@ LPS_VOL_CONTRACTION_MAX = 0.87   # LPS avg volume must be <= 87% of 50d avg. Mov
 # BAR-COUNT WINDOWS are daily-calibrated. engine_alpha.structure.context.htf temporarily rescales
 # ONLY those windows (timeframe_windows CM) around the same Trend+Box brick walk
 # on the resampled frame. These presets are FIRST-PASS (~daily/5 weekly, /~4 again
-# monthly) and a calibration target — eyeball + tune via tools/htf_audit.py.
+# monthly) and a calibration target — eyeball + tune via tools/audits/htf_audit.py.
 HTF_CONTEXT_ENABLED = True        # compute + archive + chip HTF context on FIRING setups; never gates
 
 # The daily read is sliced to this trailing window before read_structure, so the
 # 5y cache (needed for HTF resampling) does NOT feed the daily oldest-first root
 # walk extra history and drift it (the FOSL _MAX_ANCHORS sensitivity). Keeps daily
-# byte-identical; validate with tools.shadow_diff once real 5y data is present.
+# byte-identical; validate with tools.regression.shadow_diff once real 5y data is present.
 # FROZEN-CONFIG MANIFEST (Lane A): the daily read window is part of the frozen
 # engine contract — changing it is a new engine_config_version (re-baseline).
 DAILY_STRUCTURE_PERIOD = "2y"

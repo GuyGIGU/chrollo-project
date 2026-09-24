@@ -994,7 +994,7 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
     # box. This is the faithfulness fix: on an inner-LPS fire, the story must
     # describe the LPS that actually fired (the inner election), never a fresh
     # parent-box re-detection, and it must never SILENTLY drop the elected LPS.
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
     import engine_alpha.evaluation as evaluation
 
     frames, scalars = _load_fixture()
@@ -1058,7 +1058,7 @@ def test_e3_eval_feeds_engine_elected_bricks(monkeypatch):
 def test_e3_eval_twins_agree_on_setup_quality():
     # Both eval-twins (live + seed) route through the single score_setup call, so
     # they compute the identical setup-quality bonus (EC-3 fold).
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
     from engine_alpha.evaluation import _evaluate_ticker
     from core.archive.seed import _evaluate_at_date
     from core.archive.result_adapter import seed_row_from_result

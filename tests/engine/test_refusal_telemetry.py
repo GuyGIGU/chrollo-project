@@ -23,7 +23,7 @@ from engine_alpha.evaluation import (
     _prepare_eval_frame,
     _prepare_eval_frame_with_reason,
 )
-from tools.replay import prepared_frame, prepared_frame_with_reason, refusal_scan
+from tools.calibration.replay import prepared_frame, prepared_frame_with_reason, refusal_scan
 
 pytestmark = pytest.mark.regression
 

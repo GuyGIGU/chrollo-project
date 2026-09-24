@@ -305,7 +305,7 @@ def _first_firing_fixture_ticker():
     shadow fixture — loud if the fixture stopped firing entirely."""
     from engine_alpha.evaluation import EVAL_ERROR
     from core.pipeline.screening.screener import _evaluate_ticker
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
 
     frames, scalars = _load_fixture()
     spy = float(scalars.get("spy_6m_return", 0.0))
@@ -378,7 +378,7 @@ def test_event_map_flag_on_is_additive_only(monkeypatch):
         "a pre-existing field moved flag-on")
     # The canonical outputs specifically — the contract's teeth, checked against
     # the same frozen list the shadow guard uses rather than a hand-typed twin.
-    from tools.shadow_diff import CANONICAL_FIELDS
+    from tools.regression.shadow_diff import CANONICAL_FIELDS
     for key in CANONICAL_FIELDS:
         assert on[key] == off[key], f"canonical field {key} moved flag-on"
     assert set(on) - set(off) == {

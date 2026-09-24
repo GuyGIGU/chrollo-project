@@ -1,7 +1,7 @@
 """Per-mark FIRED-in-window grade for the calibration ledger (the sharper
 "Engine" chip). The operator's real satisfaction bar (doctrine 2026-07-11):
 would this pick have popped up on the nightly screener in real trading time?
-That runs the FULL scoring pipeline (`tools.calibration_harness.fired_one` ->
+That runs the FULL scoring pipeline (`tools.calibration.calibration_harness.fired_one` ->
 `_evaluate_ticker`) over the mark's fair window — ~1s/session, up to ~10s for a
 no-fire mark — so it CANNOT compute inside a request (the backend rule forbids
 blocking on long work).
@@ -53,7 +53,7 @@ def _fired_sig() -> str:
     invalidates chips even when every numeric constant is unchanged and the
     engine hash never rotates."""
     from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
-    from tools.calibration_harness import (  # noqa: PLC0415
+    from tools.calibration.calibration_harness import (  # noqa: PLC0415
         FIRED_WINDOW_SESSIONS,
         HARNESS_POLICY_VERSION,
     )
@@ -94,7 +94,7 @@ def _miss_reason(mark_dict, *, frame_loader=None) -> dict | None:
     rails was rejected. None when the frame/prep is unavailable (degrade to a
     reasonless 'missed'). Consumes the engine's EXISTING trace — no engine edit."""
     from engine_alpha.structure.narrative import read_structure  # noqa: PLC0415
-    from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
+    from tools.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
     from webapp.backend import frame_store  # noqa: PLC0415
     loader = frame_loader or frame_store.load_frame
     frozen = loader(mark_dict["ticker"], mark_dict["as_of_date"],
@@ -116,7 +116,7 @@ def _miss_reason(mark_dict, *, frame_loader=None) -> dict | None:
 def _rail_delta(mark_dict, frag):
     """Max per-rail distance (box-height fraction) of the fired rails from the
     drawn rails — the closer of the parent/inner framing the fire matched."""
-    from tools.agreement import rail_distances  # noqa: PLC0415
+    from tools.calibration.agreement import rail_distances  # noqa: PLC0415
     r, s = mark_dict.get("resistance"), mark_dict.get("support")
     if r is None or s is None or r <= s:
         return None
@@ -160,7 +160,7 @@ def _chip_from_fired(mark_dict, frag) -> dict:
 
 
 def _live_fired(mark_dict) -> dict:
-    from tools.calibration_harness import fired_one  # noqa: PLC0415
+    from tools.calibration.calibration_harness import fired_one  # noqa: PLC0415
     frag = fired_one(mark_dict, [{}])[0]
     return _chip_from_fired(mark_dict, frag)
 
@@ -190,7 +190,7 @@ def fired_for_marks(marks, *, compute=None, background=True) -> dict:
     never touches a detached ORM row.
     """
     from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
-    from tools.calibration_harness import _mark_dict  # noqa: PLC0415
+    from tools.calibration.calibration_harness import _mark_dict  # noqa: PLC0415
     grader = compute or _live_fired
     mh = manifest_hash()
     sig = _fired_sig()

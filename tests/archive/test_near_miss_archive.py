@@ -189,9 +189,9 @@ def test_real_deferred_rows_round_trip_through_the_writer(lane_db, monkeypatch):
     import pytest as _pytest
 
     from engine_alpha.evaluation import evaluate_ticker_with_near_miss
-    from tools.marks_corpus import _FROZEN_BREADTH
-    from tools.marks_corpus import _load_fixture as _load_marks_fixture
-    from tools.replay import fixture_frame
+    from tools.regression.marks_corpus import _FROZEN_BREADTH
+    from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+    from tools.calibration.replay import fixture_frame
 
     monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
     frames, baseline = _load_marks_fixture()

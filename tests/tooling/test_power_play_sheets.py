@@ -1,4 +1,4 @@
-"""Battery for tools/power_play_sheets.py — the ruling-sheet selection.
+"""Battery for tools/research/power_play_sheets.py — the ruling-sheet selection.
 
 Pure-selection tests only (no matplotlib, no cache): membership per section,
 the informativeness ranks on both sides of the form (boundary-first for
@@ -15,7 +15,7 @@ from _paths import BASELINES_DIR, REPO_ROOT
 
 sys.path.insert(0, str(REPO_ROOT))
 
-from tools.power_play_sheets import (  # noqa: E402
+from tools.research.power_play_sheets import (  # noqa: E402
     _NAMED_ANCHORS,
     boundary_key,
     fold_episodes,

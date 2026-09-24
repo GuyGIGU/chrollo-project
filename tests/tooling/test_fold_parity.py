@@ -1,11 +1,11 @@
-"""Pure-logic pins for the Purity Pass parity instrument (tools/fold_parity.py).
+"""Pure-logic pins for the Purity Pass parity instrument (tools/regression/fold_parity.py).
 
 The instrument is the arbiter for every fold/rename commit of the pass, so its
 three judgment calls are pinned: NaN equals NaN (and nothing else loosens),
 the rename mapping renames keys at every depth, and an asymmetric key is a
 reported difference, never a silent pass.
 """
-from tools.fold_parity import apply_mapping, diff_paths, exact_equal
+from tools.regression.fold_parity import apply_mapping, diff_paths, exact_equal
 
 
 def test_exact_equal_nan_and_exactness():

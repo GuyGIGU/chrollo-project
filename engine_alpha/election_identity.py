@@ -1,7 +1,7 @@
 """Cross-frame election identity (Calibration at Scale, Task 8).
 
 Are two elected structures THE SAME reading? Both the agreement harness
-(engine-vs-operator, tools/agreement.py) and the stability grade
+(engine-vs-operator, tools/calibration/agreement.py) and the stability grade
 (election-at-D vs election-at-D-j, Task 14) need this one predicate — two
 definitions would let an epsilon wobble count as flicker in one place and
 as persistence in the other.

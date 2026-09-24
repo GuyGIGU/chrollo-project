@@ -1,6 +1,6 @@
 """Operator-marks acceptance gate wired into pytest/CI (Event Map, Task 1).
 
-The FULL ratchet replay (``python -m tools.marks_corpus --check``) walks every
+The FULL ratchet replay (``python -m tools.regression.marks_corpus --check``) walks every
 marked entry window through the real per-ticker pipeline (~minutes) and is the
 dedicated CI / per-stage acceptance step, like the hermetic seed-recall gate.
 This module keeps the plumbing honest on EVERY pytest run, cheaply: the corpus,
@@ -16,7 +16,7 @@ import os
 
 import pytest
 
-from tools import marks_corpus
+from tools.regression import marks_corpus
 
 pytestmark = pytest.mark.regression
 
@@ -53,11 +53,11 @@ def test_corpus_fixture_and_baseline_are_committed():
         )
     assert os.path.exists(marks_corpus._FIXTURE_PARQUET), (
         f"Missing frozen marks fixture at {marks_corpus._FIXTURE_PARQUET}; run "
-        "`python -m tools.marks_corpus --build-fixture` and commit it."
+        "`python -m tools.regression.marks_corpus --build-fixture` and commit it."
     )
     assert os.path.exists(marks_corpus._BASELINE_JSON), (
         f"Missing marks ratchet baseline at {marks_corpus._BASELINE_JSON}; run "
-        "`python -m tools.marks_corpus --build-fixture` and commit it."
+        "`python -m tools.regression.marks_corpus --build-fixture` and commit it."
     )
 
 
@@ -73,7 +73,7 @@ def test_ec7_seal_binds_corpus_to_baseline():
     assert marks_corpus.corpus_sha256() == baseline["corpus_sha256"], (
         "docs/marks/ content differs from the frozen baseline seal (EC-7). If "
         "this is an operator-sanctioned correction, re-freeze deliberately with "
-        "`python -m tools.marks_corpus --build-fixture`; otherwise revert the edit."
+        "`python -m tools.regression.marks_corpus --build-fixture`; otherwise revert the edit."
     )
 
 
@@ -95,7 +95,7 @@ def test_baseline_is_a_complete_ratchet():
     # Digest-graduated setups freeze under their FULL setup key — the lookup
     # takes no bare-ticker fallback for them, so a missing keyed frame is a
     # loud gap here, never a silently borrowed sibling basis.
-    from tools.replay import fixture_frame
+    from tools.calibration.replay import fixture_frame
 
     graduated = [marks_corpus.setup_key(s) for s in setups if s.get("frame_digest")]
     not_keyed = [k for k in graduated if k not in frames]
@@ -153,7 +153,7 @@ def test_fired_policy_is_pinned_to_the_replay_seam():
     constants must equal the live replay seam's, and every graduated setup's
     frozen window span + clamp note must re-derive identically from the
     committed fixture (no evals — pure window arithmetic)."""
-    from tools import replay
+    from tools.calibration import replay
 
     baseline = _load_baseline()
     assert baseline["fired_policy"] == {

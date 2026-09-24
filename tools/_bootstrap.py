@@ -1,9 +1,15 @@
 """Shared ``sys.path`` bootstrap for the ``tools/`` scripts.
 
-Every tool is run as a standalone script (``python -m tools.foo`` or
-``python tools/foo.py``) and needs the repository root on ``sys.path`` so the
-``config`` / ``core`` / ``tools`` packages import. This collapses the bootstrap
-block that was pasted verbatim across the tools into one call.
+Every tool lives one category folder down (``tools/regression/``,
+``tools/audits/``, ...) and is run as a standalone script
+(``python -m tools.<category>.foo`` or ``python tools/<category>/foo.py``). It
+needs the repository root on ``sys.path`` so the ``config`` / ``core`` /
+``tools`` packages import. This collapses the bootstrap block that was pasted
+verbatim across the tools into one call, and it is the ONE place the repo root
+is derived: this file stays at ``tools/`` so ``..`` from here is always the
+root. A direct-script run cannot import this module until the root is on the
+path, so each tool's fallback adds it first (three ``dirname`` calls up from
+the tool itself) and then imports from here.
 """
 
 import os

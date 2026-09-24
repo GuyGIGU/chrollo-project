@@ -13,7 +13,8 @@ from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from tools import marks_corpus, replay
+from tools.regression import marks_corpus
+from tools.calibration import replay
 
 
 def test_flag_capture_restores_on_success_and_crash():

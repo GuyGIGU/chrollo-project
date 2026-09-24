@@ -399,7 +399,7 @@ def test_engine_read_refuses_unfrozen_frame(digest, engine_reads_isolated):
 
 def test_engine_read_projects_through_the_harness_lens(
         digest, engine_reads_isolated, monkeypatch):
-    import tools.replay as replay
+    import tools.calibration.replay as replay
     df = _bound_frame()
     calls = []
 
@@ -429,7 +429,7 @@ def test_engine_read_projects_through_the_harness_lens(
 
 def test_engine_read_reports_no_read_honestly(
         digest, engine_reads_isolated, monkeypatch):
-    import tools.replay as replay
+    import tools.calibration.replay as replay
     df = _bound_frame()
     monkeypatch.setattr(
         replay, "snapped_election",

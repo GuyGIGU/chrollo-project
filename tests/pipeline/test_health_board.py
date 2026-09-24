@@ -1,6 +1,6 @@
 """Classifier tripwire for the Market & Sector Health Board.
 
-The byte-parity gates (``tools.shadow_diff`` / ``core.archive.seed_recall``) prove
+The byte-parity gates (``tools.regression.shadow_diff`` / ``core.archive.seed_recall``) prove
 ONLY that ``us_equities`` is untouched — they do NOT watch the classifier's own
 output. These synthetic-frame tests are therefore the load-bearing tripwire on the
 health path: they pin each state, the precedence ladder's totality + exclusivity

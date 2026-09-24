@@ -64,7 +64,7 @@ def test_parent_is_inner_box_is_always_false():
     """The parent box is never itself 'inner' (_structure_to_boxes slot 11 = False), so
     structure_ctx['is_inner_box'] is False on BOTH live and seed by construction — the
     live/seed convergence on this flag is inert (locks finding A of the eval unify)."""
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
     from engine_alpha.evaluation import _prepare_eval_frame, _resolve_structure_context
 
     frames, scalars = _load_fixture()
@@ -87,7 +87,7 @@ def test_parent_is_inner_box_is_always_false():
 def test_live_breadth_none_equals_seed_on_fixture():
     """The load-bearing equivalence: live(breadth=None) ≡ seed on the frozen fixture,
     re-keyed through the adapter. Proves the A3 extraction will be lossless."""
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
     from engine_alpha.evaluation import _evaluate_ticker
     from core.archive.seed import _evaluate_at_date
 

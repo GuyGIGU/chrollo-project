@@ -21,8 +21,8 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import webapp.backend.frame_store as frame_store  # noqa: E402
 from engine_alpha.evaluation import EVAL_ERROR  # noqa: E402
-from tools import agreement, replay  # noqa: E402
-from tools.calibration_harness import (  # noqa: E402
+from tools.calibration import agreement, replay  # noqa: E402
+from tools.calibration.calibration_harness import (  # noqa: E402
     FIRED_EVENT_TAIL_SESSIONS,
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
@@ -643,7 +643,7 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     import database
     import frame_store as bare_frame_store
     from config import settings
-    from tools import calibration_harness as harness
+    from tools.calibration import calibration_harness as harness
 
     monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
     monkeypatch.setattr(bare_frame_store, "FRAMES_DIR", str(tmp_path))
@@ -693,7 +693,7 @@ def test_mark_dict_is_complete_and_the_seal_projection_is_frozen(session):
     operator's next mark. The seal hashes only the FROZEN projection:
     widening it is a graduation re-pin decision (decisions.md 2026-08-20),
     never a fix commit's side effect."""
-    from tools.calibration_harness import (_SEAL_EVENT_KEYS, _SEAL_MARK_KEYS,
+    from tools.calibration.calibration_harness import (_SEAL_EVENT_KEYS, _SEAL_MARK_KEYS,
                                            _mark_dict)
     _add_mark(session)
     _add_lps_event(session, "2026-02-02", "2026-02-05")

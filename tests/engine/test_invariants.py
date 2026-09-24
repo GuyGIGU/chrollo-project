@@ -46,7 +46,7 @@ def _structures_from_fixture():
     Structure is NOT a drop — the engine is free not to fire. Built once,
     module-scoped, so the parquet read + ATR compute happen a single time.
     """
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
 
     frames, _scalars = _load_fixture()
     out = []

@@ -6,7 +6,7 @@ import pandas as pd
 from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from tools.provider_parity import _adjustment_fingerprint, price_parity, verdict
+from tools.audits.provider_parity import _adjustment_fingerprint, price_parity, verdict
 
 
 def _panel(close_by_ticker: dict) -> pd.DataFrame:

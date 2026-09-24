@@ -49,10 +49,10 @@ from config import settings
 from core.pipeline.screening.screener import _evaluate_ticker
 from engine_alpha.evaluation import apply_baseline_filters_with_reason
 from engine_alpha.structure.narrative.reader import Structure, read_structure
-from tools import shadow_diff
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame
+from tools.regression import shadow_diff
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from tools.calibration.replay import fixture_frame
 
 pytestmark = pytest.mark.regression
 

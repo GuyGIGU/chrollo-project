@@ -19,7 +19,7 @@ are we in?" can answer B (ranging), C (spring), or D (right-side LPS).
 
 This layer is MEASURE-ONLY: it annotates and archives context on firing setups;
 it never gates a setup. Window presets in config.settings are FIRST-PASS — eyeball
-and tune with tools/htf_audit.py.
+and tune with tools/audits/htf_audit.py.
 """
 from __future__ import annotations
 
@@ -131,7 +131,7 @@ def window_override(preset: dict):
     species preset (``settings.POWER_PLAY_WINDOWS``, dark) are its declared
     presets; a differently-clocked read enters HERE, never through a forked
     collector or a hand-threaded parameter, and the evidence instruments'
-    ``tools.replay.flag_capture`` delegates to this same core (EC-3). Safe
+    ``tools.calibration.replay.flag_capture`` delegates to this same core (EC-3). Safe
     because the detectors read ``settings.X`` lazily at call-time and each
     read is synchronous within a worker. AttributeError on a typo'd key ->
     fail fast."""

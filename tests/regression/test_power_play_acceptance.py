@@ -1,7 +1,7 @@
 """The species acceptance battery + dark ratchet (program Task 10).
 
 The committed fixture pair (tests/baselines/power_play_fixture.parquet +
-power_play_baseline.json, built by tools/power_play_fixture.py) freezes MAN at
+power_play_baseline.json, built by tools/regression/power_play_fixture.py) freezes MAN at
 2026-08-12 (the session BEFORE his breakout) and FTNT at its 2026-08-13 fire.
 The baseline is a CHANGE DETECTOR: the species read and the default read on
 those exact frames must reproduce it byte-for-byte — any deviation fails, and
@@ -25,7 +25,7 @@ from config import settings
 from engine_alpha.structure.box.box_primitives import collect_root_anchors
 from engine_alpha.evaluation import species_watch
 from engine_alpha.structure.context.power_play import PP_STATES
-from tools.power_play_fixture import frame_digest, load_fixture
+from tools.regression.power_play_fixture import frame_digest, load_fixture
 
 
 @pytest.fixture(scope="module")
@@ -159,7 +159,7 @@ def test_the_composed_twin_carries_the_frozen_states_end_to_end(fixture):
     # (`admitted_dark`, his exact climax/AR dates), with no fire at the
     # default read: the dark lane now reads MAN end-to-end.
     from engine_alpha.evaluation import evaluate_ticker_with_power_play
-    from tools.replay import flag_capture
+    from tools.calibration.replay import flag_capture
 
     frames, baseline = fixture
     assert baseline["tickers"]["FTNT"]["species"]["state"] is None

@@ -370,7 +370,7 @@ def test_sector_trend_empty_returns_none(fake_yf):
 # provider method and its archive twin the SAME mocked yfinance and assert
 # identical output, pinning the pair together so the reroute is safe. The codebase
 # guards exactly this eval-twins hazard elsewhere (test_eval_fold,
-# tools/provider_parity.py); this extends it to the as-yet-uncalled copies.
+# tools/audits/provider_parity.py); this extends it to the as-yet-uncalled copies.
 #
 # Note: provider.sector(ticker) returns the RAW Yahoo label ('Technology'), while
 # archive_models.get_sector_etf(ticker) maps that label to its SPDR ETF ('XLK')

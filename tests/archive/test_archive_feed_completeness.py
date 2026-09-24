@@ -22,7 +22,7 @@ import pytest
 from _paths import REPO_ROOT
 from engine_alpha.evaluation import EVAL_ERROR
 from core.pipeline.screening.screener import _evaluate_ticker
-from tools.shadow_diff import _load_fixture
+from tools.regression.shadow_diff import _load_fixture
 
 _WRITER = REPO_ROOT / "core" / "archive" / "writer.py"
 

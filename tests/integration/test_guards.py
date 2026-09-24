@@ -23,8 +23,8 @@ from core.archive.forward_returns import (
     update_forward_returns,
 )
 from core.archive.seed_recall import diff_against_baseline as seed_diff_against_baseline
-from tools.shadow_diff import canonical_fields
-from tools.shadow_diff import diff_against_baseline as shadow_diff_against_baseline
+from tools.regression.shadow_diff import canonical_fields
+from tools.regression.shadow_diff import diff_against_baseline as shadow_diff_against_baseline
 
 
 def test_barrier_win_via_2_5r_when_price_jumps_straight_through():

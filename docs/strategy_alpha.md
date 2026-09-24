@@ -350,7 +350,7 @@ the operator's exact drawn boxes (EGBN lower-dwell 3/23 vs the 0.15 floor;
 YPF lower-dwell 2/14 + mid-dwell 7/14 vs the 0.45 cap; PKE respect 5/22
 outside vs 0.80) were A/B'd against a protocol SEALED before any measurement
 (`docs/rail_program_protocol_2026-07.md`: closed grids, accept conditions
-A–F, verdict templates). Fire evidence (`tools.rail_margin_ab`, per-variant
+A–F, verdict templates). Fire evidence (`tools.research.rail_margin_ab`, per-variant
 manifest stamps, elections+rails diffed at every pinned first-fire):
 
 - `EQ_MIN_HALF_DWELL` 0.15→0.125 converts EGBN (tier B) with 26/26 hits kept
@@ -478,7 +478,7 @@ on missing evidence. No-spring bases are untouched — natural progression needs
 floor.
 
 **LPS envelope calibration — answered NO MOVES (2026-07-24, gap-breach Task
-6).** The shelf-harness (`tools.shelf_harness` — the ONE detector graded over
+6).** The shelf-harness (`tools.calibration.shelf_harness` — the ONE detector graded over
 all 34 marked shelves at the drawn basis) plus the terminal-turn envelope
 settled the calibration question the Guided List raised: the operator's
 shelves genuinely REST (terminal-turn median 0.0 profile-units; the p90 tail
@@ -667,7 +667,7 @@ The Event Map ([engine_alpha/structure/event_map.py](../engine_alpha/structure/e
 
 Every swing carries the **causality stamps** the Event Map contract requires ([archive/specs/event-map-causality-contract.md](archive/specs/event-map-causality-contract.md), binding for all Event Map work): `describes_bar` (the pivot bar) and `knowable_bar` — the first bar at whose close the swing was *irreversibly committed*, i.e. the bar that pivot-confirms the first opposite extreme whose counter-move reaches the collapse threshold. A swing whose committing reversal has not printed is `in_progress` and satisfies nothing downstream; the frame's first swing is `edge_uncertain` (its extremity depends on bars left of the live two-year trim). The label set "as of date D" is exactly the swings with `knowable_bar ≤ D` — what makes replay honest instead of quietly clairvoyant. One stated caveat: a *view* younger than three raw pivots emits nothing yet (the staircase's own degenerate-window guard), so a swing's first appearance can lag its `knowable_bar` at view birth — labels may appear late, but never change or vanish retroactively.
 
-Above the mechanical swings sits the **narrative-role layer** (`read_role_labels`): the L2 event zones — spring / test / SOS / upthrust / markup / range / rejection / LPS — re-emitted as stamped role labels. It consumes the *same* `_box_events_with_meta` chokepoint the story read uses, **fed the engine's elected bricks** (`structure.spring` / `structure.lps`, both required arguments; an injected `None` means "the engine elected none" and is honored — the layer never re-detects). Each label carries the measurer's own tri-state `resolution` plus a `knowable_bar` derived from its real confirmation mechanics: a failed wave at its low-zone drop bar; a held wave or test at the end of its printed hold window *and* never before the wave stopped being extendable (a later higher-high with no drop to support would have absorbed it — the wave-closure rule) or the anchoring swing committed; a spring at the end of its fully-printed `BIN_C_HOLD_BARS` reclaim-hold (a window running past the last bar is `in_progress`, §2); the elected LPS at the **frame end** — its "still holding" verdict consumed every printed bar, so it is `election_dependent`: re-issued by each frame's own election, frame-scoped rather than truncation-stable (the spring's presence likewise). The chronology battery (`python -m tools.event_map_chronology --check`) replays the marks corpus with cuts stepping through each setup's LPS window and asserts, on emitted labels only, that within a stable election a committed label never mutates or vanishes as bars print.
+Above the mechanical swings sits the **narrative-role layer** (`read_role_labels`): the L2 event zones — spring / test / SOS / upthrust / markup / range / rejection / LPS — re-emitted as stamped role labels. It consumes the *same* `_box_events_with_meta` chokepoint the story read uses, **fed the engine's elected bricks** (`structure.spring` / `structure.lps`, both required arguments; an injected `None` means "the engine elected none" and is honored — the layer never re-detects). Each label carries the measurer's own tri-state `resolution` plus a `knowable_bar` derived from its real confirmation mechanics: a failed wave at its low-zone drop bar; a held wave or test at the end of its printed hold window *and* never before the wave stopped being extendable (a later higher-high with no drop to support would have absorbed it — the wave-closure rule) or the anchoring swing committed; a spring at the end of its fully-printed `BIN_C_HOLD_BARS` reclaim-hold (a window running past the last bar is `in_progress`, §2); the elected LPS at the **frame end** — its "still holding" verdict consumed every printed bar, so it is `election_dependent`: re-issued by each frame's own election, frame-scoped rather than truncation-stable (the spring's presence likewise). The chronology battery (`python -m tools.audits.event_map_chronology --check`) replays the marks corpus with cuts stepping through each setup's LPS window and asserts, on emitted labels only, that within a stable election a committed label never mutates or vanishes as bars print.
 
 Like the trend model and the L2 reader, both layers are **measure-only** — they move no rail, gate nothing, score nothing. On the live path they run behind **`EVENT_MAP_ENABLED`** (**LIVE since 2026-07-25** — Event Map program Task 13, operator grant; frozen manifest — the flip is the family's first `engine_config_version` seam): the readers are computed **for firing setups only** (the story-read placement) and emit underscore diagnostics — the four tape-summary reads (`_event_map_n_swings` / `_pre_box_trend` / `_n_labels` / `_n_committed`; proven additive-only over the full shadow fixture, evaluation-phase cost ≈ +1ms per firing ticker) plus the **rail-episode substrate** (Event Map program Task 10): the AS-OF sentence over the elected window and rails — the same READER the story pool consults but a **different basis** (elected window + zone ATR, vs the admission's candidate window + candidate ATR), so the substrate and the admission may legally disagree: YPF fires story-elected while `event_map_story_admitted` reads 0. The evidence that ACTUALLY admitted a story fire is archived separately in `story_admission_profile`; this substrate is what a later TA-score calibration grades, never the admission record — as typed scalars (`completed_s` / `completed_r` / `alternations` / `terminal_posture` / `terminal_drift` / `story_admitted`), the readability companion (`episode_nan_bars` — an explicit zero is evidence, and it can never masquerade for unreadable bars), the sentence text, and ONE compact JSON episode tape whose anchors are dates, never bar indexes. Flag-on, the diagnostics are archived as the **`event_map_*` column family** — declared once in `event_map.py` (`EVENT_MAP_COLUMN_SQL`: names, types, row extraction; the live writer and seed both splat the one extraction function) and entering the schema as model-only nullable adds, where NULL means "not measured", never zero. **Seam discipline (Task 11):** archived sequence values are partitioned by `engine_config_version` — the flip is the family's first seam and every later episode-typing or ruled-form refinement is a NEW seam; pre-flip NULL rows are **never backfilled** by re-running a later reader over cached history (the `bin_a_*` precedent — a backfill stamps current-rule values onto rows whose replay basis may differ, destroying the seam's meaning while looking like a completeness win). Separately and unconditionally, every fire archives its **electing-pool provenance** — `elected_pool`, a closed set (`strict` / `rescued` / `band` / `story`) carried from the candidate tuple through the elected box (`EquilibriumBox.elected_pool`) into both writers — so the rescued cohort's own forward returns stay separable forever. The chart-overlay payload arrives in a later Event Map stage behind its own review; the flip is operator-gated on the scan-metrics cost A/B.
 
@@ -795,7 +795,7 @@ completed support tests AND terminal resistance posture AND no terminal support 
 (`story_admission` in `event_map.py` — the judgment beside the reader, never inside it).
 Census evidence (fingerprint `b671e056…`, ruled at engine `ab5bf340…`; committed record:
 [event_map_program_2026-07.md](event_map_program_2026-07.md); standing gate `python -m
-tools.event_map_census --check` pins the fingerprint AND the headline): 22/33 marks
+tools.research.event_map_census --check` pins the fingerprint AND the headline): 22/33 marks
 admitted at drawn rails with **zero live junk exposure** — every parsing junk sentence is
 either pool-unreachable (ordinary election stands: KWR/NVT/GOOD) or traversal-killed
 in-pool; RLGT, the one reachable junk case, is admitted by no form. **Accepted
@@ -883,7 +883,7 @@ The reader walks the chart left to right and anchors by descent:
    > (live, bonus-only) event-story read. Applied post-election in BOTH the live reader
    > (`bricks.validate_equilibrium`) and the diagnostic mirror (`phase_b_zigzag` →
    > `detect_boxes`), so every path frames the same box. The operator eyeballed the
-   > A/B renders (`tools/fidelity/box_backext/`, `tools/box_backext_ab.py` — tool
+   > A/B renders (`research/fidelity/box_backext/`, `tools/box_backext_ab.py` — tool
    > retired 2026-07-18, 44f8293) and the
    > flag went LIVE 2026-07-03; the shadow baseline was re-captured at the flip; a
    > seeded backtest over cherry-picked setups remains the planned deeper validation.
@@ -966,7 +966,7 @@ program record.*
 every candidate pair inside the box election with the stage that rejected it (`width` /
 `window` / `respect` / `occupancy` — with the failing checks named, e.g. "dead space low" /
 `traversal` / `rescue_unused`) and why the winner was elected (`selection`,
-earliest-of-valid). `python -m tools.structure_case_audit <TICKER> --trace` renders it.
+earliest-of-valid). `python -m tools.audits.structure_case_audit <TICKER> --trace` renders it.
 The trace is opt-in and free on the live path (`trace=None` = zero cost, byte-identical).
 New reading logic must **extend the trace, not bypass it** — the narrated process is what
 lets richer story-building (the event story, graded confidence reads) trust the geometry.

@@ -28,9 +28,9 @@ from engine_alpha.structure.box.near_miss import (
     _kill_leg_screen,
     deferred_rows,
 )
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame, prepared_frame
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from tools.calibration.replay import fixture_frame, prepared_frame
 
 pytestmark = pytest.mark.regression
 
@@ -201,7 +201,7 @@ def test_flag_off_twin_degrades_to_the_plain_evaluation(monkeypatch):
     # not just firing (review 2026-07-26 finding 10): a drifted degrade
     # branch must red here, not in a live scan whose flag flipped mid-run.
     from core.pipeline.screening.screener import _evaluate_ticker
-    from tools import shadow_diff
+    from tools.regression import shadow_diff
     plain = _evaluate_ticker(e["ticker"], sliced,
                              float(e["spy_6m_return"]), _FROZEN_BREADTH)
     assert shadow_diff.canonical_fields(result) == \

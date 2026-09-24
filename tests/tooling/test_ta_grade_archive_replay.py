@@ -11,7 +11,7 @@ from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 
-from tools.ta_grade_archive_replay import (  # noqa: E402
+from tools.research.ta_grade_archive_replay import (  # noqa: E402
     RAIL_TOL,
     rails_concordant,
     summarize,

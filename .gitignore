@@ -16,11 +16,11 @@ env/
 *.pkl
 market_data_cache_*.parquet
 # ...but the regression-guard fixtures are committed on purpose so a clean clone /
-# CI can run the offline drift guards (`python -m tools.shadow_diff --check`,
+# CI can run the offline drift guards (`python -m tools.regression.shadow_diff --check`,
 # `python -m core.archive.seed_recall --hermetic-check`,
-# `python -m tools.negative_corpus --check`,
-# `python -m tools.marks_corpus --check` and
-# `python -m tools.cause_veto_corpus --check`) with no network.
+# `python -m tools.regression.negative_corpus --check`,
+# `python -m tools.regression.marks_corpus --check` and
+# `python -m tools.regression.cause_veto_corpus --check`) with no network.
 !tests/baselines/shadow_fixture.parquet
 !tests/baselines/seed_recall_fixture.parquet
 !tests/baselines/negative_corpus.parquet
@@ -55,14 +55,15 @@ output/audits/
 
 # Eyeball chart renders. The operator ruled these DO NOT COMMIT (2026-08-04);
 # every family is reproducible from the price cache by a committed tool —
-# `python -m tools.full_package_render <TICKERS>`, `python -m tools.trend_terminal_ab
+# `python -m tools.research.full_package_render <TICKERS>`, `python -m tools.trend_terminal_ab
 # --sheet DIR`, `python -m tools.ar_first_reaction_diff --scan`. The ruling used to
 # live as a hand-listed block in .git/info/exclude, which is machine-local: it never
 # survived a clone, never protected CI, and let each new render land untracked AND
 # unignored. The SHEETS beside the images (LOSSES.md / index.html / README.md /
 # scan_*.txt) stay tracked — they carry the measured numbers the flag ledger cites,
-# so every EC-16 pointer keeps resolving without the pixels.
-tools/fidelity/**/*.png
+# so every EC-16 pointer keeps resolving without the pixels. (The evidence lived under
+# tools/fidelity/ until 2026-09-24; the rule moved with it.)
+research/fidelity/**/*.png
 # Regenerable L2 event-reader renders; no ruling cites an individual image.
 docs/engine_pass/e1_renders_*/
 

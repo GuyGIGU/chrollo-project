@@ -75,9 +75,9 @@ of its own; use the main checkout's: `& "$(git rev-parse --git-common-dir)\..\.v
 .\.venv\Scripts\python.exe -m core.archive.analyze           # winner-fingerprint report card
 npm --prefix webapp\frontend run build                       # build the React app (a worktree only; see below)
 npm --prefix webapp\frontend run lint                        # eslint
-.\.venv\Scripts\python.exe -m tools.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
-.\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the operator-marks ratchet (~2 min): fails on a lost pinned hit, and as STALE once the operator redraws (refresh: tools.guided_list_export, then --build-fixture)
-.\.venv\Scripts\python.exe -m tools.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
+.\.venv\Scripts\python.exe -m tools.audits.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
+.\.venv\Scripts\python.exe -m tools.regression.marks_corpus --check      # the operator-marks ratchet (~2 min): fails on a lost pinned hit, and as STALE once the operator redraws (refresh: tools.calibration.guided_list_export, then --build-fixture)
+.\.venv\Scripts\python.exe -m tools.regression.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
 .\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC; refuses while a scan is running)
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
@@ -94,7 +94,7 @@ npm --prefix webapp\frontend run lint                        # eslint
   `scan_runs` row still `running` to `failed` — that string is in the operator's archive because a
   bare `pytest` used to do exactly this (council review 2026-09-07). `pytest` now sets the same
   variable for itself in `tests/conftest.py`; the **service must never set it** (`docs/deploy.md` §2).
-- **After MOVING, ARCHIVING or DELETING any file, run `tools.pointer_audit --check`.** A citation
+- **After MOVING, ARCHIVING or DELETING any file, run `tools.audits.pointer_audit --check`.** A citation
   rots when some *other* file moves, so the commit that breaks it never touches the file that
   carries it — no diff review can catch this. It is also in pytest, so a normal run covers it; the
   explicit call is for when you are mid-sweep and want the answer before committing.

@@ -24,7 +24,7 @@ from engine_alpha.scoring.scoring import (
     sub_score_archive_values,
     ta_grade_archive_values,
 )
-from tools import shadow_diff
+from tools.regression import shadow_diff
 
 
 def _first_fired_result():

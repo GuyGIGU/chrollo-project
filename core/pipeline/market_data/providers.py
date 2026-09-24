@@ -4,7 +4,7 @@ The screener reads its canonical daily-bar panel through a ``MarketDataProvider`
 never directly from a named vendor. Today the only provider is Yahoo (yfinance),
 which simply wraps the incumbent ``fetch_data`` path verbatim. The interface
 exists so a bulk-EOD vendor (EODHD, Polygon, ...) can be slotted in behind the
-same contract and validated against Yahoo with ``tools/provider_parity.py``
+same contract and validated against Yahoo with ``tools/audits/provider_parity.py``
 *before* it ever feeds a real or archiveable scan.
 
 Why this matters for Chrollo specifically: the engine's structural thresholds
@@ -464,7 +464,7 @@ class YahooProvider:
 
 
 # Registry of name -> provider class. New vendors register here once their
-# adapter passes tools/provider_parity.py against the incumbent.
+# adapter passes tools/audits/provider_parity.py against the incumbent.
 _PROVIDERS: dict[str, type] = {
     YahooProvider.name: YahooProvider,
 }

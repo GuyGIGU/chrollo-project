@@ -194,7 +194,7 @@ _ENGINE_READS: dict = {}
 def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
                             frame_digest: Optional[str] = Query(None)):
     """The engine's read of a FROZEN calibration frame, through the agreement
-    harness's own lens (``tools.replay.snapped_election`` + the shared
+    harness's own lens (``tools.calibration.replay.snapped_election`` + the shared
     ``election_identity.projection``) — the same lens the harness scores, never
     a richer parallel read (one-lens rule, Task 6). Parity is exact for a BOX
     verdict; the overlay always walks back the snap window, whereas the harness
@@ -227,7 +227,7 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
         return _ENGINE_READS[key]
 
     from engine_alpha.election_identity import projection  # noqa: PLC0415
-    from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
+    from tools.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
 
     result = {
         "ticker": symbol,
@@ -262,7 +262,7 @@ def calibration_agreement(ticker: str = Query(...), db: Session = Depends(get_db
     """Per-mark engine agreement for a ticker's marks — the ledger 'Engine'
     chip. Answers the operator's HEADLINE question (did the engine SURFACE a
     setup at my pick?) via the harness's own election grade, so the chip never
-    drifts from ``python -m tools.calibration_harness``. Guarded like
+    drifts from ``python -m tools.calibration.calibration_harness``. Guarded like
     /engine-read: box marks run a real structure read (drive-by pages don't get
     to spend that), and the result is memoized per (mark id, revision, engine
     manifest). Frozen-or-refuse + read-only: never a vendor fetch, never a

@@ -1,4 +1,4 @@
-"""Unit pins for ``tools.build_universe_returns._validate_out`` — the output-path
+"""Unit pins for ``tools.research.build_universe_returns._validate_out`` — the output-path
 guard that stops the universe-returns builder from clobbering a protected file.
 
 ``_validate_out`` is pure path-string logic (no filesystem writes): it REFUSES
@@ -16,7 +16,7 @@ import pytest
 from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from tools.build_universe_returns import _validate_out
+from tools.research.build_universe_returns import _validate_out
 
 
 # ── refusals (each raises SystemExit) ────────────────────────────────────────

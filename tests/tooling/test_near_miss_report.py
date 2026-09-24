@@ -21,7 +21,7 @@ sys.path.insert(1, str(BACKEND_DIR))
 
 import database  # noqa: E402
 from core.archive import near_miss_writer as nmw  # noqa: E402
-from tools import near_miss_report as report  # noqa: E402
+from tools.research import near_miss_report as report  # noqa: E402
 
 pytestmark = pytest.mark.regression
 

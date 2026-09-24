@@ -336,7 +336,7 @@ def test_headline_explicit_seed_basis_is_flagged_not_unbiased(fixture_df):
 def test_default_cli_run_headlines_screener_when_seed_present(tmp_path):
     """End-to-end: a default run over a mixed archive headlines the screener edge
     and stamps the contamination flag (the exact bug we are guarding)."""
-    from tools import backtest_engine
+    from tools.research import backtest_engine
     df = _build_fixture_df()
     df.loc[df["ticker"] == "DDD", "source"] = "seed"
     df.loc[df["ticker"] == "DDD", "mfe_to_date"] = 5.0
@@ -512,7 +512,7 @@ def test_is_oos_multi_version_splits():
 # End-to-end CLI
 # ─────────────────────────────────────────────────────────────────────────────
 def test_cli_run_over_fixture_db(fixture_db, tmp_path):
-    from tools import backtest_engine
+    from tools.research import backtest_engine
     json_out = os.path.join(str(tmp_path), "report.json")
     result = backtest_engine.run(db_path=fixture_db, json_path=json_out)
     assert result["composition"]["n"] == 5
@@ -531,7 +531,7 @@ def test_cli_run_over_fixture_db(fixture_db, tmp_path):
 
 
 def test_cli_run_with_universe(fixture_db):
-    from tools import backtest_engine
+    from tools.research import backtest_engine
     uni = _universe(metric_mean=0.0, seed=11)
     # The CLI run() signature accepts an injected universe_returns; verify that
     # the null model is computed (not deferred) when a universe is supplied.
@@ -543,7 +543,7 @@ def test_cli_run_with_universe(fixture_db):
 
 
 def test_cli_abnormal_defers_without_spy(fixture_db):
-    from tools import backtest_engine
+    from tools.research import backtest_engine
     result = backtest_engine.run(db_path=fixture_db)
     assert result["abnormal_vs_spy"]["available"] is False
 
@@ -551,7 +551,7 @@ def test_cli_abnormal_defers_without_spy(fixture_db):
 def test_cli_abnormal_computes_with_spy_col(tmp_path):
     """When a per-row same-window SPY return column exists, abnormal return
     computes (machinery wired through the CLI)."""
-    from tools import backtest_engine
+    from tools.research import backtest_engine
     df = _build_fixture_df()
     df["spy_20d"] = 0.05  # SPY made +5% in each window
     path = os.path.join(str(tmp_path), "fixture_spy.db")

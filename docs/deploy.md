@@ -90,7 +90,7 @@ Set on the service it would silently start a second, empty archive; every scan, 
 forward return would land there and the dashboard would read an empty history.
 
 > **Recovering an existing service** (pointed at the wrong/broken interpreter, or after a PyManager
-> reset): don't reinstall — run `tools\recover_service_python.bat` (double-click, or right-click → Run
+> reset): don't reinstall — run `tools\ops\recover_service_python.bat` (double-click, or right-click → Run
 > as administrator). It self-elevates, repoints the existing service at the venv, restarts it, polls
 > `/health`, and then offers to remove the `HKLM\...\PythonCore\3.14\PythonPath` registry value that
 > lets a half-broken interpreter borrow another's stdlib instead of failing loudly (backed up first,
@@ -164,13 +164,13 @@ Deliberately **not** backed up: the `market_data_cache_5y*.parquet` price caches
 are re-downloadable — deleting one triggers a clean cold rebuild — and at ~120 MB they
 would bloat every snapshot.
 
-The script is versioned in the repo at `tools\ChrolloBackup.ps1` and **deployed** as a
+The script is versioned in the repo at `tools\ops\ChrolloBackup.ps1` and **deployed** as a
 copy at `%USERPROFILE%\ChrolloBackup.ps1` — the scheduled task runs the deployed copy.
 To change it (including setting the mirror destination), edit the repo copy, then
 redeploy:
 
 ```powershell
-Copy-Item "C:\Users\User\Documents\Projects\Chrollo Project\tools\ChrolloBackup.ps1" `
+Copy-Item "C:\Users\User\Documents\Projects\Chrollo Project\tools\ops\ChrolloBackup.ps1" `
   "$env:USERPROFILE\ChrolloBackup.ps1" -Force
 ```
 
@@ -256,12 +256,12 @@ its own `scan_runs` row (`kind='maturation'`) so the health watchdog can see it,
 `-StartWhenAvailable` — **catches up a missed run** at the next boot/logon instead of losing
 the day.
 
-The repo ships `tools\run_maturation.bat` (it `cd`s to the repo and runs
+The repo ships `tools\ops\run_maturation.bat` (it `cd`s to the repo and runs
 `python -m core.archive.forward_returns`, logging to `output\maturation.log`). Register it
 from an Administrator PowerShell:
 
 ```powershell
-$action  = New-ScheduledTaskAction -Execute "C:\Users\User\Documents\Projects\Chrollo Project\tools\run_maturation.bat"
+$action  = New-ScheduledTaskAction -Execute "C:\Users\User\Documents\Projects\Chrollo Project\tools\ops\run_maturation.bat"
 # Evening LOCAL time, after the US EOD data has settled. Adjust if your PC is not on US time.
 $trigger = New-ScheduledTaskTrigger -Daily -At 7:00PM
 # StartWhenAvailable = "run as soon as possible after a scheduled start is missed" (the catch-up).
@@ -270,6 +270,11 @@ Register-ScheduledTask -TaskName "Chrollo Forward Returns" -Action $action -Trig
   -Settings $settings -RunLevel Limited `
   -Description "Backend-independent nightly forward-return maturation; catches up a missed run." -Force
 ```
+
+A task registered before 2026-09-24 points at the old path, `tools\run_maturation.bat`. That
+file is now a thin forwarder that calls `tools\ops\run_maturation.bat` and passes back its exit
+code, so the existing registration keeps working; re-registering with the command above is
+optional, and the forwarder can go once nothing points at it.
 
 The updater re-downloads fresh per-ticker data itself, so exact timing is not critical — any
 evening slot after the US close works; the important part is that it runs (and catches up)
@@ -290,7 +295,7 @@ newest snapshot actually restores — run it monthly, and after any change to th
 script:
 
 ```powershell
-python "C:\Users\User\Documents\Projects\Chrollo Project\tools\restore_drill.py"
+python "C:\Users\User\Documents\Projects\Chrollo Project\tools\ops\restore_drill.py"
 ```
 
 It copies the latest snapshot's database to a temp dir, opens it **read-only**, runs

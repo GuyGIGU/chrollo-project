@@ -1,12 +1,13 @@
 """The evidence-pointer gate lives IN pytest so it cannot go dark.
 
-`tools.doctrine_audit` spent a day asserting nothing because it is offline-only
+`tools.audits.doctrine_audit` spent a day asserting nothing because it is offline-only
 and nothing went red (2026-08-20). This check is fast and hermetic, so it has no
 excuse to live outside the suite.
 """
 import os
 
-from tools import pointer_audit
+from _paths import REPO_ROOT
+from tools.audits import pointer_audit
 
 
 def test_every_markdown_link_resolves():
@@ -115,11 +116,11 @@ def test_external_and_anchor_only_links_are_skipped(tmp_path, monkeypatch):
 
 
 def test_module_paths_are_not_mistaken_for_files(tmp_path, monkeypatch):
-    """`tools.shadow_diff` is an import, not a path - the advisory must not bite."""
+    """`tools.regression.shadow_diff` is an import, not a path - the advisory must not bite."""
     repo = tmp_path
     (repo / "docs").mkdir()
     (repo / "docs" / "c.md").write_text(
-        "run `tools.shadow_diff --check`, see `manifest.ENGINE_SETTINGS_KEYS`, "
+        "run `tools.regression.shadow_diff --check`, see `manifest.ENGINE_SETTINGS_KEYS`, "
         "and note core/structure/gone.py moved",
         encoding="utf-8")
     monkeypatch.setattr(pointer_audit, "_REPO_ROOT", str(repo))
@@ -143,9 +144,14 @@ def test_generated_output_is_never_a_citation(tmp_path, monkeypatch):
 
 
 def test_the_tool_is_where_the_docs_say_it_is():
-    """AGENTS.md hands an agent this exact command; keep the module path true."""
+    """AGENTS.md hands an agent this exact command; keep the module path true.
+
+    The root must be the repo itself, not the tool's own folder: rooted one
+    level down, `git ls-files` lists only the tool's neighbours and the link
+    gate passes while checking almost nothing."""
+    assert os.path.samefile(pointer_audit._REPO_ROOT, REPO_ROOT)
     assert os.path.exists(os.path.join(
-        pointer_audit._REPO_ROOT, "tools", "pointer_audit.py"))
+        pointer_audit._REPO_ROOT, "tools", "audits", "pointer_audit.py"))
 
 
 def test_an_archived_carrier_is_exempt_from_the_advisory(tmp_path, monkeypatch):

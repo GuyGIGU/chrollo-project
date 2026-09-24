@@ -550,7 +550,7 @@ def _enforce_bc_downswing(df, root, box, climax_bar, ar_bar):
 
     SC roots (a selling-climax low -> rally high, a legitimately UP overlay) and
     every genuine down-swing are left untouched: root.kind is partly a stale scan
-    origin (see tools.structure_case_audit / the emergent-box note), so only the
+    origin (see tools.audits.structure_case_audit / the emergent-box note), so only the
     unambiguous BC-up contradiction is repaired. Overlay-only -> shadow-safe.
     """
     if getattr(root, "kind", None) != "BC":
@@ -753,7 +753,7 @@ def _resolve_phase_a_raw(
 
     # Final fallback. The seed root can be an ancient SCAN ORIGIN: the box is
     # emergent from candidate enumeration, so the *same* box is reached from roots
-    # hundreds of bars earlier (see tools.structure_case_audit). Returning that
+    # hundreds of bars earlier (see tools.audits.structure_case_audit). Returning that
     # seed climax would paint a stale Phase A — a 2024 climax on a 2026 box — when
     # the bridge/segmentation searches above find nothing local. When the seed
     # sits beyond the local bridge window, synthesize the climax -> AR from the

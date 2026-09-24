@@ -116,7 +116,10 @@ webapp/
                          dist/ (built, gitignored)
 docs/                  strategy_alpha.md (theory), engine_reference.md (how built),
                          decisions.md (rulings), structure_legend.md (vocab), deploy.md (go-live)
-tools/                 Dev/backtest and fidelity harnesses
+tools/                 Dev tools, one folder per job: regression/ (drift ratchets), audits/,
+                         calibration/, research/ (censuses, A/Bs, renders), maintenance/,
+                         ops/ (backup, restore drill, service recovery)
+research/fidelity/     Chart-evidence sheets the rulings cite (moved from tools/ 2026-09-24)
 run_screener.py        CLI entry: one scan → dashboard JSON → archive
 setup.bat              One-time: install Python + frontend deps, build the frontend
 start_dashboard.bat    Manual launcher: one uvicorn process serving UI + API at :8000
@@ -203,12 +206,12 @@ Full runbook: [`docs/deploy.md`](docs/deploy.md).
 Use the smallest guard that proves the change, then widen only when the touched surface warrants it:
 
 - Local edits: run focused tests for the touched module, then `.\.venv\Scripts\python.exe -m pytest -q` before merge.
-- Detector or market-data intake changes: run `.\.venv\Scripts\python.exe -m tools.shadow_diff --check` to catch canonical drift.
+- Detector or market-data intake changes: run `.\.venv\Scripts\python.exe -m tools.regression.shadow_diff --check` to catch canonical drift.
 - Structure-reader, fetch, or seed-recall-sensitive changes: run `.\.venv\Scripts\python.exe -m core.archive.seed_recall --check`.
   The checked baseline is intentionally `basis: "fresh"`; only recapture it with an explicit review decision.
-- Engine reading changes: also run `-m tools.marks_corpus --check` (the operator-marks ratchet),
-  `-m tools.reader_pin --check`, and, once the change has landed in the main checkout,
-  `-m tools.doctrine_audit --check` (`docs/decisions.md`, "How a change to this engine should go").
+- Engine reading changes: also run `-m tools.regression.marks_corpus --check` (the operator-marks ratchet),
+  `-m tools.regression.reader_pin --check`, and, once the change has landed in the main checkout,
+  `-m tools.audits.doctrine_audit --check` (`docs/decisions.md`, "How a change to this engine should go").
 - Frontend changes: run `npm --prefix webapp\frontend run lint`, `npm --prefix webapp\frontend test`,
   and `npm --prefix webapp\frontend run build` — the build in a worktree only, since the live service
   serves the main checkout's `webapp/frontend/dist` (`update_dashboard.bat` rebuilds it safely).

@@ -1,10 +1,10 @@
 """Negative-corpus precision gate wired into pytest/CI.
 
-The shadow guard (``tools.shadow_diff``) freezes only previously-FIRING tickers
+The shadow guard (``tools.regression.shadow_diff``) freezes only previously-FIRING tickers
 and seed-recall (``core.archive.seed_recall``) only fails on LOST winners, so
 the guard net was one-directional: a change that made junk setups fire
 universe-wide passed every gate. This module runs the REAL negative-corpus
-guard (``tools.negative_corpus.check_corpus``) end-to-end against the COMMITTED
+guard (``tools.regression.negative_corpus.check_corpus``) end-to-end against the COMMITTED
 fixture: operator/dissection-labeled must-NOT-fire charts, each verified
 non-firing + baseline-passing at freeze time, replayed through the per-ticker
 pipeline. Any case that starts firing fails the default pytest run (and CI).
@@ -18,7 +18,7 @@ import os
 
 import pytest
 
-from tools import negative_corpus
+from tools.regression import negative_corpus
 
 pytestmark = pytest.mark.regression
 
@@ -31,11 +31,11 @@ def test_negative_fixture_and_meta_are_committed():
     """
     assert os.path.exists(negative_corpus._FIXTURE_PARQUET), (
         f"Missing frozen negative corpus at {negative_corpus._FIXTURE_PARQUET}; "
-        "run `python -m tools.negative_corpus --build-fixture` and commit it."
+        "run `python -m tools.regression.negative_corpus --build-fixture` and commit it."
     )
     assert os.path.exists(negative_corpus._FIXTURE_META), (
         f"Missing negative-corpus meta at {negative_corpus._FIXTURE_META}; "
-        "run `python -m tools.negative_corpus --build-fixture` and commit it."
+        "run `python -m tools.regression.negative_corpus --build-fixture` and commit it."
     )
 
 
@@ -47,7 +47,7 @@ def test_negative_corpus_still_rejects_every_case():
     """
     assert negative_corpus.check_corpus() is True, (
         "Negative-corpus guard failed: a labeled must-NOT-fire chart fires (or "
-        "crashes) under the current engine. Re-run `python -m tools.negative_corpus "
+        "crashes) under the current engine. Re-run `python -m tools.regression.negative_corpus "
         "--check` to see which case, then either fix the precision regression or, "
         "if the fire is a deliberate recall change, re-eyeball and re-freeze that "
         "case individually."
@@ -84,7 +84,7 @@ def test_negative_corpus_still_rejects_every_case_story_pool_on(monkeypatch):
     assert negative_corpus.check_corpus() is True, (
         "Negative-corpus guard failed with the story pool ON: a labeled "
         "must-NOT-fire chart fires through the ruled admission form. Run "
-        "`python -m tools.negative_corpus --check` to name the case; the "
+        "`python -m tools.regression.negative_corpus --check` to name the case; the "
         "admission form / in-pool gates must own it before any flip."
     )
 
@@ -107,7 +107,7 @@ def test_negative_corpus_still_rejects_every_case_miss_lanes_on(monkeypatch):
     assert negative_corpus.check_corpus() is True, (
         "Negative-corpus guard failed with the miss-program lanes ON: a "
         "labeled must-NOT-fire chart fires through one of the four lanes. "
-        "Run `python -m tools.negative_corpus --check` with the flag(s) "
+        "Run `python -m tools.regression.negative_corpus --check` with the flag(s) "
         "forced to name the case; the lane must own it before any flip."
     )
 

@@ -22,9 +22,9 @@ from config import settings
 from core.pipeline.screening import scan_job as sj
 from core.pipeline.screening import screener as scr
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from tools.calibration.replay import fixture_frame
 
 pytestmark = pytest.mark.regression
 

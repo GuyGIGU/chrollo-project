@@ -34,10 +34,10 @@ from core.pipeline.screening.screener import _evaluate_ticker, evaluate_ticker_w
 from engine_alpha.structure.box import near_miss as near_miss_mod
 from engine_alpha.structure.box.box_gates import GATE_LEG_INDEX
 from engine_alpha.structure.narrative.reader import read_structure
-from tools import negative_corpus, shadow_diff
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame, prepared_frame
+from tools.regression import negative_corpus, shadow_diff
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from tools.calibration.replay import fixture_frame, prepared_frame
 
 pytestmark = pytest.mark.regression
 

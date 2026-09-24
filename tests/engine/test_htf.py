@@ -3,7 +3,7 @@
 These cover the deterministic plumbing — resampling, the window-override context
 manager, the Stage-2 read, field derivation, and guards. Whether the box-tolerant
 walk finds real boxes on real charts is a calibration question exercised by
-tools/htf_audit.py, not asserted here.
+tools/audits/htf_audit.py, not asserted here.
 """
 import sys
 

@@ -4,7 +4,7 @@ The hermetic guard (``core.archive.seed_recall.hermetic_check_baseline``) replay
 a COMMITTED OHLCV fixture (``tests/baselines/seed_recall_fixture.parquet`` — every
 active seed winner's frozen frames + SPY) through the SAME ``_scan_back_seeds``
 fold the live recall uses, entirely offline, and fails if a known winner the
-engine used to re-find is now missed. It is the sibling of the ``tools.shadow_diff``
+engine used to re-find is now missed. It is the sibling of the ``tools.regression.shadow_diff``
 guard, but over the curated winners via the seed twin ``_evaluate_at_date``.
 
 The FULL replay runs the eval chain ~700× (52 winners × the -WINDOW_BACK/+WINDOW_FWD

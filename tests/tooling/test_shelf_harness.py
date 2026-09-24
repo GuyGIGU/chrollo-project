@@ -19,7 +19,7 @@ from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from tools.shelf_harness import probe_shelf
+from tools.calibration.shelf_harness import probe_shelf
 
 pytestmark = pytest.mark.regression
 

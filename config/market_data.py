@@ -18,7 +18,7 @@ DATA_DIVIDEND_ADJUSTED = False
 # Market-data source. The screener fetches its canonical panel through
 # core.pipeline.market_data.providers.get_provider(), not directly from a vendor, so a
 # bulk-EOD source can be added behind the same contract and validated against
-# the incumbent (tools/provider_parity.py) before it feeds an archiveable scan.
+# the incumbent (tools/audits/provider_parity.py) before it feeds an archiveable scan.
 # "yahoo" wraps the existing yfinance path verbatim — the default is a no-op.
 MARKET_DATA_PROVIDER = "yahoo"
 

@@ -11,8 +11,10 @@ import pytest
 from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from tools import backtest_engine, build_universe_returns, fold_parity  # noqa: E402
-from tools import full_package_render, provider_parity  # noqa: E402
+from tools.research import backtest_engine, build_universe_returns  # noqa: E402
+from tools.regression import fold_parity  # noqa: E402
+from tools.research import full_package_render  # noqa: E402
+from tools.audits import provider_parity  # noqa: E402
 
 SEALED = os.path.join(str(ROOT), "docs", "marks", "evil_report.json")
 

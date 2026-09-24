@@ -115,7 +115,7 @@ def power_play_fields(state, clock, *, climax_date=None, ar_date=None,
 
 
 # ── The species episode mechanics (ONE implementation — EC-18) ──────────────
-# The census (tools/power_play_census.py) and the live lane
+# The census (tools/research/power_play_census.py) and the live lane
 # (evaluation.species_watch) share these; neither re-implements the
 # enumeration or the wall arithmetic.
 

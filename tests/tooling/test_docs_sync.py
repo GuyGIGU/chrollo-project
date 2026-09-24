@@ -2,7 +2,7 @@
 
 docs/strategy_alpha.md's quick-reference was hand-maintained and had already
 drifted (stale values, newer constants missing). It is now a GENERATED block
-(``tools.settings_reference``) built from the frozen engine-identity allow-list
+(``tools.maintenance.settings_reference``) built from the frozen engine-identity allow-list
 (``engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS``) + live ``config/settings.py``
 values. This test asserts the committed doc matches the generator, so any
 settings or manifest change that skips regenerating the doc fails the suite -
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 
-from tools import settings_reference
+from tools.maintenance import settings_reference
 
 
 def test_quick_reference_markers_present():
@@ -29,11 +29,11 @@ def test_quick_reference_matches_live_settings():
     """The committed block must equal the generator's output byte-for-byte.
 
     Fails whenever a manifest constant's value, the allow-list membership, or
-    the manifest hash moved without `python -m tools.settings_reference --write`
+    the manifest hash moved without `python -m tools.maintenance.settings_reference --write`
     being run and committed in the same change.
     """
     assert settings_reference.check_doc() is True, (
         "docs/strategy_alpha.md's Settings Quick-Reference drifted from "
-        "config/settings.py - run `python -m tools.settings_reference --write` "
+        "config/settings.py - run `python -m tools.maintenance.settings_reference --write` "
         "and commit the doc in the SAME change as the settings/manifest edit."
     )

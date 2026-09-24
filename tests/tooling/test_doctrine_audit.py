@@ -1,6 +1,6 @@
 """The doctrine gate's plumbing lives IN pytest so it cannot go dark (again).
 
-``tools.doctrine_audit`` is the ONE offline guard that proves the reading is
+``tools.audits.doctrine_audit`` is the ONE offline guard that proves the reading is
 RIGHT rather than merely unchanged — and until now the only one with zero
 pytest presence. It has already gone silently dark once: a monkey-patched spy
 pinned an old engine signature, every read raised TypeError inside the spy,
@@ -33,7 +33,7 @@ import config.settings as settings
 from engine_alpha import evaluation
 from engine_alpha.structure.narrative import bricks
 from engine_alpha.structure.narrative.reader import read_structure
-from tools import doctrine_audit
+from tools.audits import doctrine_audit
 
 
 # ── (a) The spied/called engine seams: signature pins ────────────────────────
@@ -43,18 +43,18 @@ def test_the_spied_cause_seam_signature_still_matches():
     to the elected Structure). The spy itself is *args/**kwargs-transparent —
     deliberately, after the arity trap — so a seam change would NOT crash it;
     it would silently change what the spy's captured value MEANS. Red here =
-    re-verify the spy comment in tools/doctrine_audit.py against the new seam,
+    re-verify the spy comment in tools/audits/doctrine_audit.py against the new seam,
     then update this pin deliberately."""
     params = list(inspect.signature(bricks._cause_is_up).parameters)
     assert params == ["df", "root", "pbs", "terminal_floor"], (
         f"bricks._cause_is_up signature moved (now {params}) — the doctrine "
         "audit's cause spy interprets this seam's calls; re-verify the spy "
-        "semantics in tools/doctrine_audit.py before updating this pin"
+        "semantics in tools/audits/doctrine_audit.py before updating this pin"
     )
     # The audit patches exactly this attribute; if the spy is ever re-pointed,
     # this pin must move with it in the same change.
     assert "bricks._cause_is_up" in inspect.getsource(doctrine_audit), (
-        "tools/doctrine_audit.py no longer references bricks._cause_is_up — "
+        "tools/audits/doctrine_audit.py no longer references bricks._cause_is_up — "
         "the spy moved; re-point this suite's signature pins at the new seam"
     )
 

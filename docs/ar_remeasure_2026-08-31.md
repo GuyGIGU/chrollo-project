@@ -14,7 +14,7 @@ flag, or keep it dark purely as the anchor program's measuring instrument. The k
 was NOT re-dated; it stands at 2026-09-15 and deletes if unruled.
 
 Backing artifacts, committed: the fleet scan at
-[`tools/fidelity/ar_first_reaction_2026-08-31/scan_2026-08-31.txt`](../tools/fidelity/ar_first_reaction_2026-08-31/scan_2026-08-31.txt),
+[`tools/fidelity/ar_first_reaction_2026-08-31/scan_2026-08-31.txt`](../research/fidelity/ar_first_reaction_2026-08-31/scan_2026-08-31.txt),
 and the re-key isolation (script + result) in the same directory.
 
 ## Commands run

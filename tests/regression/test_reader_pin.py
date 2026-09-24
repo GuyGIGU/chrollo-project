@@ -1,6 +1,6 @@
-"""The reader-vocabulary pin (tools.reader_pin), run for real plus its plumbing.
+"""The reader-vocabulary pin (tools.regression.reader_pin), run for real plus its plumbing.
 
-The pin used to be a DARK gate: `python -m tools.reader_pin --check` was named
+The pin used to be a DARK gate: `python -m tools.regression.reader_pin --check` was named
 in AGENTS.md and wired into nothing, so its coverage depended on a human
 remembering to type it — and it is the ONLY guard that can see a change to what
 the rail readers SAY on a chart whose canonical output fields never move
@@ -20,7 +20,7 @@ import os
 
 import pytest
 
-from tools import reader_pin
+from tools.regression import reader_pin
 
 
 @pytest.mark.regression
@@ -35,7 +35,7 @@ def test_reader_pin_reports_no_reading_drift():
     """
     assert reader_pin.check_baseline() is True, (
         "reader-vocabulary drift: a rail reader says something different about "
-        "a fixture chart. Re-run `python -m tools.reader_pin --check` to see the "
+        "a fixture chart. Re-run `python -m tools.regression.reader_pin --check` to see the "
         "population/chart/field, then fix the regression - or, ONLY at a ruled "
         "vocabulary seam (EC-29), re-capture with --capture in that same commit."
     )
@@ -43,7 +43,7 @@ def test_reader_pin_reports_no_reading_drift():
 
 def _baseline():
     assert os.path.exists(reader_pin._BASELINE_PATH), (
-        "reader_pin baseline missing - run `python -m tools.reader_pin --capture` "
+        "reader_pin baseline missing - run `python -m tools.regression.reader_pin --capture` "
         "at a clean seam commit (EC-29)")
     with open(reader_pin._BASELINE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -63,7 +63,7 @@ def test_baseline_parses_and_covers_all_three_populations():
     # he draws a chart. Bind it to the corpus it is supposed to cover instead —
     # which is the stronger check anyway: the old literal would have passed with
     # the pin covering 33 charts that were not the 33 in the corpus.
-    from tools.marks_corpus import load_corpus, setup_key
+    from tools.regression.marks_corpus import load_corpus, setup_key
     corpus_keys = {setup_key(s) for s in load_corpus()}
     assert set(pops["marks"]) == corpus_keys, (
         "the reader pin does not cover exactly the current marks corpus — "

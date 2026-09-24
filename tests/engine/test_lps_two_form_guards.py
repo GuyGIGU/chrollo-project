@@ -28,10 +28,10 @@ sys.path.insert(0, str(ROOT))
 
 from config import settings
 from core.pipeline.screening.screener import _evaluate_ticker
-from tools import shadow_diff
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame
+from tools.regression import shadow_diff
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from tools.calibration.replay import fixture_frame
 
 pytestmark = pytest.mark.regression
 

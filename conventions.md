@@ -157,7 +157,7 @@ the thirty survivors had been edited** (rails, LPS windows, triggers) with only 
 
 **Convention:** The calibration-marks DB (`calibration_marks`, operator-owned) is EDITABLE ground
 truth and is THE population. `docs/marks/` is a REGENERATED projection of it, not a sealed island:
-`tools.guided_list_export` overwrites, and `tools.marks_corpus --check` FAILS (never advises) when the
+`tools.calibration.guided_list_export` overwrites, and `tools.regression.marks_corpus --check` FAILS (never advises) when the
 corpus no longer matches the live DB on a machine that has one. An absent DB is not drift — CI grades
 the committed fixture.
 
@@ -228,11 +228,11 @@ operator-confirmed 2026-07-25
 
 ### EC-13: Marks-consuming instruments use the ONE validated loader and stamp the exact set scored
 **Convention:** Every tool that reads a marks population loads it through the shared validated
-loader (`tools.calibration_harness.load_marks` / `load_box_marks`) — a malformed row aborts the
+loader (`tools.calibration.calibration_harness.load_marks` / `load_box_marks`) — a malformed row aborts the
 batch naming the offender, never a silent skip — and every report stamps its population name, the
 fingerprint of EXACTLY the marks it scored (a filtered run stamps the filtered set), and the engine
-manifest hash. No instrument re-implements mark loading, window indexing (`tools.replay.session_pos`),
-or frame enrichment (`tools.replay.enrich_marked_frame`).
+manifest hash. No instrument re-implements mark loading, window indexing (`tools.calibration.replay.session_pos`),
+or frame enrichment (`tools.calibration.replay.enrich_marked_frame`).
 **Origin:** Fowler / Hunt / McKinney — Council Review 2026-07-24-1903 (engine/gap-breach);
 operator-confirmed 2026-07-25
 **Principle:** `conventions.md` EC-3 / EC-9; `references/refactoring.md` → P5 (twin code paths)
@@ -687,7 +687,7 @@ operator-delegated 2026-08-17
 **Pattern:** A differently-clocked or differently-flagged read enters the engine through
 `htf.window_override` with a DECLARED settings dict (`HTF_WEEKLY_WINDOWS`,
 `HTF_MONTHLY_WINDOWS`, `POWER_PLAY_WINDOWS`) — never a forked collector, a hand-threaded
-parameter, or a per-call setattr patch. `tools.replay.flag_capture` is a thin
+parameter, or a per-call setattr patch. `tools.calibration.replay.flag_capture` is a thin
 validate-first wrapper delegating to the same core. Do NOT flag the setattr save/restore
 mechanism as a smell, propose threading window parameters through call signatures, or
 re-introduce a second save/restore core.

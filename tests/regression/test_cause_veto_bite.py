@@ -2,7 +2,7 @@
 
 ``CAUSE_BEFORE_EFFECT_VETO_ENABLED`` is live on main but shipped without a
 regression guard - nothing red if a future change silently defeated it. This
-module runs the REAL bite-proof (``tools.cause_veto_corpus.check_corpus``)
+module runs the REAL bite-proof (``tools.regression.cause_veto_corpus.check_corpus``)
 against the COMMITTED fixture: the census-defining MIDD frame, replayed BOTH
 directions - the veto ON must reject it, the veto OFF must fire it. A change
 that defeats the veto reds the ON direction; a change that makes the frame
@@ -19,7 +19,7 @@ import os
 import pytest
 
 from engine_alpha.evaluation import EVAL_ERROR
-from tools import cause_veto_corpus
+from tools.regression import cause_veto_corpus
 
 pytestmark = pytest.mark.regression
 
@@ -29,11 +29,11 @@ def test_cause_veto_fixture_and_meta_are_committed():
     skip), a silent skip reopens the blind spot the veto has no other net for."""
     assert os.path.exists(cause_veto_corpus._FIXTURE_PARQUET), (
         f"Missing cause-veto fixture at {cause_veto_corpus._FIXTURE_PARQUET}; "
-        "run `python -m tools.cause_veto_corpus --build-fixture` and commit it."
+        "run `python -m tools.regression.cause_veto_corpus --build-fixture` and commit it."
     )
     assert os.path.exists(cause_veto_corpus._FIXTURE_META), (
         f"Missing cause-veto meta at {cause_veto_corpus._FIXTURE_META}; "
-        "run `python -m tools.cause_veto_corpus --build-fixture` and commit it."
+        "run `python -m tools.regression.cause_veto_corpus --build-fixture` and commit it."
     )
 
 
@@ -47,7 +47,7 @@ def test_veto_still_bites_both_directions():
     assert cause_veto_corpus.check_corpus() is True, (
         "Cause-veto bite-proof failed: the live veto no longer suppresses the "
         "frozen MIDD-class frame (or the frame no longer fires without it). "
-        "Re-run `python -m tools.cause_veto_corpus --check` to see which direction."
+        "Re-run `python -m tools.regression.cause_veto_corpus --check` to see which direction."
     )
 
 

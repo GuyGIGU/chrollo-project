@@ -17,7 +17,7 @@ import pytest
 
 from _paths import REPO_ROOT
 from config import settings
-from tools import power_play_census as census
+from tools.research import power_play_census as census
 
 # ── the hand-reasoned pole frame ────────────────────────────────────────────
 # pre   [0, 400)   : linear 40 -> 50

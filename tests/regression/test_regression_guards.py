@@ -1,6 +1,6 @@
 """End-to-end regression-guard test wired into pytest/CI.
 
-The headline shadow-output guard (``tools.shadow_diff.check_baseline``) was
+The headline shadow-output guard (``tools.regression.shadow_diff.check_baseline``) was
 previously MANUAL-ONLY: CI ran compileall + pytest but never the drift guard,
 so a change that silently altered a canonical screener output could pass CI.
 
@@ -21,10 +21,10 @@ import os
 
 import pytest
 
-# Import path (`from tools.shadow_diff import ...`) is already exercised by the
+# Import path (`from tools.regression.shadow_diff import ...`) is already exercised by the
 # existing suite (tests/integration/test_guards.py, tests/scoring/test_scoring.py, etc.), so pytest's
 # rootdir is on sys.path and this import resolves without extra bootstrapping.
-from tools import shadow_diff
+from tools.regression import shadow_diff
 
 pytestmark = pytest.mark.regression
 
@@ -37,15 +37,15 @@ def test_shadow_baseline_and_fixture_are_committed():
     """
     assert os.path.exists(shadow_diff._BASELINE_PATH), (
         f"Missing committed shadow baseline at {shadow_diff._BASELINE_PATH}; "
-        "run `python -m tools.shadow_diff --capture` and commit it."
+        "run `python -m tools.regression.shadow_diff --capture` and commit it."
     )
     assert os.path.exists(shadow_diff._FIXTURE_PARQUET), (
         f"Missing frozen shadow fixture at {shadow_diff._FIXTURE_PARQUET}; "
-        "run `python -m tools.shadow_diff --build-fixture` and commit it."
+        "run `python -m tools.regression.shadow_diff --build-fixture` and commit it."
     )
     assert os.path.exists(shadow_diff._FIXTURE_SCALARS), (
         f"Missing frozen fixture scalars at {shadow_diff._FIXTURE_SCALARS}; "
-        "run `python -m tools.shadow_diff --build-fixture` and commit it."
+        "run `python -m tools.regression.shadow_diff --build-fixture` and commit it."
     )
 
 
@@ -59,7 +59,7 @@ def test_shadow_output_guard_no_drift():
     """
     assert shadow_diff.check_baseline() is True, (
         "Shadow-output guard drifted: a canonical screener output changed "
-        "against the committed baseline. Re-run `python -m tools.shadow_diff "
+        "against the committed baseline. Re-run `python -m tools.regression.shadow_diff "
         "--check` locally to see the exact ticker/field, then either fix the "
         "regression or, if the change is intended, re-capture the baseline."
     )

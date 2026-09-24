@@ -686,7 +686,7 @@ def elected_trend_leg_base(df, terminal_bar, direction, *,
 
     Its engine consumer (``first_reaction_after``) retired 2026-09-08 with
     ``AR_FIRST_REACTION_ENABLED``; this survives because
-    ``tools/full_package_render.py`` draws the full leg, and the climax-anchor
+    ``tools/research/full_package_render.py`` draws the full leg, and the climax-anchor
     program that renderer serves is still open.
 
     Returns ``(start_bar, start_price)`` in df positions, or ``None`` when no

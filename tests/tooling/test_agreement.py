@@ -9,7 +9,7 @@ from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from engine_alpha.election_identity import rails_match, same_election
-from tools.agreement import (
+from tools.calibration.agreement import (
     OUTCOMES,
     fired_inside_window,
     grade_mark,
@@ -156,7 +156,7 @@ def test_same_election_identity():
 
 
 def test_ungraded_rows_stay_inside_the_closed_set():
-    from tools.agreement import ungraded
+    from tools.calibration.agreement import ungraded
     row = ungraded("basis_mismatch", "no frozen frame matches")
     assert row["outcome"] in OUTCOMES and "detail" in row
     with pytest.raises(ValueError):
