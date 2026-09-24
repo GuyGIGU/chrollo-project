@@ -19,9 +19,9 @@ import pytest
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure import box_gates
+from engine_alpha.structure.box import box_gates
 from engine_alpha.structure.lps import detect_lps, detect_lps_candidates
-from engine_alpha.structure.phase_features import _phase_c_candidate
+from engine_alpha.structure.phases.phase_features import _phase_c_candidate
 
 STEP2_FLAGS = (
     "RESPECT_WHOLE_BAR_ENABLED", "DWELL_GRADED_ENABLED", "BOX_HANDOVER_RANGES_ENABLED",
@@ -264,7 +264,7 @@ def test_the_one_window_rule_never_thins_the_support_test_staircase(monkeypatch,
 
 
 def test_the_hand_over_reads_the_close_in_ranges_above_r(monkeypatch):
-    from engine_alpha.structure.box_primitives import _still_backing_up
+    from engine_alpha.structure.box.box_primitives import _still_backing_up
     # R 100, one daily range 2: a close at 104 sits 2 ranges (4 percent of price) over R.
     assert _still_backing_up(104.0, 100.0, 2.0) is True, "today: within 15 percent of price, still backing up"
     monkeypatch.setattr(settings, "BOX_HANDOVER_RANGES_ENABLED", True)
@@ -273,7 +273,7 @@ def test_the_hand_over_reads_the_close_in_ranges_above_r(monkeypatch):
 
 
 def test_ranges_yardstick_reads_the_shelf_lift_above_r_in_ranges(monkeypatch):
-    from engine_alpha.structure.lps import _pullback_rest_depth_ok
+    from engine_alpha.structure.lps.detection import _pullback_rest_depth_ok
     # A 5-day shelf above R 110 on a box 10 tall; the last close 114 sits 0.4 box heights over R.
     shelf = (0.05, "OVERSHOOT_R", 114.0, 110.0, 10.0, 5, 111.0)
     assert _pullback_rest_depth_ok(*shelf, atr_val=4.0)[1] is False, "today: over the 0.35 box-height cap"

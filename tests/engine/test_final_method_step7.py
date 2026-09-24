@@ -25,7 +25,7 @@ import pytest
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 from engine_alpha.scoring.scoring import calculate_structure_tier
-from engine_alpha.structure import box_gates, box_primitives
+from engine_alpha.structure.box import box_gates, box_primitives
 
 WIDTH = "BOX_WIDTH_CAPS_GRADED_ENABLED"
 LO, HI = 100.0, 125.0          # a clean zigzag 26 percent of price wide, wick to wick
@@ -92,7 +92,7 @@ def test_the_strict_pool_no_longer_refuses_a_pair_on_width(monkeypatch):
 
 
 def test_the_band_pool_reaches_its_event_read_on_a_wide_pair(monkeypatch):
-    from engine_alpha.structure import rail_qualification
+    from engine_alpha.structure.box import rail_qualification
 
     seen = []
     monkeypatch.setattr(rail_qualification, "qualify_pair_events", lambda *a, **k: seen.append(a) or None)
@@ -105,7 +105,7 @@ def test_the_band_pool_reaches_its_event_read_on_a_wide_pair(monkeypatch):
 
 
 def test_the_story_pool_reaches_its_posture_read_on_a_wide_pair(monkeypatch):
-    from engine_alpha.structure import event_map
+    from engine_alpha.structure.events import event_map
 
     seen = []
     monkeypatch.setattr(event_map, "frame_terminal_posture", lambda *a, **k: seen.append(a) or False)
@@ -176,7 +176,7 @@ def _spring_frame(depth):
 
 
 def test_a_spring_deeper_than_three_ranges_is_read_under_the_switch(monkeypatch):
-    from engine_alpha.structure.phase_features import _phase_c_candidate
+    from engine_alpha.structure.phases.phase_features import _phase_c_candidate
 
     kw = dict(box_start=0, base_len=60, R=110.0, S=100.0, atr_val=1.0)
     deep, shallow = _spring_frame(4.0), _spring_frame(2.5)
@@ -188,7 +188,7 @@ def test_a_spring_deeper_than_three_ranges_is_read_under_the_switch(monkeypatch)
 
 
 def test_the_band_pool_no_longer_caps_an_event_by_length(monkeypatch):
-    from engine_alpha.structure.rail_qualification import _qualify_band
+    from engine_alpha.structure.box.rail_qualification import _qualify_band
 
     n = 80
     close, low, high = np.full(n, 105.0), np.full(n, 104.0), np.full(n, 106.0)
@@ -201,7 +201,7 @@ def test_the_band_pool_no_longer_caps_an_event_by_length(monkeypatch):
 
 
 def test_the_band_pool_no_longer_caps_an_event_by_depth(monkeypatch):
-    from engine_alpha.structure import rail_qualification
+    from engine_alpha.structure.box import rail_qualification
 
     seen = []
     monkeypatch.setattr(rail_qualification, "_qualify_band", lambda *a, **k: seen.append(k["max_depth"]) or None)
@@ -252,7 +252,7 @@ def test_a_long_run_beyond_a_rail_no_longer_refuses(monkeypatch):
 
 
 def test_the_band_pool_no_longer_caps_a_run_above_resistance(monkeypatch):
-    from engine_alpha.structure.rail_qualification import _qualify_band
+    from engine_alpha.structure.box.rail_qualification import _qualify_band
 
     n = 80
     close, low, high = np.full(n, 105.0), np.full(n, 104.0), np.full(n, 106.0)

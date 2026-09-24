@@ -805,7 +805,7 @@ TURN_LINE_FLOOR_ATR = 0.75         # placed by the sweep on his 186 turns (his Q
 
 # ── The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK. ──
 # His points 10 to 15 (docs/final_method_2026-09.md): a MEASURE-ONLY reader
-# (engine_alpha/structure/line_words.py) over the one turn line, the elected
+# (engine_alpha/structure/events/line_words.py) over the one turn line, the elected
 # rails, the elected LPS and the mini. Nothing that elects, vetoes, grades or
 # displays reads it; each flag only adds its own word to ONE JSON diagnostic
 # on a fire (_line_words_json). The words read the line whatever
@@ -816,7 +816,7 @@ TURN_LINE_FLOOR_ATR = 0.75         # placed by the sweep on his 186 turns (his Q
 # question still open).
 #
 # MEASURED on his 35 marks, his rails, fed his drawn LPS windows
-# (python -m tools.word_recall; a hit is within one trading day; CHANCE is
+# (python -m tools.calibration.word_recall; a hit is within one trading day; CHANCE is
 # the same score with his day moved three trading days either way):
 #   a thrust at his SOS top   25 of 26 (chance 12)   THE SOS  23 of 25 (chance 0)
 #   last supper               10 of 10 (chance 0.5)  Phase C  10 of 10 (chance 0)
@@ -913,7 +913,7 @@ BOX_OPENS_ON_ANCHORS_ENABLED = False
 # Under the switch the roots are the runs the ONE turn line prints (higher highs and higher lows, or the mirror;
 # a run ends at the first swing that fails to continue it), each run's climax and its reaction low (the lowest low
 # of the reaction before the first higher low, point 4's reaction-low rule) decided FIRST
-# (engine_alpha/structure/climax.py, bricks.find_root_swing); the window opens AT the climax and the candidate
+# (engine_alpha/structure/phases/climax.py, bricks.find_root_swing); the window opens AT the climax and the candidate
 # pairs are the line's own turns walked forward from it, the climax and its reaction the first pair; a pair is a
 # candidate once the following swings answer to its rails (a later committed turn of the line inside each
 # rail's area, LINE_WORD_AREA_ATR); first in time wins as before (R4). Retired under the switch: the seed's
@@ -930,7 +930,7 @@ CLIMAX_FIRST_WALK_ENABLED = False
 # Points 6, 8 and 26 of docs/final_method_2026-09.md, his Q6 ("if the price continues to Rise/Fall with out
 # recovering we can deduce that either that the consolidating structure we measured ended and the price began to
 # trend") and his dead-space drawings of Sat 19/09/2026. Under the switch an elected box is read for its END on the
-# line (engine_alpha/structure/box_end.py): upward, the hand-over by swings (after the breakout day, R15's one use
+# line (engine_alpha/structure/box/box_end.py): upward, the hand-over by swings (after the breakout day, R15's one use
 # of the close, every swing whose valley holds in or above the parent's R area is a child root candidate, and the
 # parent ends when a child's own answering completes, a later turn of the line inside the area of EACH of its
 # anchors: one turn at one anchor is the parent's own LPS above R, row 1 of point 6's table, and the parent goes on

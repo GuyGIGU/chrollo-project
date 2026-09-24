@@ -4,16 +4,16 @@ The refactor on `claude/domain-refactor` grouped the code by what it does. It ru
 
 The machine-readable map is [2026-09-domain-refactor.json](2026-09-domain-refactor.json). [apply_move_map.py](../../tools/maintenance/apply_move_map.py) reads it to port a branch, and [test_apply_move_map.py](../../tests/tooling/test_apply_move_map.py) checks that the rewrite is idempotent, that every import it writes resolves, and that every file move in the JSON has a row on this page. The tables below are generated from the JSON; if you edit one, edit the other.
 
-The JSON records 586 file moves, 138 Python module moves, 10 whole-folder moves and 5 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own.
+The JSON records 575 file moves, 134 Python module moves, 10 whole-folder moves and 16 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; eleven of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
 
 | Area | Files moved |
 |---|---|
-| Engine | 29 |
+| Engine | 28 |
 | Pipeline | 21 |
 | Backend | 47 |
 | Frontend | 220 |
-| Tests | 157 |
-| Tools | 45 |
+| Tests | 150 |
+| Tools | 42 |
 | Research evidence | 67 |
 
 ## How to port a branch
@@ -155,6 +155,10 @@ On 2026-09-24 the replay layer and the agreement taxonomy moved a second time, f
 
 Also on 2026-09-24, the Windows event-log resolver left `webapp/backend/services/scan_diagnosis.py` for `services/interruption_cause.py`: `resolve_pending`, `classify_interrupted`, `evidence_window_end`, `boot_time`, `collect_machine_down_events`, `parse_events`, `_pending_rows`, `_stamp_kind`, `DETECTION_GRACE_SECONDS`, `EVIDENCE_HORIZON_DAYS` and `WEVTUTIL_TIMEOUT_SECONDS` (and `_parse_iso` became `scan_diagnosis.parse_iso`). The failure verdicts and their words stay in `scan_diagnosis`. A branch that calls one of those names gets an `AttributeError` at service start, not at merge time, so grep for them after merging.
 
+## Deleted after the refactor
+
+On 2026-09-25 the final-method branch (`claude/method-steps-7-12`) was merged onto this layout, and with it the operator's ruling of Sat 19/09/2026 (build step 12, point 25) that deletes the Power Play species lane. Eleven files the refactor had moved went with it: the engine module `engine_alpha/structure/context/power_play.py`, three tools (`tools/research/power_play_census.py`, `tools/regression/power_play_fixture.py`, `tools/research/power_play_sheets.py`) and seven test files. Their moves are no longer in the JSON's `file_moves` and `module_moves`, because the porter must never write a path that does not exist; each old path is in `deleted` instead, with the home it had, and the four modules (`engine_alpha.structure.power_play`, `tools.power_play_census`, `tools.power_play_fixture`, `tools.power_play_sheets`) are reported notes, so a branch that still imports one is told the module is gone rather than pointed at a file that is not there. Nothing replaces them: `POWER_PLAY_STORY_FORM_ENABLED` stays in `config/engine.py` for the contraction rescue, and the `pp_*` archive columns stay on the model.
+
 ## What was deleted, and why
 
 | Path | Why |
@@ -164,6 +168,17 @@ Also on 2026-09-24, the Windows event-log resolver left `webapp/backend/services
 | `webapp/backend/routers/__init__.py` | Every router moved into its domain folder; the empty package was left with no modules. |
 | `webapp/backend/services/startup.py` | Split into app/startup.py, app/migrations/*, app/reconciliation.py (the lifespan went to app/lifecycle.py); after the split it was only an alias. |
 | `webapp/backend/services/core_settings.py` | Moved to app/core_settings.py (recorded as a manual move; git scores it as delete + add). |
+| `engine_alpha/structure/power_play.py` | The refactor moved it to engine_alpha/structure/context/power_play.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tests/test_first_legal_look.py` | The refactor moved it to tests/engine/test_first_legal_look.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tests/test_power_play_acceptance.py` | The refactor moved it to tests/regression/test_power_play_acceptance.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tests/test_power_play_archive.py` | The refactor moved it to tests/archive/test_power_play_archive.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tests/test_power_play_census.py` | The refactor moved it to tests/tooling/test_power_play_census.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tests/test_power_play_lane.py` | The refactor moved it to tests/engine/test_power_play_lane.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tests/test_power_play_preset.py` | The refactor moved it to tests/engine/test_power_play_preset.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tests/test_power_play_sheets.py` | The refactor moved it to tests/tooling/test_power_play_sheets.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tools/power_play_census.py` | The refactor moved it to tools/research/power_play_census.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tools/power_play_fixture.py` | The refactor moved it to tools/regression/power_play_fixture.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `tools/power_play_sheets.py` | The refactor moved it to tools/research/power_play_sheets.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
 
 Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webapp/backend/ibkr/`, which the first commit had left behind as aliases. Across the whole refactor git pairs each of them with its new home, so they appear as moves in the tables below, not here.
 
@@ -234,7 +249,6 @@ Import names, as the porter rewrites them. Repo-root modules import from the rep
 | `engine_alpha.structure.phase_d` | `engine_alpha.structure.phases.phase_d` |
 | `engine_alpha.structure.phase_features` | `engine_alpha.structure.phases.phase_features` |
 | `engine_alpha.structure.pivots` | `engine_alpha.structure.metrics.pivots` |
-| `engine_alpha.structure.power_play` | `engine_alpha.structure.context.power_play` |
 | `engine_alpha.structure.rail_qualification` | `engine_alpha.structure.box.rail_qualification` |
 | `engine_alpha.structure.scope` | `engine_alpha.structure.context.scope` |
 | `engine_alpha.structure.segmentation` | `engine_alpha.structure.phases.segmentation` |
@@ -265,9 +279,6 @@ Import names, as the porter rewrites them. Repo-root modules import from the rep
 | `tools.negative_corpus` | `tools.regression.negative_corpus` |
 | `tools.operator_marks_diff` | `tools.research.operator_marks_diff` |
 | `tools.pointer_audit` | `tools.audits.pointer_audit` |
-| `tools.power_play_census` | `tools.research.power_play_census` |
-| `tools.power_play_fixture` | `tools.regression.power_play_fixture` |
-| `tools.power_play_sheets` | `tools.research.power_play_sheets` |
 | `tools.provider_parity` | `tools.audits.provider_parity` |
 | `tools.rail_area_census` | `tools.research.rail_area_census` |
 | `tools.rail_margin_ab` | `tools.research.rail_margin_ab` |
@@ -380,7 +391,6 @@ Whole folders that moved unchanged:
 | `engine_alpha/structure/phase_d.py` | `engine_alpha/structure/phases/phase_d.py` |
 | `engine_alpha/structure/phase_features.py` | `engine_alpha/structure/phases/phase_features.py` |
 | `engine_alpha/structure/pivots.py` | `engine_alpha/structure/metrics/pivots.py` |
-| `engine_alpha/structure/power_play.py` | `engine_alpha/structure/context/power_play.py` |
 | `engine_alpha/structure/rail_qualification.py` | `engine_alpha/structure/box/rail_qualification.py` |
 | `engine_alpha/structure/scope.py` | `engine_alpha/structure/context/scope.py` |
 | `engine_alpha/structure/segmentation.py` | `engine_alpha/structure/phases/segmentation.py` |
@@ -742,7 +752,6 @@ Whole folders that moved unchanged:
 | `tests/test_fetch_repair.py` | `tests/market_data/test_fetch_repair.py` |
 | `tests/test_file_lock.py` | `tests/market_data/test_file_lock.py` |
 | `tests/test_fired_tags.py` | `tests/scoring/test_fired_tags.py` |
-| `tests/test_first_legal_look.py` | `tests/engine/test_first_legal_look.py` |
 | `tests/test_fold_parity.py` | `tests/tooling/test_fold_parity.py` |
 | `tests/test_frame_store.py` | `tests/backend/test_frame_store.py` |
 | `tests/test_framing_identity.py` | `tests/engine/test_framing_identity.py` |
@@ -791,12 +800,6 @@ Whole folders that moved unchanged:
 | `tests/test_phase_bins.py` | `tests/engine/test_phase_bins.py` |
 | `tests/test_pointer_audit.py` | `tests/tooling/test_pointer_audit.py` |
 | `tests/test_portfolio_stream_lifecycle.py` | `tests/backend/test_portfolio_stream_lifecycle.py` |
-| `tests/test_power_play_acceptance.py` | `tests/regression/test_power_play_acceptance.py` |
-| `tests/test_power_play_archive.py` | `tests/archive/test_power_play_archive.py` |
-| `tests/test_power_play_census.py` | `tests/tooling/test_power_play_census.py` |
-| `tests/test_power_play_lane.py` | `tests/engine/test_power_play_lane.py` |
-| `tests/test_power_play_preset.py` | `tests/engine/test_power_play_preset.py` |
-| `tests/test_power_play_sheets.py` | `tests/tooling/test_power_play_sheets.py` |
 | `tests/test_price_regime.py` | `tests/pipeline/test_price_regime.py` |
 | `tests/test_price_scale_unknown.py` | `tests/archive/test_price_scale_unknown.py` |
 | `tests/test_provider_capabilities.py` | `tests/market_data/test_provider_capabilities.py` |
@@ -881,9 +884,6 @@ Whole folders that moved unchanged:
 | `tools/negative_corpus.py` | `tools/regression/negative_corpus.py` |
 | `tools/operator_marks_diff.py` | `tools/research/operator_marks_diff.py` |
 | `tools/pointer_audit.py` | `tools/audits/pointer_audit.py` |
-| `tools/power_play_census.py` | `tools/research/power_play_census.py` |
-| `tools/power_play_fixture.py` | `tools/regression/power_play_fixture.py` |
-| `tools/power_play_sheets.py` | `tools/research/power_play_sheets.py` |
 | `tools/provider_parity.py` | `tools/audits/provider_parity.py` |
 | `tools/rail_area_census.py` | `tools/research/rail_area_census.py` |
 | `tools/rail_margin_ab.py` | `tools/research/rail_margin_ab.py` |

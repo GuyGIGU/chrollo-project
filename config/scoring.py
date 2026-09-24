@@ -285,7 +285,7 @@ BREADTH_ZERO_PCT = 0.35           # below 35% → zero points
 
 # VCP progressive-contraction footprint (the defining Minervini pattern):
 # 2-6 pullbacks each tighter than the last (18%→12%→6%), tight final
-# contraction. Measured by engine_alpha.structure.metrics.measure_contractions over the
+# contraction. Measured by engine_alpha.structure.metrics.base.measure_contractions over the
 # base window; scored as a sub-component. Measure-first — scored, not gated.
 SCORE_CONTRACTION = 12            # cap for the contraction-quality sub-score
 CONTRACTION_IDEAL_MIN = 2         # Minervini: 2-6 contractions, 3-4 typical
@@ -295,7 +295,7 @@ CONTRACTION_FINAL_LOOSE_PCT = 0.12  # final contraction ≥ 12% → zero
 
 # Ascending support / higher lows (Minervini "tennis-ball action", Qullamaggie
 # "higher lows surfing the rising EMA"): are the swing-low valleys stair-stepping
-# UP across the base? Measured by engine_alpha.structure.metrics.measure_support_slope
+# UP across the base? Measured by engine_alpha.structure.metrics.base.measure_support_slope
 # (ATR-normalized least-squares slope through the zigzag valley lows). Bonus-only,
 # measure-first — a flat or sagging floor simply earns zero, never penalized.
 SCORE_ASCENDING_SUPPORT = 8          # cap for the ascending-support sub-score

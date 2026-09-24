@@ -499,13 +499,6 @@
    "source": "git"
   },
   {
-   "old": "engine_alpha/structure/power_play.py",
-   "new": "engine_alpha/structure/context/power_play.py",
-   "area": "engine",
-   "similarity": 99,
-   "source": "git"
-  },
-  {
    "old": "engine_alpha/structure/rail_qualification.py",
    "new": "engine_alpha/structure/box/rail_qualification.py",
    "area": "engine",
@@ -3033,13 +3026,6 @@
    "source": "git"
   },
   {
-   "old": "tests/test_first_legal_look.py",
-   "new": "tests/engine/test_first_legal_look.py",
-   "area": "tests",
-   "similarity": 97,
-   "source": "git"
-  },
-  {
    "old": "tests/test_fold_parity.py",
    "new": "tests/tooling/test_fold_parity.py",
    "area": "tests",
@@ -3371,48 +3357,6 @@
   {
    "old": "tests/test_portfolio_stream_lifecycle.py",
    "new": "tests/backend/test_portfolio_stream_lifecycle.py",
-   "area": "tests",
-   "similarity": 97,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_power_play_acceptance.py",
-   "new": "tests/regression/test_power_play_acceptance.py",
-   "area": "tests",
-   "similarity": 95,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_power_play_archive.py",
-   "new": "tests/archive/test_power_play_archive.py",
-   "area": "tests",
-   "similarity": 97,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_power_play_census.py",
-   "new": "tests/tooling/test_power_play_census.py",
-   "area": "tests",
-   "similarity": 98,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_power_play_lane.py",
-   "new": "tests/engine/test_power_play_lane.py",
-   "area": "tests",
-   "similarity": 98,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_power_play_preset.py",
-   "new": "tests/engine/test_power_play_preset.py",
-   "area": "tests",
-   "similarity": 97,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_power_play_sheets.py",
-   "new": "tests/tooling/test_power_play_sheets.py",
    "area": "tests",
    "similarity": 97,
    "source": "git"
@@ -3968,27 +3912,6 @@
    "new": "tools/audits/pointer_audit.py",
    "area": "tools",
    "similarity": 88,
-   "source": "git"
-  },
-  {
-   "old": "tools/power_play_census.py",
-   "new": "tools/research/power_play_census.py",
-   "area": "tools",
-   "similarity": 93,
-   "source": "git"
-  },
-  {
-   "old": "tools/power_play_fixture.py",
-   "new": "tools/regression/power_play_fixture.py",
-   "area": "tools",
-   "similarity": 91,
-   "source": "git"
-  },
-  {
-   "old": "tools/power_play_sheets.py",
-   "new": "tools/research/power_play_sheets.py",
-   "area": "tools",
-   "similarity": 97,
    "source": "git"
   },
   {
@@ -4604,11 +4527,6 @@
    "root": "repo"
   },
   {
-   "old": "engine_alpha.structure.power_play",
-   "new": "engine_alpha.structure.context.power_play",
-   "root": "repo"
-  },
-  {
    "old": "engine_alpha.structure.rail_qualification",
    "new": "engine_alpha.structure.box.rail_qualification",
    "root": "repo"
@@ -4756,21 +4674,6 @@
   {
    "old": "tools.pointer_audit",
    "new": "tools.audits.pointer_audit",
-   "root": "repo"
-  },
-  {
-   "old": "tools.power_play_census",
-   "new": "tools.research.power_play_census",
-   "root": "repo"
-  },
-  {
-   "old": "tools.power_play_fixture",
-   "new": "tools.regression.power_play_fixture",
-   "root": "repo"
-  },
-  {
-   "old": "tools.power_play_sheets",
-   "new": "tools.research.power_play_sheets",
    "root": "repo"
   },
   {
@@ -4993,6 +4896,34 @@
     "_FROZEN_BREADTH": "domains.calibration.grading",
     "_FROZEN_SPY_6M": "domains.calibration.grading"
    }
+  },
+  {
+   "module": "engine_alpha.structure.power_play",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "engine_alpha.structure.power_play is gone: the refactor moved it to engine_alpha.structure.context.power_play, and it was deleted with the Power Play species lane (final method build step 12, point 25, 2026-09-19). Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.power_play_census",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.power_play_census is gone: the refactor moved it to tools.research.power_play_census, and it was deleted with the Power Play species lane (final method build step 12, point 25, 2026-09-19). Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.power_play_fixture",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.power_play_fixture is gone: the refactor moved it to tools.regression.power_play_fixture, and it was deleted with the Power Play species lane (final method build step 12, point 25, 2026-09-19). Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.power_play_sheets",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.power_play_sheets is gone: the refactor moved it to tools.research.power_play_sheets, and it was deleted with the Power Play species lane (final method build step 12, point 25, 2026-09-19). Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
   }
  ],
  "deleted": [
@@ -5015,6 +4946,50 @@
   {
    "path": "webapp/backend/services/core_settings.py",
    "why": "Moved to app/core_settings.py (recorded as a manual move; git scores it as delete + add)."
+  },
+  {
+   "path": "engine_alpha/structure/power_play.py",
+   "why": "The refactor moved it to engine_alpha/structure/context/power_play.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tests/test_first_legal_look.py",
+   "why": "The refactor moved it to tests/engine/test_first_legal_look.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tests/test_power_play_acceptance.py",
+   "why": "The refactor moved it to tests/regression/test_power_play_acceptance.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tests/test_power_play_archive.py",
+   "why": "The refactor moved it to tests/archive/test_power_play_archive.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tests/test_power_play_census.py",
+   "why": "The refactor moved it to tests/tooling/test_power_play_census.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tests/test_power_play_lane.py",
+   "why": "The refactor moved it to tests/engine/test_power_play_lane.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tests/test_power_play_preset.py",
+   "why": "The refactor moved it to tests/engine/test_power_play_preset.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tests/test_power_play_sheets.py",
+   "why": "The refactor moved it to tests/tooling/test_power_play_sheets.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tools/power_play_census.py",
+   "why": "The refactor moved it to tools/research/power_play_census.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tools/power_play_fixture.py",
+   "why": "The refactor moved it to tools/regression/power_play_fixture.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
+  },
+  {
+   "path": "tools/power_play_sheets.py",
+   "why": "The refactor moved it to tools/research/power_play_sheets.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25)."
   }
  ]
 }

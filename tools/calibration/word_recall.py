@@ -1,6 +1,6 @@
 """Word recall: his drawn event words against the words on the line (build step 5 of the final method).
 
-For each of his box marks, the words ``engine_alpha.structure.line_words`` reads on his read day, in his unit (the
+For each of his box marks, the words ``engine_alpha.structure.events.line_words`` reads on his read day, in his unit (the
 day's range six trading days back, the unit his numbers were placed in), against the words he drew. It CALLS the
 reader and never re-types a rule (EC-18). Read-only: the marks DB is opened ``mode=ro&immutable=1``, so no pragma,
 no WAL write and no commit can reach it. Not in pytest: CI has no marks DB.
@@ -30,7 +30,7 @@ box (a must, his ruling Mon 14/09/2026). It is scored as the reader emits it, an
 and first LPS (what the sixteenth sitting measured), so the rule and its inputs can be told apart; the report names
 the marks with no Phase D (every opening at or before the middle) and those opening well after his first event.
 
-usage: python -m tools.word_recall [--json PATH]
+usage: python -m tools.calibration.word_recall [--json PATH]
 """
 from __future__ import annotations
 
@@ -51,12 +51,12 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import database  # noqa: E402
-from engine_alpha.structure import line_words  # noqa: E402
-from engine_alpha.structure.bricks import find_inner_box  # noqa: E402
+from engine_alpha.structure.events import line_words  # noqa: E402
+from engine_alpha.structure.narrative.bricks import find_inner_box  # noqa: E402
 from engine_alpha.structure.narrative import read_structure  # noqa: E402
-from engine_alpha.structure.pivots import turn_line, turn_line_floors  # noqa: E402
-from tools.calibration_harness import load_box_marks  # noqa: E402
-from tools.replay import MARK_ATR_OFFSET, enrich_marked_frame, session_pos  # noqa: E402
+from engine_alpha.structure.metrics.pivots import turn_line, turn_line_floors  # noqa: E402
+from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
+from core.calibration.replay import MARK_ATR_OFFSET, enrich_marked_frame, session_pos  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 
 WORDS = ("sos", "sos strict", "the_sos", "the_sos strict", "last_supper", "phase_c", "spring_test",

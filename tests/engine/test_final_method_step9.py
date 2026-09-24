@@ -13,8 +13,9 @@ import pytest
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure import box_primitives, bricks
-from engine_alpha.structure.box_primitives import backext_shared_rail
+from engine_alpha.structure.box import box_primitives
+from engine_alpha.structure.narrative import bricks
+from engine_alpha.structure.box.box_primitives import backext_shared_rail
 
 SWITCH = "BOX_OPENS_ON_ANCHORS_ENABLED"
 S_VAL, R_VAL = 99.75, 110.25          # the wave's valley low and peak high

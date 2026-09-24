@@ -236,9 +236,9 @@ def test_the_largest_limb_on_the_line():
 def test_the_chain_carries_the_reads_only_under_the_ledger(monkeypatch):
     """The real cascade (EC-17) on the committed shadow fixture: flag-off byte-identical scores; flag-on the
     scorer reads the ledger (the total moves on at least one fire) and every grade stays on its scale."""
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from engine_alpha.evaluation import EVAL_ERROR
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
 
     frames, scalars = _load_fixture()
     breadth = scalars.get("breadth_pct")
@@ -272,9 +272,9 @@ def test_the_chain_carries_the_reads_only_under_the_ledger(monkeypatch):
 def test_the_chain_hands_the_height_to_the_ladder_and_the_reads_to_the_row(monkeypatch):
     """Under the switch compose_ta_grade receives the ledger's height read (the S ceiling in ranges rides it)
     and the row carries the five reads; the real cascade on the first firing fixture ticker."""
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from engine_alpha.evaluation import EVAL_ERROR
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
 
     seen = []
     real = evaluation.compose_ta_grade

@@ -33,8 +33,8 @@ from engine_alpha.evaluation import (
 )
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 from engine_alpha.structure.narrative import Structure, read_structure
-from engine_alpha.structure.pivots import turns_at_rails
-from tools.replay import flag_capture
+from engine_alpha.structure.metrics.pivots import turns_at_rails
+from core.calibration.replay import flag_capture
 
 SWITCH = "LPS_LEAVES_ELECTION_ENABLED"
 FLOOR = "WATCH_LANE_MIN_TURNS_PER_RAIL"
@@ -76,7 +76,7 @@ def _box(R=110.0, S=100.0, start=20):
 
 
 class _Bricks:
-    """Scripted roots and boxes (the fake of tests/test_final_method_step6.py): ``stories`` maps a root's
+    """Scripted roots and boxes (the fake of tests/engine/test_final_method_step6.py): ``stories`` maps a root's
     climax bar to (box, lps); the walk visits them oldest first."""
 
     def __init__(self, stories):
@@ -380,7 +380,7 @@ class _InlinePool:
 
 
 def test_the_conductor_publishes_the_lane_to_market_context(monkeypatch):
-    import core.pipeline.screener as screener_module
+    import core.pipeline.screening.screener as screener_module
 
     df = _zigzag_frame(480)
 

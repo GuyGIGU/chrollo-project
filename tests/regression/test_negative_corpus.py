@@ -8,7 +8,7 @@ guard (``tools.regression.negative_corpus.check_corpus``) end-to-end against the
 fixture: operator/dissection-labeled must-NOT-fire charts, each verified
 non-firing + baseline-passing at freeze time, replayed through the per-ticker
 pipeline on the fired-policy WINDOW the marks ratchet grades (the last ten
-trading days ending at the frozen day, ``tools.replay.fired_window_walk``;
+trading days ending at the frozen day, ``core.calibration.replay.fired_window_walk``;
 final method build step 1, 2026-09-13). Any case that fires on ANY window day
 fails the default pytest run (and CI).
 
@@ -216,7 +216,7 @@ def test_population_is_the_ruled_sixteen():
     for gone in ("NVT", "CHCT"):
         assert gone not in keys and gone not in frames, f"{gone} left the junk list on his ruling"
         assert all(c["ticker"] != gone for c in negative_corpus.CASES), (
-            f"{gone} is still in the build recipe (tools.negative_corpus.CASES)")
+            f"{gone} is still in the build recipe (tools.regression.negative_corpus.CASES)")
         assert gone not in negative_corpus.load_known_fires(), f"{gone} still carries a pinned fire day"
     assert "COLM" in keys, "COLM was ruled junk on 2026-09-10 and stays"
     assert "DGII" in keys, "DGII was not ruled on and stays"
@@ -473,7 +473,7 @@ def test_known_fires_baseline_is_committed_and_coherent():
     policy. Fail LOUDLY if the file is missing - the seam was declared."""
     assert os.path.exists(negative_corpus._BASELINE_JSON), (
         f"Missing {negative_corpus._BASELINE_JSON}; the Sun 13/09/2026 seam pinned the "
-        "early-window fires - run `python -m tools.negative_corpus --pin-known-fires` "
+        "early-window fires - run `python -m tools.regression.negative_corpus --pin-known-fires` "
         "only as a declared seam and commit it."
     )
     import json

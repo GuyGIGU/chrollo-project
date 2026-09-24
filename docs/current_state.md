@@ -11,11 +11,17 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   Merging the consolidation-method branch (`claude/eager-chatelet-65e8d4`, PR #11) onto this layout
   rotated it to `193b61c4…`, identity only: two flag keys (`BAR_POSTURE_RESCUE_ENABLED`,
   `SENTENCE_ARCHIVE_ENABLED`) and the signed sentence vocabulary joined the manifest; no value moved.
+  Merging the final-method branch (`claude/method-steps-7-12`, which carries `claude/sos-session` and
+  `claude/clever-napier-08f25d`) rotated it to `ef5de2f0…`: the operator's final method, steps 1 to 12,
+  is built DARK behind 27 default-off switches (52 keys join the manifest, every one off), and on his
+  ruling (point 25) the Power Play species lane is DELETED, so its live preset `POWER_PLAY_PRESET_ENABLED`
+  and four more keys leave the manifest and the lane's `pp_*` archive columns stay NULL from here on.
 - **Scoring:** tier comes from the TA grade against 62 / 52 / 42 / 32, with the
   `S_MAX_BOX_WIDTH` cap (0.15) on top (`config/scoring.py`). RS and uptrend weights are 0;
   the re-opened A/B recommends keeping them there, and the operator's answer is owed ([`asks.md`](asks.md)).
-- **Engine rewrite:** `claude/two-eyes-reader`, `claude/method-steps-7-12` and
-  `claude/sos-session` carry unmerged engine work. None of it is live here.
+- **Engine rewrite:** the final method (`claude/method-steps-7-12` with `claude/sos-session`) is merged
+  here, every switch dark; the approval sitting flips them together ([`final_method_2026-09.md`](final_method_2026-09.md)).
+  `claude/two-eyes-reader` still carries unmerged engine work. None of it is live here.
 - **Research:** the 2026-09-03 "no standalone edge" verdict has not been re-run on the
   corrected statistics ([`edge_denominator_2026-09-08.md`](edge_denominator_2026-09-08.md), [`asks.md`](asks.md)).
   Archive counts come from `python -m core.archive.analyze`; do not quote them from memory.
@@ -29,12 +35,12 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 
 | State | `*_ENABLED` flags (value in `config/*.py`) |
 |---|---|
-| LIVE, engine | `CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `POWER_PLAY_PRESET`, `EVENT_MAP`, `SENTENCE_ARCHIVE` (measure-only `sentence_*` archive columns) |
+| LIVE, engine | `CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `EVENT_MAP`, `SENTENCE_ARCHIVE` (measure-only `sentence_*` archive columns) |
 | LIVE, infrastructure | `HEALTH_BOARD`, `TICKER_ADMISSION`, `YAHOO_RATE_LIMIT`, `QUARANTINE` |
-| DARK, kill-by 2026-09-30 | `FUNDAMENTALS`, `RS_LINE`, `SECTOR_RANKING`, `ELECTION_TRACE_EXPORT`, `STRATEGY_READ` |
+| DARK, final method, kill-by 2026-11-30 | `RESPECT_WHOLE_BAR`, `DWELL_GRADED`, `BOX_HANDOVER_RANGES`, `SPRING_BOUNDS_LIFTED`, `LPS_RANGES_YARDSTICK`, `LPS_GRADED_TRAITS`, `LPS_WINDOW_RECEDING`, `LPS_BUY_DAY_READS_HIGH`, `LPS_REFUSALS_TO_GRADES`, `LPS_SELLERS_RISING_FATAL`, `TURN_LINE`, `TURN_LINE_TREND`, the six `LINE_WORD_*`, `BASE_AGE_FROM_ANCHOR`, `BOX_WIDTH_CAPS_GRADED`, `DEPTH_CAPS_GRADED`, `RESPECT_GRADED`, `LPS_LEAVES_ELECTION`, `BOX_OPENS_ON_ANCHORS`, `CLIMAX_FIRST_WALK`, `BOX_END`, `GRADE_LEDGER` |
+| DARK, kill-by 2026-11-30 | `FUNDAMENTALS`, `RS_LINE`, `SECTOR_RANKING`, `ELECTION_TRACE_EXPORT`, `STRATEGY_READ`, `ELECTION_STABILITY` (all re-dated from 2026-09-30 / 2026-09-15 with written reasons, [`flag_ledger.md`](flag_ledger.md)) |
 | DARK, kill-by 2026-10-31 | `CONTRACTION_RESCUE`, `BAR_POSTURE_RESCUE`, `SMA50_DIP_EXCEPTION`, `BOTTOMING_BASE_LANE`, `LPS_CEILING_REST`, `POWER_PLAY_STORY_FORM` |
-| DARK, overdue | `ELECTION_STABILITY`: this branch's ledger says 2026-09-15; the three rewrite branches re-date it to 2026-11-30 |
-| RETIRED (key deleted) | `TREND_TERMINAL_BOX_GATE`, `AR_FIRST_REACTION` (both 2026-09-08), `PIP_PIVOTS`, `LPS_REQUIRE_PEAK_DOWN`, `TA_SCORE_V2`, `EQ_DWELL_BAR_BASIS`, and the seven keys folded 2026-07-18 |
+| RETIRED (key deleted) | `POWER_PLAY_PRESET` (2026-09-19, with the species lane), `TREND_TERMINAL_BOX_GATE`, `AR_FIRST_REACTION` (both 2026-09-08), `PIP_PIVOTS`, `LPS_REQUIRE_PEAK_DOWN`, `TA_SCORE_V2`, `EQ_DWELL_BAR_BASIS`, and the seven keys folded 2026-07-18 |
 
 ## Known limitations
 

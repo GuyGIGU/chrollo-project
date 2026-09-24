@@ -15,8 +15,8 @@ import logging
 
 from config import settings
 from engine_alpha import evaluation
-from engine_alpha.structure.indicators import calculate_atr
-from services import watchlist_candles
+from engine_alpha.structure.metrics.indicators import calculate_atr
+from domains.market_data import watchlist_candles
 
 logger = logging.getLogger("chrollo.chart_state")
 

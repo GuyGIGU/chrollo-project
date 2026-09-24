@@ -14,7 +14,7 @@ import pytest
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure import bricks
+from engine_alpha.structure.narrative import bricks
 from engine_alpha.structure.narrative import Structure, read_structure
 
 N = 60
@@ -34,7 +34,7 @@ def _box(r_age, s_age, start_age=None):
 
 
 class _Bricks:
-    """One scripted root, its box, no spring, an LPS: the spine's happy path (the fake of tests/test_narrative.py)."""
+    """One scripted root, its box, no spring, an LPS: the spine's happy path (the fake of tests/engine/test_narrative.py)."""
 
     def __init__(self, box, inner=None):
         self.box, self.inner = box, inner
@@ -77,7 +77,7 @@ def test_the_floor_is_dark_and_on_the_manifest():
 # ── the seed clock yields (bricks) ───────────────────────────────────────────
 
 def test_the_seed_clock_yields_to_the_floor_less_the_edge_reserve(monkeypatch):
-    from engine_alpha.structure.htf import window_override
+    from engine_alpha.structure.context.htf import window_override
 
     assert bricks._seed_clock() == settings.MIN_BASE_DAYS == 20, "flag-off: today's clock"
     monkeypatch.setattr(settings, "BASE_AGE_FROM_ANCHOR_ENABLED", True)
@@ -157,9 +157,9 @@ def test_the_floor_leaves_every_other_20_day_use_alone(floor_on):
 def test_the_fire_carries_its_age_only_under_the_floor(monkeypatch):
     """The real cascade (EC-17) on the committed shadow fixture: flag-off no key; flag-on the age of every fire that
     survives the floor, and that age is at least the floor."""
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from engine_alpha.evaluation import EVAL_ERROR
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
 
     frames, scalars = _load_fixture()
     breadth = scalars.get("breadth_pct")

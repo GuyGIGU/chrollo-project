@@ -10,7 +10,7 @@ therefore CI). It is fully OFFLINE and deterministic: ``check_baseline`` reads
 the committed ``tests/baselines/shadow_baseline.json`` and replays the frozen
 ``shadow_fixture.parquet`` through the per-ticker pipeline on the fired-policy
 WINDOW the marks ratchet grades (the last ten trading days ending at the frozen
-day, ``tools.replay.fired_window_walk``; final method build step 1,
+day, ``core.calibration.replay.fired_window_walk``; final method build step 1,
 2026-09-13). No network, no live archive DB, no parquet cache.
 
 The real replay is paid ONCE through a module-scoped fixture; the window
@@ -109,7 +109,7 @@ def test_run_fixture_drops_eval_error_without_raising(monkeypatch):
     window day (every other ticker cleanly rejects, no real eval paid) and
     asserts ``run_fixture`` completes gracefully, dropping it.
 
-    Bite proof: make ``tools.replay.fired_window_walk`` file EVAL_ERROR under
+    Bite proof: make ``core.calibration.replay.fired_window_walk`` file EVAL_ERROR under
     ``fires`` and this test raises AttributeError.
     """
     from engine_alpha.evaluation import EVAL_ERROR

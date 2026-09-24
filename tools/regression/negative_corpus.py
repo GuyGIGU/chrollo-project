@@ -14,7 +14,7 @@ Each case carries its label (the documented junk class) and evidence pointer,
 and is verified non-firing against the live engine AT FREEZE TIME -
 ``--build-fixture`` refuses to freeze a case the current engine fires on. Both
 the build refusal and ``--check`` grade the SAME fired-policy WINDOW the marks
-ratchet grades (``tools.replay.fired_window_walk``: the last
+ratchet grades (``core.calibration.replay.fired_window_walk``: the last
 ``FIRED_WINDOW_SESSIONS`` trading days ending at the frozen day, every clamp
 named): a junk chart that fires on ANY day of that window fails. One day per
 frame was blind to a fire that moves a day earlier or later (final method,
@@ -223,7 +223,7 @@ def _case_walk(case: dict, df: pd.DataFrame, meta: dict, frozen_day_only: bool) 
 
 def check_corpus(*, frozen_day_only: bool = False) -> bool:
     """Replay every frozen must-NOT-fire frame through the real pipeline on
-    the fired-policy window (``tools.replay.fired_window_walk``).
+    the fired-policy window (``core.calibration.replay.fired_window_walk``).
 
     Returns True iff every case still cleanly rejects on EVERY day of its
     window that is not a pinned KNOWN fire day (``load_known_fires``). A case

@@ -1,13 +1,12 @@
 """Build step 12 of the final method, part three (points 22, 23 and 24): the display states.
 
-One chart's state word on demand (services.chart_state) for a ticker the payload does not list: "not scanned"
+One chart's state word on demand (domains.screener.chart_state) for a ticker the payload does not list: "not scanned"
 with the door's leg in his words and the distance in ranges, or the lines the walk found and their facts; the
 ticker page's fired / crossed lookup (the archive's ticker filter); the watch lane's row facts without the
 display floor. Read-only, off the cached frame, never a new pick.
 """
 from __future__ import annotations
 
-import os
 import sys
 from types import SimpleNamespace
 
@@ -15,15 +14,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
-# The backend package is imported by its own name (`services`, `routers`), the way the archive guards do it.
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_BACKEND_DIR = os.path.join(_PROJECT_ROOT, "webapp", "backend")
+from _paths import BACKEND_DIR
+
+# The backend package is imported by its own name (`domains`, `services`), the way the archive guards do it.
+_BACKEND_DIR = str(BACKEND_DIR)
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 from config import settings  # noqa: E402
 from engine_alpha import evaluation  # noqa: E402
-from services import archive_queries, chart_state  # noqa: E402
+from domains.archive import queries as archive_queries  # noqa: E402
+from domains.screener import chart_state  # noqa: E402
 
 
 def _frame(n=400, close=100.0, slope=0.0, band=0.5):
@@ -126,7 +127,7 @@ def test_the_archive_ticker_filter_narrows_to_one_symbol_uppercased():
 
 
 def test_the_state_route_refuses_a_malformed_ticker():
-    from routers.screener import _TICKER_RE
+    from domains.screener.router import _TICKER_RE
 
     assert _TICKER_RE.match("BRK.B") and _TICKER_RE.match("NGL") and _TICKER_RE.match("BF-B")
     assert not _TICKER_RE.match("../etc") and not _TICKER_RE.match("") and not _TICKER_RE.match("A B")
@@ -135,9 +136,9 @@ def test_the_state_route_refuses_a_malformed_ticker():
 # ── the descent tail as a comment on the fire (point 22, under the states switch) ──
 
 def _first_fire(monkeypatch):
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from engine_alpha.evaluation import EVAL_ERROR
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
 
     frames, scalars = _load_fixture()
     breadth = scalars.get("breadth_pct")
@@ -153,7 +154,7 @@ def _first_fire(monkeypatch):
 
 
 def test_the_descent_tail_refuses_flag_off_and_comments_under_the_switch(monkeypatch):
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
 
     ticker, df, spy, breadth, off = _first_fire(monkeypatch)
     assert "_descent_tail" not in off, "flag-off the row carries no comment"
@@ -171,7 +172,7 @@ def test_the_descent_tail_refuses_flag_off_and_comments_under_the_switch(monkeyp
 
 def test_the_comment_is_never_read_by_the_score(monkeypatch):
     """The tail is shown, not graded: the score and the grade do not move when the comment flips."""
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
 
     ticker, df, spy, breadth, _off = _first_fire(monkeypatch)
     monkeypatch.setattr(settings, "LPS_LEAVES_ELECTION_ENABLED", True)

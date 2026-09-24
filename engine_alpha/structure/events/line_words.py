@@ -81,7 +81,7 @@ import json
 import numpy as np
 
 from config import settings
-from engine_alpha.structure.pivots import turn_line, turn_line_floors
+from engine_alpha.structure.metrics.pivots import turn_line, turn_line_floors
 
 # Which words each step-5 flag lets ride out on a fire. The reader always computes every word.
 _WORDS_BY_FLAG = {

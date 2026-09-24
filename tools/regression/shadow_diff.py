@@ -14,7 +14,7 @@ never trip the guard. A drift in any canonical field is reported with the exact
 ticker and field so an unintended change is impossible to miss.
 
 Each ticker is graded on the SAME fired-policy WINDOW the marks ratchet grades
-(``tools.replay.fired_window_walk``: the last ``FIRED_WINDOW_SESSIONS`` trading
+(``core.calibration.replay.fired_window_walk``: the last ``FIRED_WINDOW_SESSIONS`` trading
 days ending at the frozen day, every clamp named), not on the frozen day alone:
 a ticker with no fire anywhere in the window is dropped; one that fires records
 the canonical fields of its LAST fire (the most recent night the pick appeared)
@@ -177,7 +177,7 @@ def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
 
 def run_fixture() -> dict:
     """Run the real per-ticker pipeline over the frozen fixture, every ticker
-    walked on its fired-policy window (``tools.replay.fired_window_walk``).
+    walked on its fired-policy window (``core.calibration.replay.fired_window_walk``).
 
     Returns ``{"fields": {ticker: canonical + window record}, "ranking":
     [ticker, ...]}``. A ticker with no fire in the window is dropped; a firing

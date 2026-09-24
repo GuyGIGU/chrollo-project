@@ -222,7 +222,7 @@ def test_measure_gate_margins_counts_wick_breaches_and_degrades_to_none():
     assert gm["max_excursion_atr"] == 0.5
     # Degenerate inputs return the all-None dict, never a crash — the
     # outside-bar keys included (derived from the ONE tuple, never re-typed).
-    from engine_alpha.structure.metrics import OUTSIDE_BAR_MEASURES
+    from engine_alpha.structure.metrics.base import OUTSIDE_BAR_MEASURES
     empty = measure_gate_margins(frame.iloc[:0], 110.0, 100.0, 1.0)
     assert empty == {"respect_frac": None, "close_lower_dwell": None,
                      "close_mid_dwell": None, "close_upper_dwell": None,
@@ -360,7 +360,7 @@ _OVERLAP = {"High": 110.8, "Low": 110.2, "Close": 110.4}  # whole bar above R AN
 
 
 def _outside_forms(rows):
-    from engine_alpha.structure.box_gates import (
+    from engine_alpha.structure.box.box_gates import (
         _engagement_hang_masks,
         _outside_bar_forms,
         _rail_outside_masks,
@@ -508,7 +508,7 @@ def test_measure_gate_margins_archives_the_outside_bar_vocabulary():
 
 
 def test_terminal_run_form_is_the_runs_majority_with_whole_bar_first_on_ties():
-    from engine_alpha.structure.box_gates import TERMINAL_RUN_FORMS
+    from engine_alpha.structure.box.box_gates import TERMINAL_RUN_FORMS
     gm = _runs([_IN, _STRADDLE, _STRADDLE, _REST])          # 2 straddles vs 1 rest
     assert gm["terminal_run_form"] == "straddle_close_out"
     gm = _runs([_IN, _STRADDLE, _REST])                     # tie -> whole-bar form
@@ -520,7 +520,7 @@ def test_terminal_run_form_is_the_runs_majority_with_whole_bar_first_on_ties():
 
 
 def test_traversals_per_20d_rebases_the_measured_count():
-    from engine_alpha.structure.metrics import traversals_per_20d
+    from engine_alpha.structure.metrics.base import traversals_per_20d
     assert traversals_per_20d(3, 60) == pytest.approx(1.0)
     assert traversals_per_20d(0, 40) == 0.0
     assert traversals_per_20d(2, 0) is None

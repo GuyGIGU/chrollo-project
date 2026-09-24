@@ -1,6 +1,6 @@
 """Build step 5 of the final method (Mon 14/09/2026): the words on the line, DARK, behind six flags.
 
-The reader (``engine_alpha/structure/line_words.py``) is measure-only: nothing that elects, vetoes, grades or
+The reader (``engine_alpha/structure/events/line_words.py``) is measure-only: nothing that elects, vetoes, grades or
 displays reads it, and with every step-5 flag off the evaluation never calls it. These tests pin each rule's
 clauses on hand-built lines (a line is a list of ``(bar, kind, price, knowable_bar)`` turns, exactly what
 ``pivots.turn_line`` returns), in more than one daily range so no rule can silently drop its unit; the reader end
@@ -25,7 +25,7 @@ import pytest
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure import line_words as W
+from engine_alpha.structure.events import line_words as W
 
 V, P = "valley", "peak"
 STEP5_FLAGS = ("LINE_WORD_SOS_ENABLED", "LINE_WORD_UPTHRUST_ENABLED", "LINE_WORD_LAST_SUPPER_ENABLED",
@@ -731,7 +731,7 @@ def test_each_flag_lets_out_only_its_own_words(monkeypatch):
 
 
 def test_no_step5_flag_moves_the_swing_map(monkeypatch):
-    from engine_alpha.structure.event_map import read_swing_map
+    from engine_alpha.structure.events.event_map import read_swing_map
     df, box = _wave_frame()
     off = read_swing_map(df, box, 1.0)
     for flag in STEP5_FLAGS:
@@ -742,7 +742,7 @@ def test_no_step5_flag_moves_the_swing_map(monkeypatch):
 # ── the real cascade (EC-17) ─────────────────────────────────────────────────
 
 def _fixture():
-    from tools.shadow_diff import _load_fixture
+    from tools.regression.shadow_diff import _load_fixture
 
     frames, scalars = _load_fixture()
     breadth = scalars.get("breadth_pct")
@@ -751,7 +751,7 @@ def _fixture():
 
 def _first_firing_fixture_ticker():
     """One real firing (ticker, frame, result, spy, breadth) off the committed shadow fixture."""
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from engine_alpha.evaluation import EVAL_ERROR
 
     frames, scalars, spy, breadth = _fixture()
@@ -778,9 +778,9 @@ def test_flag_on_the_words_ride_out_and_nothing_else_moves(monkeypatch):
     """Every fixture ticker that fires, flags off then on: one diagnostic key added and nothing else moved. The
     words are tied to the fire's own record: the thrusts launch inside the elected box (its _base_len), and the
     mini is the fire's own inner box."""
-    from core.pipeline.screener import _evaluate_ticker
+    from core.pipeline.screening.screener import _evaluate_ticker
     from engine_alpha.evaluation import EVAL_ERROR
-    from tools.shadow_diff import CANONICAL_FIELDS
+    from tools.regression.shadow_diff import CANONICAL_FIELDS
 
     frames, scalars, spy, breadth = _fixture()
     off = {}

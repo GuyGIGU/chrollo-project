@@ -617,7 +617,7 @@ def _outside_bar_measures(above_r, below_s, hang_r, hang_s, highs, lows, R, S,
     above R 0.349 vs 1.267 ATR), so these read HIGHER on some junk than on
     some drawn boxes — evidence about what a bar IS, never a junk filter.
     """
-    from engine_alpha.structure.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
+    from engine_alpha.structure.box.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
         _outside_bar_forms,
         _outside_run_census,
         _run_spans,

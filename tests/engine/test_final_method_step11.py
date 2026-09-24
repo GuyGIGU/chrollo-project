@@ -19,8 +19,9 @@ import pytest
 from config import settings
 from engine_alpha import evaluation
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure import box_primitives, bricks
-from engine_alpha.structure.box_end import _child_end, _leave_bar, box_end, election_bar
+from engine_alpha.structure.box import box_primitives
+from engine_alpha.structure.narrative import bricks
+from engine_alpha.structure.box.box_end import _child_end, _leave_bar, box_end, election_bar
 from engine_alpha.structure.narrative import Structure, read_structure
 
 SWITCH = "BOX_END_ENABLED"
@@ -265,7 +266,7 @@ def test_the_stale_box_rescues_percent_test_and_the_dethrone_pass_retire(monkeyp
 
 
 def test_a_mini_whose_bottom_holds_the_r_area_is_the_child_not_a_mini(monkeypatch):
-    from engine_alpha.structure import inner_box as inner_box_module
+    from engine_alpha.structure.box import inner_box as inner_box_module
     box = SimpleNamespace(S=100.0, R=110.0, start_bar=10, base_len=50, box_width=0.1)
     picked = {"S": 109.8, "R": 116.0, "start_bar": 40, "base_len": 20, "box_width": 0.056, "r_touches": 2, "s_touches": 2,
               "r_anchor_bar": 2, "s_anchor_bar": 0, "source": "midpoint", "search_start_bar": 35, "climax_bar": None,

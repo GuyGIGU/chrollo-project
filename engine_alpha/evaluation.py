@@ -33,7 +33,7 @@ from engine_alpha.structure import (
 )
 from engine_alpha.scoring import taxonomy as _taxonomy
 from engine_alpha.scoring.scoring import compose_ta_grade
-from engine_alpha.structure import line_words
+from engine_alpha.structure.events import line_words
 from engine_alpha.structure.events.market_structure import measure_trend_bases
 from engine_alpha.structure.metrics.base import (
     OUTSIDE_BAR_MEASURES,
@@ -1558,7 +1558,7 @@ def _lane_row(ticker: str, watch: dict, state: str, floor: Optional[int] = None)
     (point 22: two at each rail). The floor touches no fire; it only decides what the lane shows. ``floor``
     overrides the setting (the ticker page's state read passes 0: one chart he asked about shows its facts
     however few turns it has, build step 12)."""
-    from engine_alpha.structure.pivots import (  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.metrics.pivots import (  # noqa: PLC0415 — inside the flag
         turn_line, turn_line_floors, turns_at_rails)
     df = watch["df"]
     n = len(df)

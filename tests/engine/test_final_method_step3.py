@@ -18,7 +18,7 @@ import pytest
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure.lps import _zone_tolerance, detect_lps, detect_lps_candidates
+from engine_alpha.structure.lps.detection import _zone_tolerance, detect_lps, detect_lps_candidates
 
 FLAG = "LPS_REFUSALS_TO_GRADES_ENABLED"
 # Box 100..110 on a stock whose daily range is 2: the zone area is 1.0 (no

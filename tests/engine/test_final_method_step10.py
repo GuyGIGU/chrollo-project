@@ -19,8 +19,11 @@ import pytest
 from config import settings
 from engine_alpha import evaluation
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure import box_primitives, bricks, market_structure, phase_a
-from engine_alpha.structure.climax import runs_on_the_line
+from engine_alpha.structure.box import box_primitives
+from engine_alpha.structure.narrative import bricks
+from engine_alpha.structure.events import market_structure
+from engine_alpha.structure.phases import phase_a
+from engine_alpha.structure.phases.climax import runs_on_the_line
 from engine_alpha.structure.narrative import Structure, read_structure
 
 SWITCH = "CLIMAX_FIRST_WALK_ENABLED"
@@ -296,7 +299,7 @@ def test_the_walk_no_longer_abstains_on_the_cause_and_carries_the_run(monkeypatc
 def test_the_two_rf4_sites_read_the_line_under_the_switch(monkeypatch):
     df = _frame(LINE_UP)
     seen = []
-    import engine_alpha.structure.event_map as event_map
+    import engine_alpha.structure.events.event_map as event_map
     monkeypatch.setattr(phase_a, "macro_bridge_zigzag", lambda *a, **k: [])
     monkeypatch.setattr(event_map, "read_swing_map", lambda df, box, atr, **kw: seen.append(kw.get("line")) or
                         {"pre_box": {"trend_state": "up"}, "box": {"trend_state": "up"}})

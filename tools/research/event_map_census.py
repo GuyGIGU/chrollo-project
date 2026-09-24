@@ -17,8 +17,8 @@ separate predicate, never baked into the reader.
 
 The pinned promotion regression this tool once carried (``--check``) RETIRED at the final method's build
 step 12 (Sat 19/09/2026): its pins predated the operator's re-draws (33 marks against 35, the fingerprint
-moved, the junk population re-frozen twice) and had sat red since; the reader pin (``tools.reader_pin``)
-and the marks ratchet (``tools.marks_corpus``) are the standing gates on the episode reader.
+moved, the junk population re-frozen twice) and had sat red since; the reader pin (``tools.regression.reader_pin``)
+and the marks ratchet (``tools.regression.marks_corpus``) are the standing gates on the episode reader.
 
 Deterministic + stamped (EC-13): marks load through the ONE validated
 loader; frames come from the committed sealed-fixture parquets (git-tracked;

@@ -140,7 +140,7 @@ def read_market_structure(df, *, order: Optional[int] = None, line: Optional[boo
         # Build step 4 (dark): the trend labels read the one turn line. The line is measured in daily ranges,
         # so a frame carrying no range column (a bare OHLC fixture, or a caller pinning an explicit order)
         # falls back to today's skeleton rather than inventing a unit.
-        from engine_alpha.structure.pivots import turn_line, turn_line_floors
+        from engine_alpha.structure.metrics.pivots import turn_line, turn_line_floors
         floors = turn_line_floors(df, None)
         if np.any(np.isfinite(floors) & (floors > 0)):
             line = turn_line(highs, lows, floors)

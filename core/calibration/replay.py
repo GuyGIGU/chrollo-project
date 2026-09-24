@@ -345,8 +345,8 @@ def fired_window_sessions(frozen: pd.DataFrame, as_of, lps_spans,
 def fired_window_walk(ticker: str, frozen: pd.DataFrame, spy_6m: float,
                       breadth, as_of=None, *, evaluate=None) -> dict:
     """Every fire in the fired-policy window of one frozen frame — the ONE
-    window walk the junk corpus (``tools.negative_corpus``) and the fleet
-    fixture (``tools.shadow_diff``) grade, so neither reads one day per
+    window walk the junk corpus (``tools.regression.negative_corpus``) and the fleet
+    fixture (``tools.regression.shadow_diff``) grade, so neither reads one day per
     frame while the marks ratchet reads the window (final method, build
     step 1, 2026-09-13). Unlike the ratchet's ``_replay_setup`` this does
     NOT stop at the first fire: a precision guard needs every fire day, and

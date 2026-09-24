@@ -1,4 +1,4 @@
-import { fx, fmtDay } from '../utils/format';
+import { fx, fmtDay } from '../../../shared/formatting/format';
 
 // The watch lane (the final method, point 22): the charts the walk read lines
 // on but that have no LPS yet, apart from the leaderboard. Every row arrives

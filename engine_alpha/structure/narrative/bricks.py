@@ -208,8 +208,8 @@ def _root_from_the_line(eval_df, start, atr):
     percent recipe, no 200-day gate and no age wall on the reaction (the one clock is the box's age from its
     first anchor, point 9; the window from the climax still has to be as long as the seed clock): the run's
     size and length ride on the root (``run``) as facts."""
-    from engine_alpha.structure.climax import runs_on_the_line  # noqa: PLC0415 — inside the flag
-    from engine_alpha.structure.pivots import turn_line, turn_line_floors  # noqa: PLC0415
+    from engine_alpha.structure.phases.climax import runs_on_the_line  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.metrics.pivots import turn_line, turn_line_floors  # noqa: PLC0415
     unit = float(atr) if (_finite(atr) and float(atr) > 0) else None
     turns = turn_line(eval_df["High"].to_numpy(dtype=float), eval_df["Low"].to_numpy(dtype=float),
                       turn_line_floors(eval_df, unit))
@@ -241,8 +241,8 @@ def _line_window_kwargs(eval_df, root, win0, atr):
     pair (added explicitly when the reaction low is not the turn right after the climax); and a pair must be
     answered on the whole line after it (``collect_zigzag_candidates``'s answering stage, the rail area in daily
     ranges). The line is read on the whole chart (point 2), then windowed."""
-    from engine_alpha.structure.climax import runs_on_the_line  # noqa: PLC0415
-    from engine_alpha.structure.pivots import turn_line, turn_line_floors  # noqa: PLC0415
+    from engine_alpha.structure.phases.climax import runs_on_the_line  # noqa: PLC0415
+    from engine_alpha.structure.metrics.pivots import turn_line, turn_line_floors  # noqa: PLC0415
     unit = float(atr)
     turns = turn_line(eval_df["High"].to_numpy(dtype=float), eval_df["Low"].to_numpy(dtype=float),
                       turn_line_floors(eval_df, unit))
@@ -269,8 +269,8 @@ def read_box_end(df, box, atr):
     """Build step 11 (dark): has this box ended? The line on the whole frame, the unit frozen at the election
     day (the ATR of the day the answering completed, when the frame carries ATR_10; else the walk's ATR), then
     ``box_end.box_end``. Returns ``(end, child_candidate, unit)``."""
-    from engine_alpha.structure.box_end import box_end, election_bar  # noqa: PLC0415 — inside the flag
-    from engine_alpha.structure.pivots import turn_line, turn_line_floors  # noqa: PLC0415
+    from engine_alpha.structure.box.box_end import box_end, election_bar  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.metrics.pivots import turn_line, turn_line_floors  # noqa: PLC0415
     unit = float(atr)
     highs = df["High"].to_numpy(dtype=float)
     lows = df["Low"].to_numpy(dtype=float)

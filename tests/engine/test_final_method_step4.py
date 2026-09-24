@@ -1,7 +1,7 @@
 """Build step 4 of the final method (Sun 13/09/2026): the ONE turn line, DARK, behind two flags.
 
 Flag off, every path is byte-identical — the fleet, junk, marks and reader-pin guards prove that at scale, and
-`tests/test_event_map.py` / `tests/test_market_structure.py` keep proving the order-1 walk unmoved. These tests
+`tests/engine/test_event_map.py` / `tests/engine/test_market_structure.py` keep proving the order-1 walk unmoved. These tests
 pin the line's own mechanics and each flag's bite on fakes, so a branch that silently stopped biting goes red.
 
 His ruling (docs/final_method_2026-09.md, points 1 and 2): ONE line over the whole chart, one floor of 0.75
@@ -19,9 +19,9 @@ import pytest
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure.event_map import read_swing_map
-from engine_alpha.structure.market_structure import read_market_structure
-from engine_alpha.structure.pivots import (
+from engine_alpha.structure.events.event_map import read_swing_map
+from engine_alpha.structure.events.market_structure import read_market_structure
+from engine_alpha.structure.metrics.pivots import (
     _build_zigzag,
     _find_pivots,
     turn_line,
@@ -229,9 +229,9 @@ def test_the_trend_labels_fall_back_when_the_frame_carries_no_daily_range(monkey
 def test_the_live_cause_veto_reads_today_s_walk_whatever_the_line_flag_says(monkeypatch):
     """Operand B of the LIVE cause-before-effect veto reads the swing map's trend states. The line is the event
     map's site; the veto folds into a graded trend fact at build step 10, so it keeps today's walk until then."""
-    import engine_alpha.structure.event_map as em
-    import engine_alpha.structure.phase_a as pa
-    from engine_alpha.structure.bricks import cause_maturity
+    import engine_alpha.structure.events.event_map as em
+    import engine_alpha.structure.phases.phase_a as pa
+    from engine_alpha.structure.narrative.bricks import cause_maturity
 
     df, box = _wave_frame()
     monkeypatch.setattr(pa, "macro_bridge_zigzag", lambda *a, **k: [])      # the bridge abstains: Operand B runs
@@ -245,7 +245,7 @@ def test_the_live_cause_veto_reads_today_s_walk_whatever_the_line_flag_says(monk
 
 
 def test_the_phase_a_climax_repair_reads_today_s_skeleton_whatever_the_trend_flag_says(monkeypatch):
-    from engine_alpha.structure.market_structure import segment_trends, trend_terminal_floor
+    from engine_alpha.structure.events.market_structure import segment_trends, trend_terminal_floor
 
     df, _ = _wave_frame()
     off = trend_terminal_floor(df)

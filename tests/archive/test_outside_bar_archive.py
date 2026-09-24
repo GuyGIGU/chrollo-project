@@ -10,7 +10,6 @@ real re-keying, and the live writer's hand mapping is pinned at source level
 
 Hermetic: in-memory SQLite via the ORM's own metadata — no live DB, no scan.
 """
-import os
 import sys
 
 import pandas as pd
@@ -19,13 +18,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "webapp", "backend"))
+from _paths import BACKEND_DIR, REPO_ROOT
+
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(BACKEND_DIR))
 
 from archive_models import Base, SetupArchive  # noqa: E402
 # The ONE declarations (EC-33) — imported, never re-typed.
-from engine_alpha.structure.box_gates import TERMINAL_RUN_FORMS  # noqa: E402
-from engine_alpha.structure.metrics import (  # noqa: E402
+from engine_alpha.structure.box.box_gates import TERMINAL_RUN_FORMS  # noqa: E402
+from engine_alpha.structure.metrics.base import (  # noqa: E402
     OUTSIDE_BAR_MEASURES,
     measure_gate_margins,
 )

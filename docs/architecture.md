@@ -142,7 +142,7 @@ in `domains/portfolio/streams.py` are the `async def` exceptions.
 | `ibkr` | `router.py` (`/ibkr/status`, `/ibkr/reconnect`, `/ibkr/disconnect`, ...) | The `ib_async` client on its own thread (`service.py`), event fan-out, object mapping. Manual connect only. |
 | `market_data` | `router.py` (`/market-data`), `candles.py` (`/candles`), `prices.py` (`/live-prices`) | The UI's single door onto the provider (`service.py`), candle caches, earnings lookups, live quotes. |
 | `portfolio` | `router.py` (`/portfolio/*`, `/ibkr/import-csv`), `streams.py` (`/stream/*`, SSE) | The portfolio snapshot cache and its shaping. |
-| `screener` | `router.py` | The scan payload (`/screener-data/`, `/screener-summary/`), scan status, and the manual scan and download SSE streams. |
+| `screener` | `router.py` | The scan payload (`/screener-data/`, `/screener-summary/`), scan status, the manual scan and download SSE streams, and one chart's state word on demand (`/screener-data/state/{ticker}`, `chart_state.py`, read off the cached frame). |
 | `trading` | `router.py` (trades, `/journal-stats`), `journal.py`, `tags.py`, `analytics.py` (`/analytics`), `risk_router.py` (`/live-risk`) | The trade journal models, IBKR execution and CSV import, statistics, open-trade risk. |
 | `watchlist` | `router.py` (`/watchlist`) | The dated watchlist event ledger. |
 
@@ -204,7 +204,7 @@ into either. [`research/README.md`](../research/README.md) has the full lifecycl
 | `core.pipeline.data` | The data door (`fetch_data`, `get_tickers`, `get_market_context`, `get_provider`). |
 | `core.pipeline.screening.run_screener` | Evaluate a universe and return ranked results (also importable as `core.pipeline.run_screener`, lazily). |
 | `core.pipeline.screening.scan_job` | `run_scan_and_export`, `run_all_universe_scans`: the full scan, payload and archive job. |
-| `engine_alpha.evaluation` | The per-ticker chain (`_evaluate_ticker`, `evaluate_ticker_with_near_miss`, `evaluate_ticker_with_power_play`). |
+| `engine_alpha.evaluation` | The per-ticker chain (`_evaluate_ticker`) and the scan ladder's twins, innermost first: `evaluate_ticker_with_near_miss`, `evaluate_ticker_with_watch`, `evaluate_ticker_with_rescue_stats`. |
 | `webapp/backend/main.py` | The FastAPI app. Do not boot it as an agent; importing it runs the DB migrations, so set `CHROLLO_DB_PATH` first. |
 | `python -m core.archive.<x>` | `forward_returns`, `analyze`, `seed`, `seed_recall`, `purge`. |
 | `python -m tools.<category>.<x>` | Categories: `regression`, `audits`, `calibration`, `research`, `maintenance`, `ops`. |
