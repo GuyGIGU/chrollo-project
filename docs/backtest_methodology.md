@@ -177,10 +177,10 @@ across 2021-2026, regime-segmented, benchmark-relative, multiple-testing-correct
 
 ```powershell
 # 1. Backfill: weekly point-in-time replay -> scratch DB (offline, from the cache)
-python -m tools.backtest_backfill --cadence weekly --db <scratch.db>
+python -m tools.research.backtest_backfill --cadence weekly --db <scratch.db>
 
 # 2. Full standalone-edge harness on the scratch archive (read-only)
-python -m tools.backtest_engine --db <scratch.db> --json out/backtest_report.json
+python -m tools.research.backtest_engine --db <scratch.db> --json out/backtest_report.json
 
 # CAR curves + Deflated-Sharpe are additive sections of the harness (regime-segmented).
 ```

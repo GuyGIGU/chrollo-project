@@ -17,24 +17,26 @@ barrier / r_multiple stats use. Forward OHLC comes from the local cache (offline
 Read-only, offline. Never writes the archive.
 
 Usage:
-    python -m tools.backtest_exits --db output/backtest_weekly.db
-    python -m tools.backtest_exits --db out.db --ladder "3:0.5,6:0.25,8:0.25"
-    python -m tools.backtest_exits --db out.db --json out/exits.json
+    python -m tools.research.backtest_exits --db output/backtest_weekly.db
+    python -m tools.research.backtest_exits --db out.db --ladder "3:0.5,6:0.25,8:0.25"
+    python -m tools.research.backtest_exits --db out.db --json out/exits.json
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import sys
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 
-try:
-    from tools._bootstrap import configure_path
-except ModuleNotFoundError:
-    from _bootstrap import configure_path
+try:  # works under both `python -m tools.research.backtest_exits` and `python tools/research/backtest_exits.py`
+    from tools._bootstrap import configure_path, refuse_sealed_output
+except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from tools._bootstrap import configure_path, refuse_sealed_output
 
 _PROJECT_ROOT = configure_path()
 
@@ -97,6 +99,10 @@ def run_exits(db_path: Optional[str], cache_path: Optional[str],
     from config import settings
 
     _LINES.clear()
+    out = None
+    if json_path:
+        out = json_path if os.path.isabs(json_path) else os.path.join(_PROJECT_ROOT, json_path)
+        refuse_sealed_output(out)   # pre-flight: fail before the expensive pass (EC-14)
     df = load_episodes(db_path=db_path, source="screener",
                        universe_type=DEFAULT_UNIVERSE_TYPE)
     cpath = cache_path or settings.CACHE_FILENAME
@@ -199,7 +205,6 @@ def run_exits(db_path: Optional[str], cache_path: Optional[str],
         "breakeven_by_regime": _by(pd.DataFrame(rows_be), "regime"),
     }
     if json_path:
-        out = json_path if os.path.isabs(json_path) else os.path.join(_PROJECT_ROOT, json_path)
         with open(out, "w", encoding="utf-8") as f:
             json.dump(structured, f, indent=2, default=str)
         print(f"\n[structured report written to {out}]")

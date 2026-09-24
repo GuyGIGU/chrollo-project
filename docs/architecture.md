@@ -187,7 +187,7 @@ Rules that go with this layout:
 | Episode | A base re-flagged day after day, collapsed into one event. Every statistic should count episodes. | `core/archive/episodes.py` |
 | Outcome | Forward returns, MFE/MAE, trigger, barrier label, filled once a row is old enough. | `core/archive/forward_returns.py`, `core/archive/outcomes.py` |
 | Analysis | The winner fingerprint and signal-edge read. | `python -m core.archive.analyze` (`analyze_features.py`, `analyze_stats.py` and `analyze_report.py` hold its columns, numbers and text) |
-| Backtest statistics | Edge report, null model, in-sample/out-of-sample split. Production code, not a scratch area. | `core/backtest/` |
+| Backtest statistics | Edge report, null model, in-sample/out-of-sample split; the signal-edge layer (deflated Sharpe, event-study CAR, scaled-exit simulation) that only the `tools/research/backtest_*` harnesses read. Production code, not a scratch area. | `core/backtest/` |
 | Instruments | Census and study scripts that produce evidence. | `tools/research/` |
 | Evidence | The JSON and renders those scripts produced, kept so rulings can be re-read. | `research/evidence/`, `research/fidelity/` |
 | Write-ups and rulings | Dated studies; the rulings they led to. | `docs/*_2026-*.md`, [`decisions.md`](decisions.md) |

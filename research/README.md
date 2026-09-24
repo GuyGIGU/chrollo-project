@@ -6,7 +6,7 @@ re-read against the data that produced it. Nothing in production imports from he
 
 | Folder | What it holds |
 |---|---|
-| `evidence/` | Raw JSON sidecars of dated censuses (`bar_state_census_*`, `miss_lane_census_*`, `rail_area_census_*`, `shape_profile_*`, `trend_terminal_ab_*`). Each is cited by the study in `docs/` of the same name. |
+| `evidence/` | Raw JSON sidecars of dated censuses (`bar_state_census_*`, `miss_lane_census_*`, `rail_area_census_*`, `shape_profile_*`, `trend_terminal_ab_*`). Each is cited by the study in `docs/` of the same name. `signal_edge_2026-09-03/` holds the signal-edge verdict run (the harness's `report.txt` and `report.json`, and the null-model universe build log) behind `docs/backtest_results_2026-09-03.md`. |
 | `fidelity/` | Chart renders, logs and loss sheets from fidelity A/Bs. Most generators have since been deleted, so these cannot be regenerated. Keep them. |
 
 ## Where the rest of the research loop lives

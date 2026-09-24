@@ -9,16 +9,16 @@ as-traded price basis. Each fire is stamped with the prevailing SPY regime at it
 scan date so the edge can be segmented bull / bear / correction.
 
 This is the missing piece that lets the standalone-edge harness
-(``tools.backtest_engine``) read a REGIME-SPANNING cohort instead of a single
+(``tools.research.backtest_engine``) read a REGIME-SPANNING cohort instead of a single
 bull market. See ``docs/backtest_methodology.md`` for the why.
 
 SAFETY (D5): never writes the live ``trading_journal.db``. The ``--db`` path is
 explicit and refused if it resolves anywhere near the production archive.
 
 Usage:
-    python -m tools.backtest_backfill --db output/backtest_archive.db
-    python -m tools.backtest_backfill --db out.db --cadence monthly --start 2022-01-01
-    python -m tools.backtest_backfill --db out.db --limit 50   # smoke test on 50 tickers
+    python -m tools.research.backtest_backfill --db output/backtest_archive.db
+    python -m tools.research.backtest_backfill --db out.db --cadence monthly --start 2022-01-01
+    python -m tools.research.backtest_backfill --db out.db --limit 50   # smoke test on 50 tickers
 
 Offline: reads the local parquet cache, never the network.
 """
@@ -34,10 +34,11 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-try:
-    from tools._bootstrap import configure_path
-except ModuleNotFoundError:
-    from _bootstrap import configure_path
+try:  # works under both `python -m tools.research.backtest_backfill` and `python tools/research/backtest_backfill.py`
+    from tools._bootstrap import configure_path, refuse_sealed_output
+except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from tools._bootstrap import configure_path, refuse_sealed_output
 
 _PROJECT_ROOT = configure_path()
 _BACKEND_DIR = os.path.join(_PROJECT_ROOT, "webapp", "backend")
@@ -230,8 +231,8 @@ def _assemble_row(ticker: str, payload: dict, spy_trend: Optional[str],
     replay-date SPY regime. Reuses ``archive_row_from_result`` (the model-driven
     mapper) verbatim so populated columns match the live/seed path.
     """
-    from services.archive_queries import archive_row_from_result
-    from engine_alpha.structure.htf import htf_archive_values
+    from domains.archive.queries import archive_row_from_result
+    from engine_alpha.structure.context.htf import htf_archive_values
 
     r = payload["result"]
     sub = r.get("sub_scores", {}) or {}
@@ -300,8 +301,11 @@ def _assemble_row(ticker: str, payload: dict, spy_trend: Optional[str],
 
 
 def _assert_scratch_db(db_path: str) -> str:
-    """Refuse to write anywhere near the live production archive (D5)."""
-    abspath = os.path.abspath(db_path)
+    """Refuse to write anywhere near the live production archive (D5).
+
+    The shared sealed-output guard runs FIRST (EC-14; sealed knowledge lives in
+    one place, EC-3); this tool's own live-archive refusals bite behind it."""
+    abspath = os.path.abspath(refuse_sealed_output(db_path))
     base = os.path.basename(abspath).lower()
     live = os.path.abspath(os.path.join(_BACKEND_DIR, "trading_journal.db"))
     if abspath == live or base == "trading_journal.db":

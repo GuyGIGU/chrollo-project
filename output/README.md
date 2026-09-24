@@ -11,5 +11,7 @@ Research evidence that used to be force-added here moved to `research/evidence/`
 2026-09-24, under the same file names: `bar_state_census_2026-08-30.json`,
 `miss_lane_census_2026-08-28.json`, `miss_lane_census_2026-08-29.json`,
 `rail_area_census_2026-08-30.json`, `shape_profile_2026-08-29.json` and
-`trend_terminal_ab_2026-08-31.json`. Older records (such as `docs/decisions.md`) still
+`trend_terminal_ab_2026-08-31.json`. The signal-edge verdict run that branch
+`revive/signal-edge` carried as `output/signal_edge_2026-09-03/` landed as
+`research/evidence/signal_edge_2026-09-03/`. Older records (such as `docs/decisions.md`) still
 cite the `output/` paths.

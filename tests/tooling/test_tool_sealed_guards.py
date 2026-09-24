@@ -2,7 +2,9 @@
 (--json / --capture / --out) went around the ONE sealed-output guard
 (council review 2026-08-20). Each leg exercises the tool's own
 path-validation seam only — the heavy pass behind it is stubbed to fail
-the test if reached, proving the refusal fires PRE-FLIGHT."""
+the test if reached, proving the refusal fires PRE-FLIGHT. The two
+signal-edge tools (backtest_exits --json, backtest_backfill --db) took the
+same guard when they were ported onto the domain layout (2026-09-24)."""
 import os
 import sys
 
@@ -11,7 +13,7 @@ import pytest
 from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from tools.research import backtest_engine, build_universe_returns  # noqa: E402
+from tools.research import backtest_backfill, backtest_engine, backtest_exits, build_universe_returns  # noqa: E402
 from tools.regression import fold_parity  # noqa: E402
 from tools.research import full_package_render  # noqa: E402
 from tools.audits import provider_parity  # noqa: E402
@@ -50,9 +52,25 @@ def _universe(sealed, monkeypatch):
     build_universe_returns._validate_out(sealed)
 
 
-@pytest.mark.parametrize("entry", [_backtest, _fold, _provider, _render, _universe],
+def _exits(sealed, monkeypatch):
+    monkeypatch.setattr(backtest_exits, "load_episodes",
+                        lambda *a, **k: pytest.fail("guard fired after the archive load"))
+    backtest_exits.run_exits(db_path=None, cache_path=None, ladder=[(3.0, 1.0)],
+                             json_path=sealed)
+
+
+def _backfill(sealed, monkeypatch):
+    # --db is the scratch archive the backfill WRITES: a sealed path must refuse.
+    monkeypatch.setattr(backtest_backfill.pd, "read_parquet",
+                        lambda *a, **k: pytest.fail("guard fired after the cache load"))
+    backtest_backfill.run_backfill(db_path=sealed)
+
+
+@pytest.mark.parametrize("entry", [_backtest, _fold, _provider, _render, _universe,
+                                   _exits, _backfill],
                          ids=["backtest_engine", "fold_parity", "provider_parity",
-                              "full_package_render", "build_universe_returns"])
+                              "full_package_render", "build_universe_returns",
+                              "backtest_exits", "backtest_backfill"])
 def test_user_supplied_write_paths_refuse_the_sealed_dirs(entry, monkeypatch):
     with pytest.raises(ValueError, match="sealed"):
         entry(SEALED, monkeypatch)
