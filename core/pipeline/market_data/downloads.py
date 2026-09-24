@@ -1,14 +1,18 @@
-"""Market-data download, split-drift checks, and parquet cache orchestration."""
+"""The market-data parquet cache: serve it, patch it, or refetch it cold.
+
+``fetch_data`` is the state machine (lock, scope, fresh?, current?, incremental?, cold;
+conventions.md AP-2). This module owns the cache and meta writes, the quarantine and
+admission bookkeeping around a fetch, and the ledger of sessions the provider lacks.
+The panels themselves come from ``panel_fetch``, which requests them through
+``yahoo_download``; ``price_regime`` names the price series the cache holds.
+"""
 from __future__ import annotations
 
 import os
-import random
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
 import pandas as pd
-import yfinance as yf
 
 from config import settings
 from core.pipeline.market_data.cache import (
@@ -26,7 +30,6 @@ from core.pipeline.market_data.data_freshness import (
     has_all_closes_on,
     history_too_shallow,
     last_complete_reference_date,
-    symbols_missing_closes_on,
 )
 from core.pipeline.market_data.file_lock import cache_lock
 from core.pipeline.market_data.fetch_health import (
@@ -40,13 +43,30 @@ from core.pipeline.market_data.fetch_health import (
     summarize,
 )
 from core.pipeline.market_data.market_calendar import latest_completed_session, session_gap
-from core.pipeline.market_data import rate_limit
+from core.pipeline.market_data.panel_fetch import (
+    _drop_forming_rows,
+    _full_refetch,
+    _incremental_fetch,
+    _repair_latest_session,
+)
+from core.pipeline.market_data.price_regime import _meta_regime_mismatch, _price_regime
 from core.pipeline.universe.ticker_admission import (
     count_active_skips,
     load_admission,
     record_history_results,
     save_admission,
     split_downloadable,
+)
+# The daily-structure trim is ENGINE-owned (it defines what the reader sees);
+# re-exported here so existing download/cache callers keep their import path.
+from engine_alpha.frames import _trim_to_period
+
+# Callers outside this module (the archive downloads, the candle cache, the
+# calibration workbench) import these from here; they now live beside it.
+from core.pipeline.market_data.price_regime import price_auto_adjust  # noqa: F401
+from core.pipeline.market_data.yahoo_download import (  # noqa: F401
+    _batched_download,
+    _is_yahoo_rate_limit_text,
 )
 
 
@@ -64,532 +84,11 @@ class _FetchScope:
     requested_non_index: list[str]
 
 
-def _is_yahoo_rate_limit_text(text: str) -> bool:
-    text = str(text).lower()
-    return (
-        "yfratelimiterror" in text
-        or "too many requests" in text
-        or "rate limited" in text
-    )
-
-
-def _is_yahoo_rate_limit_error(exc: Exception) -> bool:
-    return _is_yahoo_rate_limit_text(f"{type(exc).__name__}: {exc}")
-
-
-def _is_yahoo_no_history_error(exc: Exception) -> bool:
-    text = f"{type(exc).__name__}: {exc}".lower()
-    return (
-        "yftzmissingerror" in text
-        or "possibly delisted" in text
-        or "no price data found" in text
-        or "no timezone found" in text
-    )
-
-
-def _apply_backoff_jitter(wait: float) -> float:
-    """Randomize the lower part of a backoff so many workers that got rate-limited
-    at once don't retry in a synchronized burst (which just re-trips Yahoo). Keeps
-    ``(1 - jitter)`` of the wait fixed and randomizes the rest, so the result is in
-    ``[wait*(1-jitter), wait]``. The *base* backoff (``2**attempt``) still grows across
-    retries; the jitter only spreads each attempt's wait within its own band, so a lucky
-    low draw on a later attempt can dip below an earlier one — intended (it de-syncs the
-    workers; the shared cooldown still enforces the real floor)."""
-    jitter = min(max(float(getattr(settings, "YAHOO_BACKOFF_JITTER", 0.5)), 0.0), 1.0)
-    if jitter <= 0.0:
-        return wait
-    return wait * (1.0 - jitter) + random.uniform(0.0, wait * jitter)
-
-
-def _retry_wait_seconds(attempt: int, exc: Exception | None = None, error_text: str = "") -> float:
-    wait = float(2 ** attempt)
-    if ((exc is not None and _is_yahoo_rate_limit_error(exc))
-            or (error_text and _is_yahoo_rate_limit_text(error_text))):
-        wait = max(wait, float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0)))
-        # Invariant: the shared cooldown gets the FULL un-jittered wait; the per-worker retry
-        # sleep (the jittered return below) is shorter and may end BEFORE the shared window does.
-        # That is fine — rate_limit._respect_cooldown() is the authoritative gate that re-parks a
-        # worker whose local sleep ended early. Do NOT drop that second cooldown check thinking the
-        # local sleep already covered it, or lockstep bursts come back.
-        rate_limit.note_rate_limit(wait)
-    return _apply_backoff_jitter(wait)
-
-
-def _last_yahoo_batch_error_text(batch: list[str]) -> str:
-    """Return yfinance's latest batch errors after a sequential yf.download call."""
-    try:
-        from yfinance import shared as yf_shared
-        errors = getattr(yf_shared, "_ERRORS", {}) or {}
-    except Exception:
-        return ""
-    parts = [str(errors.get(ticker.upper(), "")) for ticker in batch]
-    return " | ".join(part for part in parts if part)
-
-
-def price_auto_adjust() -> bool:
-    """The ONE source for every price download's ``auto_adjust`` flag.
-
-    False (the shipped default via ``DATA_DIVIDEND_ADJUSTED = False``) =
-    as-traded OHLC, split-adjusted only — what TradingView shows and what the
-    operator trades. Seed / forward-returns / writer downloads must import this
-    so their series can never diverge from the cache regime (eval-twin rule).
-    The getattr fallback matches the settings default (as-traded) so a process
-    with a shadowed/stale config degrades to the SAME regime, never a mix."""
-    return bool(getattr(settings, "DATA_DIVIDEND_ADJUSTED", False))
-
-
-def _price_regime() -> str:
-    """The regime tag stamped into cache meta for the current settings."""
-    return "div_adjusted" if price_auto_adjust() else "as_traded"
-
-
-def _meta_regime_mismatch(meta: dict) -> bool:
-    """True when the on-disk cache was fetched under a DIFFERENT price regime.
-
-    Caches written before the tag existed are dividend-adjusted (the old
-    default). A mismatched cache must never be served fresh, returned current,
-    or incrementally patched — mixing regimes in one panel corrupts every
-    structural read. Only a full cold refetch may replace it."""
-    return meta.get("price_series", "div_adjusted") != _price_regime()
-
-
-def _drop_adj_close(data: pd.DataFrame) -> pd.DataFrame:
-    """Strip yfinance's extra 'Adj Close' field — the cache schema (and every
-    downstream reader) is strictly OHLCV.
-
-    Needed on BOTH download shapes when auto_adjust=False: the pinned yfinance
-    1.2.1 emits 'Adj Close' from ``Ticker().history`` too (even with
-    ``actions=False``), and every production download goes through the
-    single-ticker path. An asymmetric drop would also poison repair patches:
-    frames with mismatched field sets combine into NaN-striped rows that
-    ``dropna`` then silently eats."""
-    if (data is not None and not data.empty
-            and isinstance(data.columns, pd.MultiIndex)):
-        return data.drop(columns="Adj Close", level=1, errors="ignore")
-    return data
-
-
-def _single_ticker_history(ticker: str, period_or_dates: dict) -> pd.DataFrame:
-    """Fetch one symbol without yf.download's process-global multi-ticker state."""
-    # These are DEFAULTS the caller may override via period_or_dates. Merging (rather
-    # than splatting alongside fixed kwargs) avoids "got multiple values for keyword
-    # argument 'auto_adjust'" when a caller passes auto_adjust in the dict (seed /
-    # forward-returns / archive paths all do).
-    params = {"actions": False, "auto_adjust": price_auto_adjust(), "timeout": 30}
-    params.update(period_or_dates)
-    data = yf.Ticker(ticker).history(**params)
-    if data is None or data.empty:
-        return pd.DataFrame()
-    if not isinstance(data.columns, pd.MultiIndex):
-        data.columns = pd.MultiIndex.from_product([[ticker], data.columns])
-    return _drop_adj_close(data)
-
-
-def _download_once(batch: list[str], period_or_dates: dict) -> pd.DataFrame:
-    if len(batch) == 1:
-        return _single_ticker_history(batch[0], period_or_dates)
-    # no uncontrolled yfinance inner threads; pool + throttle govern concurrency.
-    # Defaults overridable by period_or_dates (same anti-collision reason as above).
-    params = {"group_by": "ticker", "threads": False, "progress": False, "timeout": 30,
-              "auto_adjust": price_auto_adjust()}
-    params.update(period_or_dates)
-    return _drop_adj_close(yf.download(batch, **params))
-
-
-def _download_batch_with_retry(batch: list[str], period_or_dates: dict | str,
-                               max_retries: int = 3) -> pd.DataFrame:
-    """
-    Download a batch of tickers with automatic retry on failure.
-    ``period_or_dates`` is either a period string ('5y') or a dict of yfinance
-    window kwargs ({'period': ...} / {'start': ..., 'end': ...}).
-    Returns the downloaded DataFrame (possibly empty on total failure).
-    """
-    if isinstance(period_or_dates, str):
-        period_or_dates = {"period": period_or_dates}
-    for attempt in range(1, max_retries + 1):
-        try:
-            rate_limit.throttle(len(batch))  # shared global outbound-rate ceiling
-            batch_data = _download_once(batch, period_or_dates)
-            if not batch_data.empty:
-                if len(batch) > 1:
-                    error_text = _last_yahoo_batch_error_text(batch)
-                    if _is_yahoo_rate_limit_text(error_text):
-                        rate_limit.note_rate_limit(
-                            float(getattr(settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 30.0))
-                        )
-                # If only 1 ticker in batch, it doesn't return a MultiIndex, so we force it
-                if len(batch) == 1 and not isinstance(batch_data.columns, pd.MultiIndex):
-                    batch_data.columns = pd.MultiIndex.from_product([batch, batch_data.columns])
-                return batch_data
-            error_text = _last_yahoo_batch_error_text(batch) if len(batch) > 1 else ""
-            if attempt < max_retries and _is_yahoo_rate_limit_text(error_text):
-                wait = _retry_wait_seconds(attempt, error_text=error_text)
-                print(f"    Attempt {attempt}/{max_retries} rate-limited. Retrying in {wait:g}s...")
-                time.sleep(wait)
-                continue
-            return pd.DataFrame()
-        except Exception as e:
-            if _is_yahoo_no_history_error(e):
-                return pd.DataFrame()
-            if attempt < max_retries:
-                wait = _retry_wait_seconds(attempt, e)
-                print(f"    Attempt {attempt}/{max_retries} failed ({e}). Retrying in {wait:g}s...")
-                time.sleep(wait)
-            else:
-                print(f"    Batch failed after {max_retries} retries: {e}")
-
-    return pd.DataFrame()
-
-
-def _recover_missing_data(
-    data: pd.DataFrame,
-    tickers: list[str],
-    *,
-    skip_current_short: bool = True,
-    dropout_guard: bool = True,
-) -> pd.DataFrame:
-    """
-    Check for missing or incomplete data (<200 bars) and attempt to re-download.
-    By default, current-but-short histories are left to the admission ledger
-    instead of hammering Yahoo every run; new listings and split-drift recovery
-    can force a full retry with ``skip_current_short=False`` and
-    ``dropout_guard=False``.
-    Returns the corrected DataFrame.
-    """
-    missing_or_short = []
-    current_but_short = []
-    min_history_bars = int(getattr(settings, "ADMISSION_MIN_HISTORY_BARS", 200))
-    expected_session = latest_completed_session()
-    for ticker in tickers:
-        if ticker in data:
-            try:
-                closes = data[ticker]["Close"].dropna()
-            except KeyError:
-                closes = pd.Series(dtype="float64")
-            if len(closes) < min_history_bars:
-                latest_close = closes.index.max().normalize() if not closes.empty else None
-                if (skip_current_short
-                        and latest_close is not None
-                        and latest_close >= expected_session):
-                    current_but_short.append(ticker)
-                else:
-                    missing_or_short.append(ticker)
-        else:
-            missing_or_short.append(ticker)
-
-    if current_but_short:
-        print(f"Skipping fallback for {len(current_but_short)} current but <{min_history_bars}-bar "
-              "ticker(s); admission will recheck later.",
-              flush=True)
-
-    if not missing_or_short:
-        return data
-
-    if dropout_guard and len(missing_or_short) > len(tickers) * 0.5:
-        print(f"Warning: {len(missing_or_short)} dropouts detected. Rate limit severe. Skipping individual fallback to avoid IP ban.")
-        return data
-
-    print(f"Validating {len(missing_or_short)} tickers with missing or suspiciously short data (<200 bars) — per-ticker fallback...")
-    recovered_count = 0
-    fallback_frames = []
-
-    # Per-ticker recovery via ThreadPoolExecutor: each ticker is downloaded
-    # independently, so a single bad symbol no longer taints a 50-batch.
-    # max_workers=10 keeps pressure on Yahoo low enough to avoid 429s.
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        futs = {
-            ex.submit(_download_batch_with_retry, [t], settings.DOWNLOAD_PERIOD, 2): t
-            for t in missing_or_short
-        }
-        for fut in as_completed(futs):
-            ticker = futs[fut]
-            fb_data = fut.result()
-            if fb_data.empty:
-                continue
-            if not isinstance(fb_data.columns, pd.MultiIndex):
-                fb_data.columns = pd.MultiIndex.from_product([[ticker], fb_data.columns])
-            new_len = len(fb_data[ticker].dropna()) if ticker in fb_data else 0
-            old_len = len(data[ticker].dropna()) if ticker in data else 0
-            if new_len > old_len:
-                recovered_count += 1
-            fallback_frames.append(fb_data)
-
-    if fallback_frames:
-        recovered_tickers = set()
-        for fb_df in fallback_frames:
-            if isinstance(fb_df.columns, pd.MultiIndex):
-                recovered_tickers.update(fb_df.columns.get_level_values(0).unique())
-
-        bad_cols = [c for c in data.columns if c[0] in recovered_tickers]
-        data = data.drop(columns=bad_cols, errors='ignore')
-
-        if hasattr(data.index, 'tz') and data.index.tz is not None:
-            data.index = data.index.tz_localize(None)
-        
-        for i in range(len(fallback_frames)):
-            if hasattr(fallback_frames[i].index, 'tz') and fallback_frames[i].index.tz is not None:
-                fallback_frames[i].index = fallback_frames[i].index.tz_localize(None)
-
-        data = pd.concat([data] + fallback_frames, axis=1, sort=True)
-
-    if recovered_count > 0:
-        print(f"Successfully recovered full data for {recovered_count} tickers using fallback batches!")
-    else:
-        print("Fallback pass complete. No additional tickers could be recovered (likely delisted or too new).")
-
-    return data
-
-
-def _batched_download(tickers: list[str], period_or_dates: dict, label: str) -> pd.DataFrame:
-    """Download ``tickers`` one request at a time through a BOUNDED, rate-limited
-    pool. ``period_or_dates`` is either ``{'period': '2y'}`` (full refetch) or
-    ``{'start': date, 'end': date}`` (incremental).
-
-    Each ticker is a single-ticker ``yf.download`` gated by the shared token bucket
-    (``core.pipeline.market_data.rate_limit``), and the pool size caps simultaneous
-    connections — so the concurrent workers collectively respect ONE outbound-rate
-    ceiling instead of bursting Yahoo into 429s. This replaces the old 500-batch
-    ``threads=True`` path whose uncontrolled inner threads (one per ticker, each
-    throttling independently) were the root cause of the rate-limit storms.
-    """
-    if not tickers:
-        return pd.DataFrame()
-
-    frames: list[pd.DataFrame] = []
-    total = len(tickers)
-    done = 0
-    workers = min(rate_limit.download_workers(), total)
-    print(f"  {label}: {total} tickers via {workers} rate-limited workers...", flush=True)
-
-    with ThreadPoolExecutor(max_workers=workers) as ex:
-        futures = {
-            ex.submit(_download_batch_with_retry, [ticker], period_or_dates): ticker
-            for ticker in tickers
-        }
-        for fut in as_completed(futures):
-            frame = fut.result()
-            done += 1
-            if not frame.empty:
-                frames.append(frame)
-            if done % 500 == 0 or done == total:
-                print(f"    {label}: {done}/{total} fetched ({len(frames)} non-empty)...", flush=True)
-
-    if not frames:
-        return pd.DataFrame()
-
-    for j in range(len(frames)):
-        if hasattr(frames[j].index, 'tz') and frames[j].index.tz is not None:
-            frames[j].index = frames[j].index.tz_localize(None)
-
-    data = pd.concat(frames, axis=1)
-    if isinstance(data.columns, pd.MultiIndex):
-        data = data.loc[:, ~data.columns.duplicated(keep='last')]
-    return data
-
-
-def _detect_splits(cached: pd.DataFrame, fresh: pd.DataFrame,
-                   cached_tickers: list[str]) -> tuple[bool, list[str]]:
-    """
-    Probe EVERY cached ticker for split-induced price drift on the overlap
-    window. The incremental fetch already holds the multi-bday overlap for the
-    whole universe in memory, so the check is exhaustive and vectorized — under
-    the as-traded regime a split is the ONLY series-shifting corporate action,
-    and this probe is the entire defense against a ticker carrying a fake price
-    gap until the next weekly cold refetch.
-
-    Returns ``(force_full_refetch, drifted_tickers)``:
-    - ``force_full_refetch=True`` if a high enough fraction of probed tickers
-      drift to suggest broad corporate-action issues (cold path recommended).
-    - ``drifted_tickers`` is the per-ticker list that drifted; if force is
-      False these can be re-fetched individually.
-    """
-    try:
-        cached_close = cached.xs('Close', axis=1, level=1)
-        fresh_close = fresh.xs('Close', axis=1, level=1)
-    except KeyError:
-        return (False, [])
-
-    common = cached_close.columns.intersection(fresh_close.columns)
-    common = common.intersection(pd.Index(cached_tickers))
-    overlap_idx = cached_close.index.intersection(fresh_close.index)
-    if common.empty or overlap_idx.empty:
-        return (False, [])
-
-    # Compare ratio across the overlap window. A split shows up as a consistent
-    # constant ratio (e.g., 0.5 for a 2:1) across every bar; random noise won't
-    # be consistent. Flag if mean relative diff exceeds the threshold AND the
-    # ratio is roughly constant (low std relative to drift magnitude).
-    ratios = (fresh_close.loc[overlap_idx, common]
-              / cached_close.loc[overlap_idx, common])  # NaN where either side lacks the bar
-    probed_mask = ratios.count() >= 2  # need >= 2 shared bars to judge constancy
-    rel_drift = (ratios.mean() - 1.0).abs()
-    is_constant = ratios.std().fillna(0.0) < (0.2 * rel_drift).clip(lower=0.001)
-    drift_mask = (probed_mask
-                  & (rel_drift > settings.SPLIT_PROBE_DRIFT_THRESHOLD)
-                  & is_constant)
-    drifted = sorted(drift_mask.index[drift_mask])
-    probed = int(probed_mask.sum())
-
-    if probed == 0:
-        return (False, [])
-
-    drift_pct = len(drifted) / probed
-    force_full = drift_pct > settings.SPLIT_PROBE_UNIVERSE_DRIFT_PCT
-    if drifted:
-        print(f"  Split-probe: {len(drifted)}/{probed} tickers show price drift "
-              f"({drift_pct*100:.1f}%); force_full_refetch={force_full}", flush=True)
-    else:
-        print(f"  Split-probe: clean ({probed} tickers checked).", flush=True)
-    return (force_full, drifted)
-
-
-def _full_refetch(tickers_to_fetch: list[str]) -> pd.DataFrame:
-    """Cold path: download full DOWNLOAD_PERIOD history for every ticker."""
-    print(f"Downloading data for {len(tickers_to_fetch)} tickers in batches to prevent rate limits...", flush=True)
-    data = _batched_download(tickers_to_fetch, {'period': settings.DOWNLOAD_PERIOD}, "Download")
-    if data.empty:
-        print("All downloads failed, returning empty DataFrame.")
-        return pd.DataFrame()
-
-    if isinstance(data.columns, pd.MultiIndex):
-        data = _recover_missing_data(data, tickers_to_fetch)
-        data = data.loc[:, ~data.columns.duplicated(keep='last')]
-    return data
-
-
-# The daily-structure trim is ENGINE-owned (it defines what the reader sees);
-# re-exported here so existing download/cache callers keep their import path.
-from engine_alpha.frames import _trim_to_period  # noqa: E402,F401
-
-
-def _drop_forming_rows(data: pd.DataFrame, expected_session: pd.Timestamp) -> pd.DataFrame:
-    """Drop bars newer than the latest COMPLETED session.
-
-    A period-based fetch during market hours (an afternoon 'Refresh Data' click)
-    includes the current day's PARTIAL bar; once persisted it is
-    indistinguishable from a real close, so the evening scan would evaluate and
-    permanently archive a mid-session snapshot. The windowed incremental/repair
-    fetches already cap via their end date; this is the same cap for the
-    period-based cold and per-ticker recovery fetches."""
-    if data.empty:
-        return data
-    return data.loc[data.index <= expected_session]
-
-
 def _has_all_symbols(data: pd.DataFrame, symbols: list[str]) -> bool:
     if data.empty or not isinstance(data.columns, pd.MultiIndex):
         return False
     present = set(data.columns.get_level_values(0))
     return all(symbol in present for symbol in symbols)
-
-
-def _patch_market_data(base: pd.DataFrame, patch: pd.DataFrame) -> pd.DataFrame:
-    if patch.empty:
-        return base
-    # Both frames must have unique column labels — combine_first aligns on
-    # labels and a duplicate makes the alignment ambiguous. The incremental
-    # merge upstream can leave duplicate (ticker, field) columns in ``base``,
-    # so dedupe both sides here (mirrors the patch-side dedupe in
-    # _repair_latest_session) before the combine.
-    base = base.loc[:, ~base.columns.duplicated(keep='last')]
-    patch = patch.loc[:, ~patch.columns.duplicated(keep='last')]
-    # ONE whole-frame combine (patch wins on overlap; a NaN patch cell keeps the
-    # base value) instead of a per-column loop — ~27,500 getitem/setitem round
-    # trips at the full-universe call site, measured 75s -> 29s. combine_first
-    # sorts the column union, so reindex back to the loop's order convention:
-    # base's columns first, patch-only columns appended in patch order. The
-    # merged parquet feeds every structural read — order must not drift.
-    merged = patch.combine_first(base)
-    base_columns = set(base.columns)
-    extra = [column for column in patch.columns if column not in base_columns]
-    return merged.reindex(index=base.index.union(patch.index),
-                          columns=list(base.columns) + extra)
-
-
-def _repair_latest_session(
-    data: pd.DataFrame,
-    symbols: list[str],
-    expected_session: pd.Timestamp,
-    min_latest_coverage: float,
-    label: str,
-    dropout_guard: bool = False,
-) -> pd.DataFrame:
-    coverage = close_coverage_on(data, symbols, expected_session)
-    if coverage.ratio >= min_latest_coverage:
-        return data
-
-    missing = symbols_missing_closes_on(data, symbols, expected_session)
-    if not missing:
-        return data
-
-    batch_size = max(1, int(getattr(settings, "LATEST_REPAIR_BATCH_SIZE", 100)))
-
-    # Blast-radius guard, mirroring the >50% dropout skip in _recover_missing_data.
-    # When essentially EVERY symbol lacks the latest close, the cause is the session
-    # itself — not published, or not a session at all (measured 2026-07-24: Yahoo
-    # carries no bar for that Friday while the static NYSE rule calendar says it is a
-    # session). Re-asking for the same bar 100 symbols at a time cannot conjure it,
-    # and costs ~55 serial batches.
-    #
-    # OPT-IN, and only for a full-universe caller. ``repair_latest_session_cache``
-    # (the manual "Repair N" button) passes ONLY the already-missing symbols, so
-    # there ``missing == symbols`` by construction and any fraction test would fire
-    # for every N >= 1 — silently turning that button into a no-op. Same reason
-    # _recover_missing_data is called with dropout_guard=False on its
-    # known-missing-by-construction paths.
-    #
-    # Also requires the repair to span more than one batch: the cost this avoids is
-    # MANY serial batches, so a small universe (us_sectors is 13 symbols) still gets
-    # its single cheap attempt rather than being skipped on a fraction alone.
-    if dropout_guard and symbols and len(missing) > batch_size:
-        max_missing_fraction = float(
-            getattr(settings, "LATEST_REPAIR_MAX_MISSING_FRACTION", 0.5)
-        )
-        if len(missing) > len(symbols) * max_missing_fraction:
-            print(f"  {label}: {len(missing)}/{len(symbols)} symbols missing the "
-                  f"{expected_session.date()} close (>{max_missing_fraction:.0%}); that is a "
-                  "provider-side absent session, not per-symbol sparseness — skipping the "
-                  "batch repair.", flush=True)
-            return data
-
-    sleep_seconds = max(0.0, float(getattr(settings, "LATEST_REPAIR_SLEEP_SECONDS", 2.0)))
-    start = (expected_session - pd.tseries.offsets.BDay(settings.INCREMENTAL_OVERLAP_BDAYS)).normalize()
-    end = (expected_session + pd.Timedelta(days=1)).normalize()
-    frames: list[pd.DataFrame] = []
-
-    print(f"  {label} latest-session coverage is {coverage.format()} for "
-          f"{expected_session.date()} (required >= {min_latest_coverage:.0%}); "
-          f"repairing {len(missing)} missing symbol(s) in {batch_size}-batches...",
-          flush=True)
-
-    total_batches = ((len(missing) - 1) // batch_size) + 1
-    for i in range(0, len(missing), batch_size):
-        batch = missing[i:i + batch_size]
-        batch_num = i // batch_size + 1
-        print(f"  {label} repair batch {batch_num}/{total_batches} ({len(batch)} tickers)...",
-              flush=True)
-        repaired = _download_batch_with_retry(
-            batch,
-            {'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d')},
-            max_retries=2,
-        )
-        if not repaired.empty and isinstance(repaired.columns, pd.MultiIndex):
-            if hasattr(repaired.index, 'tz') and repaired.index.tz is not None:
-                repaired.index = repaired.index.tz_localize(None)
-            frames.append(repaired)
-        time.sleep(sleep_seconds)
-
-    if not frames:
-        print(f"  {label} repair yielded no usable data.", flush=True)
-        return data
-
-    repaired_panel = pd.concat(frames, axis=1)
-    repaired_panel = repaired_panel.loc[:, ~repaired_panel.columns.duplicated(keep='last')]
-    repaired = _patch_market_data(data, repaired_panel)
-    repaired_coverage = close_coverage_on(repaired, symbols, expected_session)
-    print(f"  {label} repair coverage after patch: {repaired_coverage.format()}.",
-          flush=True)
-    return repaired
 
 
 def repair_latest_session_cache(
@@ -644,6 +143,16 @@ def _record_admission_history(admission: dict, admission_path: str, requested: l
               f"{f' ({detail})' if detail else ''}.",
               flush=True)
     return summary
+
+
+def _admission_meta(scope: _FetchScope, updates: dict[str, int]) -> dict:
+    """The ``ticker_admission`` block a fetch writes into the cache meta."""
+    return {
+        "skipped": len(scope.skipped_admission),
+        "skip_counts": scope.admission_skip_counts,
+        "updates": updates,
+        "active_skip_counts": count_active_skips(scope.admission),
+    }
 
 
 def _symbols_with_indexes(tickers: list[str], universe=None) -> tuple[list[str], list[str]]:
@@ -943,12 +452,7 @@ def _write_incremental_result(
         len(scope.skipped_quarantined), 0, count_quarantined(scope.quarantine),
         time.time() - started_at,
     )
-    meta['ticker_admission'] = {
-        "skipped": len(scope.skipped_admission),
-        "skip_counts": scope.admission_skip_counts,
-        "updates": admission_updates,
-        "active_skip_counts": count_active_skips(scope.admission),
-    }
+    meta['ticker_admission'] = _admission_meta(scope, admission_updates)
     # Preserve last_full_refresh on incremental writes.
     _write_meta(meta_file, meta)
     print(f"Saved incremental update to {cache_file}. New last bar: "
@@ -995,12 +499,7 @@ def _write_unhealthy_cold_result(
         "cold", scope.requested_non_index, returned_active, len(scope.skipped_quarantined),
         0, count_quarantined(scope.quarantine), time.time() - started_at,
     )
-    meta['ticker_admission'] = {
-        "skipped": len(scope.skipped_admission),
-        "skip_counts": scope.admission_skip_counts,
-        "updates": {},
-        "active_skip_counts": count_active_skips(scope.admission),
-    }
+    meta['ticker_admission'] = _admission_meta(scope, {})
     # The one record that this expensive run happened at all: fetch_health above
     # reports the DOWNLOAD (returned/requested, healthy by quarantine ratio) and
     # reads fine even when the panel is discarded, so without this the next run — and
@@ -1065,12 +564,7 @@ def _write_successful_cold_result(
         'last_modified': _now_iso(),
         'price_series': _price_regime(),
         'fetch_health': health,
-        'ticker_admission': {
-            "skipped": len(scope.skipped_admission),
-            "skip_counts": scope.admission_skip_counts,
-            "updates": admission_updates,
-            "active_skip_counts": count_active_skips(scope.admission),
-        },
+        'ticker_admission': _admission_meta(scope, admission_updates),
     }
     _write_meta(meta_file, meta)
     if newly:
@@ -1268,123 +762,3 @@ def fetch_data(tickers: list[str], universe=None) -> pd.DataFrame:
             cache_file, meta_file, meta, cached, scope, expected_session,
             min_latest_coverage, t_fetch_start
         )
-
-
-def _incremental_fetch(cached: pd.DataFrame, tickers_with_spy: list[str],
-                       gap_bdays: int, index_symbols=None) -> pd.DataFrame | None:
-    """
-    Fetch only the last (overlap + gap) business days, probe for splits, then
-    merge into the cached panel. Returns the merged DataFrame on success or
-    None on a soft failure that should fall through to the cold path.
-
-    ``index_symbols`` is the universe's regime set (the caller passes
-    ``scope.index_symbols``); defaults to the US-Stocks global set.
-    """
-    index_symbols = (list(index_symbols) if index_symbols is not None
-                     else getattr(settings, "INDEX_SYMBOLS", [settings.SPY_SYMBOL]))
-    expected_session = latest_completed_session()
-    min_latest_coverage = getattr(settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.95)
-    last_cached_date = (
-        last_complete_reference_date(cached, index_symbols)
-        or cached.index.max().normalize()
-    )
-    overlap = settings.INCREMENTAL_OVERLAP_BDAYS
-    start = (last_cached_date - pd.tseries.offsets.BDay(overlap)).normalize()
-    end = (expected_session + pd.Timedelta(days=1)).normalize()  # yfinance end is exclusive
-
-    print(f"Incremental update: gap={gap_bdays} bday(s), fetching "
-          f"{start.date()} → {end.date()} ({len(tickers_with_spy)} tickers)...",
-          flush=True)
-
-    fresh = _batched_download(
-        tickers_with_spy,
-        {'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d')},
-        "Incremental",
-    )
-    if fresh.empty or not isinstance(fresh.columns, pd.MultiIndex):
-        print("  Incremental download returned empty/malformed data.")
-        return None
-
-    fresh = _repair_latest_session(
-        fresh,
-        tickers_with_spy,
-        expected_session,
-        min_latest_coverage,
-        "Incremental",
-        # Also a full-universe caller, so the guard applies. The earlier reasoning
-        # ("skipping here just drops through to the cold path anyway") stopped being
-        # true once the absent-session skip made that fallback cheap: without this the
-        # leg pays ~59 serial batches plus ~118s of inter-batch sleep chasing a bar that
-        # does not exist, and returns the cache regardless.
-        dropout_guard=True,
-    )
-    fresh_coverage = close_coverage_on(fresh, tickers_with_spy, expected_session)
-    if (last_cached_date < expected_session
-            and (not has_all_closes_on(fresh, index_symbols, expected_session)
-                 or fresh_coverage.ratio < min_latest_coverage)):
-        print(f"  Incremental latest-session coverage is {fresh_coverage.format()} "
-              f"for {expected_session.date()} (required >= {min_latest_coverage:.0%}); "
-              "falling back to full refetch.")
-        return None
-
-    cached_tickers = list({c[0] for c in cached.columns if isinstance(c, tuple)})
-
-    # Split probe on the overlap window.
-    force_full, drifted = _detect_splits(cached, fresh, cached_tickers)
-    if force_full:
-        return None  # Caller will fall through to cold path
-
-    # Drop drifted tickers' columns from both cached and fresh; we'll re-fetch
-    # their full 2y individually after the merge.
-    if drifted:
-        drop_cols = [c for c in cached.columns if isinstance(c, tuple) and c[0] in drifted]
-        cached = cached.drop(columns=drop_cols, errors='ignore')
-        fresh_drop = [c for c in fresh.columns if isinstance(c, tuple) and c[0] in drifted]
-        fresh = fresh.drop(columns=fresh_drop, errors='ignore')
-
-    # OVERWRITE-merge the trailing overlap window (not append-only). ``fresh`` spans
-    # [last_cached - overlap, expected]; letting it WIN over the cached rows in that
-    # window (combine_first via _patch_market_data) CORRECTS a previously
-    # partial/stale bar -- e.g. a mid-session snapshot that missed the last-hour move --
-    # instead of freezing it in the cache until the weekly cold refetch. A NaN cell in
-    # ``fresh`` (a sparse ticker, or a ticker only in the cache) keeps the cached value,
-    # so overwriting never deletes data; the split probe above already guarded drift.
-    new_beyond = fresh.loc[fresh.index > last_cached_date]
-    if new_beyond.empty:
-        print("  No new bars beyond cached last date; refreshing the overlap window in place.")
-    else:
-        print(f"  +{len(new_beyond)} new bar(s); refreshing the {overlap}-bday overlap window in place.")
-    merged = _patch_market_data(cached, fresh)
-
-    # New listings: tickers in universe but absent from the cached columns
-    # → fetch their full history via the existing recovery path.
-    cached_ticker_set = set(cached_tickers)
-    new_listings = [t for t in tickers_with_spy if t not in cached_ticker_set]
-    if new_listings:
-        print(f"  Fetching full history for {len(new_listings)} new listing(s)...", flush=True)
-        merged = _recover_missing_data(
-            merged, new_listings, skip_current_short=False, dropout_guard=False
-        )
-
-    # Drifted tickers: fetch their full 2y individually.
-    if drifted:
-        print(f"  Refetching {len(drifted)} split-drifted ticker(s) in full...", flush=True)
-        merged = _recover_missing_data(
-            merged, drifted, skip_current_short=False, dropout_guard=False
-        )
-
-    # The recovery fetches above are period-based, so during market hours they
-    # can carry today's partial bar into the merge — apply the same forming-bar
-    # cap the windowed fetch already gets from its end date.
-    merged = _drop_forming_rows(merged, expected_session)
-
-    merged_coverage = close_coverage_on(merged, tickers_with_spy, expected_session)
-    if (last_cached_date < expected_session
-            and (not has_all_closes_on(merged, index_symbols, expected_session)
-                 or merged_coverage.ratio < min_latest_coverage)):
-        print(f"  Merged cache latest-session coverage is {merged_coverage.format()} "
-              f"for {expected_session.date()} (required >= {min_latest_coverage:.0%}); "
-              "falling back to full refetch.")
-        return None
-
-    return merged

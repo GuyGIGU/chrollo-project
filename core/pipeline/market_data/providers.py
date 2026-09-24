@@ -199,7 +199,7 @@ class YahooProvider:
         ``symbol`` label over the wrong candles). ``Ticker.history`` keeps results
         on the per-symbol instance, so distinct symbols never collide, with no
         serialization. This mirrors the engine's own single-ticker path
-        (``core/pipeline/market_data/downloads._single_ticker_history``), which switched away
+        (``core/pipeline/market_data/yahoo_download._single_ticker_history``), which switched away
         from ``download`` for the same reason.
         """
         import yfinance as yf

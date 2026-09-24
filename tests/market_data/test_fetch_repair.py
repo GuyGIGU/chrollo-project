@@ -20,6 +20,7 @@ from core.pipeline.market_data.cache import _atomic_write_parquet, _weekly_refre
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.context.market_context import get_market_context
 import core.pipeline.market_data.downloads as downloads_module
+import core.pipeline.market_data.panel_fetch as panel_fetch_module
 import core.pipeline.market_data.market_calendar as market_calendar_module
 import core.pipeline.context.market_context as market_context_module
 import core.pipeline.screening.scan_job as scan_job_module
@@ -406,12 +407,12 @@ def test_incremental_fetch_replaces_sparse_latest_reference_row(monkeypatch):
         axis=1,
     )
 
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
-    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, []))
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(panel_fetch_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(panel_fetch_module, "_detect_splits", lambda *_args, **_kwargs: (False, []))
 
-    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
+    out = panel_fetch_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
 
     assert out is not None
     assert out.loc[dates[-1], ("SPY", "Close")] == 101.0
@@ -445,12 +446,12 @@ def test_incremental_overwrites_stale_complete_overlap_bar(monkeypatch):
         axis=1,
     )
 
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
-    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_a, **_k: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_a, **_k: (False, []))
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(panel_fetch_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch_module, "_batched_download", lambda *_a, **_k: fresh_panel)
+    monkeypatch.setattr(panel_fetch_module, "_detect_splits", lambda *_a, **_k: (False, []))
 
-    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
+    out = panel_fetch_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
 
     assert out is not None
     # The stale trailing bar was OVERWRITTEN with the settled values (not frozen at 95/118).
@@ -480,13 +481,13 @@ def test_incremental_fetch_rejects_missing_latest_reference_bar(monkeypatch):
         axis=1,
     )
 
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
-    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(panel_fetch_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(panel_fetch_module, "_repair_latest_session",
                         lambda data, *_args, **_kwargs: data)
 
-    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
+    out = panel_fetch_module._incremental_fetch(cached_panel, ["AAA", "SPY", "QQQ"], 1)
 
     assert out is None
 
@@ -509,14 +510,14 @@ def test_incremental_fetch_rejects_low_latest_coverage_with_fresh_indexes(monkey
         axis=1,
     )
 
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
-    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(downloads_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.8)
-    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(panel_fetch_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.8)
+    monkeypatch.setattr(panel_fetch_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(panel_fetch_module, "_repair_latest_session",
                         lambda data, *_args, **_kwargs: data)
 
-    out = downloads_module._incremental_fetch(cached_panel, ["AAA", "BBB", "CCC", "SPY", "QQQ"], 1)
+    out = panel_fetch_module._incremental_fetch(cached_panel, ["AAA", "BBB", "CCC", "SPY", "QQQ"], 1)
 
     assert out is None
 
@@ -537,12 +538,12 @@ def test_latest_session_repair_patches_missing_closes_without_dropping_history(m
         axis=1,
     )
 
-    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_BATCH_SIZE", 10)
-    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_SLEEP_SECONDS", 0)
-    monkeypatch.setattr(downloads_module, "_download_batch_with_retry", lambda *_args, **_kwargs: patch)
+    monkeypatch.setattr(panel_fetch_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch_module.settings, "LATEST_REPAIR_BATCH_SIZE", 10)
+    monkeypatch.setattr(panel_fetch_module.settings, "LATEST_REPAIR_SLEEP_SECONDS", 0)
+    monkeypatch.setattr(panel_fetch_module, "_download_batch_with_retry", lambda *_args, **_kwargs: patch)
 
-    out = downloads_module._repair_latest_session(
+    out = panel_fetch_module._repair_latest_session(
         base,
         ["AAA", "SPY"],
         dates[-1],
@@ -572,9 +573,9 @@ def _repair_probe(monkeypatch, n_symbols, batch_size=2):
         calls.append(list(batch))
         return pd.DataFrame()
 
-    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_SLEEP_SECONDS", 0)
-    monkeypatch.setattr(downloads_module.settings, "LATEST_REPAIR_BATCH_SIZE", batch_size)
-    monkeypatch.setattr(downloads_module, "_download_batch_with_retry", _record)
+    monkeypatch.setattr(panel_fetch_module.settings, "LATEST_REPAIR_SLEEP_SECONDS", 0)
+    monkeypatch.setattr(panel_fetch_module.settings, "LATEST_REPAIR_BATCH_SIZE", batch_size)
+    monkeypatch.setattr(panel_fetch_module, "_download_batch_with_retry", _record)
     return base, symbols, calls, dates[-1]
 
 
@@ -586,7 +587,7 @@ def test_latest_session_repair_skips_a_provider_wide_absent_session(monkeypatch)
     than paying ~55 serial batches."""
     base, symbols, calls, day = _repair_probe(monkeypatch, 10)
 
-    out = downloads_module._repair_latest_session(
+    out = panel_fetch_module._repair_latest_session(
         base, symbols, day, 0.95, "test", dropout_guard=True
     )
 
@@ -602,7 +603,7 @@ def test_latest_session_repair_still_runs_for_the_manual_missing_only_caller(mon
     for full-universe callers precisely so this path keeps working."""
     base, symbols, calls, day = _repair_probe(monkeypatch, 10)
 
-    downloads_module._repair_latest_session(base, symbols, day, 0.95, "Manual repair")
+    panel_fetch_module._repair_latest_session(base, symbols, day, 0.95, "Manual repair")
 
     assert calls, "the manual repair path must still issue provider batches"
     assert sorted(s for batch in calls for s in batch) == sorted(symbols)
@@ -613,7 +614,7 @@ def test_latest_session_repair_does_not_skip_a_single_batch_universe(monkeypatch
     is 13 symbols) still gets its one cheap attempt even at 100% missing."""
     base, symbols, calls, day = _repair_probe(monkeypatch, 3, batch_size=100)
 
-    downloads_module._repair_latest_session(
+    panel_fetch_module._repair_latest_session(
         base, symbols, day, 0.95, "test", dropout_guard=True
     )
 
@@ -692,7 +693,7 @@ def test_patch_market_data_tolerates_duplicate_base_columns():
         axis=1,
     )
 
-    out = downloads_module._patch_market_data(base, patch)
+    out = panel_fetch_module._patch_market_data(base, patch)
 
     assert not out.columns.duplicated().any()            # dedupe happened
     assert out.loc[dates[0], ("AAA", "Close")] == 10.0   # history preserved
@@ -725,7 +726,7 @@ def test_patch_market_data_whole_frame_combine_matches_loop_semantics():
         axis=1,
     )
 
-    out = downloads_module._patch_market_data(base, patch)
+    out = panel_fetch_module._patch_market_data(base, patch)
 
     all_dates = pd.to_datetime(["2026-06-17", "2026-06-18", "2026-06-19"])
     expected = pd.DataFrame(
