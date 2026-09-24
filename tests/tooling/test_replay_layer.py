@@ -6,10 +6,11 @@ refused loudly, and the corpus gate's fixture names still resolve to the one
 shared implementation (the fold is real, not a copy).
 """
 import sys
+from pathlib import Path
 
 import pytest
 
-from _paths import REPO_ROOT as ROOT
+from _paths import BASELINES_DIR, REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
@@ -45,6 +46,14 @@ def test_flag_capture_multi_flag_typo_flips_nothing():
                                  NO_SUCH_FLAG_EVER=True):
             pass
     assert settings.BAND_RAILS_ENABLED is prior
+
+
+def test_the_sealed_fixture_paths_are_the_committed_baselines():
+    # The layer finds the repo root on its own; a root one folder off would
+    # point every fixture consumer at files that do not exist.
+    assert Path(replay.BASELINE_DIR).resolve() == BASELINES_DIR
+    assert Path(replay.SEALED_FIXTURE_PARQUET).resolve() == BASELINES_DIR / "marks_corpus.parquet"
+    assert Path(replay.SEALED_BASELINE_JSON).resolve() == BASELINES_DIR / "marks_corpus_baseline.json"
 
 
 def test_corpus_gate_aliases_the_shared_layer(monkeypatch):
