@@ -33,8 +33,8 @@ FROZEN CONVENTIONS (changing one silently re-derives the recorded evidence):
   * the elected leg reads at the SEALED ``first_fire``, never at "today".
 
 Usage (the repo venv, from the repo root):
-    python -m tools.above_rail_census
-    python -m tools.above_rail_census --json OUT
+    python -m tools.research.above_rail_census
+    python -m tools.research.above_rail_census --json OUT
 """
 from __future__ import annotations
 
@@ -44,15 +44,17 @@ import json
 try:
     from tools._bootstrap import configure_path, refuse_sealed_output
 except ModuleNotFoundError:
-    from _bootstrap import configure_path, refuse_sealed_output
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from tools._bootstrap import configure_path, refuse_sealed_output
 
 _PROJECT_ROOT = configure_path(backend=True)
 
 from config import settings                                          # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash               # noqa: E402
 from engine_alpha.structure.narrative import read_structure          # noqa: E402
-from tools.marks_corpus import load_corpus, setup_key                # noqa: E402
-from tools.replay import (                                           # noqa: E402
+from tools.regression.marks_corpus import load_corpus, setup_key                # noqa: E402
+from core.calibration.replay import (                                           # noqa: E402
     MARK_ATR_OFFSET,
     enrich_marked_frame,
     fixture_frame,
@@ -118,8 +120,8 @@ def elected_leg(baseline, frames) -> list[dict]:
 
 def junk_leg() -> dict:
     """Junk frames: do they offer any LPS shelf to place a bar against?"""
-    from tools import negative_corpus
-    from tools.rail_margin_evidence import prepared_frame
+    from tools.regression import negative_corpus
+    from tools.research.rail_margin_evidence import prepared_frame
     frames, meta = negative_corpus._load_fixture()
     roots = boxed = with_lps = 0
     for case in meta["cases"]:

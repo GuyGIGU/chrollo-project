@@ -479,7 +479,7 @@ def collect_manifest() -> Dict[str, Any]:
     # Derived lazily FROM the one declaration (EC-33 — never a second copy of
     # the word tables), on the same lazy-import rule as the taxonomy block
     # above.
-    from engine_alpha.structure import event_vocabulary
+    from engine_alpha.structure.events import event_vocabulary
 
     manifest["SENTENCE_VOCABULARY"] = event_vocabulary.vocabulary_manifest()
     return manifest

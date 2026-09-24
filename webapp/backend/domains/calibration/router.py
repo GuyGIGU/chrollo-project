@@ -301,10 +301,10 @@ def _attach_mark_refusal(result: dict, symbol: str, as_of: str, frozen, db):
                 .first())
         if mark is None or mark.resistance is None:
             return result
-        from tools import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
+        from core.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
         win, mark_atr = replay.drawn_box_window(
             frozen, mark.box_start_date, mark.box_end_date)
-        from engine_alpha.structure.metrics import (  # noqa: PLC0415
+        from engine_alpha.structure.metrics.base import (  # noqa: PLC0415
             mark_refusal_read,
         )
         refusal = mark_refusal_read(win, mark.resistance, mark.support,

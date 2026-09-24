@@ -2,11 +2,11 @@ import os, sys
 sys.path.insert(0, os.path.abspath("."))
 import pandas as pd
 from config import settings
-from core.pipeline.downloads import _trim_to_period
-from engine_alpha.structure.indicators import calculate_atr
+from core.pipeline.market_data.downloads import _trim_to_period
+from engine_alpha.structure.metrics.indicators import calculate_atr
 from engine_alpha.evaluation import apply_baseline_filters
-from engine_alpha.structure.box_gates import _measure_close_residence
-from engine_alpha.structure.event_map import (
+from engine_alpha.structure.box.box_gates import _measure_close_residence
+from engine_alpha.structure.events.event_map import (
     read_rail_episodes, episode_sequence_stats, story_admission,
     resistance_contraction_admission)
 

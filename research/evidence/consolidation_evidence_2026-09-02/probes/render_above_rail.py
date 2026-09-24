@@ -14,7 +14,7 @@ Read-only. Renders from the SEALED fixture at the SEALED first_fire, never a
 live re-fetch, so the picture and the census numbers cannot disagree.
 
 Usage (repo venv, from the repo root):
-    python output/consolidation_evidence_2026-09-02/probes/render_above_rail.py
+    python research/evidence/consolidation_evidence_2026-09-02/probes/render_above_rail.py
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
 from tools._bootstrap import configure_path                       # noqa: E402
 
@@ -34,10 +34,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt                                   # noqa: E402
 from matplotlib.patches import Rectangle                          # noqa: E402
 
-from engine_alpha.structure.lps import _zone_tolerance            # noqa: E402
+from engine_alpha.structure.lps.detection import _zone_tolerance            # noqa: E402
 from engine_alpha.structure.narrative import read_structure       # noqa: E402
-from tools.above_rail_census import _atr_at                       # noqa: E402
-from tools.replay import fixture_frame, load_sealed_fixture       # noqa: E402
+from tools.research.above_rail_census import _atr_at                       # noqa: E402
+from core.calibration.replay import fixture_frame, load_sealed_fixture       # noqa: E402
 
 CASES = (("WTS:2026-06-12", "2026-06-08"), ("SILC:2026-04-13", "2026-04-10"))
 LEAD_IN = 20

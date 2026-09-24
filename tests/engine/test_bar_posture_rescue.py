@@ -16,8 +16,11 @@ baseline — stay reachable. These guards pin:
 * an electing frame is never re-walked; a cause-before-effect veto is final;
 * the variant is NEVER in the baseline roster (the paying read is blind to
   it — the species preset cannot arm it either);
-* end-to-end on the sealed corpus: EGBN/PKE convert on the banked A/B's
-  exact dates and tiers through the story pool with the self-naming record.
+* end-to-end on the corpus: EGBN converts on the banked A/B's exact date and
+  tier through the story pool with the self-naming record. The A/B converted
+  two operator-ruled names; the second, PKE:2026-02-24, left when he deleted
+  that drawing and redrew the setup at 2026-04-07, which fires at baseline
+  (2026-09-08).
 
 The junk-defense leg (flag forced on over the must-NOT-fire corpus) lives in
 test_negative_corpus.py, its home.
@@ -25,27 +28,26 @@ test_negative_corpus.py, its home.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker
-from engine_alpha.structure.event_map import (
+from core.pipeline.screening.screener import _evaluate_ticker
+from engine_alpha.structure.events.event_map import (
     ADMISSION_FORM_RESISTANCE_CONTRACTION,
     ADMISSION_FORM_S_TEST_BAR_POSTURE,
     baseline_admission_roster,
 )
 from engine_alpha.structure.narrative import Structure, read_structure
-from tools import shadow_diff
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame
+from tools.regression import shadow_diff
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from core.calibration.replay import fixture_frame
 
 pytestmark = pytest.mark.regression
 
@@ -114,7 +116,7 @@ def test_flag_defaults_dark_and_never_in_the_baseline_roster():
     assert ADMISSION_FORM_S_TEST_BAR_POSTURE not in baseline_admission_roster()
     # Even the species preset's arming cannot pull the variant into the
     # baseline — it is an escalation-only form by design.
-    from engine_alpha.structure.htf import window_override
+    from engine_alpha.structure.context.htf import window_override
     with window_override({"POWER_PLAY_STORY_FORM_ENABLED": True}):
         assert ADMISSION_FORM_S_TEST_BAR_POSTURE not in \
             baseline_admission_roster()
@@ -187,13 +189,20 @@ def test_bar_lane_never_relitigates_a_cause_veto(monkeypatch):
 def test_bar_lane_converts_the_banked_ab_names_end_to_end(monkeypatch):
     """The banked A/B's acceptance evidence, reproduced at the SCOPED lane
     (battery.log 2026-08-31: the wholesale in-memory swap converted exactly
-    these two, junk silent, shadow byte-identical): EGBN and PKE fire on the
-    operator-ruled dates and tiers through the story pool, self-naming, with
+    EGBN and PKE, junk silent, shadow byte-identical): EGBN fires on the
+    operator-ruled date and tier through the story pool, self-naming, with
     the contraction lane OFF — this is the bar variant's own road."""
     frames, baseline = _load_marks_fixture()
     by_key = {e["key"]: e for e in baseline["setups"]}
-    for key, fire_day, tier in [("EGBN:2026-01-15", "2026-01-07", "A"),
-                                ("PKE:2026-02-24", "2026-02-18", "B")]:
+    # PKE:2026-02-24 was the A/B's second conversion. The operator DELETED that
+    # drawing and redrew the setup at 2026-04-07, which the engine fires at
+    # BASELINE, so it left the corpus on 2026-09-08 when the standard began
+    # following his current drawings; this half of the guard retired with it
+    # when this branch merged onto that standard (2026-09-24), exactly as the
+    # contraction rescue's did (tests/engine/test_miss_program_lanes.py).
+    # RECORDED, because it is a real loss: the flag is still dark awaiting his
+    # ruling, and the banked A/B cited both names.
+    for key, fire_day, tier in [("EGBN:2026-01-15", "2026-01-07", "A")]:
         e = by_key[key]
         assert e["status"] == "miss", (
             f"{key} is no longer a sealed expected-miss — this guard and the "
@@ -244,7 +253,7 @@ def _stats(**over):
 
 
 def test_bar_posture_truth_table_admits_and_refuses_each_leg():
-    from engine_alpha.structure.event_map import story_admission_bar_posture
+    from engine_alpha.structure.events.event_map import story_admission_bar_posture
 
     # The admitting row: >=2 completed support tests + the bar engages the
     # ceiling + not bleeding on the floor. Posture (the close) is IGNORED —
@@ -260,7 +269,7 @@ def test_bar_posture_truth_table_admits_and_refuses_each_leg():
 
 
 def test_bar_posture_is_a_strict_superset_of_the_s_test_form():
-    from engine_alpha.structure.event_map import (
+    from engine_alpha.structure.events.event_map import (
         story_admission, story_admission_bar_posture)
 
     # Posture implies engagement by the reader's construction, so every
@@ -275,7 +284,7 @@ def test_bar_posture_is_a_strict_superset_of_the_s_test_form():
 
 
 def test_bar_posture_refuses_unreadable_silence():
-    from engine_alpha.structure.event_map import story_admission_bar_posture
+    from engine_alpha.structure.events.event_map import story_admission_bar_posture
 
     # EC-54 at the judgment layer: a frame whose verdict bars were unreadable
     # produces zero COMPLETED tests (unreadable episodes never count), so the

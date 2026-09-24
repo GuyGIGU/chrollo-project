@@ -18,18 +18,17 @@ the instrument delegates to.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from engine_alpha.structure.box_gates import GATE_LEGS, _validate_base_quality
-from engine_alpha.structure.metrics import _episode_summary, mark_refusal_read
+from engine_alpha.structure.box.box_gates import GATE_LEGS, _validate_base_quality
+from engine_alpha.structure.metrics.base import _episode_summary, mark_refusal_read
 
 
 def _flat_window(n=40, close=105.0, spread=0.5):
@@ -166,7 +165,7 @@ def test_the_read_serves_the_summary_beside_the_raw_tape():
 
 
 def test_what_if_flip_list_derives_from_the_registry(monkeypatch):
-    from tools.knob_pair_table import what_if_flips
+    from tools.calibration.knob_pair_table import what_if_flips
 
     rows = [
         {"ticker": "EGBN", "as_of": "2026-01-07", "legs": [
@@ -196,7 +195,7 @@ def test_the_flip_list_prints_formatted_numbers_never_a_raw_float():
     read as the proposal itself — and the floor widens with it, so the printed
     line is never arithmetically impossible — and a counted leg stays a
     count."""
-    from tools.knob_pair_table import what_if_flips
+    from tools.calibration.knob_pair_table import what_if_flips
 
     ugly = [{"ticker": "VLO", "as_of": "2026-03-02", "legs": [
         {"leg": "lower_dwell", "measured": 0.1 + 0.2, "threshold": 0.15,

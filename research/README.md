@@ -6,7 +6,7 @@ re-read against the data that produced it. Nothing in production imports from he
 
 | Folder | What it holds |
 |---|---|
-| `evidence/` | Raw JSON sidecars of dated censuses (`bar_state_census_*`, `miss_lane_census_*`, `rail_area_census_*`, `shape_profile_*`, `trend_terminal_ab_*`). Each is cited by the study in `docs/` of the same name. `signal_edge_2026-09-03/` holds the signal-edge verdict run (the harness's `report.txt` and `report.json`, and the null-model universe build log) behind `docs/backtest_results_2026-09-03.md`. |
+| `evidence/` | Raw JSON sidecars of dated censuses (`bar_state_census_*`, `miss_lane_census_*`, `rail_area_census_*`, `shape_profile_*`, `trend_terminal_ab_*`). Each is cited by the study in `docs/` of the same name. `signal_edge_2026-09-03/` holds the signal-edge verdict run (the harness's `report.txt` and `report.json`, and the null-model universe build log) behind `docs/backtest_results_2026-09-03.md`. `consolidation_evidence_2026-08-31/`, `-09-01/` and `-09-02/` hold the consolidation-method program's evidence cited by `docs/consolidation_method_2026-09.md` (which names them by their old `output/` paths): census and reachability JSON, battery and census logs, the WTS/SILC render, and each folder's `probes/`, the scripts that produced them. The probes' imports were ported to the current layout when the branch merged (2026-09-24); the sidecars and logs are as they were written. |
 | `fidelity/` | Chart renders, logs and loss sheets from fidelity A/Bs. Most generators have since been deleted, so these cannot be regenerated. Keep them. |
 
 ## Where the rest of the research loop lives

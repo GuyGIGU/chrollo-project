@@ -20,14 +20,13 @@ operator-visible diff.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure.event_vocabulary import SENTENCE_COLUMN_SQL
-from tools.shadow_diff import CANONICAL_FIELDS
+from engine_alpha.structure.events.event_vocabulary import SENTENCE_COLUMN_SQL
+from tools.regression.shadow_diff import CANONICAL_FIELDS
 
 # The declared additive field sets — result-row keys each lane may ADD.
 # DERIVED from the owning declarations wherever one exists (EC-33); a lane

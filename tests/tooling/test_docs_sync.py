@@ -14,9 +14,10 @@ from __future__ import annotations
 import os
 import re
 
+from _paths import REPO_ROOT
 from tools.maintenance import settings_reference
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ROOT = str(REPO_ROOT)
 
 # The two ROW registers the citation rule speaks about, plus the one program
 # record written entirely after the rule (covered in full - it has no rows to
@@ -131,7 +132,7 @@ def test_quick_reference_matches_live_settings():
 # pattern_register.md's Citation rule (2026-09-01). A line citation rots when
 # some OTHER edit inserts above it, so the change that breaks one never
 # touches the file that carries it and no diff review can catch it - and
-# `tools.pointer_audit --check` cannot either, because it resolves paths and
+# `tools.audits.pointer_audit --check` cannot either, because it resolves paths and
 # not line numbers. Measured on this changeset: five rotted inside their own
 # review rounds with every gate green.
 
@@ -151,8 +152,8 @@ def test_the_line_citation_detector_tells_a_symbol_from_a_line_number():
     only one is the defect - so a detector that flagged everything, or
     nothing, cannot pass here."""
     fixture = (
-        "the `_fire_row` of `tools/miss_lane_census.py` reads the wrong keys; "
-        "pinned by `tests/test_knob_pair_table.py::test_leg_headers_speak`; "
+        "the `_fire_row` of `tools/research/miss_lane_census.py` reads the wrong keys; "
+        "pinned by `tests/tooling/test_knob_pair_table.py::test_leg_headers_speak`; "
         "cited as `:39-42` until 2026-09-01; see `core/archive/writer.py:214`")
     assert _line_citations(fixture) == ["core/archive/writer.py:214"], (
         "the detector must flag the path+line citation and ONLY that one - a "
@@ -236,9 +237,9 @@ def test_the_guard_bites_on_a_line_citation_inside_a_covered_row():
 
     victim = covered[-1][1]
     poisoned = register.replace(
-        victim, victim + " see `engine_alpha/structure/metrics.py:214`", 1)
+        victim, victim + " see `engine_alpha/structure/metrics/base.py:214`", 1)
     assert poisoned != register, "the injection did not land"
     before = [cite for _, cite in _offending_rows(register, rule_date)]
     after = [cite for _, cite in _offending_rows(poisoned, rule_date)]
-    assert after == before + ["engine_alpha/structure/metrics.py:214"], (
+    assert after == before + ["engine_alpha/structure/metrics/base.py:214"], (
         "a line citation inside a covered row must be reported")

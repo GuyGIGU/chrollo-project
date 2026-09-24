@@ -258,7 +258,7 @@ def validate_equilibrium(
     # carries nothing to assert and pays nothing; the pool still resolves the
     # baseline by the ONE derivation.
     if forms is not None:
-        from engine_alpha.structure.event_map import assert_admission_roster
+        from engine_alpha.structure.events.event_map import assert_admission_roster
 
         assert_admission_roster(forms)
     if df is None or root is None or not _finite(atr) or float(atr) <= 0:

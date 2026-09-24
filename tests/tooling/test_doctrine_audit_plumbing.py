@@ -1,4 +1,4 @@
-"""Hermetic plumbing pins for tools.doctrine_audit (consolidation-method
+"""Hermetic plumbing pins for tools.audits.doctrine_audit (consolidation-method
 Task 13 — Beck).
 
 The doctrine gate is deliberately NOT in pytest's default cascade (it needs
@@ -30,19 +30,18 @@ import inspect
 import re
 import sys
 from collections import Counter
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from engine_alpha.structure import bricks
+from engine_alpha.structure.narrative import bricks
 from engine_alpha.structure.narrative import read_structure
-from tools import doctrine_audit
+from tools.audits import doctrine_audit
 
 
 # ── the spied seam ──────────────────────────────────────────────────────────

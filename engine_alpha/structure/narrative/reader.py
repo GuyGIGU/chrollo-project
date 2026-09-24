@@ -463,7 +463,7 @@ def read_structure(df, atr, *, bricks=None, trace=None,
     if not (settings.CONTRACTION_RESCUE_ENABLED
             or settings.BAR_POSTURE_RESCUE_ENABLED):
         return None
-    from engine_alpha.structure.event_map import (  # noqa: PLC0415 — rescue only
+    from engine_alpha.structure.events.event_map import (  # noqa: PLC0415 — rescue only
         ADMISSION_FORM_RESISTANCE_CONTRACTION,
         ADMISSION_FORM_S_TEST_BAR_POSTURE, baseline_admission_roster)
     escalation = set()
@@ -533,7 +533,7 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
     # roster-less call (the ordinary walk) carries nothing to assert and pays
     # nothing; the story pool still resolves the baseline by the ONE derivation.
     if forms is not None:
-        from engine_alpha.structure.event_map import (  # noqa: PLC0415 — lazy
+        from engine_alpha.structure.events.event_map import (  # noqa: PLC0415 — lazy
             assert_admission_roster,
         )
         assert_admission_roster(forms)

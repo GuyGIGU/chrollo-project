@@ -31,19 +31,19 @@ import pandas as pd
 import pytest
 
 from config import settings
-from engine_alpha.structure import box_primitives as bp
-from engine_alpha.structure import bricks as real_bricks
-from engine_alpha.structure import event_map as em
-from engine_alpha.structure import narrative
-from engine_alpha.structure.box_primitives import (
+from engine_alpha.structure.box import box_primitives as bp
+from engine_alpha.structure.narrative import bricks as real_bricks
+from engine_alpha.structure.events import event_map as em
+from engine_alpha.structure.narrative import reader as narrative
+from engine_alpha.structure.box.box_primitives import (
     ELECTED_POOLS,
     PRE_NARRATED_POOLS,
     Admission,
     _build_candidate,
     _story_pool_candidates,
 )
-from engine_alpha.structure.bricks import RootSwing, validate_equilibrium
-from engine_alpha.structure.event_map import (
+from engine_alpha.structure.narrative.bricks import RootSwing, validate_equilibrium
+from engine_alpha.structure.events.event_map import (
     ADMISSION_FORM_RESISTANCE_CONTRACTION,
     ADMISSION_FORM_S_TEST,
     ADMISSION_FORM_S_TEST_BAR_POSTURE,
@@ -133,8 +133,8 @@ def electing_read():
     must cover a read that never falls through to the story pool, and the
     synthetic frames in this file all refuse."""
     from engine_alpha import evaluation
-    from tools.marks_corpus import _load_fixture
-    from tools.replay import fixture_frame
+    from tools.regression.marks_corpus import _load_fixture
+    from core.calibration.replay import fixture_frame
     frames, baseline = _load_fixture()
     mark = next(x for x in baseline["setups"]
                 if x["status"] == "hit" and x["key"].startswith("VLO"))

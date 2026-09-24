@@ -113,12 +113,12 @@ def test_paying_read_never_consults_the_species_form():
     # pool — excludes the contraction form. The species lane arms it via
     # its declared preset (window_override) around its own election only,
     # and the rescue arms it only on an explicit escalated roster.
-    from engine_alpha.structure.event_map import (
+    from engine_alpha.structure.events.event_map import (
         ADMISSION_FORM_RESISTANCE_CONTRACTION,
         ADMISSION_FORM_S_TEST,
         baseline_admission_roster,
     )
-    from engine_alpha.structure.htf import window_override
+    from engine_alpha.structure.context.htf import window_override
 
     assert settings.POWER_PLAY_STORY_FORM_ENABLED is False
     baseline = baseline_admission_roster()

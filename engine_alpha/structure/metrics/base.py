@@ -585,18 +585,18 @@ def mark_refusal_read(win_df, R, S, atr_val):
             or not np.isfinite(float(R) - float(S)) or float(R) <= float(S)
             or atr_val is None or not np.isfinite(atr_val) or atr_val <= 0):
         return None
-    from engine_alpha.structure.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
+    from engine_alpha.structure.box.box_gates import (  # noqa: PLC0415 — sibling, lazy vs cycles
         GATE_LEGS,
         _leg_record,
         _measure_close_residence,
         _respect_stats,
         leg_threshold,
     )
-    from engine_alpha.structure.event_map import (  # noqa: PLC0415
+    from engine_alpha.structure.events.event_map import (  # noqa: PLC0415
         episode_sequence_stats,
         read_rail_episodes,
     )
-    from engine_alpha.structure.trace_export import leg_sentence  # noqa: PLC0415
+    from engine_alpha.structure.box.trace_export import leg_sentence  # noqa: PLC0415
 
     R, S = float(R), float(S)
     highs = win_df["High"].to_numpy(dtype=float)

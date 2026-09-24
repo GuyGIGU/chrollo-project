@@ -33,22 +33,21 @@ from __future__ import annotations
 import os
 import re
 import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from engine_alpha.structure.box_gates import GATE_LEG_INDEX
-from engine_alpha.structure.event_map import _EPISODE_MARK
-from engine_alpha.structure.metrics import mark_refusal_read
-from engine_alpha.structure.trace_export import _LEG_PHRASES
+from engine_alpha.structure.box.box_gates import GATE_LEG_INDEX
+from engine_alpha.structure.events.event_map import _EPISODE_MARK
+from engine_alpha.structure.metrics.base import mark_refusal_read
+from engine_alpha.structure.box.trace_export import _LEG_PHRASES
 from tools import _bootstrap
-from tools import knob_pair_table
+from tools.calibration import knob_pair_table
 
 # The machine tape's own alphabet, DERIVED from the reader that mints it
 # (EC-33 — never a second copy): one rail letter, one mark glyph, an optional

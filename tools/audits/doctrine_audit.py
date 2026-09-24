@@ -34,7 +34,7 @@ goes dark exactly when nobody runs it (the 2026-08 arity trap: a spy pinning
 an old signature). Two defenses: (1) a MANDATORY manual run after any change
 touching engine signatures or election paths (the rule lives in AGENTS.md's
 verify list); (2) the hermetic plumbing leg
-``tests/test_doctrine_audit_plumbing.py`` runs on every default pytest pass —
+``tests/tooling/test_doctrine_audit_plumbing.py`` runs on every default pytest pass —
 it pins the spy's signature transparency, the abstention vocabulary against
 the walk's real trace outcomes, and the whole ``_audit_setup`` check table
 over a synthetic structure, so a breaking engine change turns pytest red the

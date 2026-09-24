@@ -25,17 +25,18 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from _paths import REPO_ROOT
+
 # The backend dir holds the ORM model + the shared row mapper (the
 # test_archive_row_assembly bootstrap).
-_PROJECT_ROOT = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+_PROJECT_ROOT = str(REPO_ROOT)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 _BACKEND_DIR = os.path.join(_PROJECT_ROOT, "webapp", "backend")
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-from engine_alpha.structure.event_vocabulary import (  # noqa: E402
+from engine_alpha.structure.events.event_vocabulary import (  # noqa: E402
     SENTENCE_COLUMN_SQL,
     sentence_archive_values,
     serialize_sentence,
@@ -152,7 +153,7 @@ def test_the_seed_row_mapper_carries_the_family_to_the_database():
     # mapper; drive it end-to-end so a family that falls out of the overrides
     # splat lands NULL here instead of on flip night.
     from archive_models import SetupArchive
-    from services.archive_queries import archive_row_from_result
+    from domains.archive.queries import archive_row_from_result
 
     cells = _measured_cells()
     result = dict(cells)

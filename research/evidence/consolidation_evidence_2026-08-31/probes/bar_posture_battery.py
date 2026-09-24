@@ -5,15 +5,15 @@
 
 Nothing on disk moves. Control pass first (unpatched — proves the ground is
 green), then the identical three guards patched:
-  1. tools.negative_corpus.check_corpus()   must-NOT-fire, 18 frozen frames
-  2. tools.marks_corpus.check_corpus()      sealed must-fire ratchet
-  3. tools.shadow_diff.check_baseline()     canonical drift, firing cohort
+  1. tools.regression.negative_corpus.check_corpus()   must-NOT-fire, 18 frozen frames
+  2. tools.regression.marks_corpus.check_corpus()      sealed must-fire ratchet
+  3. tools.regression.shadow_diff.check_baseline()     canonical drift, firing cohort
 """
 import os, sys, time, contextlib
 sys.path.insert(0, os.path.abspath("."))
 
-from engine_alpha.structure import event_map
-from tools import negative_corpus, marks_corpus, shadow_diff
+from engine_alpha.structure.events import event_map
+from tools.regression import negative_corpus, marks_corpus, shadow_diff
 
 ORIG = event_map.frame_terminal_posture
 

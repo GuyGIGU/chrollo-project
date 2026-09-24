@@ -302,7 +302,7 @@ def test_words_and_verdicts_are_the_signed_closed_sets_literal():
     # here without an operator signing row (or vanishing without a re-ruling)
     # is exactly the drift this pin exists to catch. Signed in full
     # 2026-08-30 (decisions.md word-table rows).
-    from engine_alpha.structure.event_vocabulary import VERDICTS, WORDS
+    from engine_alpha.structure.events.event_vocabulary import VERDICTS, WORDS
 
     assert WORDS == ("lps", "markup", "mini_consolidation", "range",
                      "resistance_test", "sos", "spring", "support_test",
@@ -314,7 +314,7 @@ def test_the_sets_derive_from_the_declared_tables_never_a_retype():
     # EC-33: membership DERIVES from the declared tables, so extending a
     # table extends the sets by construction — every value a table can emit
     # is a member.
-    from engine_alpha.structure.event_vocabulary import (
+    from engine_alpha.structure.events.event_vocabulary import (
         VERDICT_BY_EPISODE_OUTCOME,
         VERDICTS,
         WORD_BY_EPISODE_RAIL,
@@ -336,7 +336,7 @@ def test_the_sets_derive_from_the_declared_tables_never_a_retype():
 
 
 def test_assert_token_accepts_every_signed_pair_and_the_unjudged_state():
-    from engine_alpha.structure.event_vocabulary import (
+    from engine_alpha.structure.events.event_vocabulary import (
         VERDICTS, WORDS, assert_token)
 
     for word in WORDS:
@@ -346,7 +346,7 @@ def test_assert_token_accepts_every_signed_pair_and_the_unjudged_state():
 
 
 def test_assert_token_refuses_an_unsigned_word_and_verdict():
-    from engine_alpha.structure.event_vocabulary import assert_token
+    from engine_alpha.structure.events.event_vocabulary import assert_token
 
     # "holding_shelf" is the RETIRED term (operator naming ruling 2026-08-18)
     # — it survives only as frozen STORED vocabulary (AP-12), never as a
@@ -362,7 +362,7 @@ def test_every_folded_record_passes_the_write_time_assert():
     # The fold and the closed sets can never drift apart: every record the
     # projection emits — puzzle, episode, and the mini-consolidation — is a
     # member pair by construction.
-    from engine_alpha.structure.event_vocabulary import assert_token
+    from engine_alpha.structure.events.event_vocabulary import assert_token
 
     out = unify_events(
         box_events=PUZZLE, role_labels=LABELS, episode_read=EPISODES,
@@ -381,7 +381,7 @@ def test_every_channel_declares_its_skeleton():
     # market_structure's HH/HL labels are excluded by contract (their pivot
     # order scales with frame length — not truncation-stable, so no channel
     # may stand a sentence word on them).
-    from engine_alpha.structure.event_vocabulary import BASIS_CONSTANTS
+    from engine_alpha.structure.events.event_vocabulary import BASIS_CONSTANTS
 
     assert BASIS_CONSTANTS["puzzle"]["skeleton"] == "collapsed_swing_walk"
     assert BASIS_CONSTANTS["episode"]["skeleton"] == "none_bar_level"
@@ -432,7 +432,7 @@ def test_readability_companion_lifts_measured_values_and_zero_is_evidence():
 # ── the sentence archive family (consolidation-method Task 8) ───────────────
 
 def test_sentence_archive_values_live_and_seed_mapping():
-    from engine_alpha.structure.event_vocabulary import (
+    from engine_alpha.structure.events.event_vocabulary import (
         SENTENCE_COLUMN_SQL, sentence_archive_values)
 
     live_row = {"_sentence_tokens": "[]", "_sentence_n_tokens": 0.0,
@@ -457,7 +457,7 @@ def test_serialize_sentence_date_anchors_and_the_family_cells():
 
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=30)
     # Offset ZERO — the one live caller's declaration (the sentence's ruler is
@@ -493,7 +493,7 @@ def test_serialize_sentence_off_ruler_span_is_honest_null():
 
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=10)
     unified = unify_events(box_events=PUZZLE, role_labels=LABELS,
@@ -552,7 +552,7 @@ def _multi_channel_serialization(periods):
 
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=periods)
     unified = unify_events(
@@ -597,7 +597,7 @@ def test_the_off_ruler_span_null_is_named_on_the_log_never_silent(caplog):
     ``_log.warning`` call from ``serialize_sentence`` and the family's 51 tests
     stayed green, while flag_ledger row 46 promises the operator this line as a
     trial-night expectation. Pinned the house way (the loud-degrade precedent
-    at ``tests/test_strategy_read.py``'s
+    at ``tests/engine/test_strategy_read.py``'s
     ``test_out_of_range_bar_degrades_empty_and_logs_loudly`` — caplog.at_level
     on the named logger).
 
@@ -740,7 +740,7 @@ def _serialize_ten_day(unified):
 
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=10)
     return _json.loads(
@@ -847,7 +847,7 @@ def test_a_knowable_stamp_below_the_ruler_is_reported_and_never_wraps(caplog):
 def test_serialize_sentence_refuses_an_unsigned_token_at_mint():
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=10)
     bad = {"events": [{"word": "creek_jump", "verdict": "held",
@@ -868,7 +868,7 @@ def test_serialize_sentence_refuses_a_nonzero_declared_offset():
     # sentences, with nothing to tell the reader afterwards.
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=30)
     unified = unify_events(
@@ -897,7 +897,7 @@ def test_serialize_sentence_refuses_an_absent_declared_offset():
     # an EXPLICIT zero; absence is a refusal, not a pass.
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=30)
     undeclared = unify_events(
@@ -932,7 +932,7 @@ def test_serialize_sentence_refuses_measured_tokens_without_the_companion():
     # the mint refuses it rather than letting the producer invent it.
     import pandas as pd
 
-    from engine_alpha.structure.event_vocabulary import serialize_sentence
+    from engine_alpha.structure.events.event_vocabulary import serialize_sentence
 
     dates = pd.bdate_range("2026-01-05", periods=30)
     unified = unify_events(box_events=PUZZLE, role_labels=LABELS,
@@ -951,7 +951,7 @@ def test_vocabulary_manifest_is_the_derived_projection_the_freeze_hashes():
     # ONE declaration (EC-33), never a second copy of the tables — and the
     # projection covers the MAPPINGS, not only the derived value sets.
     from engine_alpha.freeze.manifest import collect_manifest
-    from engine_alpha.structure.event_vocabulary import (
+    from engine_alpha.structure.events.event_vocabulary import (
         VERDICT_BY_EPISODE_OUTCOME,
         VERDICTS,
         WORD_BY_EPISODE_RAIL,
@@ -961,7 +961,7 @@ def test_vocabulary_manifest_is_the_derived_projection_the_freeze_hashes():
         vocabulary_manifest,
     )
 
-    from engine_alpha.structure.event_vocabulary import BASIS_CONSTANTS
+    from engine_alpha.structure.events.event_vocabulary import BASIS_CONSTANTS
 
     block = vocabulary_manifest()
     assert block == {
@@ -988,7 +988,7 @@ def test_the_signed_assignment_is_pinned_literal_not_only_its_value_sets():
     # The operator's pending signings re-assign inside the existing sets, so a
     # sets-only pin (and a sets-only epoch block) sees nothing move. Word table
     # signed in full 2026-08-30 (decisions.md), verdict axis the same day.
-    from engine_alpha.structure.event_vocabulary import (
+    from engine_alpha.structure.events.event_vocabulary import (
         VERDICT_BY_EPISODE_OUTCOME, WORD_BY_EPISODE_RAIL)
 
     assert WORD_BY_PUZZLE_TYPE == {
@@ -1016,7 +1016,7 @@ def test_a_signed_re_wording_rotates_the_engine_config_version(monkeypatch):
     # this block a post-flip re-wording would mint new-worded rows under the
     # old epoch stamp, and with backfill forbidden the mixed population could
     # never be partitioned again.
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()
@@ -1033,7 +1033,7 @@ def test_a_re_ruling_inside_the_closed_sets_rotates_the_version(monkeypatch):
     # exactly the shape of the operator's pending word signings, and with no
     # backfill EVER the re-meaning'd rows would land under the old stamp with
     # nothing left to partition the mixed population by.
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()
@@ -1067,7 +1067,7 @@ def test_a_pure_reordering_of_a_declared_table_rotates_nothing(monkeypatch):
     # and a spurious one splits a cohort that could have been pooled). Same
     # split as the taxonomy block: TA_GRADE_CHAPTER_ORDER is hashed as a list
     # because chapter order IS ruled meaning; these are hashed as mappings.
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()
@@ -1094,7 +1094,7 @@ def test_a_re_declared_channel_basis_rotates_the_engine_config_version(
     # and every box-relative span is suddenly read as already window-relative,
     # i.e. every archived puzzle date means something else. That must rotate
     # the epoch, exactly like a re-wording.
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()
@@ -1125,7 +1125,7 @@ def test_a_new_declared_table_cannot_sit_outside_the_hashed_identity(
     # projection registry is pinned against the module's ACTUAL declarations,
     # so a new table that is neither projected nor excluded-on-the-record
     # refuses loudly — at the manifest, which is where the epoch is decided.
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()
@@ -1171,7 +1171,7 @@ def test_a_declared_set_is_a_declaration_not_an_escape_hatch(monkeypatch):
     between a re-meaning'd vocabulary and rows minted under a stale epoch,
     because the family forbids backfill EVER.
     """
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()

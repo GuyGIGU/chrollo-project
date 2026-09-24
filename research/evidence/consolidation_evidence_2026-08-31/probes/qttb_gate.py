@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.abspath("."))
 import pandas as pd
 from config import settings
 from engine_alpha import evaluation as ev
-from engine_alpha.structure import event_map
+from engine_alpha.structure.events import event_map
 
 ORIG = event_map.frame_terminal_posture
 def bar_unit(h, c, R, tol): return event_map.frame_r_engaged(h, R, tol)

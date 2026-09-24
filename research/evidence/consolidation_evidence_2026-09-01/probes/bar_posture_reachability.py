@@ -1,6 +1,6 @@
 """Bar-posture rescue REACHABILITY — the twelve-name disclosure sheet, re-derived.
 
-The 2026-08-31 census (`output/consolidation_evidence_2026-08-31/`) answered a
+The 2026-08-31 census (`research/evidence/consolidation_evidence_2026-08-31/`) answered a
 different question than the flip sheet quotes it for. It measured a WHOLESALE
 in-memory basis swap at the 2026-08-27 cache edge and found twelve names the
 swap would add; `probes/twelve_scope.py` then asked whether the SHIPPED lane
@@ -19,7 +19,7 @@ finding 9):
   finality in the engine, so the predicate can never drift from the policy
   (EC-3) — and, unlike a vocabulary of outcome strings, it cannot be widened
   by accident. It is NOT
-  ``tools.doctrine_audit._VETO_OUTCOMES``: that frozenset answers a different
+  ``tools.audits.doctrine_audit._VETO_OUTCOMES``: that frozenset answers a different
   question (which non-elections the coverage census EXCUSES rather than
   counts as a hole) and it holds ``lps_before_spring`` too, which is not
   final at all — the chronology floor ends one root's attempt and the walk
@@ -40,7 +40,7 @@ finding 9):
                                  included); the armed lane gets its one
                                  re-walk here.
   Reachable names are then run through the REAL armed lane (the shipped flag,
-  scoped by ``tools.replay.flag_capture``) so the sheet says whether each one
+  scoped by ``core.calibration.replay.flag_capture``) so the sheet says whether each one
   actually CONVERTS, not merely that it could be attempted.
 
 * **Ambient-blind** (round three, 2026-09-01). The record mandates re-running
@@ -125,7 +125,7 @@ no backend. Both program flags stay DARK for the classification; the only
 armed read is the scoped conversion leg, named in the stamp.
 
 Usage (ChrolloDashboard venv python, from anywhere):
-    python "output/consolidation_evidence_2026-09-01/probes/bar_posture_reachability.py"
+    python "research/evidence/consolidation_evidence_2026-09-01/probes/bar_posture_reachability.py"
     ... [--json OUT]     # a later sitting writes its own dated sidecar
 """
 from __future__ import annotations
@@ -138,11 +138,11 @@ import sys
 
 import pandas as pd
 
-# The probe lives three levels under the repo root (output/<dated>/probes/);
+# The probe lives four levels under the repo root (research/evidence/<dated>/probes/);
 # anchor on __file__ so a run from any cwd imports the repo packages, never a
 # shadowing sibling (the documented config-shadow trap).
 _PROJECT_ROOT = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
@@ -156,15 +156,15 @@ from engine_alpha.freeze.manifest import (  # noqa: E402
     ENGINE_SETTINGS_KEYS,
     manifest_hash,
 )
-from engine_alpha.structure.narrative import (  # noqa: E402
+from engine_alpha.structure.narrative.reader import (  # noqa: E402
     _CAUSE_VETOED,
     _walk_structure,
     read_structure,
 )
-from tools.replay import flag_capture  # noqa: E402
+from core.calibration.replay import flag_capture  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_CENSUS = os.path.join(_PROJECT_ROOT, "output",
+_CENSUS = os.path.join(_PROJECT_ROOT, "research", "evidence",
                        "consolidation_evidence_2026-08-31",
                        "bar_posture_census.json")
 _DEFAULT_JSON = os.path.normpath(
@@ -211,7 +211,7 @@ _PLAIN = {
 # So the pinned SET is no longer named by hand. It is DERIVED from
 # `manifest.ENGINE_SETTINGS_KEYS` — the engine's OWN declaration of every
 # constant that decides a reading — whose completeness over the eval path is
-# itself proven, not assumed: `tests/test_invariants.py::
+# itself proven, not assumed: `tests/engine/test_invariants.py::
 # test_every_scoring_settings_symbol_is_in_manifest` scans every
 # `settings.NAME` read by evaluation + scoring + screener + ALL of
 # engine_alpha/structure/ and admits exactly three ops exclusions, none of
@@ -226,7 +226,6 @@ _PLAIN = {
 # ABOUT: both program lanes dark, the sibling rescue lanes dark, the species
 # story-form off, the doctrinal pair live.
 _PIN_VALUES = {
-    "AR_FIRST_REACTION_ENABLED": False,
     "BAND_RAILS_ENABLED": True,
     "BAR_POSTURE_RESCUE_ENABLED": False,
     "BOTTOMING_BASE_LANE_ENABLED": False,
@@ -270,7 +269,7 @@ def _engine_boolean_roster():
     ONE derivation, named once, so the set this sheet pins and the set the
     engine declares are two NAMED sets compared with each other — never one
     set checked against itself. ``ENGINE_SETTINGS_KEYS`` is proven complete
-    over the eval path by ``tests/test_invariants.py::
+    over the eval path by ``tests/engine/test_invariants.py::
     test_every_scoring_settings_symbol_is_in_manifest``, so a boolean in it is
     a flag that can move these counts.
     """
@@ -519,7 +518,7 @@ def _self_check():
     abstention VOCABULARY as finality and would have reported a rescuable
     name as "never reachable". Both halves are driven through the same
     scripted bricks pytest pins the walk's outcomes with
-    (``tests/test_doctrine_audit_plumbing.py``) rather than a local twin
+    (``tests/tooling/test_doctrine_audit_plumbing.py``) rather than a local twin
     (EC-3), and each half asserts the OBSERVABLE consequence — whether the
     escalation appended a second walk's records — not the pass stamp.
 
@@ -541,7 +540,12 @@ def _self_check():
     an instrument that cannot prove its own predicate must refuse, never
     print unguarded counts.
     """
-    from tests.test_doctrine_audit_plumbing import (  # noqa: PLC0415
+    # Test modules take their paths from tests/_paths.py, which pytest's
+    # conftest puts on sys.path; a direct probe run has to do the same.
+    _tests_dir = os.path.join(_PROJECT_ROOT, "tests")
+    if _tests_dir not in sys.path:
+        sys.path.insert(0, _tests_dir)
+    from tests.tooling.test_doctrine_audit_plumbing import (  # noqa: PLC0415
         _FloorBlockedBricks, _VetoBricks)
 
     checks = []
@@ -600,7 +604,7 @@ def _self_check():
     checks.append(
         f"the measurement pin IS the engine's boolean roster - all {len(pin)} "
         "of them, size asserted, not a subset (ENGINE_SETTINGS_KEYS, itself "
-        "proven complete over the eval path by tests/test_invariants.py) - "
+        "proven complete over the eval path by tests/engine/test_invariants.py) - "
         "and a move of ANY ONE of them is named by ambient_matches_pin")
 
     # ── leg 0b: the stamped engine identity is a live witness of the basis ───
@@ -999,7 +1003,7 @@ def run(json_out=None):
             "pin_source": ("every boolean in engine_alpha.freeze.manifest."
                            "ENGINE_SETTINGS_KEYS - the engine's own roster of "
                            "constants that decide a reading, proven complete "
-                           "over the eval path by tests/test_invariants.py::"
+                           "over the eval path by tests/engine/test_invariants.py::"
                            "test_every_scoring_settings_symbol_is_in_manifest"
                            " - pinned at this changeset's shipped values"),
             "why": ("EVERY flag the engine says can move a reading is pinned "
@@ -1050,7 +1054,7 @@ def run(json_out=None):
                       "reachable name with BAR_POSTURE_RESCUE_ENABLED=True "
                       "and every other flag unchanged - the shipped lane "
                       "through the one scoped override "
-                      "(tools.replay.flag_capture), self-restoring"),
+                      "(core.calibration.replay.flag_capture), self-restoring"),
         # The finality rule this run classified by, and the engine-driven
         # checks that proved it before the sheet was built.
         "finality_rule": ("cause_vetoed = the walk returned narrative's "

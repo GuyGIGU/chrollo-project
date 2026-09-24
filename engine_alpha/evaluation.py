@@ -682,11 +682,11 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     sentence_fields = {}
     if settings.SENTENCE_ARCHIVE_ENABLED:
         try:
-            from engine_alpha.structure.event_map import (
+            from engine_alpha.structure.events.event_map import (
                 read_rail_episodes,
                 read_role_labels as _read_role_labels_s,
             )
-            from engine_alpha.structure.event_vocabulary import (
+            from engine_alpha.structure.events.event_vocabulary import (
                 serialize_sentence,
                 unify_events,
             )
@@ -1490,8 +1490,8 @@ def evaluate_ticker_with_power_play(ticker: str, df: pd.DataFrame,
     stats: dict = {}
     row = None
     try:
-        from engine_alpha.structure import narrative as _narrative  # noqa: PLC0415
-        from engine_alpha.structure.power_play import power_play_fields  # noqa: PLC0415
+        from engine_alpha.structure.narrative import reader as _narrative  # noqa: PLC0415
+        from engine_alpha.structure.context.power_play import power_play_fields  # noqa: PLC0415
         # Everything below the base submission is the species lane's own DARK
         # work — including its scoped second structure read — so it runs with
         # the rescue telemetry sink DISARMED: that read escalates the same
@@ -1540,7 +1540,7 @@ def evaluate_ticker_with_rescue_stats(ticker: str, df: pd.DataFrame,
     crashed base evaluation contributes nothing (an aborted walk is incomplete
     evidence, the species twin's own rule); a telemetry failure degrades to a
     counted drop, never a dead scan night (EC-20). Top-level for pickling."""
-    from engine_alpha.structure import narrative as _narrative  # noqa: PLC0415
+    from engine_alpha.structure.narrative import reader as _narrative  # noqa: PLC0415
 
     sink: dict = {}
     with _narrative.rescue_sink(sink):

@@ -1371,7 +1371,7 @@ identity — they are lookups nothing reads positionally, `manifest_json`'s `sor
 them anyway, and a spurious epoch permanently splits a cohort that could have been pooled. That is
 the same split the taxonomy block already makes between `TA_GRADE_CHAPTER_ORDER` (a list — chapter
 order IS ruled meaning) and `chapter_map()` (a dict — registry order is not). Both directions are
-pinned in `tests/test_event_vocabulary.py`: a re-ruling rotates, a pure reorder does not.
+pinned in `tests/engine/test_event_vocabulary.py`: a re-ruling rotates, a pure reorder does not.
 
 ### The served refusal read (the operator's tuning loop)
 
@@ -1386,13 +1386,13 @@ the real ladder passes. It is the ONE place where a comparison exists twice in t
 is why the claim is "consumes the gates' own helpers, with one named exception" rather than "no
 duplication anywhere"; the fold that would delete the reproduction — hand the statistic back
 through the leg registry — is parked with a kill-by at [pattern_register.md](pattern_register.md)
-row 11 (EC-50), and three of the eleven pins in `tests/test_mark_refusal_read.py` hold the
+row 11 (EC-50), and three of the eleven pins in `tests/engine/test_mark_refusal_read.py` hold the
 reproduction to the gate meanwhile (a NaN low, a real crash, the razor edge). The read returns THE
 single blocking leg (first refusal in ladder order) rendered through the one operator-language
 vocabulary (`trace_export.leg_sentence`), `refused_legs` (all of them), the raw episode profile
 tape for machine consumers, and `episode_summary` — the same counts in plain trading words, and
 the ONLY episode rendering an operator surface may serve (the hover, and as of 2026-09-01
-`tools/knob_pair_table.py`'s own printed output, which used to print the raw tape where the
+`tools/calibration/knob_pair_table.py`'s own printed output, which used to print the raw tape where the
 summary sat one key away on the same dict). NULL whole on unreadable geometry
 (degenerate rails/ATR/empty window): a refused read is NULL, never fabricated zeros.
 
@@ -1402,7 +1402,7 @@ gate leg; the unit beside a number in it is "trading days", never "bars" and nev
 That is now true of all fifteen — the last offender, `respect_share`'s "share of bars respecting
 the rails", was corrected 2026-09-01, and the table was then swept phrase by phrase for
 whole-word `bar`/`bars`/`session`/`sessions`, constant names and retired jargon: zero hits.
-Pinned two ways in `tests/test_trace_export.py`, because either alone is escapable — a
+Pinned two ways in `tests/engine/test_trace_export.py`, because either alone is escapable — a
 whole-table banned-word sweep (which a benign re-wording slips past) AND exact literals for the
 three legs that carry a unit word. **The rule governs the phrases, not the wire keys:**
 `box_gates.GATE_LEGS` still declares the `window` and `respect_run` quantum as `"bars"`
@@ -1411,7 +1411,7 @@ three legs that carry a unit word. **The rule governs the phrases, not the wire 
 not a wording fix — say "the rendered phrase" wherever this absolute is restated, or the next
 sweep will read it as licence.
 
-**The knob table's printing rule (`tools/knob_pair_table.py`, 2026-09-01).** The pair
+**The knob table's printing rule (`tools/calibration/knob_pair_table.py`, 2026-09-01).** The pair
 formatter this vocabulary exposes compares ONE mark against ONE floor, which is the right shape
 for a sentence and the wrong shape for a printed block: three distinct marks that differ from
 the floor but not from each other all rendered as the same number, and a mark widened against a
@@ -1492,7 +1492,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42`_
+_engine_config_version: `193b61c49e985197d67ff201b53f9b3fc92bd0293c2d29ff6f170385e19bbef2`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False

@@ -138,7 +138,7 @@ def test_the_unit_beside_a_number_is_trading_days_never_bars_or_sessions():
     re-wordings were pinned by nothing and a silent revert stayed green."""
     import re
 
-    from engine_alpha.structure.trace_export import _LEG_PHRASES
+    from engine_alpha.structure.box.trace_export import _LEG_PHRASES
 
     for leg, phrase in _LEG_PHRASES.items():
         for banned in ("bar", "bars", "session", "sessions"):

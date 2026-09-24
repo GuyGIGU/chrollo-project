@@ -14,20 +14,19 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
 import pandas as pd
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from core.pipeline.screener import _evaluate_ticker
-from engine_alpha.structure.event_vocabulary import assert_token
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame
+from core.pipeline.screening.screener import _evaluate_ticker
+from engine_alpha.structure.events.event_vocabulary import assert_token
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from core.calibration.replay import fixture_frame
 
 pytestmark = pytest.mark.regression
 
@@ -101,7 +100,7 @@ def test_a_measurement_failure_nulls_the_family_and_keeps_the_row(monkeypatch):
     archive. An additive family may never subtract the row: the fire survives,
     the family degrades to its declared NULL state, and the drop is COUNTED so
     an error stays distinguishable from an honest refusal."""
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
     from engine_alpha import evaluation
 
     monkeypatch.setattr(settings, "SENTENCE_ARCHIVE_ENABLED", True)
@@ -264,7 +263,7 @@ def test_mutation_probe_the_input_tie_has_teeth(monkeypatch):
     poison the sentence block's episode reader and the identity must break
     (a poisoned fold that still 'agreed' would mean the assertion tests
     nothing)."""
-    import engine_alpha.structure.event_vocabulary as ev
+    import engine_alpha.structure.events.event_vocabulary as ev
 
     monkeypatch.setattr(settings, "SENTENCE_ARCHIVE_ENABLED", True)
     ticker, sliced, spy = _vlo_fire_frame()

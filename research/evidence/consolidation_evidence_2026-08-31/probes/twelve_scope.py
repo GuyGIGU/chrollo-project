@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath("."))
 import pandas as pd
 from config import settings
 from engine_alpha import evaluation as ev
-from engine_alpha.structure import event_map
+from engine_alpha.structure.events import event_map
 from engine_alpha.structure.narrative import read_structure
 
 NEW = ["KFY","BIIB","VTR","RCUS","ICLR","GEO","VRTS","CCEP","BMY","MSGS","CARS","AMCR"]

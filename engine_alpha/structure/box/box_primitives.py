@@ -716,7 +716,7 @@ def _story_pool_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
     only; width/window/respect verdicts for these same pairs were already
     narrated by the strict pass over the identical windows.
     """
-    from engine_alpha.structure.event_map import (
+    from engine_alpha.structure.events.event_map import (
         ADMISSION_FORM_RESISTANCE_CONTRACTION, ADMISSION_FORM_S_TEST,
         ADMISSION_FORM_S_TEST_BAR_POSTURE,
         baseline_admission_roster, episode_sequence_stats, frame_r_engaged,

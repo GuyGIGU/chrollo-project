@@ -625,7 +625,7 @@ def test_ceiling_rest_verdict_truth_table(monkeypatch):
     boundary pair holds by name (NOK 0.241 IN, ENIC 0.314 OUT — the stated
     ~0.06-ATR razor each side), and the EC-54 rows fail closed — a missing
     or non-finite ATR refuses, and the dark flag refuses everything."""
-    from engine_alpha.structure.lps import _ceiling_rest_verdict
+    from engine_alpha.structure.lps.detection import _ceiling_rest_verdict
 
     R, atr = 100.0, 1.0
     monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", True)

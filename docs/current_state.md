@@ -8,6 +8,9 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
 
 - **Engine:** config hash `0bbadfac…` (`python -m engine_alpha.freeze.manifest --hash`),
   unchanged by the domain refactor. Reader pin passes (`python -m tools.regression.reader_pin --check`).
+  Merging the consolidation-method branch (`claude/eager-chatelet-65e8d4`, PR #11) onto this layout
+  rotated it to `193b61c4…`, identity only: two flag keys (`BAR_POSTURE_RESCUE_ENABLED`,
+  `SENTENCE_ARCHIVE_ENABLED`) and the signed sentence vocabulary joined the manifest; no value moved.
 - **Scoring:** tier comes from the TA grade against 62 / 52 / 42 / 32, with the
   `S_MAX_BOX_WIDTH` cap (0.15) on top (`config/scoring.py`). RS and uptrend weights are 0;
   the re-opened A/B recommends keeping them there, and the operator's answer is owed ([`asks.md`](asks.md)).
@@ -26,10 +29,10 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 
 | State | `*_ENABLED` flags (value in `config/*.py`) |
 |---|---|
-| LIVE, engine | `CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `POWER_PLAY_PRESET`, `EVENT_MAP` |
+| LIVE, engine | `CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `POWER_PLAY_PRESET`, `EVENT_MAP`, `SENTENCE_ARCHIVE` (measure-only `sentence_*` archive columns) |
 | LIVE, infrastructure | `HEALTH_BOARD`, `TICKER_ADMISSION`, `YAHOO_RATE_LIMIT`, `QUARANTINE` |
 | DARK, kill-by 2026-09-30 | `FUNDAMENTALS`, `RS_LINE`, `SECTOR_RANKING`, `ELECTION_TRACE_EXPORT`, `STRATEGY_READ` |
-| DARK, kill-by 2026-10-31 | `CONTRACTION_RESCUE`, `SMA50_DIP_EXCEPTION`, `BOTTOMING_BASE_LANE`, `LPS_CEILING_REST`, `POWER_PLAY_STORY_FORM` |
+| DARK, kill-by 2026-10-31 | `CONTRACTION_RESCUE`, `BAR_POSTURE_RESCUE`, `SMA50_DIP_EXCEPTION`, `BOTTOMING_BASE_LANE`, `LPS_CEILING_REST`, `POWER_PLAY_STORY_FORM` |
 | DARK, overdue | `ELECTION_STABILITY`: this branch's ledger says 2026-09-15; the three rewrite branches re-date it to 2026-11-30 |
 | RETIRED (key deleted) | `TREND_TERMINAL_BOX_GATE`, `AR_FIRST_REACTION` (both 2026-09-08), `PIP_PIVOTS`, `LPS_REQUIRE_PEAK_DOWN`, `TA_SCORE_V2`, `EQ_DWELL_BAR_BASIS`, and the seven keys folded 2026-07-18 |
 

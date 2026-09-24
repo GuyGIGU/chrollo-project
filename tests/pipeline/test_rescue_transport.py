@@ -13,21 +13,20 @@ nights the lane ran.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
 from engine_alpha import evaluation
 from engine_alpha.evaluation import evaluate_ticker_with_rescue_stats
-from tools.marks_corpus import _FROZEN_BREADTH
-from tools.marks_corpus import _load_fixture as _load_marks_fixture
-from tools.replay import fixture_frame, flag_capture
+from tools.regression.marks_corpus import _FROZEN_BREADTH
+from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
+from core.calibration.replay import fixture_frame, flag_capture
 
 pytestmark = pytest.mark.regression
 
@@ -50,7 +49,7 @@ def test_flags_off_the_twin_contributes_nothing():
         "RISER", _refusing_frame(), 0.0, _FROZEN_BREADTH)
     assert row is None and stats == {}
     # The sink is always disarmed after the call.
-    from engine_alpha.structure import narrative
+    from engine_alpha.structure.narrative import reader as narrative
     assert narrative._rescue_sink is None
 
 
@@ -112,7 +111,7 @@ def test_the_species_lanes_dark_read_books_nothing(monkeypatch):
     never escalated at all (round-two completeness critic, 2026-09-01)."""
     monkeypatch.setattr(settings, "BAR_POSTURE_RESCUE_ENABLED", True)
     monkeypatch.setattr(settings, "POWER_PLAY_PRESET_ENABLED", True)
-    from engine_alpha.structure import narrative
+    from engine_alpha.structure.narrative import reader as narrative
     from engine_alpha.structure.narrative import read_structure
 
     dark_frame = _refusing_frame()
@@ -159,7 +158,7 @@ def test_a_nested_arm_never_clobbers_the_paying_sink():
     """The seam's own law: the FIRST armer owns the booking. A nested arm is
     refused (loudly) instead of silently displacing the paying walk's sink,
     and every scope restores what it found rather than blanking it."""
-    from engine_alpha.structure import narrative
+    from engine_alpha.structure.narrative import reader as narrative
 
     outer: dict = {}
     with narrative.rescue_sink(outer):
@@ -184,7 +183,7 @@ def test_crashed_base_contributes_nothing(monkeypatch):
     def crashing_eval(ticker, df, *a, **k):
         # Book into the armed sink first — proving partial telemetry from an
         # aborted read is still refused — then crash the walk.
-        from engine_alpha.structure import narrative
+        from engine_alpha.structure.narrative import reader as narrative
         if narrative._rescue_sink is not None:
             narrative._rescue_sink["rescue_walks"] = 1
             narrative._rescue_sink["rescue_ms"] = 1.0
@@ -224,7 +223,7 @@ def test_conductor_publishes_the_lane_block_and_pseudo_phase(monkeypatch):
     the attempt row lands in the published block, the counters ride, and the
     summed in-worker cost records as its own pseudo-phase — present ONLY
     because the lane ran."""
-    import core.pipeline.screener as screener_module
+    import core.pipeline.screening.screener as screener_module
 
     df = _refusing_frame()
 
@@ -258,7 +257,7 @@ def test_conductor_publishes_the_lane_block_and_pseudo_phase(monkeypatch):
 def test_dark_scan_metrics_carry_no_rescue_phase(monkeypatch):
     """Flags dark: no rescue block, no pseudo-phase — the persisted metrics
     stay byte-identical (EC-8's flag-off surface includes scan metrics)."""
-    import core.pipeline.screener as screener_module
+    import core.pipeline.screening.screener as screener_module
 
     df = _refusing_frame()
 

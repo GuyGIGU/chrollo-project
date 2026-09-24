@@ -13,9 +13,9 @@ sys.path.insert(0, os.path.abspath("."))
 import pandas as pd
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR, apply_baseline_filters_with_reason
-from engine_alpha.structure import event_map
-from core.pipeline.screener import _evaluate_ticker
-from tools.shadow_diff import canonical_fields
+from engine_alpha.structure.events import event_map
+from core.pipeline.screening.screener import _evaluate_ticker
+from tools.regression.shadow_diff import canonical_fields
 
 _BREADTH, _SPY_6M = 0.5, 0.0        # the replay seam's frozen scoring scalars
 ORIG = event_map.frame_terminal_posture

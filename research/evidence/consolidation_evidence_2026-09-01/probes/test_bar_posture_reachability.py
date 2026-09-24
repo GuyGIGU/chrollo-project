@@ -18,7 +18,7 @@ nothing behind it before round five (2026-09-01), and one leg here per claim:
       pin had ever been entered.
 
 Run: ``.venv\\Scripts\\python.exe -m pytest
-"output/consolidation_evidence_2026-09-01/probes/test_bar_posture_reachability.py" -q``
+"research/evidence/consolidation_evidence_2026-09-01/probes/test_bar_posture_reachability.py" -q``
 (the repo's ``testpaths = tests`` means a default pytest run does NOT collect
 this file — it is named explicitly, like the probe it guards).
 
@@ -40,7 +40,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _load_probe():
-    """Import the probe by path — it lives in output/, not on the package path."""
+    """Import the probe by path — it lives in research/evidence/, not on the package path."""
     spec = importlib.util.spec_from_file_location(
         "bar_posture_reachability_probe",
         os.path.join(_HERE, "bar_posture_reachability.py"))
@@ -53,7 +53,7 @@ def _load_probe():
 probe = _load_probe()
 
 from config import settings  # noqa: E402  (the probe bootstrapped sys.path)
-from tools.replay import flag_capture  # noqa: E402
+from core.calibration.replay import flag_capture  # noqa: E402
 
 # The flag the 2026-09-01 sweep MEASURED to move the headline (4/4 -> 3/3) by
 # electing KFY at baseline through the sibling ceiling-rest lane. Used as the

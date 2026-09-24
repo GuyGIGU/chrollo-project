@@ -243,7 +243,7 @@ EQ_COVERAGE_MIN_FRAC = 0.03      # a bin counts as "filled" if it holds >= this 
 # (S<->R), or hang off one rail and leave dead space (the tell that R/S were
 # marked too wide). Swing size is judged as a FRACTION OF BOX HEIGHT, not a bar
 # count, so the read adapts to box width (tight boxes have short limbs, wide ones
-# long). Measured by engine_alpha.structure.metrics.measure_equilibrium. The
+# long). Measured by engine_alpha.structure.metrics.base.measure_equilibrium. The
 # gate is permanent engine behavior (unconditional in code since the Purity Pass
 # flag fold, 2026-07-18); the floors below are the live knobs.
 TRAVERSAL_NOISE_FRAC = 0.15      # a swing < this fraction of box height is chop, merged away
@@ -381,7 +381,7 @@ CONTRACTION_RESCUE_ENABLED = False
 # story pool may also admit through the S-test form with its ceiling leg in
 # the operator's unit: the bar's HIGH engages the resistance zone
 # (event_map.story_admission_bar_posture — terminal_r_engagement instead of
-# terminal_r_posture). Banked A/B (output/consolidation_evidence_2026-08-31/
+# terminal_r_posture). Banked A/B (research/evidence/consolidation_evidence_2026-08-31/
 # battery.log, chair-verified): junk corpus 18/18 silent, shadow panel
 # byte-identical on all 32 fixture fires, ratchet breaks on EXACTLY EGBN
 # (fires 2026-01-07 tier A) + PKE (2026-02-18 tier B) — both operator-ruled

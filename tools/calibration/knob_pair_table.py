@@ -19,10 +19,10 @@ Sidecar-only (EC-46), sealed-output-guarded (EC-14), population + fingerprint
 + engine-epoch stamped (EC-13). Never touches the archive, never the engine.
 
 Usage (ChrolloDashboard venv python, from repo root):
-    python -m tools.knob_pair_table                       # the pair table
-    python -m tools.knob_pair_table --ticker EGBN         # one mark's card
-    python -m tools.knob_pair_table --what-if lower_dwell=0.125
-    python -m tools.knob_pair_table --json output/knob_pairs.json
+    python -m tools.calibration.knob_pair_table                       # the pair table
+    python -m tools.calibration.knob_pair_table --ticker EGBN         # one mark's card
+    python -m tools.calibration.knob_pair_table --what-if lower_dwell=0.125
+    python -m tools.calibration.knob_pair_table --json output/knob_pairs.json
 """
 from __future__ import annotations
 
@@ -33,23 +33,25 @@ import math
 try:
     from tools._bootstrap import configure_path, refuse_sealed_output
 except ImportError:  # invoked as a script from repo root
-    from _bootstrap import configure_path, refuse_sealed_output  # type: ignore
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path(backend=True)
 
 import database  # noqa: E402, F401  binds the live SQLite engine + SessionLocal
 
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.structure.box_gates import GATE_LEG_INDEX  # noqa: E402
-from engine_alpha.structure.metrics import mark_refusal_read  # noqa: E402
+from engine_alpha.structure.box.box_gates import GATE_LEG_INDEX  # noqa: E402
+from engine_alpha.structure.metrics.base import mark_refusal_read  # noqa: E402
 # The ONE operator vocabulary and its number formatter (EC-3/EC-18): the same
 # names ``leg_sentence`` renders the per-mark sentences at the bottom of this
 # output with, imported rather than copied so a signed re-wording reaches this
 # table the day it lands. Private by design, imported the way
 # ``metrics.mark_refusal_read`` imports box_gates' own leg helpers.
-from engine_alpha.structure.trace_export import (  # noqa: E402
+from engine_alpha.structure.box.trace_export import (  # noqa: E402
     _LEG_PHRASES, _fmt)
-from tools.calibration_harness import load_box_marks  # noqa: E402
-from tools.replay import drawn_box_window  # noqa: E402
+from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
+from core.calibration.replay import drawn_box_window  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 
 _OPS = {">=": lambda m, t: m >= t, "<=": lambda m, t: m <= t}

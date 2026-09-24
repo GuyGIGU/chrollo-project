@@ -1058,7 +1058,7 @@ def test_engine_read_names_the_blocking_leg_at_the_drawn_mark(
         created_at=datetime(2026, 3, 27), updated_at=datetime(2026, 3, 27)))
     db.commit()
 
-    import tools.replay as replay
+    import core.calibration.replay as replay
     monkeypatch.setattr(
         replay, "snapped_election",
         lambda *a, **k: ((frame, 1.0, [None]), idx[-1], 0))
@@ -1129,7 +1129,7 @@ def test_engine_read_all_legs_pass_says_the_miss_is_upstream_in_plain_words(
         created_at=datetime(2026, 3, 27), updated_at=datetime(2026, 3, 27)))
     db.commit()
 
-    import tools.replay as replay
+    import core.calibration.replay as replay
     monkeypatch.setattr(
         replay, "snapped_election",
         lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
@@ -1163,7 +1163,7 @@ def test_engine_read_survives_a_broken_mark_query(
         def query(self, *_a, **_k):
             raise sqlite3.OperationalError("database is locked")
 
-    import tools.replay as replay
+    import core.calibration.replay as replay
     monkeypatch.setattr(
         replay, "snapped_election",
         lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
@@ -1197,7 +1197,7 @@ def test_engine_read_diagnoses_the_most_recently_edited_box_mark(
                                   updated_at=datetime(2026, 3, 28), **common))
     db.commit()
 
-    import tools.replay as replay
+    import core.calibration.replay as replay
     monkeypatch.setattr(
         replay, "snapped_election",
         lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
