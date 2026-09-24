@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import CandleChart from '../../../shared/charts/CandleChart';
+import CalibrationChartPane from './CalibrationChartPane';
+import CalibrationLookupForm from './CalibrationLookupForm';
 import CalibrationMarkingBar from './CalibrationMarkingBar';
 import CalibrationMarksList from './CalibrationMarksList';
 import CalibrationSaveBar from './CalibrationSaveBar';
@@ -11,21 +12,29 @@ import useEngineRead from '../hooks/useEngineRead';
 import useMarkAgreement from '../hooks/useMarkAgreement';
 import useMarkFired from '../hooks/useMarkFired';
 import useTriggerGrade from '../hooks/useTriggerGrade';
-import { CHART_FONT, surfaceOf } from '../../../shared/charts/chartTheme';
 import {
+  assistedTriggerAction,
   draftComplete,
   draftHasUnsavedWork,
   draftStarted,
   frameKeyOf,
   initialMarkingState,
+  lastLpsEndDate,
   latestObservedDate,
   markPayloadFromDraft,
   markingReducer,
   saveNeeds,
-  snapTrigger,
   trimDraftForAsOf,
 } from '../model/calibrationMarking';
-import { fx } from '../../../shared/formatting/format';
+import {
+  autoEditStep,
+  eveOfBuyDate,
+  frameSwap,
+  marksOnFrame,
+  representativeBoxFor,
+  savedBoxesForFrame,
+} from '../model/calibrationFrame';
+import { HOTKEY_TOOLS, isMarkingKeystroke } from '../model/calibrationHotkeys';
 import { armLeaveGuard, disarmLeaveGuard } from '../../../shared/navigation/leaveGuard';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
@@ -37,19 +46,6 @@ import { armLeaveGuard, disarmLeaveGuard } from '../../../shared/navigation/leav
 // (click-to-place rails, the per-setup rail, one-click engine test) sits on
 // this shell; this page deliberately owns all its state — nothing in
 // AppShell, no app-level context.
-
-const FAILURE_HINTS = {
-  bad_ticker: 'Tickers are 1-10 chars: A-Z, 0-9, dot or dash.',
-  bad_date: 'Dates are YYYY-MM-DD, 2000 or later.',
-  future_date: 'Pick a past session.',
-  rate_limited: 'The data vendor is briefly throttling — any loaded chart stays up; wait a few seconds and retry.',
-  no_data: 'Unknown/delisted ticker — or the vendor is briefly throttling; wait a moment and retry.',
-  no_bars_at_date: 'This ticker has no history at that date; try a later one.',
-  network: 'Start the dashboard service, then retry.',
-  service_stale: 'Run update_dashboard.bat to load the new backend, then retry.',
-  freeze_failed: 'Check disk space / calibration_frames permissions, then retry.',
-  unknown: 'Retry once; if it persists, check the service log.',
-};
 
 function CalibrationTab() {
   const { chartData, loading, failure, load } = useCalibrationChart();
@@ -77,37 +73,18 @@ function CalibrationTab() {
 
   // Drafts are structurally keyed to the frame they were drawn on: loading
   // another session swaps to THAT frame's draft (or a fresh one), never bleeding
-  // rails across frames. A carried draft (the date-change / snapshot-lock) wins
-  // for the one swap that consumes it and keeps the setup's label/note with it.
+  // rails across frames (frameSwap decides what the new frame starts with; a
+  // carry is consumed by this one swap either way).
   useEffect(() => {
     const key = frameKeyOf(chartData);
     if (key !== markingRef.current.frameKey) {
-      // A carry only applies to the frame it was armed for — its own TICKER. A
-      // stranded carry (a date-change that failed or was abandoned, then a hop to
-      // another setup) is discarded so a setup's marks can never bleed onto an
-      // unrelated frame (adversarial review 2026-07-22).
-      let carried = carryDraftRef.current;
+      const swap = frameSwap(chartData, carryDraftRef.current, draftsRef.current.get(key));
       carryDraftRef.current = null;
-      if (carried && chartData && carried.ticker !== chartData.ticker) carried = null;
-      const cached = draftsRef.current.get(key);
-      dispatchMarking({ type: 'load', frameKey: key,
-                        draft: carried?.draft ?? cached?.draft ?? null,
-                        editingId: carried ? null : (cached?.editingId ?? null),
-                        // A carried draft is work in hand; a cached one resumes
-                        // whatever it was, so the unsaved-work guard survives a
-                        // frame hop and back.
-                        pristine: carried ? false : (cached?.pristine ?? true) });
-      if (carried) {
-        setLabel(carried.label ?? '');
-        setNote(carried.note ?? '');
-      } else {
-        setLabel('');
-        setNote('');     // the note is per-setup — it never follows the eye to a new frame
-      }
+      dispatchMarking(swap.load);
+      setLabel(swap.label);
+      setNote(swap.note);
       clearConflict();   // a parked overwrite must not follow the eye to a new frame
-      // Flag a genuinely fresh frame (no carry, nothing drawn) so it auto-enters
-      // edit mode when its saved marks arrive — never a carried/in-progress one.
-      pendingAutoEditRef.current = (!carried && !(cached?.draft && draftStarted(cached.draft))) ? key : null;
+      pendingAutoEditRef.current = swap.autoEditKey;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartData]);
@@ -187,69 +164,30 @@ function CalibrationTab() {
   // the operator clicks Test on a rail row.
   const { grades, testing, test } = useTriggerGrade();
 
-  // Saved marks drawn on THIS frame's chart, always (operator bug report
-  // 2026-07-11: with only the draft rendered, saving and starting the next
-  // mark visually erased everything). The mark being edited is excluded —
-  // it IS the draft, already drawn in the operator hue.
-  const savedForFrame = useMemo(() => {
-    if (!chartData) return [];
-    // Bind on the FULL frame identity (digest too): after a vendor restatement
-    // a session's digest changes, and a mark bound to the OLD digest must not
-    // draw on the new frame as if it were this frame's ground truth.
-    return marks.filter((m) => m.as_of_date === chartData.as_of_session
-      && m.frame_digest === chartData.frame_digest
-      && m.verdict === 'box' && m.id !== marking.editingId);
-  }, [marks, chartData, marking.editingId]);
-
-  // Every mark on the loaded frame (ANY verdict, including one being edited) —
-  // the set Re Mark deletes to let the operator start this setup over.
-  const frameMarks = useMemo(() => {
-    if (!chartData) return [];
-    return marks.filter((m) => m.ticker === chartData.ticker
-      && m.as_of_date === chartData.as_of_session
-      && m.frame_digest === chartData.frame_digest);
-  }, [marks, chartData]);
-
-  // The representative BOX mark for the loaded frame (highest revision, then the
-  // primary/empty label) — the setup that loading auto-enters for edit. Null if
-  // the frame carries no saved box.
-  const representativeBox = useMemo(() => {
-    if (!chartData) return null;
-    const boxes = marks.filter((m) => m.ticker === chartData.ticker
-      && m.as_of_date === chartData.as_of_session
-      && m.frame_digest === chartData.frame_digest
-      && m.verdict === 'box');
-    if (!boxes.length) return null;
-    return [...boxes].sort((a, b) => ((b.revision ?? 0) - (a.revision ?? 0))
-      || (a.label || '').localeCompare(b.label || ''))[0];
-  }, [marks, chartData]);
+  // Saved boxes drawn on THIS frame's chart (minus the one being edited — it IS
+  // the draft); every mark on the frame (what Re Mark deletes); and the box that
+  // loading the frame auto-enters for edit.
+  const savedForFrame = useMemo(() => savedBoxesForFrame(marks, chartData, marking.editingId),
+    [marks, chartData, marking.editingId]);
+  const frameMarks = useMemo(() => marksOnFrame(marks, chartData), [marks, chartData]);
+  const representativeBox = useMemo(() => representativeBoxFor(marks, chartData),
+    [marks, chartData]);
 
   // Auto-enter edit mode on a pre-marked frame (request 2): once the frame's saved
-  // marks have loaded, drop the representative box into the draft so its LPS is "in
-  // hand" and the Trigger tool un-grays — no Re-Mark needed. Fires ONLY for a frame
-  // the swap flagged fresh (so never right after a save on the same frame, and never
-  // over a carried or in-progress draft). "New mark"/"Add instance" escape it.
+  // marks have loaded, drop the representative box into the draft — no Re-Mark
+  // needed. Fires ONLY for a frame the swap flagged fresh (so never right after a
+  // save on the same frame, and never over a carried or in-progress draft). "New
+  // mark"/"Add instance" escape it. Reads the LIVE reducer state, not markingRef
+  // (autoEditStep says why).
   useEffect(() => {
-    const key = pendingAutoEditRef.current;
-    if (!key || !chartData || frameKeyOf(chartData) !== key) return;
-    // Read the LIVE reducer state, not markingRef: this effect and the frame-swap
-    // effect fire in the same pass on a chartData change, and the swap's 'load'
-    // dispatch hasn't applied yet — markingRef would still be the OUTGOING frame's
-    // editing state (adversarial review 2026-07-22). Wait until the load has landed
-    // (marking.frameKey === key) so a same-ticker hop between pre-marked setups
-    // still auto-enters edit.
-    if (marking.frameKey !== key) return;
-    if (marking.editingId != null || draftStarted(marking.draft)) {
-      pendingAutoEditRef.current = null; return;
-    }
-    if (representativeBox) {
-      pendingAutoEditRef.current = null;
-      setLabel(representativeBox.label ?? '');
-      setNote(representativeBox.note ?? '');
-      clearConflict();
-      dispatchMarking({ type: 'edit-mark', mark: representativeBox });
-    }
-    // else: marks for this frame are still loading — keep the flag for the next update
+    const step = autoEditStep(pendingAutoEditRef.current, chartData, marking, representativeBox);
+    if (step === 'wait') return;
+    pendingAutoEditRef.current = null;
+    if (step === 'cancel') return;
+    setLabel(representativeBox.label ?? '');
+    setNote(representativeBox.note ?? '');
+    clearConflict();
+    dispatchMarking({ type: 'edit-mark', mark: representativeBox });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartData, representativeBox, marking.frameKey, marking.editingId, marking.draft]);
 
@@ -262,37 +200,13 @@ function CalibrationTab() {
 
   // Assisted Trigger: arming the tool — or re-drawing the LPS while an ASSISTED
   // trigger stands — re-derives the snapped buy from the LAST LPS end-bar's High
-  // and the first forward bar that clears it. A MANUALLY placed trigger is left
-  // untouched (the operator put it there on purpose). Guarded against a dispatch
-  // loop: it only writes when the snap actually differs from what's drawn.
-  const lastLpsEnd = useMemo(() => (marking.draft.events || [])
-    .filter((e) => e.event_type === 'lps' && e.end_date)
-    .map((e) => e.end_date)
-    .reduce((a, b) => (a >= b ? a : b), null),
+  // and the first forward bar that clears it. assistedTriggerAction owns the
+  // rule, including the guard against a dispatch loop.
+  const lastLpsEnd = useMemo(() => lastLpsEndDate(marking.draft.events),
     [marking.draft.events]);
   useEffect(() => {
-    const d = markingRef.current.draft;
-    if (d.verdict !== 'box') return;
-    const armed = markingRef.current.tool === 'trigger';
-    const assisted = d.triggerSource === 'assisted';
-    if (!armed && !assisted) return;
-    // `auto` when the operator did not ask for this: arming the trigger tool is
-    // his gesture, but a re-derive on a mark he merely OPENED is the app moving
-    // the draft, and must not arm the unsaved-work guard (review A9).
-    const auto = !armed;
-    const snap = snapTrigger(d, chartData?.candles);
-    if (!snap) {
-      // No breakout in the frame: an armed re-derive clears a now-stale
-      // assisted value so the readout can say so; a manual trigger is untouched.
-      if (armed && assisted && d.triggerDate != null) {
-        dispatchMarking({ type: 'set-trigger', date: null });
-      }
-      return;
-    }
-    if (snap.date !== d.triggerDate || snap.price !== d.triggerPrice) {
-      dispatchMarking({ type: 'set-trigger', date: snap.date, price: snap.price,
-                        source: 'assisted', auto });
-    }
+    const action = assistedTriggerAction(markingRef.current, chartData?.candles);
+    if (action) dispatchMarking(action);
   }, [marking.tool, lastLpsEnd, chartData]);
 
   // In-progress geometry lives only in memory (draftsRef), so ANY exit from this
@@ -398,15 +312,9 @@ function CalibrationTab() {
   keyDeps.current = { save };
   useEffect(() => {
     const onKey = (e) => {
-      const tag = e.target?.tagName;
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!isMarkingKeystroke(e)) return;
       const k = e.key.toLowerCase();
-      const tool = { r: 'rail-r', s: 'rail-s', x: 'span',
-                     c: 'event:phase_c', l: 'event:lps', t: 'event:spring_test',
-                     o: 'event:sos', m: 'event:mini_consolidation',
-                     u: 'event:last_supper',
-                     b: 'trigger' }[k];
+      const tool = HOTKEY_TOOLS[k];
       if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
       if (e.key === 'Escape') { dispatchMarking({ type: 'tool', tool: 'idle' }); return; }
       if (k === 'e') { setEngineOn((v) => !v); e.preventDefault(); return; }
@@ -464,19 +372,12 @@ function CalibrationTab() {
     await loadCarrying(ticker, asOf);
   };
 
-  // The eve-of-buy snapshot the operator picked (request 6, "auto → eve of buy"):
-  // the session immediately BEFORE the placed buy — Chrollo scans after the close,
-  // so this asks "would last night's scan have surfaced it?". Null until a buy is
-  // placed (or if it is the very first bar). Usually >= every observed mark (the
-  // box/LPS precede the buy), but not guaranteed — a rail/event placed after the
-  // buy is refused below rather than stranded past the earlier snapshot.
-  const eveOfBuyAsOf = useMemo(() => {
-    const buy = marking.draft.triggerDate;
-    if (!buy || !chartData) return null;
-    const list = chartData.candles || [];
-    const idx = list.findIndex((b) => b.time === buy);
-    return idx > 0 ? list[idx - 1].time : null;
-  }, [marking.draft.triggerDate, chartData]);
+  // The eve-of-buy snapshot (the session before the placed buy). Usually >= every
+  // observed mark (the box/LPS precede the buy), but not guaranteed — a rail/event
+  // placed after the buy is refused below rather than stranded past the earlier
+  // snapshot.
+  const eveOfBuyAsOf = useMemo(() => eveOfBuyDate(marking.draft.triggerDate, chartData),
+    [marking.draft.triggerDate, chartData]);
 
   // Lock the engine's snapshot to the buy's eve, carrying every mark across.
   const lockSnapshotToBuyEve = async () => {
@@ -527,63 +428,21 @@ function CalibrationTab() {
           keeps its own <form> so Enter there submits the lookup — and only the
           lookup (the label lives outside it). */}
       <div className="instrument-tile screener-command-band calibration-command-band">
-      <form className="ccb-group" onSubmit={submit}
-            style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
-                       textTransform: 'uppercase', color: 'var(--text-faint)' }}>
-          Calibration
-        </span>
-        <input
-          value={ticker}
-          onChange={(e) => setTicker(e.target.value.toUpperCase())}
-          placeholder="Ticker"
-          aria-label="Ticker"
-          style={{ width: 110, fontFamily: 'inherit' }}
-        />
-        <input
-          type="date"
-          value={asOf}
-          onChange={(e) => setAsOf(e.target.value)}
-          aria-label="As-of date"
-          ref={dateInputRef}
-        />
-        <button type="submit" disabled={loading || !ticker.trim() || !asOf}>
-          {loading ? 'Loading…' : 'Load'}
-        </button>
-        {chartData && (
-          <>
-            <button type="button" aria-pressed={engineOn}
-                    onClick={() => setEngineOn((v) => !v)}
-                    title="Overlay the engine's read of this frame (the agreement harness's own lens) [e]. Mark FIRST, peek after — anchoring on the engine corrupts the ground truth.">
-              Engine
-            </button>
-            {/* Lock the snapshot to the session before the buy (request 6): the
-                grade then asks "would last night's scan have surfaced it?". Only
-                shown once a buy is placed and the as-of isn't already there. */}
-            {eveOfBuyAsOf && eveOfBuyAsOf !== chartData.as_of_session && (
-              <button type="button" onClick={lockSnapshotToBuyEve} disabled={loading}
-                      title={`Set the engine snapshot to ${eveOfBuyAsOf} — the session before your buy (Chrollo scans after the close). Your marks come with it.`}
-                      style={{ borderColor: 'var(--trigger)' }}>
-                Snapshot → buy eve ({eveOfBuyAsOf})
-              </button>
-            )}
-            {/* Start another setup on this ticker at a new date (request 7) —
-                clears the draft + date, keeps the ticker, leaves saved setups be. */}
-            <button type="button" onClick={addInstance} disabled={loading}
-                    title="Add another instance of a setup on this ticker at a new date — your saved setups are untouched.">
-              + Add instance
-            </button>
-            {/* Provenance figures change on every load — mono + tabular so
-                the eye can hold position across adjacent sessions. */}
-            <span style={{ color: 'var(--text-muted)', fontFamily: CHART_FONT,
-                           fontVariantNumeric: 'tabular-nums', fontSize: 11,
-                           whiteSpace: 'nowrap' }}>
-              {chartData.ticker} @ {chartData.as_of_session} · close {fx(chartData.anchor_close, 2)}
-              {' '}· {chartData.bar_count} bars · {chartData.data_regime}
-            </span>
-          </>
-        )}
-      </form>
+      <CalibrationLookupForm
+        ticker={ticker}
+        onTicker={setTicker}
+        asOf={asOf}
+        onAsOf={setAsOf}
+        dateInputRef={dateInputRef}
+        loading={loading}
+        chartData={chartData}
+        engineOn={engineOn}
+        onToggleEngine={() => setEngineOn((v) => !v)}
+        eveOfBuyAsOf={eveOfBuyAsOf}
+        onLockSnapshot={lockSnapshotToBuyEve}
+        onAddInstance={addInstance}
+        onSubmit={submit}
+      />
 
       <span className="screener-command-seam" aria-hidden="true" />
       <CalibrationMarkingBar
@@ -614,97 +473,18 @@ function CalibrationTab() {
       />
       </div>
 
-      <div className="instrument-well"
-           style={{ flex: 1, minHeight: 420, position: 'relative',
-                    borderRadius: 8, overflow: 'hidden' }}>
-        {chartData ? (
-          <>
-            <CandleChart
-              spec={spec}
-              className="calibration-chart"
-              style={{ position: 'absolute', inset: 0 }}
-              errorFallback={<PaneMessage title="Chart failed to draw" body="Reload the lookup." />}
-              emptyFallback={<PaneMessage title="No drawable bars" body="Every bar in this window was non-finite." />}
-            />
-            {failure && (
-              // A failed step never wipes the working chart — the last good
-              // frame stays up and the failure rides above it. A transient
-              // rate-limit is not an error: it wears the calm warning ink, not
-              // danger red, so a self-healing hiccup never trains distrust.
-              <div style={{
-                position: 'absolute', top: 8, left: 8, right: 8, zIndex: 5,
-                padding: '6px 10px', borderRadius: 6, fontSize: 12,
-                border: `1px solid ${surfaceOf('modal').border}`,
-                borderLeft: `2px solid ${failure.class === 'rate_limited' ? 'var(--warning)' : 'var(--danger)'}`,
-                background: 'rgba(23, 25, 34, 0.92)',
-              }}>
-                {failure.class === 'rate_limited'
-                  ? `Vendor busy. ${paneBody(false, failure)}`
-                  : `Lookup failed — ${failure.class}. ${paneBody(false, failure)}`}
-              </div>
-            )}
-            {engineOn && (
-              // What the engine thinks, in words — rails land on the chart in
-              // engine ink; this chip carries the session/no-read verdict.
-              <div title={engineTitle(engineRead)} style={{
-                position: 'absolute', top: 8, right: 8, zIndex: 4,
-                fontSize: 11, fontFamily: CHART_FONT, color: 'var(--text-muted)',
-                fontVariantNumeric: 'tabular-nums',
-                background: 'rgba(23, 25, 34, 0.85)', padding: '3px 8px',
-                borderRadius: 6,
-              }}>
-                {engineLine(engineRead, engineStatus)}
-              </div>
-            )}
-            {placeNotice && (
-              // Why a click was refused (top-center, out of the rails' way): a
-              // geometry mark placed past the as-of line, or a Trigger outside
-              // its forward window. Neutral warning ink — a placement that does
-              // not fit, not an error. Clears when the tool/frame changes or a
-              // valid placement lands.
-              <div style={{
-                position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
-                zIndex: 6, fontSize: 11, color: 'var(--warning)',
-                border: '1px solid color-mix(in srgb, var(--warning) 55%, transparent)',
-                background: 'rgba(23, 25, 34, 0.92)', padding: '3px 10px',
-                borderRadius: 6, whiteSpace: 'nowrap',
-              }}>
-                {placeNotice}
-              </div>
-            )}
-            {chartData.warnings?.length > 0 && warningsOpen && (
-              // Warnings live INSIDE the pane (bottom edge) — the chart's geometry
-              // never shifts when a lookup gains or loses one. Dismissible with the
-              // × since the banner can sit over the date axis (operator 2026-07-21);
-              // it re-shows on the next frame that carries a notice.
-              <div style={{
-                position: 'absolute', bottom: 8, left: 8, zIndex: 5,
-                maxWidth: 'calc(100% - 16px)',
-                display: 'flex', alignItems: 'flex-start', gap: 6,
-                fontSize: 11, color: 'var(--accent-yellow)',
-                background: 'rgba(23, 25, 34, 0.85)', padding: '3px 8px',
-                borderRadius: 6,
-              }}>
-                <div>{chartData.warnings.map((w) => <div key={w}>{w}</div>)}</div>
-                <button type="button" onClick={() => setWarningsOpen(false)}
-                        aria-label="Dismiss data notice"
-                        title="Dismiss (re-shows on the next frame with a notice)"
-                        style={{ background: 'none', border: 'none', color: 'inherit',
-                                 cursor: 'pointer', fontSize: 13, lineHeight: 1,
-                                 padding: '0 2px', opacity: 0.75 }}>
-                  ×
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <PaneMessage
-            title={paneTitle(loading, failure)}
-            body={paneBody(loading, failure)}
-            danger={!loading && !!failure && failure.class !== 'rate_limited'}
-          />
-        )}
-      </div>
+      <CalibrationChartPane
+        chartData={chartData}
+        spec={spec}
+        loading={loading}
+        failure={failure}
+        engineOn={engineOn}
+        engineRead={engineRead}
+        engineStatus={engineStatus}
+        placeNotice={placeNotice}
+        warningsOpen={warningsOpen}
+        onDismissWarnings={() => setWarningsOpen(false)}
+      />
 
       <CalibrationMarksList
         marks={marks}
@@ -731,71 +511,6 @@ function CalibrationTab() {
           onDeleteSetup={deleteSetup}
         />
       </aside>
-    </div>
-  );
-}
-
-function engineLine(engineRead, engineStatus) {
-  if (engineStatus === 'loading') return 'engine: reading…';
-  if (engineStatus) return `engine: ${engineStatus}`;
-  if (!engineRead) return 'engine: —';
-  if (!engineRead.elected) {
-    // Operator's terms (2026-07-21): a plain verdict, not the raw detector
-    // reason ("no structure elects within the snap window") — that moves to the
-    // chip's hover title for when the diagnostic is actually wanted.
-    return 'engine: does NOT confirm your box here';
-  }
-  const snap = engineRead.snapped
-    ? ` (snapped −${engineRead.snapped})` : '';
-  return `engine finds a box — R ${fx(engineRead.R, 2)} / S ${fx(engineRead.S, 2)}`
-    + ` · from ${engineRead.box_start_date} @ ${engineRead.eval_session}${snap}`;
-}
-
-// The raw detector reason, kept off the headline but one hover away — so "why
-// didn't it confirm?" is answerable without cluttering the plain verdict.
-function engineTitle(engineRead) {
-  if (engineRead && !engineRead.elected && engineRead.reason) {
-    return `engine detail: ${engineRead.reason}`;
-  }
-  return undefined;
-}
-
-function paneTitle(loading, failure) {
-  if (loading) return 'Loading…';
-  if (failure) return `Lookup failed — ${failure.class}`;
-  return 'Pull up a chart';
-}
-
-function paneBody(loading, failure) {
-  if (loading) return 'Fetching candles through the provider (bounded).';
-  if (failure) {
-    const hint = FAILURE_HINTS[failure.class];
-    return hint ? `${failure.message}. ${hint}` : failure.message;
-  }
-  return 'Enter a ticker and an as-of date. The chart renders on Chrollo’s own '
-    + 'data — marks drawn here are born on the exact frame the engine replays.';
-}
-
-function PaneMessage({ title, body, danger = false }) {
-  // The pane states wear the modal chart's OWN skin (imported, never
-  // hand-copied hexes) so blank/loading/failure and the drawn chart read as
-  // one surface; a failure gets one restrained semantic cue.
-  const skin = surfaceOf('modal');
-  return (
-    <div style={{
-      position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 6,
-      border: `1px solid ${skin.border}`, borderRadius: 8,
-      background: skin.background,
-    }}>
-      <div style={{ fontWeight: 600,
-                    color: danger ? 'var(--danger)' : 'var(--text-main)' }}>
-        {title}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-faint)', maxWidth: 520,
-                    textAlign: 'center' }}>
-        {body}
-      </div>
     </div>
   );
 }

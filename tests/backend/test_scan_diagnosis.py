@@ -312,7 +312,7 @@ def test_an_unreadable_slot_setting_falls_back_to_the_shipped_hour(monkeypatch):
 
 # The ONE filename the operator himself runs. AGENTS.md makes it his gesture
 # ("tell them to run update_dashboard.bat"), and two other surfaces already say
-# it by name (CalibrationTab.jsx, useEngineRead.js) — a different word here
+# it by name (calibrationPaneText.js, useEngineRead.js) — a different word here
 # would only teach him a second name for one shortcut. Everything ELSE that
 # looks like code is a leak.
 OPERATOR_GESTURES = ("update_dashboard.bat",)

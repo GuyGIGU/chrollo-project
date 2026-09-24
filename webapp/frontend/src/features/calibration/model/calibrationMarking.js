@@ -79,6 +79,15 @@ export function snapRailPrice(price, bar) {
   return Math.abs(bar.high - price) <= Math.abs(bar.low - price) ? bar.high : bar.low;
 }
 
+// The end date of the LAST LPS on a draft (ISO dates compare chronologically),
+// or null when it has none — the bar the Trigger is anchored to.
+export function lastLpsEndDate(events) {
+  return (events || [])
+    .filter((e) => e.event_type === 'lps' && e.end_date)
+    .map((e) => e.end_date)
+    .reduce((a, b) => (a >= b ? a : b), null);
+}
+
 // The assisted Trigger snap: the buy is the breakout above the High of the LPS's
 // FINAL (chronologically last) bar — NOT the LPS zone's max-High — and its date
 // is the first frozen session strictly after that end-bar whose High clears the
@@ -89,10 +98,7 @@ export function snapRailPrice(price, bar) {
 // [{ time, high, ... }] the chart already holds; node-testable.
 export function snapTrigger(draft, candles) {
   if (draft.verdict !== 'box' || !hasLpsEvent(draft)) return null;
-  const lpsEnd = (draft.events || [])
-    .filter((e) => e.event_type === 'lps' && e.end_date)
-    .map((e) => e.end_date)
-    .reduce((a, b) => (a >= b ? a : b), null);
+  const lpsEnd = lastLpsEndDate(draft.events);
   if (lpsEnd == null) return null;
   const list = candles || [];
   const endBar = list.find((b) => b.time === lpsEnd);
@@ -105,6 +111,36 @@ export function snapTrigger(draft, candles) {
     }
   }
   return null; // no breakout above the LPS high in the frame
+}
+
+// Assisted Trigger: arming the tool — or re-drawing the LPS while an ASSISTED
+// trigger stands — re-derives the snapped buy. A re-drawn LPS leaves a MANUALLY
+// placed trigger untouched (the operator put it there on purpose); arming the
+// tool again re-snaps it. Returns the set-trigger action to dispatch, or null
+// when nothing should move — it only writes when the snap actually differs from
+// what's drawn, so it cannot loop.
+export function assistedTriggerAction(state, candles) {
+  const d = state.draft;
+  if (d.verdict !== 'box') return null;
+  const armed = state.tool === 'trigger';
+  const assisted = d.triggerSource === 'assisted';
+  if (!armed && !assisted) return null;
+  // `auto` when the operator did not ask for this: arming the trigger tool is
+  // his gesture, but a re-derive on a mark he merely OPENED is the app moving
+  // the draft, and must not arm the unsaved-work guard (review A9).
+  const auto = !armed;
+  const snap = snapTrigger(d, candles);
+  if (!snap) {
+    // No breakout in the frame: an armed re-derive clears a now-stale
+    // assisted value so the readout can say so; a manual trigger is untouched.
+    return armed && assisted && d.triggerDate != null
+      ? { type: 'set-trigger', date: null } : null;
+  }
+  if (snap.date !== d.triggerDate || snap.price !== d.triggerPrice) {
+    return { type: 'set-trigger', date: snap.date, price: snap.price,
+             source: 'assisted', auto };
+  }
+  return null;
 }
 
 // The identity a draft binds to — mirrors the mark→frame binding contract.
