@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from broker_config import settings
 from domains.ibkr import get_ibkr_service
 from domains.trading import auto_import
-from services import scan_diagnosis, scheduler
+from services import interruption_cause, scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     # the import-time boot migrations, where the reconcile itself can run inside
     # a dying Windows session. Best-effort by construction: an unresolved row
     # simply stays pending for the next start, so startup never waits on it.
-    asyncio.get_running_loop().run_in_executor(None, scan_diagnosis.resolve_pending)
+    asyncio.get_running_loop().run_in_executor(None, interruption_cause.resolve_pending)
     auto_import.start_writer()
     scheduler.start_scheduler()
     svc = get_ibkr_service()
