@@ -1,0 +1,69 @@
+  predicate guard OK: the measurement pin IS the engine's boolean roster - all 29 of them, size asserted, not a subset (ENGINE_SETTINGS_KEYS, itself proven complete over the eval path by tests/test_invariants.py) - and a move of ANY ONE of them is named by ambient_matches_pin
+  predicate guard OK: the engine manifest hash moves when a pinned flag moves, so the stamped identity independently witnesses the basis these numbers were measured under
+  predicate guard OK: both lanes dark: cause_absent -> cause_vetoed, escalation never runs; lps_before_spring -> full_refusal_reachable, escalation stands down - no lane is armed (narrative.py:463-465)
+  predicate guard OK: bar-posture lane armed: cause_absent -> cause_vetoed, escalation never runs; lps_before_spring -> full_refusal_reachable, escalation re-walks and the senior lane stamps its records bar_posture_rescue
+  predicate guard OK: contraction lane armed: cause_absent -> cause_vetoed, escalation never runs; lps_before_spring -> full_refusal_reachable, escalation re-walks and the senior lane stamps its records contraction_rescue
+  predicate guard OK: both lanes armed: cause_absent -> cause_vetoed, escalation never runs; lps_before_spring -> full_refusal_reachable, escalation re-walks and the senior lane stamps its records contraction_rescue
+  predicate guard OK: contraction lane armed but already in the baseline roster (species preset): cause_absent -> cause_vetoed, escalation never runs; lps_before_spring -> full_refusal_reachable, escalation stands down - every armed form is already in the baseline roster (narrative.py:474-480)
+  AMCR   full refusal - the armed lane can reach it
+  BIIB   elects at baseline - the lane cannot touch it
+  BMY    elects at baseline - the lane cannot touch it
+  CARS   full refusal - the armed lane can reach it
+  CCEP   elects at baseline - the lane cannot touch it
+  GEO    elects at baseline - the lane cannot touch it
+  ICLR   fails the universe filters - the chart is never read
+  KFY    full refusal - the armed lane can reach it
+  MSGS   fails the universe filters - the chart is never read
+  RCUS   elects at baseline - the lane cannot touch it
+  VRTS   full refusal - the armed lane can reach it
+  VTR    fails the universe filters - the chart is never read
+========================================================================
+  BAR-POSTURE RESCUE REACHABILITY - the twelve-name sheet, re-derived
+========================================================================
+cache edge 2026-08-31   (census read at 2026-08-27)
+engine 46c2b413217bd8903a717e0c1f447c5b2e78edb5e95937da99cadd7b30afce2c  (machine)
+engine 46c2b413217bd8903a717e0c1f447c5b2e78edb5e95937da99cadd7b30afce2c  (the basis these numbers were measured under)
+measurement scope: one pinned scope wraps the whole ticker loop; all 29 flags were OBSERVED at the pin inside it, and the two lines above were read on either side of it
+population 12 tickers   fingerprint 1bd50279f8ed6f57...
+flags: 29 engine flags pinned and stamped; ambient ON = BAND_RAILS_ENABLED, CAUSE_BEFORE_EFFECT_VETO_ENABLED, ELECTION_DETHRONE_ENABLED, EVENT_MAP_ENABLED, HTF_CONTEXT_ENABLED, LPS_AFTER_SPRING_ENABLED, LPS_HOLDING_SHELF_ENABLED, LPS_OVERSHOOT_WINDOW_ATR_ENABLED, LPS_SPREAD_MUST_DECLINE, NEAR_MISS_LANE_ENABLED, POWER_PLAY_PRESET_ENABLED, STORY_POOL_ENABLED, TIGHTNESS_ADR_AWARE
+       ambient OFF = AR_FIRST_REACTION_ENABLED, BAR_POSTURE_RESCUE_ENABLED, BOTTOMING_BASE_LANE_ENABLED, CONTRACTION_RESCUE_ENABLED, DATA_DIVIDEND_ADJUSTED, ELECTION_STABILITY_ENABLED, ELECTION_TRACE_EXPORT_ENABLED, FUNDAMENTALS_ENABLED, LPS_CEILING_REST_ENABLED, POWER_PLAY_STORY_FORM_ENABLED, RS_LINE_ENABLED, SECTOR_RANKING_ENABLED, SENTENCE_ARCHIVE_ENABLED, SMA50_DIP_EXCEPTION_ENABLED, STRATEGY_READ_ENABLED, TREND_TERMINAL_BOX_GATE_ENABLED
+measured at the pinned baseline - the machine's own state already matches it on every one of those flags
+
+                       population: 12
+           full_refusal_reachable: 4
+                     cause_vetoed: 0
+               elects_at_baseline: 5
+                    fails_prepare: 3
+             reachable_converting: 4
+         reachable_not_converting: 0
+  reachable_with_chronology_floor: 0
+
+ticker verdict                          R         S  rails from
+------------------------------------------------------------------------
+AMCR   full_refusal_reachable        48.0     44.41  armed-lane election
+BIIB   elects_at_baseline          215.79    196.92  baseline election
+BMY    elects_at_baseline            68.1      63.2  baseline election
+CARS   full_refusal_reachable       12.43     10.66  armed-lane election
+CCEP   elects_at_baseline          108.18    104.57  baseline election
+GEO    elects_at_baseline           32.02     28.99  baseline election
+ICLR   fails_prepare                    -         -  -
+KFY    full_refusal_reachable       85.69     80.62  armed-lane election
+MSGS   fails_prepare                    -         -  -
+RCUS   elects_at_baseline           30.86     27.21  baseline election
+VRTS   full_refusal_reachable      170.41     159.1  armed-lane election
+VTR    fails_prepare                    -         -  -
+
+  AMCR   armed lane -> CONVERTS  tier B score 93.3 pool story | engaged at resistance | S+ R+ S+ R0
+  CARS   armed lane -> CONVERTS  tier A score 100.9 pool story | engaged at resistance | S+ R+ S+ R0
+  KFY    armed lane -> CONVERTS  tier A score 107.3 pool story | engaged at resistance | R+ S+ S+ R0
+  VRTS   armed lane -> CONVERTS  tier A score 103.5 pool story | engaged at resistance | R+ S+ R+ S+ R0
+  BIIB   elects but does not fire at baseline  (pool strict)
+  BMY    already FIRES at baseline  (pool strict)
+  CCEP   already FIRES at baseline  (pool story)
+  GEO    already FIRES at baseline  (pool story)
+  ICLR   universe filter refused: sma50 {'close': 164.99, 'vol_50': 798377.14, 'sma_50': 167.057, 'sma_200': 147.3898, 'yearly_return': -0.0728}
+  MSGS   universe filter refused: sma50 {'close': 384.73, 'vol_50': 223501.88, 'sma_50': 394.0302, 'sma_200': 325.2535, 'yearly_return': 0.9447}
+  RCUS   already FIRES at baseline  (pool strict)
+  VTR    universe filter refused: sma50 {'close': 91.17, 'vol_50': 3500265.0, 'sma_50': 92.3564, 'sma_200': 84.8933, 'yearly_return': 0.3392}
+
+wrote C:\Users\User\Documents\Projects\Chrollo Project\.claude\worktrees\eager-chatelet-65e8d4\output\consolidation_evidence_2026-09-01\bar_posture_reachability.json

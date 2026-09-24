@@ -53,12 +53,14 @@ _STAGE_DEPTH = {stage: depth for depth, stage in enumerate(CASCADE_STAGES)}
 # Operator-language phrasing per gate leg (strategy_alpha's explainability rule:
 # trace labels speak plain chart language where humans read). {m} = measured,
 # {t} = threshold, both formatted in the leg's native quantum. Real chart
-# words only — no retired jargon, no settings-constant names.
+# words only — no retired jargon, no settings-constant names. The unit beside
+# a number is the operator's own word: "trading days", never "bars" or
+# "sessions" (council review 2026-09-01, finding 3).
 _LEG_PHRASES = {
     "width": "box height {m} of price vs cap {t}",
-    "window": "window {m} bars vs floor {t}",
-    "respect_share": "share of bars respecting the rails {m} vs floor {t}",
-    "respect_run": "longest run outside the rails {m} bars vs cap {t}",
+    "window": "window {m} trading days vs floor {t}",
+    "respect_share": "share of trading days respecting the rails {m} vs floor {t}",
+    "respect_run": "longest run outside the rails {m} trading days vs cap {t}",
     "crash": "low vs support {m} vs crash floor {t}",
     "r_touches": "resistance touches {m} vs floor {t}",
     "s_touches": "support touches {m} vs floor {t}",

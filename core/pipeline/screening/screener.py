@@ -30,6 +30,7 @@ from engine_alpha.evaluation import (
     apply_baseline_filters,
     evaluate_ticker_with_near_miss,
     evaluate_ticker_with_power_play,
+    evaluate_ticker_with_rescue_stats,
 )
 from core.pipeline.market_data.market_data_health import (
     compute_market_data_health,
@@ -75,7 +76,8 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
                      breadth_pct: float | None,
                      near_miss_sink: dict | None = None,
-                     power_play_sink: dict | None = None) -> tuple[list[dict], int]:
+                     power_play_sink: dict | None = None,
+                     rescue_sink: dict | None = None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
 
     ``near_miss_sink``: optional ``{"rows": [], "stats": {}}`` collector for
@@ -99,7 +101,15 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     # near-miss-aware submission (which re-checks its own flag in-worker), so
     # the selection stays a single ladder and flag-off is byte-identical.
     pp_on = power_play_sink is not None and settings.POWER_PLAY_PRESET_ENABLED
-    if pp_on:
+    # The rescue lanes' cost twin (consolidation-method Task 10) is the
+    # OUTERMOST rung: it always wraps the species twin (stable inner shape),
+    # so the unwrap below stays deterministic whatever flips in-worker.
+    rescue_on = (rescue_sink is not None
+                 and (settings.CONTRACTION_RESCUE_ENABLED
+                      or settings.BAR_POSTURE_RESCUE_ENABLED))
+    if rescue_on:
+        worker_fn = evaluate_ticker_with_rescue_stats
+    elif pp_on:
         worker_fn = evaluate_ticker_with_power_play
     elif lane_on:
         worker_fn = evaluate_ticker_with_near_miss
@@ -123,13 +133,22 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 last_reported = pct
 
             result = future.result()
-            if pp_on:
+            if rescue_on:
+                # Outermost unwrap: (species_triple, rescue_row, rescue_stats).
+                result, rescue_row, rescue_stats = result
+                if rescue_row is not None:
+                    rescue_sink.setdefault("rows", []).append(rescue_row)
+                racc = rescue_sink.setdefault("stats", {})
+                for k, v in rescue_stats.items():
+                    racc[k] = racc.get(k, 0) + v
+            if rescue_on or pp_on:
                 result, pp_row, pp_stats = result
-                if pp_row is not None:
-                    power_play_sink["rows"].append(pp_row)
-                pstats = power_play_sink.setdefault("stats", {})
-                for k, v in pp_stats.items():
-                    pstats[k] = pstats.get(k, 0) + v
+                if power_play_sink is not None:
+                    if pp_row is not None:
+                        power_play_sink["rows"].append(pp_row)
+                    pstats = power_play_sink.setdefault("stats", {})
+                    for k, v in pp_stats.items():
+                        pstats[k] = pstats.get(k, 0) + v
                 if isinstance(result, tuple):
                     # The composed near-miss triple (the nm flag was on
                     # in-worker). Rows flow to the sink when one rides;
@@ -271,6 +290,13 @@ def run_screener(mode: str = "download",
     # half of the family travels on firing result rows via the Task 7 producer.
     power_play_sink = ({"rows": [], "stats": {}}
                        if settings.POWER_PLAY_PRESET_ENABLED else None)
+    # The rescue lanes' sink (consolidation-method Task 10): attempt rows +
+    # counters for the full-refusal second look. Rows ride the payload through
+    # market_context — the same vehicle as the fires, so they publish only on
+    # a completed scan — never the archive (EC-46 stays intact).
+    rescue_sink = ({"rows": [], "stats": {}}
+                   if (settings.CONTRACTION_RESCUE_ENABLED
+                       or settings.BAR_POSTURE_RESCUE_ENABLED) else None)
     with timer.phase("evaluation"):
         # Number of tickers whose eval chain THREW and was swallowed (distinct from
         # a structural reject) is returned in-band alongside the results, so there
@@ -278,7 +304,24 @@ def run_screener(mode: str = "download",
         results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return,
                                                     breadth_pct,
                                                     near_miss_sink=near_miss_sink,
-                                                    power_play_sink=power_play_sink)
+                                                    power_play_sink=power_play_sink,
+                                                    rescue_sink=rescue_sink)
+    if rescue_sink is not None:
+        r_stats = dict(rescue_sink.get("stats") or {})
+        if r_stats or rescue_sink.get("rows"):
+            # The second look's own cost attribution — summed in-worker time
+            # as its own pseudo-phase, present ONLY on nights the lane ran
+            # (a dark scan's persisted metrics stay byte-identical). This is
+            # the instrument both rescue flip rows gate their bound on
+            # (measured upper bound at build: ~1,241 refusals x ~0.25 s
+            # ≈ 5 min single-process, divided across the pool).
+            timer.phases["rescue_lane_worker_s"] = round(
+                float(r_stats.pop("rescue_ms", 0.0)) / 1000.0, 2)
+            market_context["rescue_lane"] = {
+                "attempts": sorted(rescue_sink["rows"],
+                                   key=lambda r: r["ticker"]),
+                "counts": {k: int(v) for k, v in sorted(r_stats.items())},
+            }
     if power_play_sink is not None:
         pp_stats = dict(power_play_sink.get("stats") or {})
         # The lane's OWN cost attribution (EC-8's bound cites this production

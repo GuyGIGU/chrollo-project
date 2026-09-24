@@ -234,6 +234,7 @@ _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
 from engine_alpha.structure.events.event_map import event_map_archive_values
+from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
 # TA-grade family (grade pair + setup grades + flag-gated term points) and
 # the per-term sub-score fold — single source in engine_alpha.scoring.scoring
 # (same model-only convention).
@@ -651,6 +652,10 @@ def archive_scan_results(
             **htf_archive_values(row.get, prefixed=True),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(row.get, prefixed=True),
+            # Sentence-token family (consolidation-method Task 8) — NULL
+            # until the sentence measurement flag flips; refused reads NULL
+            # the whole family
+            **sentence_archive_values(row.get, prefixed=True),
             # TA-grade family: the grade pair (always emitted since the
             # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
             # + the three setup grades (NULL when the narrative abstained)

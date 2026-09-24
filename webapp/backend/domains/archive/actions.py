@@ -55,6 +55,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     )
     from engine_alpha.structure.context.htf import htf_archive_values
     from engine_alpha.structure.events.event_map import event_map_archive_values
+    from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
     from engine_alpha.structure.context.strategy_read import strategy_archive_values
     from engine_alpha.structure.box.trace_export import election_trace_archive_values
     from archive_models import (
@@ -233,6 +234,9 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off (EC-30:
         # the family producer rides EVERY writer, same shape as the seed path)
         **event_map_archive_values(result.get, prefixed=False),
+        # Sentence-token family (consolidation-method Task 8) — NULL until
+        # the sentence measurement flag flips (EC-30, same shape)
+        **sentence_archive_values(result.get, prefixed=False),
         # Election-trace evidence — NULL when the export flag is off
         **election_trace_archive_values(result.get, prefixed=False),
         # Strategy read (held-through-correction) — NULL when dark

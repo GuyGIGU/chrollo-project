@@ -25,6 +25,9 @@ A->B->(C?)->D narrative simply returns ``None``.
 """
 from __future__ import annotations
 
+import sys
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -45,6 +48,49 @@ _MAX_ANCHORS = 64
 # this sentinel so the contraction-rescue wrapper below can tell the two apart
 # without widening the public contract: a vetoed read is never re-walked.
 _CAUSE_VETOED = object()
+
+# The rescue lanes' in-worker telemetry sink (consolidation-method Task 10):
+# armed per evaluation by the cost twin
+# (``evaluation.evaluate_ticker_with_rescue_stats``) in the SAME worker
+# process, always disarmed on the way out. When armed, the full-refusal
+# escalation books its wall-time and outcome here — the only channel a
+# REFUSING ticker has (its eval returns None, so nothing rides the result
+# row). ``None`` (the default, and the whole live path while the lanes are
+# dark) books nothing and is byte-identical. ``rescue_sink`` below is the ONE
+# seam that moves it.
+_rescue_sink: Optional[dict] = None
+
+
+@contextmanager
+def rescue_sink(sink):
+    """Arm — or with ``None`` DISARM — the rescue telemetry sink for exactly
+    the walks inside the block, restoring whatever it found on the way out.
+
+    The booking below is last-write-wins and sums wall-time, so the sink must
+    see ONLY the walk that is paying for the night's verdict. A scoped DARK
+    second read (the species lane's, which re-reads the same frame under the
+    power-play preset and escalates the same armed form) enters under ``None``
+    and books nothing — otherwise the attempts sheet and the cost bound BOTH
+    flip rulings are read from describe the dark read (council review
+    2026-09-01, finding 1).
+
+    An already-armed sink is never clobbered: a nested arm is refused loudly,
+    the outer walk keeps the booking, and the nested caller's own sink stays
+    empty — so it contributes nothing rather than half of two walks. Telemetry
+    degrades, it never raises into the scan (EC-20).
+    """
+    global _rescue_sink
+    if sink is not None and _rescue_sink is not None:
+        print("  [rescue-sink] nested arm refused: the outer walk keeps the "
+              "booking", file=sys.stderr)
+        sink = _rescue_sink
+    previous = _rescue_sink
+    _rescue_sink = sink
+    try:
+        yield
+    finally:
+        _rescue_sink = previous
+
 
 # The spine reads these fields off the (duck-typed) brick results, so it stays
 # decoupled from the exact dataclasses ``bricks`` defines:
@@ -343,20 +389,37 @@ def read_structure(df, atr, *, bricks=None, trace=None,
     """Walk candidate root swings oldest-first; return the first that yields a
     complete A -> B -> (C?) -> D narrative, or ``None`` if no coherent story holds.
 
-    ``CONTRACTION_RESCUE_ENABLED`` (dark, default off — the miss program
-    2026-08-28): when the whole walk elects NOTHING (every root refused — not
-    a cause-before-effect abstention, which is doctrinal and final), the read
-    is re-walked ONCE with the species resistance-contraction form armed
-    inside the story pool (``event_map.resistance_contraction_admission``,
-    the operator-ruled judgment whose EGBN/PKE conversions he ruled real on
-    2026-08-19). Scoped to full refusals BY CONSTRUCTION, the rescue can
-    never displace an existing election, re-frame a box, or move a fire date
-    on a ticker that already reads — the WCC wider-box re-election that
-    refused the global form flip is unreachable from here. A rescued fire
-    elects through the story pool and stamps ``elected_pool='story'`` with
-    the self-naming contraction profile ("contracting at/above resistance |
-    ..."), so the cohort stays separable in the archive forever. Flag off =
-    one walk, byte-identical.
+    THE ESCALATION POLICY (sequential, and this function IS it — the
+    armed-form roster is the one mechanism, consolidation-method Task 4):
+
+    1. Walk once with the BASELINE armed-form roster
+       (``event_map.baseline_admission_roster`` — derived from settings at
+       call time, so the species lane's declared preset and the instruments'
+       ``flag_capture`` arm forms by flag exactly as before).
+    2. A cause-before-effect abstention is doctrinal and FINAL — never
+       escalated.
+    3. On a FULL refusal (every root refused), walk ONCE more with each
+       flag-armed escalation form ADDED to the roster — an explicit argument
+       handed down the walk, never a settings mutation. Two escalation
+       lanes, one re-walk: ``CONTRACTION_RESCUE_ENABLED`` (dark — the miss
+       program 2026-08-28) arms the resistance-contraction form
+       (``event_map.resistance_contraction_admission``, whose EGBN/PKE
+       conversions the operator ruled real on 2026-08-19);
+       ``BAR_POSTURE_RESCUE_ENABLED`` (dark — consolidation-method Task 7)
+       arms the S-test form's bar-basis ceiling-leg variant
+       (``event_map.story_admission_bar_posture``, the measured bar-as-unit
+       fix). Forms the baseline roster already arms (the species lane's
+       scoped read, an instrument's capture) never re-walk — the escalated
+       walk would be the same walk; no armed escalation forms, no re-walk.
+
+    Scoped to full refusals BY CONSTRUCTION, the rescue can never displace
+    an existing election, re-frame a box, or move a fire date on a ticker
+    that already reads — the WCC wider-box re-election that refused the
+    global form flip is unreachable from here. A rescued fire elects through
+    the story pool and stamps ``elected_pool='story'`` with the self-naming
+    contraction profile ("contracting at/above resistance | ..."), so the
+    cohort stays separable in the archive forever. Flag off = one walk,
+    byte-identical.
 
     ``bricks`` is the brick-validator provider; it defaults to the real
     ``engine_alpha.structure.narrative.bricks`` (the calibrated detectors). Inject a fake to
@@ -385,37 +448,95 @@ def read_structure(df, atr, *, bricks=None, trace=None,
     ``None`` (the live flag-off default) keeps every call byte-identical —
     injected fakes without the parameter included.
     """
+    # Step 1 — the baseline walk. No ``forms`` kwarg = the baseline roster,
+    # derived inside the story pool by the ONE derivation (the same lazy
+    # settings read a scoped override moves).
     result = _walk_structure(df, atr, bricks=bricks, trace=trace,
                              near_miss=near_miss)
     if isinstance(result, Structure):
         return result
+    # Step 2 — a cause-before-effect abstention is doctrinal and final.
     if result is _CAUSE_VETOED:
         return None                      # doctrinal abstention — never rescued
-    if not settings.CONTRACTION_RESCUE_ENABLED:
+    # Step 3 — the full-refusal escalation: each lane's flag arms its form;
+    # every armed form joins ONE re-walk's explicit roster.
+    if not (settings.CONTRACTION_RESCUE_ENABLED
+            or settings.BAR_POSTURE_RESCUE_ENABLED):
         return None
-    if getattr(settings, "POWER_PLAY_STORY_FORM_ENABLED", False):
-        # The form is already armed (the species lane's scoped read, or an
-        # instrument's flag_capture) — a re-walk would be the same walk.
+    from engine_alpha.structure.event_map import (  # noqa: PLC0415 — rescue only
+        ADMISSION_FORM_RESISTANCE_CONTRACTION,
+        ADMISSION_FORM_S_TEST_BAR_POSTURE, baseline_admission_roster)
+    escalation = set()
+    if settings.CONTRACTION_RESCUE_ENABLED:
+        escalation.add(ADMISSION_FORM_RESISTANCE_CONTRACTION)
+    if settings.BAR_POSTURE_RESCUE_ENABLED:
+        escalation.add(ADMISSION_FORM_S_TEST_BAR_POSTURE)
+    roster = baseline_admission_roster()
+    escalation -= roster
+    if not escalation:
+        # Every armed form is already in the baseline (the species lane's
+        # scoped read, or an instrument's flag_capture) — the escalated walk
+        # would be the same walk.
         return None
-    from engine_alpha.structure.context.htf import window_override  # noqa: PLC0415 — rescue only
     marker = len(trace) if trace is not None else 0
     # near_miss deliberately None on the rescue pass: the recorder already
     # booked this frame's refusals on the first walk over the same framings —
     # a second pass would double-count the lane's pinned per-pool records.
-    with window_override({"POWER_PLAY_STORY_FORM_ENABLED": True}):
-        rescued = _walk_structure(df, atr, bricks=bricks, trace=trace,
-                                  near_miss=None)
+    _t0 = time.perf_counter() if _rescue_sink is not None else None
+    rescued = _walk_structure(df, atr, bricks=bricks, trace=trace,
+                              near_miss=None, forms=roster | escalation)
+    if _rescue_sink is not None:
+        # The cost twin's telemetry (Task 10): the second look's own
+        # wall-time and outcome, summed across the pool into the
+        # rescue_lane_worker_s pseudo-phase. Booking only — never a gate.
+        _rescue_sink["rescue_walks"] = _rescue_sink.get("rescue_walks", 0) + 1
+        _rescue_sink["rescue_ms"] = round(
+            _rescue_sink.get("rescue_ms", 0.0)
+            + (time.perf_counter() - _t0) * 1000, 1)
+        _rescue_sink["escalated_forms"] = sorted(escalation)
+        _rescue_sink["elected"] = isinstance(rescued, Structure)
     if trace is not None:
+        # The pass stamp names the senior armed lane (the contraction rescue
+        # keeps its frozen stamp; a bar-posture-only escalation names itself).
+        stamp = ("contraction_rescue"
+                 if ADMISSION_FORM_RESISTANCE_CONTRACTION in escalation
+                 else "bar_posture_rescue")
         for rec in trace[marker:]:
-            rec["pass"] = "contraction_rescue"
+            rec["pass"] = stamp
     return rescued if isinstance(rescued, Structure) else None
 
 
-def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
-    """The one oldest-first root walk (``read_structure`` without the rescue
-    wrapper). Returns a ``Structure``, ``None`` (full refusal — every root
-    refused), or ``_CAUSE_VETOED`` (the cause-before-effect abstention, which
-    the wrapper must treat as final)."""
+def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None,
+                    forms=None):
+    """The one oldest-first root walk (``read_structure`` without the
+    escalation policy). Returns a ``Structure``, ``None`` (full refusal —
+    every root refused), or ``_CAUSE_VETOED`` (the cause-before-effect
+    abstention, which the policy must treat as final).
+
+    ``forms``: the armed-form roster handed down to the box election
+    (``event_map.ADMISSION_FORMS`` tokens). ``None`` = the baseline roster —
+    no kwarg is passed down, so injected fakes without the parameter keep
+    working (the spine's compatibility rule); an escalated walk hands its
+    roster explicitly and reaches ``validate_equilibrium`` as ``forms=``.
+    ASSERTED HERE (EC-55), at the roster's entry into the walk: ONCE per read,
+    before the first frame is touched."""
+    # EC-55 at the roster's ENTRY into the WALK — the one frame every roster
+    # passes through, above every data-dependent branch. Downstream the roster
+    # is only ever membership-tested, so a misspelled / empty / one-shot roster
+    # arms nothing and the read comes back looking like an honest refusal.
+    # Asserting further down made the check DATA-dependent: at the box election
+    # it runs once per ROOT and not at all on a frame that seeds no root swing,
+    # and at the story pool it runs only on the reads whose ordinary pools all
+    # came back empty — so the same programmer error raised on some tickers and
+    # passed in silence on others, which reads as a flaky engine rather than
+    # the typo it is (round-three completeness critic, 2026-09-01). A
+    # roster-less call (the ordinary walk) carries nothing to assert and pays
+    # nothing; the story pool still resolves the baseline by the ONE derivation.
+    if forms is not None:
+        from engine_alpha.structure.event_map import (  # noqa: PLC0415 — lazy
+            assert_admission_roster,
+        )
+        assert_admission_roster(forms)
     if bricks is None:
         from engine_alpha.structure.narrative import bricks  # noqa: PLC0415 — lazy: real validators
 
@@ -446,6 +567,8 @@ def _walk_structure(df, atr, *, bricks=None, trace=None, near_miss=None):
         # the pair election narrates its cascade — every candidate R/S pair
         # examined, the gate that rejected it, and why the winner was elected.
         nm_kw = {"near_miss": near_miss} if near_miss is not None else {}
+        if forms is not None:
+            nm_kw["forms"] = forms
         if rec is not None:
             cascade: list = []
             box = bricks.validate_equilibrium(df, root, atr, trace=cascade,

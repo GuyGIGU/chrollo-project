@@ -35,7 +35,7 @@ os.environ["CHROLLO_DB_PATH"] = os.path.join(_TEST_DB_DIR, "trading_journal.db")
 # covers all ten front doors at once — including any new one somebody adds. It
 # refuses rather than redirects: a test that reaches the archive is a defect to
 # surface, not to paper over. Proven against a decoy path in
-# tests/integration/test_db_isolation.py, never against the real one (register row 11).
+# tests/integration/test_db_isolation.py, never against the real one (register row 18).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from live_archive_guard import install as _install_live_archive_guard  # noqa: E402
 from core.archive.db_path import DEFAULT_DB_PATH as _LIVE_DB_PATH  # noqa: E402

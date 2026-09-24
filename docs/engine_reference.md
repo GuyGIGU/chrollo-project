@@ -352,19 +352,83 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 
 If any required brick fails, the reader advances to the next root swing and tries again. If no complete A -> B -> (C?) -> D/LPS narrative holds, the ticker has no setup.
 
+**The armed-form roster (consolidation-method Task 4, 2026-09-01).** WHICH
+named ruled admission forms the story pool may admit through is an **explicit
+walk argument**, never a settings mutation read back layers down: the roster
+vocabulary lives beside the judgments it names (`event_map.ADMISSION_FORMS` —
+**three** tokens in declaration order: `s_test`, `resistance_contraction`,
+`s_test_bar_posture`; EC-33), and the ONE derivation
+`event_map.baseline_admission_roster()` reads the flags lazily at call time
+(so the species lane's declared preset — `htf.window_override` arming
+`POWER_PLAY_STORY_FORM_ENABLED` around its own election, AP-10 — and the
+instruments' `flag_capture` keep arming forms exactly as before). A `forms=None`
+call anywhere down the chain (`read_structure` → `validate_equilibrium` →
+`collect_zigzag_candidates` → the story pool) means the baseline roster; any
+OTHER roster must be handed down explicitly — there is no remaining way to arm
+a form for the walk except the argument. **The roster tuple and the baseline
+roster are different sets, and conflating them is the easy error:**
+`s_test_bar_posture` (consolidation-method Task 7) is a declared form that the
+baseline NEVER arms — only the full-refusal escalation reaches it. The escalation
+policy is written sequentially at the top of `read_structure`: baseline walk
+first; a cause-before-effect abstention is final; contraction-armed roster only
+after a full refusal.
+
+**Where the roster is validated (EC-55), and why the placement moved twice before
+it was unconditional.** `event_map.assert_admission_roster` runs at the roster's
+ENTRY INTO THE WALK — the top of `narrative._walk_structure`, guarded only by
+`forms is not None` and placed above the lazy `bricks` import, above the
+trend-terminal floor read and above the root loop. It therefore runs exactly ONCE
+per read that carries a roster, before the first frame is touched, and its verdict
+cannot depend on the shape of the chart. Both earlier homes made it DATA-dependent,
+which is the whole point of the move: inside the story pool (the first build)
+`_story_pool_candidates` is the LAST-RESORT rung, reached only when the strict,
+rescued and band pools all come back empty; at the box election (the second)
+`bricks.validate_equilibrium` runs once per ROOT — and not at all on a chart that
+seeds no root swing, where `find_root_swing` returns None on the first ask and the
+walk returns in silence. The same typo raised on some tickers and passed on others:
+a programmer error wearing the costume of a flaky engine.
+`bricks.validate_equilibrium` KEEPS its own call deliberately, as the guard for
+callers entering BELOW the walk — it is public API and is used that way — so on the
+walk's own path the roster has already been asserted at the top. The coverage
+boundary, stated rather than implied: a caller entering further down still
+(`box_primitives.collect_zigzag_candidates(forms=…)`, or the story pool directly)
+sits below both call sites and is NOT validated; no engine code does that, and the
+engine's only roster hand-off is `read_structure`'s escalated re-walk. A roster-less
+call (the ordinary walk, and every live read today) carries nothing to assert and
+pays nothing — and the baseline is still resolved by the ONE derivation at call
+time, never hoisted to the walk entry, so a scoped flag override keeps arming forms
+(AP-3/AP-10). Three things now raise that used to pass in silence: a roster that is
+not a concrete collection, or is a bare `str` (which answers `in` by SUBSTRING, so
+one string would silently arm two forms); an EMPTY roster, ruled ILLEGAL rather
+than a quiet no-op because it arms nothing and its silence is indistinguishable
+from an honest refusal — no legal caller can build one, since the baseline always
+carries `s_test` and the escalation only ever ADDS; and an unknown token.
+
+**The bar-posture rescue (`BAR_POSTURE_RESCUE_ENABLED`, dark — consolidation-method
+Task 7).** The second full-refusal escalation lane: the S-test form's ceiling leg in the
+operator's unit — `event_map.story_admission_bar_posture` reads `terminal_r_engagement`
+(the bar's HIGH engages the rail zone) instead of `terminal_r_posture` (the close-basis
+leg) — a VERSIONED sibling judgment, never an in-place edit of `frame_terminal_posture`
+(the ONE close-basis predicate the S-test prefilter and the episode reader both resolve
+through; promotion counts pinned). Its O(1) prefilter leg is the shared `frame_r_engaged`.
+Both escalation lanes arm into ONE re-walk; a bar-posture-only escalation stamps its trace
+pass `bar_posture_rescue`. Registering the flag rotated the engine epoch (the declared
+vocabulary seam). Evidence + flip asks: the flag-ledger row and
+[consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Task 7.
+
 **The contraction rescue (`CONTRACTION_RESCUE_ENABLED`, dark — miss program
 2026-08-28).** On a FULL refusal — every root refused; never after a
 cause-before-effect abstention, which is doctrinal and final —
-`read_structure` re-walks once under the one scoped override with
-`POWER_PLAY_STORY_FORM_ENABLED` armed, so the story pool may also admit
+`read_structure` re-walks once handing down an escalated armed-form roster
+(baseline + `resistance_contraction`), so the story pool may also admit
 through the resistance-contraction form (`event_map.resistance_contraction_admission`).
 Scoped to full refusals by construction, the rescue can never displace an
 existing election (the WCC wider-box re-election that refused the global form
-flip is unreachable), and it skips itself when the form is already armed (the
-species lane's scoped read). A rescued fire elects `elected_pool='story'` with
-the self-naming contraction profile. Trace records of the second pass carry
-`pass="contraction_rescue"`. Evidence (EGBN 01-07 tier A on his rails, PKE
-02-18 tier B; junk corpus clean) + flip asks in
+flip is unreachable), and it skips itself when the baseline roster already
+arms the form (the species lane's scoped read). A rescued fire elects
+`elected_pool='story'` with the self-naming contraction profile. Trace records
+of the second pass carry `pass="contraction_rescue"`. Evidence (EGBN 01-07
+tier A on his rails, PKE 02-18 tier B; junk corpus clean) + flip asks in
 [miss_program_2026-08.md](miss_program_2026-08.md). Flag off = one walk,
 byte-identical.
 
@@ -1203,9 +1267,180 @@ Every scan also writes timing telemetry:
 - `output/scan_metrics.jsonl` — append-only history, one JSON record per scan.
 - `market_context["_scan_metrics"]` — included in `output/screener_data.json`.
 
-The phase timings are `ticker_universe`, `market_data_fetch`, `frame_prep`,
-`market_context`, `evaluation`, and `result_assembly`; counts include the loaded
-universe size, evaluated ticker-frame count, and setup count.
+The persisted key is **`phases_s`** (`ScanTimer.finish` emits `"phases_s": dict(self.phases)`;
+`format_scan_metrics` reads it back), and the phase timings are `ticker_universe`,
+`market_data_fetch`, `frame_prep`, `market_context`, `evaluation`, and `result_assembly`;
+counts include the loaded universe size, evaluated ticker-frame count, and setup count.
+
+Two entries in that dict are **pseudo-phases, not phases**, written directly by the conductor
+rather than by a `timer.phase(...)` block: `power_play_lane_worker_s` (the species lane) and
+`rescue_lane_worker_s` (the full-refusal rescue lanes, present ONLY on nights a lane ran, so a
+dark scan's persisted metrics stay byte-identical). Each is **summed in-worker seconds
+aggregated across the process pool, never wall clock** — on the live 2026-08-31 US-Stocks scan
+`power_play_lane_worker_s` read 231.72 inside an `evaluation` phase of 145.93 s, so a lane
+number larger than the phase containing it is the instrument working as designed. They are the
+cost instruments the dark lanes' flip rows gate their bounds on; the read is spelled out in
+[consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Task 14, "The trial scan"
+(EC-49). One trap worth knowing before reading the history file: `output/scan_metrics.jsonl` is
+a MIXED-UNIVERSE append log and its records carry no universe field, so on a full nightly run
+the last line is the ETF scan and the US-Stocks record is third from the end — pick it by
+`counts.universe_tickers`. `market_context["_scan_metrics"]` and `cache_meta.json` have no such
+ambiguity: each belongs to one universe by construction.
+
+### The sentence family (the ONE shared language, archived)
+
+`SENTENCE_ARCHIVE_ENABLED` (dark) — the consolidation-method program's foundation stone
+(depth: [consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Tasks 8/9). Per
+elected box, the readers' own outputs fold through the operator-signed closed vocabulary
+(`structure/event_vocabulary.py`: `unify_events`, then `serialize_sentence`, which passes every
+token through the EC-55 write-time `assert_token` at the mint — an unsigned word fails in the
+frame that invented it, never at a column CHECK) into three model-only archive columns declared
+in that same module (`SENTENCE_COLUMN_SQL`): `sentence_tokens` (the folded token tape, compact
+JSON, DATE-anchored), `sentence_n_tokens`, and `sentence_nan_bars` (the readability companion).
+The extraction `sentence_archive_values` is splatted by ALL THREE writers — live, seed, and the
+manual archive route — per EC-30. Archive-only by design: no payload projection, no wire field.
+
+The family's three-state law is the event-map family's, verbatim: **NULL = not measured or
+refused** (flag off, or a read the engine refused whole — the family NULLs together), **explicit
+zero = measured-empty evidence** beside its `sentence_nan_bars` companion, and an unreadable
+verdict bar rides the record itself. The measurement runs in the ONE shared eval chain
+(`evaluation._score_eval_context`) once per elected box, so live, seed, and manual rows carry
+identical sentences by construction and replay-at-T equals live-at-T; the sentence's one ruler is
+the elected window (bar 0 = the box start), and **both** df-absolute inputs — the label layer's
+knowable stamps and the inner-box channel's detection bars, which `inner_box_at` stamps as
+`n - effective base length` against the whole prepared frame — are rebased onto it by that caller,
+because the naming layer converts nothing. Only the label layer was rebased in the first build, so
+on a box starting at a nonzero bar the mini consolidation landed off the ruler and serialized
+`"span": null`; declaring the real offset instead is not available, because the mint refuses a
+box-origin record with a nonzero `box_start_in_window` (the tape sorts on RAW spans, so an
+unrebased record also lands in the wrong place in the sentence, not merely without dates). A
+box-origin record must now declare an **EXPLICIT** offset of 0: an absent declaration used to
+pass and then serialize its dates as null — the same shuffle as a wrong offset, with nothing
+left to detect it by — so nonzero AND absent both refuse, and only an explicit zero is legal.
+The refusal raises inside the fold's own containment guard, which degrades the family to its
+declared NULL state with a counted drop, so a tightening here can never subtract a fire.
+**A span that still cannot reach the ruler is archived as an honest null — but no longer
+silently:** `serialize_sentence` names the channel on a WARNING line (logger
+`chrollo.engine.event_vocabulary`, carrying the word, the raw span, the origin and the window
+length in trading days) before nulling it. The archive contract does not widen — the family's
+three states and its three columns are unchanged — but the absence is now observable, because
+every downstream assertion tolerates a null by construction, which is exactly how the
+half-applied rebase above survived a whole council review. The reading is stated on the log
+line itself: one record off the ruler is a read at the edge, a whole channel off it is a broken
+ruler. The battery's generic span test was strengthened to match — each specimen DECLARES its
+channel roster and every declared channel must be present and on the ruler — and it runs over
+two corpus specimens deliberately, because the first fire elects no inner box at all and a
+one-specimen test could not have expressed this regression.
+Measure-only: nothing here reaches score, tier,
+election, or any sort key, and flag-off spreads `{}` at every surface. The family raises by design
+(the mint assert, the fold's vocabulary-miss refusal), so the measurement sits in its own guard:
+an error degrades to the same `{}` — never a fourth state — plus a counted, stderr-announced drop
+(`evaluation.SENTENCE_DROPS`, per worker process). An additive family may never subtract the row.
+
+Rows written under different reader vocabularies are different epochs, and are never backfilled —
+so the signed sets are part of the frozen identity, not just the flag: the freeze manifest carries
+`SENTENCE_VOCABULARY`, derived lazily from the one declaration
+(`event_vocabulary.vocabulary_manifest()`, EC-33) and hashed beside the TA-grade chapter taxonomy,
+the in-house precedent for a non-settings identity block. A signed re-wording therefore rotates
+`engine_config_version` by construction.
+
+**What that projection covers, precisely, and how it is kept complete.** Eight keys, not two:
+the value sets (`words`, `verdicts`), the mapping — `puzzle_type_words`,
+`in_progress_rail_words`, `episode_rail_words`, `episode_outcome_verdicts`,
+`mini_consolidation_word` — and `channel_basis`, the per-channel basis block that declares which
+substrate each channel's words stand on and the `span_origin` every archived date is measured
+from. The sets alone were not enough and the gap was demonstrated rather than argued:
+re-assigning `spring` from *held* to *breached*, swapping a word between two puzzle types, and
+swapping the two rail words each left the manifest hash exactly where it was, because all three
+stay strictly inside the closed sets. The basis block was the same class one level up — declared,
+riding verbatim in every archived token's `basis` cell, and rotating nothing when re-declared —
+which is why the projection is no longer typed out in the function body at all: it is DERIVED
+from a declaration registry (`_MANIFEST_SOURCES`, manifest key → module-level declaration), and
+`_assert_declarations_are_registered` runs first inside `vocabulary_manifest()` to pin that
+registry against the module's OWN declarations. Every declaration must be projected into the
+identity or excluded from it on the record with its reason (`SENTENCE_COLUMN_SQL` is the one
+deliberate exclusion: column names say WHERE a measured cell lands, never what a sentence SAYS —
+the event-map family's column table sits outside the identity on the same ground), and a registry
+row naming a declaration that no longer exists refuses too, mirroring `collect_manifest`'s posture
+for a vanished settings key. Adding a table without a row therefore refuses LOUDLY at the manifest
+— which is where the epoch is decided — instead of minting rows under a stale stamp. The guard's
+own boundary is declared at [pattern_register.md](pattern_register.md) row 16: it recognises a
+declaration by shape (upper-case module-level name bound to plain data), so a lower-case or
+object-bound future declaration would still slip it. Row ORDER inside those tables is deliberately NOT
+identity — they are lookups nothing reads positionally, `manifest_json`'s `sort_keys` canonicalises
+them anyway, and a spurious epoch permanently splits a cohort that could have been pooled. That is
+the same split the taxonomy block already makes between `TA_GRADE_CHAPTER_ORDER` (a list — chapter
+order IS ruled meaning) and `chapter_map()` (a dict — registry order is not). Both directions are
+pinned in `tests/test_event_vocabulary.py`: a re-ruling rotates, a pure reorder does not.
+
+### The served refusal read (the operator's tuning loop)
+
+`metrics.mark_refusal_read(win, R, S, atr)` judges the operator's OWN drawn rails through the
+actual gate helpers off `box_gates.GATE_LEGS` — all 15 legs in ladder order, each a structured
+record (leg id, measured, threshold, ok) from the same predicates and lazily-read settings the
+election consults (EC-18/EC-43). The crash leg is the one statistic the registry does not hand
+back, so it decides with the gate's own arithmetic (pandas' NaN-skipping `.min()` against
+`S × CRASH_FILTER_MULT`, the multiplication form, never the division form) and keeps its ratio as
+a display number only — a re-typed twin named crash as THE blocking leg on damaged-data windows
+the real ladder passes. It is the ONE place where a comparison exists twice in this read, which
+is why the claim is "consumes the gates' own helpers, with one named exception" rather than "no
+duplication anywhere"; the fold that would delete the reproduction — hand the statistic back
+through the leg registry — is parked with a kill-by at [pattern_register.md](pattern_register.md)
+row 11 (EC-50), and three of the eleven pins in `tests/test_mark_refusal_read.py` hold the
+reproduction to the gate meanwhile (a NaN low, a real crash, the razor edge). The read returns THE
+single blocking leg (first refusal in ladder order) rendered through the one operator-language
+vocabulary (`trace_export.leg_sentence`), `refused_legs` (all of them), the raw episode profile
+tape for machine consumers, and `episode_summary` — the same counts in plain trading words, and
+the ONLY episode rendering an operator surface may serve (the hover, and as of 2026-09-01
+`tools/knob_pair_table.py`'s own printed output, which used to print the raw tape where the
+summary sat one key away on the same dict). NULL whole on unreadable geometry
+(degenerate rails/ATR/empty window): a refused read is NULL, never fabricated zeros.
+
+**The rendered unit is the operator's own word, and the rule's SCOPE is the rendered phrase.**
+`trace_export._LEG_PHRASES` is the one table of fifteen operator-language sentences, one per
+gate leg; the unit beside a number in it is "trading days", never "bars" and never "sessions".
+That is now true of all fifteen — the last offender, `respect_share`'s "share of bars respecting
+the rails", was corrected 2026-09-01, and the table was then swept phrase by phrase for
+whole-word `bar`/`bars`/`session`/`sessions`, constant names and retired jargon: zero hits.
+Pinned two ways in `tests/test_trace_export.py`, because either alone is escapable — a
+whole-table banned-word sweep (which a benign re-wording slips past) AND exact literals for the
+three legs that carry a unit word. **The rule governs the phrases, not the wire keys:**
+`box_gates.GATE_LEGS` still declares the `window` and `respect_run` quantum as `"bars"`
+(`box_gates.py:67` and `:71`), consumed as an integer-formatting selector at
+`trace_export.py:84`/`:102` and never displayed. Renaming that key is a re-measurement seam,
+not a wording fix — say "the rendered phrase" wherever this absolute is restated, or the next
+sweep will read it as licence.
+
+**The knob table's printing rule (`tools/knob_pair_table.py`, 2026-09-01).** The pair
+formatter this vocabulary exposes compares ONE mark against ONE floor, which is the right shape
+for a sentence and the wrong shape for a printed block: three distinct marks that differ from
+the floor but not from each other all rendered as the same number, and a mark widened against a
+proposed floor could sit under a header floor formatted alone at fewer decimals — a line
+arithmetically impossible on its face. The tool therefore renders each printed BLOCK — a floor
+and the marks listed under it — at ONE shared precision (`fmt_block`), widened exactly as the
+pair formatter widens a pair until no two DISTINCT numbers in the block collide, with count
+quanta staying counts; one helper serves both printed blocks (the leg table and the what-if flip
+list). It is a rendering rule in the tool, not a second vocabulary: every count still formats
+through `trace_export`'s own formatter, and the sentences below the table are unchanged. Two
+known residuals on that surface are parked with an owner at
+[pattern_register.md](pattern_register.md) row 15 — the leg HEADER drops the unit word on the
+two counted legs (the header truncates the shared phrase at the number placeholder, and
+"trading days" sits after it), and the flip lines print Python list repr.
+
+It serves where he already looks — the calibration workbench's `/calibration/engine-read`, whose
+existing hover renders `reason` unchanged (EC-28: the frontend re-derives no judgment). On a
+non-election with a drawn box mark that `reason` becomes "at your rails: \<blocking leg
+sentence\>", plus " — and N more legs short" when others are also short, closing with the episode
+summary; when every leg passes it says so plainly — the miss is upstream of the gate ladder.
+The structured block rides as `drawn_mark_refusal` for any later surface, and the window derives
+through the ONE shared derivation (`replay.drawn_box_window`, EC-13). Three declared rules: the
+diagnosis is attached **fresh per request** — marks are editable ground truth (EC-9), so it may
+never be baked into the engine-read cache; when a session holds several box marks (he draws an
+inner and an outer) it targets the **most recently edited** one, ties broken by highest id; and
+the whole attach is a read-only diagnostic **passenger** on an already-computed response — every
+failure degrades to the raw reason with one logged line, because a locked SQLite on a scan evening
+may not 500 a read that already exists. Depth:
+[consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Task 15.
 
 ---
 
@@ -1347,6 +1582,8 @@ BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
 STORY_POOL_ENABLED = True
 CONTRACTION_RESCUE_ENABLED = False
+BAR_POSTURE_RESCUE_ENABLED = False
+SENTENCE_ARCHIVE_ENABLED = True
 NEAR_MISS_MAX_QUANTA = 1
 NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
 NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083

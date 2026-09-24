@@ -1,0 +1,75 @@
+
+======================================================================
+  CONTROL - engine as shipped
+======================================================================
+
+----- negative_corpus (CONTROL - engine as shipped) -----
+================================================================
+  NEGATIVE-CORPUS PRECISION GUARD - must-NOT-fire cases
+================================================================
+all 18 labeled junk cases still cleanly reject.
+PASS - precision held.
+----- negative_corpus: PASS  (15s) -----
+
+----- marks_corpus (CONTROL - engine as shipped) -----
+================================================================
+  OPERATOR-MARKS ACCEPTANCE GUARD - must-fire setups (Event Map)
+================================================================
+population: guided-list   marks_fingerprint: b671e056a91fc14f…
+ADVISORY: engine config epoch differs from the seal — baseline frozen at 424fbfa119aac9a0…, current 08c981629923c30e…; the verdict below grades TODAY'S engine against the sealed fires (re-freeze deliberately at the next flip/seam commit, EC-29).
+ratchet held: 28/33 pinned hits still fire; every expected miss still misses.
+PASS
+
+ADVISORY: the live calibration-marks DB (35 box marks, +2 vs the 33 sealed) has drifted past the graduation pin - a graduation event is owed (tools.guided_list_export refuses until the operator re-pins).
+----- marks_corpus: PASS  (119s) -----
+
+----- shadow_diff (CONTROL - engine as shipped) -----
+================================================================
+  SHADOW-OUTPUT GUARD - current pipeline vs. captured baseline
+================================================================
+no canonical drift - 32 firing tickers, all fields and ranking unchanged.
+
+PASS - existing outputs unchanged.
+----- shadow_diff: PASS  (12s) -----
+
+======================================================================
+  CANDIDATE - ceiling engagement judged by the bar's HIGH
+======================================================================
+
+----- negative_corpus (CANDIDATE - ceiling engagement judged by the bar's HIGH) -----
+================================================================
+  NEGATIVE-CORPUS PRECISION GUARD - must-NOT-fire cases
+================================================================
+all 18 labeled junk cases still cleanly reject.
+PASS - precision held.
+----- negative_corpus: PASS  (12s) -----
+
+----- marks_corpus (CANDIDATE - ceiling engagement judged by the bar's HIGH) -----
+================================================================
+  OPERATOR-MARKS ACCEPTANCE GUARD - must-fire setups (Event Map)
+================================================================
+population: guided-list   marks_fingerprint: b671e056a91fc14f…
+ADVISORY: engine config epoch differs from the seal — baseline frozen at 424fbfa119aac9a0…, current 08c981629923c30e…; the verdict below grades TODAY'S engine against the sealed fires (re-freeze deliberately at the next flip/seam commit, EC-29).
+  EGBN:2026-01-15: EXPECTED MISS NOW FIRES (2026-01-07, tier A) - stage 'rail-placement' may have converted it. Good news is still a ratchet break: verify the stage's acceptance evidence, then re-freeze.
+  PKE:2026-02-24: EXPECTED MISS NOW FIRES (2026-02-18, tier B) - stage 'rail-placement' may have converted it. Good news is still a ratchet break: verify the stage's acceptance evidence, then re-freeze.
+
+FAIL - the marks ratchet broke (see above).
+
+ADVISORY: the live calibration-marks DB (35 box marks, +2 vs the 33 sealed) has drifted past the graduation pin - a graduation event is owed (tools.guided_list_export refuses until the operator re-pins).
+----- marks_corpus: FAIL  (90s) -----
+
+----- shadow_diff (CANDIDATE - ceiling engagement judged by the bar's HIGH) -----
+================================================================
+  SHADOW-OUTPUT GUARD - current pipeline vs. captured baseline
+================================================================
+no canonical drift - 32 firing tickers, all fields and ranking unchanged.
+
+PASS - existing outputs unchanged.
+----- shadow_diff: PASS  (12s) -----
+
+======================================================================
+  SUMMARY
+======================================================================
+  negative_corpus    control PASS   candidate PASS
+  marks_corpus       control PASS   candidate FAIL
+  shadow_diff        control PASS   candidate PASS

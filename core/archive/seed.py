@@ -40,6 +40,7 @@ from engine_alpha.scoring.scoring import (
     ta_grade_archive_values,
 )
 from engine_alpha.structure.events.event_map import event_map_archive_values
+from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
 from engine_alpha.structure.context.htf import htf_archive_values
 from engine_alpha.structure.context.power_play import power_play_archive_values
 from engine_alpha.structure.context.strategy_read import strategy_archive_values
@@ -465,6 +466,9 @@ def seed_archive(
             **htf_archive_values(best_result.get, prefixed=False),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(best_result.get, prefixed=False),
+            # Sentence-token family (consolidation-method Task 8) — NULL
+            # until the sentence measurement flag flips
+            **sentence_archive_values(best_result.get, prefixed=False),
             # TA-grade family: the grade pair (always emitted since the
             # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
             # + the three setup grades (NULL when the narrative abstained)

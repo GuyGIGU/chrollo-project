@@ -63,6 +63,7 @@ from engine_alpha.scoring.scoring import (  # noqa: E402
     ta_grade_archive_values,
 )
 from engine_alpha.structure.events.event_map import event_map_archive_values  # noqa: E402
+from engine_alpha.structure.events.event_vocabulary import sentence_archive_values  # noqa: E402
 from engine_alpha.structure.context.htf import htf_archive_values  # noqa: E402
 from engine_alpha.structure.context.power_play import power_play_archive_values
 from engine_alpha.structure.context.strategy_read import strategy_archive_values  # noqa: E402
@@ -175,6 +176,11 @@ def _event_map_cols(*, prefixed: bool) -> frozenset[str]:
         event_map_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
+def _sentence_cols(*, prefixed: bool) -> frozenset[str]:
+    return frozenset(
+        sentence_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _ta_grade_cols(*, prefixed: bool) -> frozenset[str]:
     return frozenset(
         ta_grade_archive_values((lambda _k: None), prefixed=prefixed).keys())
@@ -232,6 +238,7 @@ def _scan_effective_cols() -> frozenset[str]:
     literal = _literal_kwargs(writer_mod.archive_scan_results, "values")
     splats = set(_splat_names(writer_mod.archive_scan_results, "values"))
     assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "sentence_archive_values",
                       "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values", "power_play_archive_values",
@@ -240,6 +247,7 @@ def _scan_effective_cols() -> frozenset[str]:
     )
     return (literal | _htf_cols(prefixed=True)
             | _event_map_cols(prefixed=True)
+            | _sentence_cols(prefixed=True)
             | _ta_grade_cols(prefixed=True)
             | _sub_score_cols()
             | _election_trace_cols(prefixed=True)
@@ -254,6 +262,7 @@ def _seed_effective_cols() -> frozenset[str]:
     literal = _literal_kwargs(seed_mod.seed_archive, "overrides")
     splats = set(_splat_names(seed_mod.seed_archive, "overrides"))
     assert splats == {"htf_archive_values", "event_map_archive_values",
+                      "sentence_archive_values",
                       "ta_grade_archive_values", "sub_score_archive_values",
                       "election_trace_archive_values",
                       "strategy_archive_values", "power_play_archive_values",
@@ -262,6 +271,7 @@ def _seed_effective_cols() -> frozenset[str]:
     )
     return (_mapper_auto_cols() | literal | _htf_cols(prefixed=False)
             | _event_map_cols(prefixed=False)
+            | _sentence_cols(prefixed=False)
             | _ta_grade_cols(prefixed=False)
             | _sub_score_cols()
             | _election_trace_cols(prefixed=False)
@@ -403,6 +413,7 @@ def test_manual_route_score_coverage_with_declared_exclusions():
         "power_play_archive_values",
         "htf_archive_values",
         "event_map_archive_values",
+        "sentence_archive_values",
         "election_trace_archive_values",
         "strategy_archive_values",
     }

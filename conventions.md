@@ -856,3 +856,27 @@ reclaim is a daily-bar ruling); operator-delegated 2026-08-31
 **Rationale:** The alternative is worse in both directions — letting a daily-calibrated rescue run on
 weekly bars silently invents an unruled threshold, and hard-coding a weekly variant invents a second
 one. A preset pin says "not ruled here" in the only place that can enforce it.
+
+---
+
+### EC-57: Assert on sealed bases; disclose live drift as a ruling row
+**Convention:** A gate may only ASSERT against a **sealed** basis — the marks ratchet, the shadow
+fixture, the junk corpus, the reader pin — bases whose population is frozen and re-approved by an
+operator sitting. Fleet-level or live-population drift is never an assertion and never a silent
+pass: it is DISCLOSED, in a dated sidecar stamped with the population fingerprint it was measured
+against, handed to the operator as a ruling row. A live number may therefore block a *ruling*; it
+may never block a *build*.
+**Origin:** the operator's own acceptance ruling — *"we measure against the calibrated list"* —
+written as a convention at the consolidation-method plan delivery; proposed 2026-09-01 and
+**ruled in by him the same day** (asks sweep; the sibling candidate "a basis change is a migration"
+was offered in the same breath and DECLINED, so basis changes stay a case-by-case judgment and no
+convention binds them). Written as EC-56 on the consolidation-method branch; renumbered EC-57 when
+that branch merged onto the domain layout (2026-09-24), because main's EC-56 (the same-app guard,
+2026-09-07) had already taken the number.
+**Rationale:** the two failure modes are symmetric and both were live in this repo. Asserting on a
+fleet number makes the suite fail for reasons that have nothing to do with the change under test —
+the cache moved, the universe moved, a name got acquired — which trains everyone to re-baseline on
+red. Silently *accepting* fleet drift is worse: the 2026-08-31 bar-posture sheet said 12 of 12
+reachable and four days later said 4 of 12, and nothing in the tree would have noticed. A sealed
+basis is the only thing an assertion can honestly stand on; everything else is evidence, and
+evidence goes to the operator with its date on it.

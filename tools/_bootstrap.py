@@ -44,8 +44,9 @@ _SEALED_DIRS = (
     os.path.join(_PROJECT_ROOT, "tests", "baselines"),
 )
 
-# Hand-curated operator ground-truth CORPUS FILES living in the docs root —
-# append-only ruling artifacts a guarded tool's --out must never truncate.
+# Hand-curated operator ground-truth CORPUS FILES living outside a sealed
+# directory (the docs root, and the repo root) — append-only ruling artifacts
+# a guarded tool's --out must never truncate.
 # A new corpus joins this tuple in the SAME commit that creates it
 # (2026-08-17 review, Hunt: the power-play corpus shipped with a committed
 # "no tool has a write path into this file" promise the guard did not keep;
@@ -75,7 +76,22 @@ _SEALED_FILES = tuple(
         # gap at the 2026-08-30 pre-merge review — the class's third
         # occurrence, same fix as its two sealed siblings above).
         "corpus_study_2026-08-28.md",
-    ))
+        # The consolidation-method program record — the ruling record the
+        # program's signing sheet, flip playbooks and disclosure sheets live
+        # in (the operator's Task-1 signings land here); sealed in the
+        # change that created it (EC-44; consolidation-method Task 14's own
+        # law: every ruling artifact the program mints joins the sealed set
+        # in its creating commit).
+        "consolidation_method_2026-09.md",
+    )) + (
+    # The settled-law registry (AP-*/EC-*) — the append-only house law every
+    # review is judged against, and the one ruling record that lives at the
+    # REPO ROOT instead of under docs/, which is exactly how it stayed
+    # outside the seal while five docs-root siblings joined (council review
+    # 2026-09-01, finding 11c — the fourth late join of this class). A
+    # mistyped --out would truncate the decision law in place.
+    os.path.join(_PROJECT_ROOT, "conventions.md"),
+)
 
 
 def _canonical_path(path: str) -> str:

@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from core.archive.db_path import DEFAULT_DB_PATH, archive_db_path
 
 # The path and the CHROLLO_DB_PATH override both live in core/archive/db_path.py
-# — ONE home for ten front doors (register row 11, EC-3). ``DEFAULT_DB_PATH`` is
+# — ONE home for ten front doors (register row 18, EC-3). ``DEFAULT_DB_PATH`` is
 # re-exported here because that is the name the isolation guards and the rest of
 # the backend already import.
 #

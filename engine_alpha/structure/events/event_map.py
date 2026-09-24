@@ -53,6 +53,7 @@ cascade's last-resort rung.
 from __future__ import annotations
 
 import json
+from collections.abc import Collection
 
 import numpy as np
 import pandas as pd
@@ -421,7 +422,7 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
     bounds. Measure-only — gates nothing, scores nothing; live on the fire
     path since 2026-07-25 (EVENT_MAP_ENABLED).
     """
-    empty = {"labels": [], "n_labels": 0}
+    empty = {"labels": [], "n_labels": 0, "events": []}
     events, _v_bar, _base_n, _has_valley = _box_events_with_meta(
         df, box, atr_val, spring=spring, lps=lps)
     if not events:
@@ -513,7 +514,11 @@ def read_role_labels(df, box, atr_val, *, spring, lps):
             "election_dependent": election_dependent,
         })
 
-    return {"labels": labels, "n_labels": len(labels)}
+    # ``events`` rides along (consolidation-method Task 9): the SAME
+    # chokepoint list the labels were built over, so a consumer folding
+    # events+labels (the sentence tape) zips 1:1 by construction — a second
+    # chokepoint call could re-detect different bricks and misalign.
+    return {"labels": labels, "n_labels": len(labels), "events": events}
 
 
 # ---------------------------------------------------------------------------
@@ -718,6 +723,34 @@ def story_admission(stats) -> bool:
             and not stats["terminal_s_drift"])
 
 
+def story_admission_bar_posture(stats) -> bool:
+    """The S-test form with its ceiling leg in the OPERATOR'S UNIT — the bar
+    engages the resistance zone (``terminal_r_engagement``: an open R
+    episode, zone entry by wick extremes) instead of the close closing above
+    it (``terminal_r_posture``). His thrice-stated bar-as-unit ruling applied
+    to the one leg that violated it, landed as a VERSIONED sibling judgment
+    (consolidation-method Task 7) — never an in-place edit of
+    ``frame_terminal_posture``, the ONE close-basis predicate the S-test
+    prefilter and the episode reader both resolve through (its promotion
+    counts are pinned; the wholesale basis swap is Tested-DEAD).
+
+    Because posture implies engagement by the reader's construction (posture
+    is read only on a terminal open R episode), this form admits a strict
+    SUPERSET of the S-test form: exactly the engaged-without-posture right
+    edges — the EGBN class (his mark's whole miss is the close-basis leg:
+    bar-basis 0.235 PASS vs close-basis 0.118 against the 0.15 floor).
+    Banked A/B: junk 18/18 silent, shadow byte-identical, ratchet breaks on
+    exactly EGBN 2026-01-07 tier A + PKE 2026-02-18 tier B (both
+    operator-ruled real dates). DARK — armed only by the full-refusal
+    escalation under ``BAR_POSTURE_RESCUE_ENABLED``, so it can only ever ADD
+    a read where there was none (the census QTTB loss is unreachable at this
+    scope). One implementation (EC-18); affirmatively qualified (EC-54); a
+    re-ruling replaces THIS function, never the reader."""
+    return (stats["n_completed_s"] >= 2
+            and stats["terminal_r_engagement"]
+            and not stats["terminal_s_drift"])
+
+
 def resistance_contraction_admission(stats) -> bool:
     """The SECOND named ruled form — the Power-Play species' contraction at
     resistance (program docs/power_play_program_2026-08.md Task 6; species
@@ -767,6 +800,96 @@ def resistance_contraction_label(stats) -> str:
     the rail from below."""
     return ("contracting above resistance" if stats["terminal_r_posture"]
             else "contracting at resistance")
+
+
+# ── the armed-form roster ───────────────────────────────────────────────────
+# The story pool's admission forms as ONE declared vocabulary (EC-33): each
+# token names exactly one ruled judgment above (EC-18 — one implementation per
+# form). The roster of ARMED forms is an explicit value the walk hands down to
+# the story pool (consolidation-method program Task 4): the species lane's
+# scoped election, the contraction-rescue escalation, and every future ruled
+# form are ONE mechanism with different explicit inputs — never a settings
+# mutation read back layers down.
+ADMISSION_FORM_S_TEST = "s_test"
+ADMISSION_FORM_RESISTANCE_CONTRACTION = "resistance_contraction"
+# The S-test form's bar-basis ceiling-leg variant (consolidation-method
+# Task 7; story_admission_bar_posture above) — a VERSIONED form, dark behind
+# the full-refusal escalation, never a swap of the close-basis original.
+ADMISSION_FORM_S_TEST_BAR_POSTURE = "s_test_bar_posture"
+ADMISSION_FORMS = (ADMISSION_FORM_S_TEST, ADMISSION_FORM_RESISTANCE_CONTRACTION,
+                   ADMISSION_FORM_S_TEST_BAR_POSTURE)
+
+
+def assert_admission_roster(forms) -> None:
+    """The EC-55 assertion for the armed-form roster, beside the tuple that
+    declares the set (the sentence vocabulary's ``assert_token`` precedent):
+    every token a caller hands down must NAME a ruled form above, and the
+    roster must arm at least one. Consumers membership-test the roster, so a
+    hand-built or misspelled token would arm nothing and the walk would look
+    like an honest refusal — this raises instead, in the frame that handed the
+    roster in, naming the offender.
+
+    Called at the roster's ENTRY into the walk — ``narrative._walk_structure``,
+    the one frame every roster passes through, above every data-dependent
+    branch, so it runs exactly ONCE per read and before the first frame is
+    touched. Never further down: the box election runs once per ROOT and not at
+    all on a frame that seeds no root swing, and the story-pool consultation is
+    skipped whenever an ordinary pool elects — asserting at either validated a
+    typo on some tickers and passed it in silence on others.
+    ``bricks.validate_equilibrium`` keeps its own copy of this call as the
+    public API's guard for callers that enter below the walk; on the walk's own
+    path the roster it sees has already been asserted.
+
+    Three programmer errors, all of which used to pass in silence:
+
+    * a roster that is not a concrete collection of tokens. Consumers
+      membership-test it repeatedly, so a one-shot iterator would arm the first
+      form asked about and nothing after — and this assertion, taking ``set()``
+      of it, would be what drained it. A bare ``str`` is refused for the same
+      honesty reason: it answers ``in`` by SUBSTRING, so ``"s_test_bar_posture"``
+      would silently arm two forms.
+    * an EMPTY roster — it arms nothing, so every pair is refused and the read
+      is indistinguishable from an honest refusal (the original defect). It is
+      illegal rather than a no-op: no legal caller can build one (the baseline
+      always carries the S-test form, and the escalation only ever ADDS to it),
+      and a walk that consults the pool with nothing armed is a contradiction —
+      declining to consult is what ``STORY_POOL_ENABLED`` is for.
+    * an unknown token.
+    """
+    if isinstance(forms, str) or not isinstance(forms, Collection):
+        raise TypeError(
+            f"event_map: the armed-form roster must be a concrete collection of "
+            f"tokens, not {type(forms).__name__} — it is membership-tested "
+            f"repeatedly, so a one-shot iterator (or a bare string, which "
+            f"answers by substring) cannot carry it")
+    if not forms:
+        raise ValueError(
+            f"event_map: the armed-form roster is empty — a walk that consults "
+            f"the story pool with no form armed can admit nothing, and that "
+            f"silence reads exactly like an honest refusal; the declared roster "
+            f"is {'/'.join(ADMISSION_FORMS)}")
+    unknown = sorted(set(forms) - set(ADMISSION_FORMS))
+    if unknown:
+        raise ValueError(
+            f"event_map: armed-form token(s) {unknown} name no ruled admission "
+            f"form — the declared roster is {'/'.join(ADMISSION_FORMS)}")
+
+
+def baseline_admission_roster() -> frozenset:
+    """The roster the ORDINARY walk arms — derived from settings lazily at
+    call time (AP-3/AP-10: the species preset's ``window_override`` and the
+    instruments' ``flag_capture`` arm the contraction form by toggling the
+    flag around their own read, and a call-time read is what lets that keep
+    working). The S-test form is always armed (STORY_POOL_ENABLED, live,
+    still gates whether the story pool is consulted at all); the resistance
+    contraction joins only while its dark flag is on. The ONE derivation —
+    consumers never re-type the membership rule. The bar-posture variant
+    (Task 7) is NEVER in the baseline: it is armed only by the full-refusal
+    escalation's explicit roster."""
+    if getattr(settings, "POWER_PLAY_STORY_FORM_ENABLED", False):
+        return frozenset((ADMISSION_FORM_S_TEST,
+                          ADMISSION_FORM_RESISTANCE_CONTRACTION))
+    return frozenset((ADMISSION_FORM_S_TEST,))
 
 
 _EPISODE_MARK = {"completed": "+", "failed": "x", "open": "0",

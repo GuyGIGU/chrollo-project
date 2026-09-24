@@ -7,10 +7,13 @@ detector decision (which setups fire, how they score/rank, where the phase
 boundaries land), gathered into a sorted dict whose sha256 is the engine config
 version. An archived signal stamped with that hash can later be traced to the
 exact config that produced it, and a freeze + backtest can assert the config
-hasn't silently drifted. One non-settings block rides along: the TA-grade
-story-chapter taxonomy (term→chapter membership + order, derived from the
-scoring registry) — re-chaptering changes what the grade's breakdown means, so
-it rotates the version like any weight.
+hasn't silently drifted. TWO non-settings blocks ride along, both for the same
+reason — they decide what the DATA MEANS, so they rotate the version like any
+weight: the TA-grade story-chapter taxonomy (term→chapter membership + order,
+derived from the scoring registry — re-chaptering changes what the grade's
+breakdown means), and the sentence family's signed word/verdict vocabulary
+(derived from the ONE event-vocabulary declaration — a signed re-wording
+changes what an archived sentence SAYS).
 
 Design rules (deliberate, audited):
 
@@ -168,6 +171,16 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "STORY_POOL_ENABLED",
     # Contraction-rescue lane at full-refusal scope (miss program 2026-08-28, dark)
     "CONTRACTION_RESCUE_ENABLED",
+    # Bar-posture rescue lane — the S-test form's bar-basis ceiling-leg
+    # variant at the same full-refusal scope (consolidation-method Task 7,
+    # dark; registering it here IS the declared epoch rotation — rows read
+    # under a different reader vocabulary are a different epoch)
+    "BAR_POSTURE_RESCUE_ENABLED",
+    # Sentence-token archive family (consolidation-method Tasks 8/9, dark) —
+    # a vocabulary-deciding knob: rows written under different reader
+    # vocabularies are different epochs, so the flag lives in the frozen
+    # identity from day one
+    "SENTENCE_ARCHIVE_ENABLED",
     # Near-miss lane ruled-form constants (Task 6 ruling 2026-07-26 —
     # measure-only telemetry; listed with the ruling so a re-ruling rotates
     # engine_config_version from day one) + the collector flag (Task 7, dark;
@@ -445,6 +458,30 @@ def collect_manifest() -> Dict[str, Any]:
     # The tag fire-rules are judgments (which chips fire): a rule change must
     # rotate the version exactly like a weight change (task 10).
     manifest["TA_GRADE_TAG_RULES"] = taxonomy.tag_rules_manifest()
+
+    # The sentence family's signed vocabulary is engine identity on the same
+    # grounds (council review 2026-09-01, finding 6): the family's own law is
+    # "rows written under different reader vocabularies are different epochs —
+    # no backfill, ever", and only the FLAG was in the frozen identity, so a
+    # signed re-wording would mint new-worded rows under the old stamp and the
+    # mixed population could never be partitioned again. The block hashes the
+    # MAPPING, not just the derived word/verdict value sets: a re-ruling that
+    # re-assigns inside the closed sets (spring held -> breached) changes what
+    # an archived sentence MEANS while both sets stay identical, and the
+    # sets-only form rotated nothing on exactly that move (round-two
+    # completeness critic, 2026-09-01). The projection is now DERIVED from a
+    # source registry that is itself guarded against the module's declared
+    # tables, because the hand-enumerated body was the same silent-omission
+    # class one level up: it had swallowed the per-channel BASIS_CONSTANTS,
+    # so re-declaring the puzzle channel's span_origin box -> window — the
+    # field the serializer's offset guard keys on, riding every archived
+    # token's basis cell — moved no hash (round-three critic, 2026-09-01).
+    # Derived lazily FROM the one declaration (EC-33 — never a second copy of
+    # the word tables), on the same lazy-import rule as the taxonomy block
+    # above.
+    from engine_alpha.structure import event_vocabulary
+
+    manifest["SENTENCE_VOCABULARY"] = event_vocabulary.vocabulary_manifest()
     return manifest
 
 

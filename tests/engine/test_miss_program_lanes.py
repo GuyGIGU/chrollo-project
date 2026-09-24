@@ -48,6 +48,9 @@ sys.path.insert(0, str(ROOT))
 from config import settings
 from core.pipeline.screening.screener import _evaluate_ticker
 from engine_alpha.evaluation import apply_baseline_filters_with_reason
+from engine_alpha.structure.events.event_map import (
+    ADMISSION_FORM_RESISTANCE_CONTRACTION,
+)
 from engine_alpha.structure.narrative.reader import Structure, read_structure
 from tools.regression import shadow_diff
 from tools.regression.marks_corpus import _FROZEN_BREADTH
@@ -72,19 +75,22 @@ class _RefusingBricks:
 
 
 class _FormSensitiveBricks(_RefusingBricks):
-    """Full refusal with the species form off; a complete story with it on —
-    the scripted shape of a contraction-rescue conversion."""
+    """Full refusal on the baseline walk; a complete story once the
+    resistance-contraction form arrives in the walk's EXPLICIT armed-form
+    roster (consolidation-method Task 4 — the rescue hands the roster down,
+    never a settings mutation) — the scripted shape of a contraction-rescue
+    conversion."""
 
     def find_root_swing(self, df, search_from_bar, atr):
         if search_from_bar == 0:
             self.walks += 1
-        if not settings.POWER_PLAY_STORY_FORM_ENABLED:
-            return None
         if search_from_bar > 10:
             return None
         return SimpleNamespace(climax_bar=10, ar_bar=20, R=110.0, S=100.0)
 
-    def validate_equilibrium(self, df, root, atr, trace=None):
+    def validate_equilibrium(self, df, root, atr, trace=None, forms=None):
+        if forms is None or ADMISSION_FORM_RESISTANCE_CONTRACTION not in forms:
+            return None
         return SimpleNamespace(S=100.0, R=110.0, start_bar=20, box_width=0.10)
 
     def find_spring(self, df, box, atr):
@@ -107,14 +113,10 @@ class _FormSensitiveBricks(_RefusingBricks):
 
 
 class _AlwaysElectingBricks(_FormSensitiveBricks):
-    """Elects the same complete story regardless of the species form."""
+    """Elects the same complete story regardless of the armed roster."""
 
-    def find_root_swing(self, df, search_from_bar, atr):
-        if search_from_bar == 0:
-            self.walks += 1
-        if search_from_bar > 10:
-            return None
-        return SimpleNamespace(climax_bar=10, ar_bar=20, R=110.0, S=100.0)
+    def validate_equilibrium(self, df, root, atr, trace=None, forms=None):
+        return SimpleNamespace(S=100.0, R=110.0, start_bar=20, box_width=0.10)
 
 
 class _VetoedBricks(_AlwaysElectingBricks):
@@ -141,7 +143,8 @@ def test_rescue_rewalks_a_full_refusal_with_the_form_armed(monkeypatch):
     assert isinstance(s, Structure), "the rescue walk should have elected"
     assert bricks.walks == 2
     assert settings.POWER_PLAY_STORY_FORM_ENABLED is False, (
-        "the scoped override leaked — the species form flag must restore")
+        "the rescue must arm the roster it hands down, never the settings "
+        "flag — a mutated flag means the retired override smuggle returned")
 
 
 def test_rescue_trace_stamps_the_second_pass(monkeypatch):
@@ -150,9 +153,17 @@ def test_rescue_trace_stamps_the_second_pass(monkeypatch):
     s = read_structure(None, 1.0, bricks=_FormSensitiveBricks(), trace=trace)
     assert isinstance(s, Structure)
     assert trace, "the rescue pass should narrate its walk"
-    assert all(rec.get("pass") == "contraction_rescue" for rec in trace), (
-        "every second-pass trace record carries the rescue stamp")
+    stamped = [rec for rec in trace if rec.get("pass") == "contraction_rescue"]
+    assert stamped, "every second-pass trace record carries the rescue stamp"
+    assert any("pass" not in rec for rec in trace), (
+        "the baseline walk narrates its refusal too — unstamped")
+    first = trace.index(stamped[0])
+    assert all(rec.get("pass") == "contraction_rescue"
+               for rec in trace[first:]), (
+        "the rescue stamp must partition the tape: everything after the "
+        "first stamped record belongs to the second pass")
     assert trace[-1]["outcome"] == "complete"
+    assert trace[-1].get("pass") == "contraction_rescue"
 
 
 def test_rescue_never_runs_when_a_structure_elects(monkeypatch):
@@ -606,3 +617,28 @@ def test_bottoming_lane_lets_mdt_fire_end_to_end(monkeypatch):
     assert on["_elected_pool"] == "strict"
     assert on["Tier"] == "S"
     assert on["_R"] == pytest.approx(82.83, abs=0.005)
+
+
+def test_ceiling_rest_verdict_truth_table(monkeypatch):
+    """The extracted pure judgment's ruling-sourced truth table
+    (consolidation-method Task 11): the drawn class admits, the razor's
+    boundary pair holds by name (NOK 0.241 IN, ENIC 0.314 OUT — the stated
+    ~0.06-ATR razor each side), and the EC-54 rows fail closed — a missing
+    or non-finite ATR refuses, and the dark flag refuses everything."""
+    from engine_alpha.structure.lps import _ceiling_rest_verdict
+
+    R, atr = 100.0, 1.0
+    monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", True)
+    assert settings.LPS_CEILING_REST_MAX_BELOW_R_ATR == 0.3
+    # The drawn class (rest depth in ATRs under R, per the ruling record).
+    for depth in (0.010, 0.087, 0.148, 0.241):     # DSGN / MATX / MSGS / NOK
+        assert _ceiling_rest_verdict(R - depth * atr, R, atr) is True, depth
+    # The nearest labeled junk stays out.
+    assert _ceiling_rest_verdict(R - 0.314 * atr, R, atr) is False  # ENIC
+    # EC-54: affirmatively qualified — bad ATR refuses, never admits.
+    assert _ceiling_rest_verdict(R - 0.1, R, None) is False
+    assert _ceiling_rest_verdict(R - 0.1, R, float("nan")) is False
+    assert _ceiling_rest_verdict(R - 0.1, R, 0.0) is False
+    # Dark: the flag refuses everything (byte-identical lane).
+    monkeypatch.setattr(settings, "LPS_CEILING_REST_ENABLED", False)
+    assert _ceiling_rest_verdict(R - 0.010, R, atr) is False

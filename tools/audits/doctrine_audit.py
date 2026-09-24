@@ -28,6 +28,18 @@ trace shows a cause-before-effect abstention (``cause_absent`` or
 legitimately abstains is an EXPECTED non-election, reported separately and
 never a failure.
 
+THE RUN-SLOT RULE (consolidation-method Task 13): this gate is deliberately
+NOT in pytest's default cascade — it needs the live payload + cache — so it
+goes dark exactly when nobody runs it (the 2026-08 arity trap: a spy pinning
+an old signature). Two defenses: (1) a MANDATORY manual run after any change
+touching engine signatures or election paths (the rule lives in AGENTS.md's
+verify list); (2) the hermetic plumbing leg
+``tests/test_doctrine_audit_plumbing.py`` runs on every default pytest pass —
+it pins the spy's signature transparency, the abstention vocabulary against
+the walk's real trace outcomes, and the whole ``_audit_setup`` check table
+over a synthetic structure, so a breaking engine change turns pytest red the
+same day instead of waiting for the next manual sitting.
+
 Usage:
     python -m tools.audits.doctrine_audit --check    # exit 1 on any violation/refusal
 """
@@ -57,6 +69,29 @@ from engine_alpha.structure.narrative.reader import read_structure
 
 _PAYLOAD = os.path.join(_PROJECT_ROOT, "output", "screener_data.json")
 _CACHE = os.path.join(_PROJECT_ROOT, "market_data_cache_5y.parquet")
+
+# The abstention vocabulary — the walk outcomes this gate reads as an EXPECTED
+# cause-before-effect non-election (never a coverage hole). Declared as ONE
+# constant so the hermetic plumbing leg can pin it against the outcomes
+# ``read_structure`` actually emits: a renamed trace outcome must turn pytest
+# red, never silently convert vetoes into false refusals.
+_VETO_OUTCOMES = frozenset({"cause_absent", "lps_before_spring"})
+
+
+def _make_cause_spy(record: dict):
+    """The polarity spy, built signature-TRANSPARENT on purpose (``*args,
+    **kwargs`` delegating verbatim): pinning a spied function's arity broke
+    the whole gate once (250/250 reads TypeError when ``terminal_floor`` was
+    added). Returns the spy; the caller saves/restores the original. The
+    hermetic plumbing leg pins both properties (transparency + delegation)."""
+    orig = bricks._cause_is_up
+
+    def cause_spy(*args, **kwargs):
+        result = orig(*args, **kwargs)
+        record["up"] = result
+        return result
+
+    return cause_spy
 
 
 # The payload quantizes rails to 2 decimals (core/pipeline/screening/dashboard.py:261-262,
@@ -186,6 +221,27 @@ def _audit_setup(tk, daily, atr, s, cause_up, payload_fields, check):
             check("D5 lps-above-R", tk, float(lps.low) >= active_R - 1e-6 * active_R,
                   f"low={lps.low} R={active_R}"
                   f"{' (inner)' if s.lps_in_inner else ''}")
+        # D8 — the ceiling-rest sanction's own invariant (consolidation-method
+        # Task 13: every newly sanctioned form enters this table WITH its
+        # flip). Flag-guarded, so it is inert while the exception is dark and
+        # binds on its first live payload automatically: an INSIDE-zone LPS
+        # whose window launched above BOTH extension caps can only have been
+        # sanctioned by the ceiling rest, so its rest must sit ON the ceiling
+        # — within the razor under the owning rail (strategy_alpha: "the
+        # ceiling rest", operator ruling 2026-08-29).
+        if (settings.LPS_CEILING_REST_ENABLED
+                and getattr(lps, "zone_type", None) == "INSIDE"
+                and np.isfinite(float(atr)) and float(atr) > 0):
+            ext_box = float(getattr(lps, "high_extension_box", 0.0))
+            ext_atr = float(getattr(lps, "high_extension_atr", 0.0))
+            if (ext_box > settings.LPS_INSIDE_HIGH_EXTENSION_BOX_MAX
+                    and ext_atr > settings.LPS_INSIDE_HIGH_EXTENSION_ATR_MAX):
+                razor = (settings.LPS_CEILING_REST_MAX_BELOW_R_ATR
+                         * float(atr))
+                check("D8 ceiling-rest-on-rail", tk,
+                      float(lps.low) >= active_R - razor - 1e-9,
+                      f"low={lps.low} R={active_R} razor={razor:.4f}"
+                      f"{' (inner)' if s.lps_in_inner else ''}")
     if s.terminator == "spring":
         check("D6 terminator", tk, sp is not None and pbe == int(sp.tip_bar),
               f"pbe={pbe} tip={sp.tip_bar if sp else None}")
@@ -234,13 +290,8 @@ def run_audit() -> int:
     cause_seen = {"up": None}
     orig_cause = bricks._cause_is_up
 
-    def cause_spy(*args, **kwargs):
-        result = orig_cause(*args, **kwargs)
-        cause_seen["up"] = result
-        return result
-
     measured, refused, vetoed = 0, [], []
-    bricks._cause_is_up = cause_spy
+    bricks._cause_is_up = _make_cause_spy(cause_seen)
     try:
         for tk in tickers:
             if tk not in cached:
@@ -276,7 +327,7 @@ def run_audit() -> int:
                 vtrace: list = []
                 read_structure(daily, atr, trace=vtrace)
                 outcomes = {r.get("outcome") for r in vtrace}
-                if outcomes & {"cause_absent", "lps_before_spring"}:
+                if outcomes & _VETO_OUTCOMES:
                     vetoed.append(tk); continue
                 refused.append((tk, "no structure")); continue
             measured += 1

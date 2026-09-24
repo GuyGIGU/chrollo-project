@@ -29,7 +29,7 @@ from core.archive.db_path import archive_db_path
 # writes. Resolved through the ONE home (core/archive/db_path) rather than
 # rebuilt from this file's anchor, so it honours CHROLLO_DB_PATH like every
 # other door — it used to be resolved independently, which is exactly how nine
-# modules ended up ignoring the override (register row 11, EC-3).
+# modules ended up ignoring the override (register row 18, EC-3).
 _PROJECT_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
 )

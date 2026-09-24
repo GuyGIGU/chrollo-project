@@ -10,6 +10,7 @@ Response-model fidelity is covered explicitly via MarkOut.model_validate, and
 the same-app write guard's WIRING is pinned by route inspection.
 """
 import sys
+from datetime import datetime
 
 import pandas as pd
 import pytest
@@ -419,12 +420,17 @@ def test_engine_read_projects_through_the_harness_lens(
     # The harness's own walk: baseline variant only, at the mark's session.
     assert calls == [("2026-04-15", ({},))]
 
-    # Second hit serves the per-frame cache — never a second structure read.
+    # Second hit serves the per-frame cache — never a second structure read
+    # (the pytest.fail patch proves no recompute). The RESPONSE is a fresh
+    # copy of the cached read (consolidation-method Task 15: the drawn-mark
+    # refusal block attaches per request — marks are editable ground truth —
+    # so the cache must hold the pure engine read only, never a diagnosis).
     monkeypatch.setattr(replay, "snapped_election",
                         lambda *a, **k: pytest.fail("recomputed a cached read"))
     again = calibration_engine_read(ticker="BODI", as_of="2026-04-15",
                                     frame_digest=digest)
-    assert again is body
+    assert again == body
+    assert again is not body
 
 
 def test_engine_read_reports_no_read_honestly(
@@ -1020,3 +1026,182 @@ def test_trigger_grade_endpoint_filters_to_the_requested_ticker(db, monkeypatch)
 
 
 import threading  # noqa: E402 — used by the pool test above
+
+
+def test_engine_read_names_the_blocking_leg_at_the_drawn_mark(
+        tmp_path, monkeypatch, db):
+    """The tuning loop's refusal naming (consolidation-method Task 15): on a
+    non-election with a drawn box mark, the served ``reason`` becomes the ONE
+    blocking leg at the operator's rails — his value vs the floor, through
+    the one operator-language vocabulary — with the resolved sentence beside
+    it and the structured block riding for later surfaces."""
+    import frame_store
+    import webapp.backend.frame_store as wb_frame_store
+
+    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
+    monkeypatch.setattr(wb_frame_store, "FRAMES_DIR", str(tmp_path))
+    n = 60
+    idx = pd.bdate_range("2026-01-05", periods=n)
+    close = 105.0
+    frame = pd.DataFrame({"Open": [close] * n, "High": [close + 0.5] * n,
+                          "Low": [close - 0.5] * n, "Close": [close] * n,
+                          "Volume": [1_000_000.0] * n}, index=idx)
+    as_of = str(idx[-1].date())
+    d, _ = frame_store.freeze_frame("REFU", as_of, frame)
+
+    db.add(models.CalibrationMark(
+        ticker="REFU", as_of_date=as_of, label="", verdict="box",
+        resistance=110.0, support=100.0,
+        box_start_date=str(idx[15].date()), box_end_date=as_of,
+        frame_digest=d, data_regime="as_traded",
+        engine_config_version="test", anchor_close=close,
+        created_at=datetime(2026, 3, 27), updated_at=datetime(2026, 3, 27)))
+    db.commit()
+
+    import tools.replay as replay
+    monkeypatch.setattr(
+        replay, "snapped_election",
+        lambda *a, **k: ((frame, 1.0, [None]), idx[-1], 0))
+    calibration._ENGINE_READS.clear()
+    body = calibration_engine_read(ticker="REFU", as_of=as_of,
+                                   frame_digest=d, db=db)
+    assert body["elected"] is False
+    assert body["reason"].startswith("at your rails:"), body["reason"]
+    block = body["drawn_mark_refusal"]
+    # The flat mid-box frame passes width/window/respect/crash and never
+    # touches the rails: the FIRST refusing leg in the ladder is r_touches.
+    assert block["blocking_leg"]["leg"] == "r_touches"
+    assert block["blocking_leg"]["measured"] == 0
+    assert "sentence" in block
+    # The hover speaks plain words only (council review 2026-09-01, finding 3):
+    # the raw episode tape rides in the structured block for machine
+    # consumers and NEVER in the served reason, the plain-words episode
+    # clause closes it, and the other short legs are counted so a sitting
+    # cannot rule on one leg a mark three legs short can never satisfy.
+    assert "sentence " not in body["reason"], body["reason"]
+    assert body["reason"].endswith(block["episode_summary"]), body["reason"]
+    assert block["episode_summary"] == "no completed tests yet"
+    others = len(block["refused_legs"]) - 1
+    assert others > 1
+    assert f"— and {others} more legs short —" in body["reason"], body["reason"]
+    # The cache stays pure: a second call re-attaches fresh (mark edits must
+    # never serve a stale diagnosis), and the cached read carries no block.
+    key = next(iter(calibration._ENGINE_READS))
+    assert "drawn_mark_refusal" not in calibration._ENGINE_READS[key]
+
+
+def _freeze_refusal_frame(tmp_path, monkeypatch, ticker, frame):
+    """Freeze one frame into a tmp store (BOTH module instances) and hand back
+    (as_of, digest) — the shared setup for the refusal-naming tests."""
+    import frame_store
+    import webapp.backend.frame_store as wb_frame_store
+    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
+    monkeypatch.setattr(wb_frame_store, "FRAMES_DIR", str(tmp_path))
+    as_of = str(frame.index[-1].date())
+    d, _ = frame_store.freeze_frame(ticker, as_of, frame)
+    return as_of, d
+
+
+def _worked_range_frame(n=60):
+    """A genuinely worked range between 100 and 110 — price zigzags rail to
+    rail across every third, so all fifteen gate legs pass at those rails."""
+    idx = pd.bdate_range("2026-01-05", periods=n)
+    import numpy as np
+    c = 105.0 + 5.0 * np.sin(np.arange(n) % 12 / 12.0 * 2 * np.pi)
+    return pd.DataFrame({"Open": c, "High": c + 0.4, "Low": c - 0.4,
+                         "Close": c, "Volume": [1_000_000.0] * n}, index=idx)
+
+
+def test_engine_read_all_legs_pass_says_the_miss_is_upstream_in_plain_words(
+        tmp_path, monkeypatch, db):
+    """The other branch of the refusal read (council review 2026-09-01,
+    findings 2/3): when the operator's rails clear every gate leg, the served
+    reason must say — in plain words, no engine-internal speak and no raw
+    episode tape — that the engine never proposes this box at all."""
+    frame = _worked_range_frame()
+    as_of, d = _freeze_refusal_frame(tmp_path, monkeypatch, "PASS", frame)
+    db.add(models.CalibrationMark(
+        ticker="PASS", as_of_date=as_of, label="", verdict="box",
+        resistance=110.0, support=100.0,
+        box_start_date=str(frame.index[0].date()), box_end_date=as_of,
+        frame_digest=d, data_regime="as_traded",
+        engine_config_version="test", anchor_close=105.0,
+        created_at=datetime(2026, 3, 27), updated_at=datetime(2026, 3, 27)))
+    db.commit()
+
+    import tools.replay as replay
+    monkeypatch.setattr(
+        replay, "snapped_election",
+        lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
+    calibration._ENGINE_READS.clear()
+    body = calibration_engine_read(ticker="PASS", as_of=as_of,
+                                   frame_digest=d, db=db)
+    block = body["drawn_mark_refusal"]
+    assert block["refused_legs"] == []
+    assert block["blocking_sentence"] is None
+    assert body["reason"] == (
+        "every gate leg passes at your rails — the engine never proposes "
+        f"this box, so the miss is upstream — {block['episode_summary']}")
+    # Real completed history, spoken in trading words — never the tape.
+    assert "completed test" in block["episode_summary"]
+    assert block["sentence"] and block["sentence"] not in body["reason"]
+
+
+def test_engine_read_survives_a_broken_mark_query(
+        tmp_path, monkeypatch, engine_reads_isolated):
+    """The diagnosis is a read-only PASSENGER on an already-computed response
+    (council review 2026-09-01, finding 2): a locked/contended SQLite on a
+    scan evening must degrade to the raw reason, never 500 the overlay — and
+    the catch may not be narrowed to the three exception types the mark read
+    itself happens to raise."""
+    import sqlite3
+
+    frame = _worked_range_frame(n=40)
+    as_of, d = _freeze_refusal_frame(tmp_path, monkeypatch, "LOCK", frame)
+
+    class LockedSession:
+        def query(self, *_a, **_k):
+            raise sqlite3.OperationalError("database is locked")
+
+    import tools.replay as replay
+    monkeypatch.setattr(
+        replay, "snapped_election",
+        lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
+    body = calibration_engine_read(ticker="LOCK", as_of=as_of,
+                                   frame_digest=d, db=LockedSession())
+    assert body["elected"] is False
+    assert body["reason"] == "no structure elects within the snap window"
+    assert "drawn_mark_refusal" not in body
+
+
+def test_engine_read_diagnoses_the_most_recently_edited_box_mark(
+        tmp_path, monkeypatch, db):
+    """A session can hold several box marks — he draws an inner and an outer
+    box. The pick is DECLARED (council review 2026-09-01, finding 15): the
+    most recently edited one, so "at your rails" names the framing he is
+    working on rather than whichever row the database happened to yield."""
+    frame = _worked_range_frame()
+    as_of, d = _freeze_refusal_frame(tmp_path, monkeypatch, "TWIN", frame)
+    common = dict(ticker="TWIN", as_of_date=as_of, verdict="box",
+                  box_start_date=str(frame.index[0].date()),
+                  box_end_date=as_of, frame_digest=d,
+                  data_regime="as_traded", engine_config_version="test",
+                  anchor_close=105.0, created_at=datetime(2026, 3, 27))
+    # Older: the worked rails (every leg passes). Newer: rails far above the
+    # whole window — every bar sits outside, so respect_share blocks.
+    db.add(models.CalibrationMark(label="outer", resistance=110.0,
+                                  support=100.0,
+                                  updated_at=datetime(2026, 3, 27), **common))
+    db.add(models.CalibrationMark(label="inner", resistance=130.0,
+                                  support=120.0,
+                                  updated_at=datetime(2026, 3, 28), **common))
+    db.commit()
+
+    import tools.replay as replay
+    monkeypatch.setattr(
+        replay, "snapped_election",
+        lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
+    calibration._ENGINE_READS.clear()
+    body = calibration_engine_read(ticker="TWIN", as_of=as_of,
+                                   frame_digest=d, db=db)
+    assert body["drawn_mark_refusal"]["blocking_leg"]["leg"] == "respect_share"

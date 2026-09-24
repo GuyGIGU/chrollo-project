@@ -107,7 +107,7 @@ jobs:
       # KNOWN BLIND SPOT, so nobody reads this gate as total coverage: the pin's
       # mechanical window puts S at the window's own minimum low, so no bar can
       # undercut S, find_spring never fires, and `spring` reads None on all 88
-      # charts - the entire Phase-C spring surface is unpinned. Register row 12.
+      # charts - the entire Phase-C spring surface is unpinned. Register row 19.
       # Widening the window means recapturing the baseline, i.e. an EC-29 seam
       # commit, not an edit that can ride along with a passing change.
       # AGENTS.md has named it a standing gate all along while CI ran it never

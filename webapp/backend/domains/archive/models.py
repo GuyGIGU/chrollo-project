@@ -323,6 +323,17 @@ class SetupArchive(Base):
     event_map_episode_profile = Column(String, nullable=True)    # the sentence "S+ S+ S+ R^"
     event_map_episodes = Column(String, nullable=True)           # compact JSON tape (dates)
 
+    # ── Sentence-token family (consolidation-method Task 8) — MODEL-ONLY adds;
+    # owning declaration engine_alpha/structure/events/event_vocabulary.py
+    # (SENTENCE_COLUMN_SQL + serialize_sentence + sentence_archive_values,
+    # splatted by BOTH writers per EC-30). NULL = not measured or refused (the
+    # family is dark until its measurement flag flips); a refused read NULLs
+    # the WHOLE family; tokens are date-anchored, closed-set-asserted at mint
+    # (EC-55). Different reader vocabularies = different epochs; no backfill. ──
+    sentence_tokens = Column(String, nullable=True)     # folded token tape (JSON)
+    sentence_n_tokens = Column(Integer, nullable=True)  # explicit 0 = measured-empty
+    sentence_nan_bars = Column(Integer, nullable=True)  # readability companion
+
     # ── Technical Analysis Grade v2 family — always-on since the 2026-08-22
     # legacy retirement (the TA_SCORE_V2 flag is gone) ───────────────────────
     # Owning declaration in engine_alpha/scoring/scoring.py (TA_GRADE_COLUMN_SQL

@@ -20,7 +20,7 @@ Scope. The first three guards are PATH-specific: they pin
 ``webapp/backend/database.py`` and the ``CHROLLO_DB_PATH`` override. That was
 once the whole defence, and it left the archive with ten front doors and one
 lock — nine other modules rebuilt the live path from their own ``__file__``
-anchor and ignored the override (register row 11). Both halves have since
+anchor and ignored the override (register row 18). Both halves have since
 landed and are pinned below:
 
 * the EC-3 fold — every door resolves through ``core.archive.db_path``, asserted
@@ -137,7 +137,7 @@ def test_the_override_is_what_redirects_the_path():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# The STRUCTURAL guard (register row 11). The three tests above are
+# The STRUCTURAL guard (register row 18). The three tests above are
 # PATH-specific: they pin webapp/backend/database.py, the one door that reads
 # CHROLLO_DB_PATH. These pin the refuser that sits under ALL of them.
 # ─────────────────────────────────────────────────────────────────────────────
