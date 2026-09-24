@@ -136,7 +136,7 @@ reach chart reading and elect nothing, the rescue converts 32 (2.6%) — +10% on
 the 309 standing fires — every one `elected_pool='story'` with a self-naming
 contraction profile (12 tier S / 17 A / 2 B / 1 C; KFY 119.9 the top; BIIB,
 BMY, HUM, MA among them). A reviewable sheet, the NKTR/YPF eyeball shape at
-32 names: `output/miss_lane_census_2026-08-28.json`.**
+32 names: `research/evidence/miss_lane_census_2026-08-28.json`.**
 
 **Flip asks:** (1) the operator's eyeball of the 32-name conversion sheet (the
 same per-fire chart check the story-pool flip got); (2) the ratchet reseal —
@@ -166,7 +166,7 @@ clean with the flag ON; synthetic-frame guards pin recency / depth /
 never-above / sma200-still-gates; flag off byte-identical.
 
 **The flip census ran (`tools.miss_lane_census`, cache edge 2026-08-27, 5,532
-tickers, sidecar `output/miss_lane_census_2026-08-28.json`) — and it says the
+tickers, sidecar `research/evidence/miss_lane_census_2026-08-28.json`) — and it says the
 lane AS SHIPPED is wide.** Baseline standing fires: 309. The exception admits
 291 of 1,770 sma50 refusals and **157 of them fire (+51% standing fires;
 99 tier A / 58 S across both lanes' 189 total)**. The margin distribution of
@@ -260,7 +260,7 @@ EGBN / NOK / PKE(old sealed mark) / SKYT — **the reseal is 28/33 → 32/33,
 pinned by name**; full pytest green flag-off.
 
 **The second-wave fleet census** (`tools.miss_lane_census`, cache edge
-2026-08-27, sidecar `output/miss_lane_census_2026-08-29.json`):
+2026-08-27, sidecar `research/evidence/miss_lane_census_2026-08-29.json`):
 
 - **Ceiling rest — surgical on conversions, but it re-points live triggers.**
   8 conversions of 1,241 no-reads (0.6%: KFY/EQH/KNSL/PGR/IPI/IMO/VTOL/UGI) —

@@ -14,7 +14,7 @@ deletes — this was its second and last re-date.
 
     .\.venv\Scripts\python.exe -m tools.trend_terminal_ab --json output/trend_terminal_ab_2026-08-31.json
 
-Raw output committed at [`output/trend_terminal_ab_2026-08-31.json`](../output/trend_terminal_ab_2026-08-31.json).
+Raw output committed at [`research/evidence/trend_terminal_ab_2026-08-31.json`](../research/evidence/trend_terminal_ab_2026-08-31.json).
 
 exit 0. Basis line: `payload 2026-08-27 (0eef903a8ee3); 309 names; manifest 08c981629923`.
 Branch `claude/queue-sweep-2026-08-30`, HEAD 32af7f8; `e4471e0` (the 2026-08-19 polarity

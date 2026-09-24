@@ -9,7 +9,7 @@ This file is the **committed evidence record** (EC-16) behind the two 2026-08-30
 three-ceiling-states row that commissioned the census. Those rows originally cited
 `BARSTATES.md` / `BARSTATE-VERDICT.md` in a session scratchpad, which no fresh clone can read; the
 instrument `tools/bar_state_census.py` and this record replace that pointer. The sidecar of the
-reproducing run is `output/bar_state_census_2026-08-30.json`.
+reproducing run is `research/evidence/bar_state_census_2026-08-30.json`.
 
 **Measure-first discipline: no gate, no threshold and no knob is proposed anywhere in this file.**
 The 2026-08-29 guard-rail stands — a 0.5-ATR allowance is *position vocabulary only*; as a
@@ -323,6 +323,6 @@ negative-corpus fixture; it writes a sidecar only (EC-46) through the sealed-out
 is deterministic: two consecutive runs printed byte-identical reports.
 
 `output/*.json` is gitignored, so the sidecar is committed with `git add -f`, exactly as its
-committed siblings `output/miss_lane_census_2026-08-29.json` and
-`output/shape_profile_2026-08-29.json` are — an EC-16 evidence file that a fresh clone cannot read
+committed siblings `research/evidence/miss_lane_census_2026-08-29.json` and
+`research/evidence/shape_profile_2026-08-29.json` are — an EC-16 evidence file that a fresh clone cannot read
 is not an evidence trail.

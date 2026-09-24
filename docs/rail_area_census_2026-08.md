@@ -14,7 +14,7 @@ quote**, prints itself against them, and fails loudly rather than re-fitting.
 ```
 
 ~50 seconds end to end, no flags, no network, no engine or archive write. The sidecar is
-committed as `output/rail_area_census_2026-08-30.json` (`output/*.json` is gitignored, so it
+committed as `research/evidence/rail_area_census_2026-08-30.json` (`output/*.json` is gitignored, so it
 lands with `git add -f`, exactly like its census siblings).
 
 ## Population stamp
