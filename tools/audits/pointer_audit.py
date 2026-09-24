@@ -111,9 +111,10 @@ def _repo_rel(abs_path: str) -> str | None:
 
 
 # An archived doc is a sealed record of a closed program; the files it names are
-# supposed to be gone. Exempt from the ADVISORY only - the link gate above still
-# holds archived docs to resolving every markdown link they carry (EC-16).
-_ARCHIVE_PREFIX = "docs/archive/"
+# supposed to be gone. A migration map names every old path on purpose. Both are
+# exempt from the ADVISORY only - the link gate above still holds them to
+# resolving every markdown link they carry (EC-16).
+_ARCHIVE_PREFIX = ("docs/archive/", "docs/migrations/")
 
 
 def dangling_links() -> list[tuple[str, str]]:
@@ -146,9 +147,10 @@ def dangling_paths(include_archive: bool = False) -> list[tuple[str, str]]:
     reference. The gate is about what a clone can open; this is about what has
     moved or been deleted.
 
-    Carriers under ``docs/archive/`` are excluded by default. An archived doc is
-    a sealed record of a closed program: it names the files that program had,
-    and those files SHOULD be gone. Counting them buried ~30 live-doc hits
+    Carriers under ``docs/archive/`` and ``docs/migrations/`` are excluded by
+    default. An archived doc is a sealed record of a closed program: it names the
+    files that program had, and those files SHOULD be gone; a migration map lists
+    every old path on purpose. Counting them buried ~30 live-doc hits
     under 77 known-historical ones, and an advisory nobody reads is not an
     advisory. Pass ``include_archive=True`` for the unfiltered set - the report
     always prints how many were held back, so the suppression is never silent.
@@ -189,8 +191,8 @@ def check(report: bool = False) -> bool:
         print(f"  advisory: {len(paths)} bare path mention(s) in live files "
               "that do not exist")
         print("  (historical-on-purpose is legitimate here - judge each one)")
-        print(f"  {len(every) - len(paths)} more under {_ARCHIVE_PREFIX} not "
-              "listed - a sealed record naming its own era's files is not rot")
+        print(f"  {len(every) - len(paths)} more under {' and '.join(_ARCHIVE_PREFIX)} not "
+              "listed - a sealed record or migration map naming old files is not rot")
         for rel, hit in paths:
             print(f"    {rel}: {hit}")
     return not links

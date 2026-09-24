@@ -248,7 +248,7 @@ maturation never ticks, and archived setups stall one bar short of maturing.
 > started and died counts as missed. Both failure shapes are explained in plain words by the
 > topbar status pills — click either one for the scan-run registry, which names the reason and a
 > proposed solution. To move the slot, edit `SCAN_SCHEDULE_HOUR_ET` / `SCAN_SCHEDULE_MINUTE_ET`
-> in `config/settings.py` and restart with `update_dashboard.bat`. Evidence for the collision:
+> in `config/runtime.py` and restart with `update_dashboard.bat`. Evidence for the collision:
 > [scan_interruption_incident_2026-09.md](scan_interruption_incident_2026-09.md). Because the
 maturation record is what proves the engine's edge, add a **second, backend-independent**
 nightly tick via Windows Task Scheduler. It runs the standalone updater directly, records
@@ -324,7 +324,7 @@ Real restore, after data loss:
 1. Reboot the PC.
 2. Double-click the **Chrollo Dashboard** shortcut.
 3. Confirm the grid loads at `http://127.0.0.1:8000`.
-4. Wait for the scheduled scan time, or temporarily set `SCAN_SCHEDULE_HOUR_ET` and `SCAN_SCHEDULE_MINUTE_ET` in `config\settings.py` a few minutes ahead and restart the service.
+4. Wait for the scheduled scan time, or temporarily set `SCAN_SCHEDULE_HOUR_ET` and `SCAN_SCHEDULE_MINUTE_ET` in `config\runtime.py` a few minutes ahead and restart the service.
 5. Confirm the header shows the latest scan time, setup count, and `ok`.
 
 Keep the scheduled scan supervised for 1-2 weeks before fully trusting it unattended.

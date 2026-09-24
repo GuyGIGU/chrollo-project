@@ -162,14 +162,17 @@ def test_an_archived_carrier_is_exempt_from_the_advisory(tmp_path, monkeypatch):
     (repo / "docs" / "archive").mkdir(parents=True)
     (repo / "docs" / "archive" / "old.md").write_text(
         "that program ran core/structure/gone.py", encoding="utf-8")
+    (repo / "docs" / "migrations").mkdir()
+    (repo / "docs" / "migrations" / "map.md").write_text(
+        "moved from core/pipeline/gone.py", encoding="utf-8")
     (repo / "docs" / "live.md").write_text(
         "see tools/missing.py", encoding="utf-8")
     monkeypatch.setattr(pointer_audit, "_REPO_ROOT", str(repo))
     monkeypatch.setattr(pointer_audit, "_tracked",
-                        lambda *p: ["docs/archive/old.md", "docs/live.md"])
+                        lambda *p: ["docs/archive/old.md", "docs/migrations/map.md", "docs/live.md"])
 
     assert [h for _, h in pointer_audit.dangling_paths()] == [
-        "tools/missing.py"], "an archived carrier must not reach the advisory"
+        "tools/missing.py"], "an archived carrier or migration map must not reach the advisory"
     assert [h for _, h in pointer_audit.dangling_paths(include_archive=True)] == [
-        "core/structure/gone.py", "tools/missing.py"
+        "core/structure/gone.py", "tools/missing.py", "core/pipeline/gone.py"
     ], "include_archive=True must still show everything - no silent cap"

@@ -14,7 +14,7 @@ what is different this time.
 
 | commit | what happened |
 |---|---|
-| `d537cc7` | PIP substrate built measure-only (then `core/structure/pip.py`; now `engine_alpha/structure/phase_a.py`) |
+| `d537cc7` | PIP substrate built measure-only (then `core/structure/pip.py`; now `engine_alpha/structure/phases/phase_a.py`) |
 | `c08e61f` | FLAT wire: `segment_swings` sources its zigzag from `pip_pivots(dist_min=0.03)` behind `PIP_PIVOTS_ENABLED`, default-off. Feeds ONLY the Phase-A overlay (`resolve_phase_a`) — never R/S/score/tier. Universe: fire decisions identical, overlay shifts on 62/106 firing setups. |
 | `d43e7fd` | Eyeball gate: **"PIP is a wash on the overlay (fixes some inverted climax→AR, creates others e.g. GBTG/PLSE/CGNX), so it stays default-off."** |
 
@@ -60,7 +60,7 @@ retest / shallow dip is *not in the skeleton to be chosen*. No confirmed bridge
 by `k_max` (fresh climax whose reaction hasn't held) → fall back to the finest
 prefix and let `resolve_phase_a`'s existing fallbacks behave as today.
 
-Unit-proofed in `tests/test_phase_a.py` (formerly `test_pip.py`): a synthetic markup→AR→range frame with a
+Unit-proofed in `tests/engine/test_phase_a.py` (formerly `test_pip.py`): a synthetic markup→AR→range frame with a
 planted late poke *above* the true climax — the macro read confirms at K=4 with
 the true climax→AR and the thief never enters the skeleton; mirrored for SC
 (downtrend) roots; fresh-climax falls back with `k=None`.
@@ -86,7 +86,7 @@ the true climax→AR and the thief never enters the skeleton; mirrored for SC
 | gate | result |
 |---|---|
 | `pytest` full suite | pass |
-| `tools/shadow_diff --check` (defaults) | pass — no canonical drift |
+| `tools/regression/shadow_diff --check` (defaults) | pass — no canonical drift |
 | shadow with `PIP_MACRO_PHASE_A_ENABLED` forced ON | **byte-identical** — the wire provably cannot drift a canonical field |
 | `core.archive.seed_recall --hermetic-check` | pass — recall held, no winners lost |
 
@@ -133,7 +133,7 @@ with macro against the current read — the "fixes some" half of the d43e7fd
 wash, kept. No new inversions observed in the eyeballed set.
 
 **Verdict so far: strongly macro-favorable, pending the operator's own pass
-over `tools/fidelity/pip_phase_a/` before flipping
+over `research/fidelity/pip_phase_a/` before flipping
 `PIP_MACRO_PHASE_A_ENABLED`.** (House rule: the operator flips, not the build.)
 
 ---
@@ -148,10 +148,10 @@ retired 2026-07-18, 44f8293).
 
 ## Scope fact first: what each criterion actually depends on
 
-LPS detection (`lps.py`) imports no pivots — pure bar geometry. Bar spread,
+LPS detection (`lps/detection.py`) imports no pivots — pure bar geometry. Bar spread,
 ATR, volume, ADR, RS, breadth: bar-level. The MA/return uptrend context:
 bar-level. **Only the BOX (box_primitives) and the zigzag-derived measures
-(contraction / ascending-support / traversal in metrics.py) are
+(contraction / ascending-support / traversal in `metrics/base.py`) are
 substrate-dependent** — plus the Phase-A overlay and the L2 event labels.
 
 ## Front 1 — full-stack substrate A/B (the real pipeline, both skeletons)
@@ -236,7 +236,7 @@ validated, equilibrium-backed story. Top movers = the jury-approved re-anchors
 (GOOD −51 bars, PH −36, SAFE −35); the tail is refinement-scale. Jury-set:
 4-5 upgrades (GOOD/SAFE/PH/POCI-fixed/likely MO), 6 abstention-ties, ZERO
 regressions vs the incumbent, zero bad marks. Renders in
-`tools/fidelity/pip_phase_a/` now contain ONLY charts with real signals.
+`research/fidelity/pip_phase_a/` now contain ONLY charts with real signals.
 
 Recoverable upside for a later census pass: SABS/BYD/MTRX abstain where the
 unguarded macro had jury-liked reads (5.8-8.2) — loosening candidates:

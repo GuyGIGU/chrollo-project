@@ -2,10 +2,14 @@
 
 @AGENTS.md
 
+Where code lives and which way imports run: `docs/architecture.md`. What is live, dark and next:
+`docs/current_state.md`.
+
 ## Non-negotiable reading rule
 
 Before modifying ANY chart-reading engine code — `engine_alpha/structure/`, `engine_alpha/scoring/`, or
-their detection/scoring knobs in `config/settings.py` — read, in this order:
+their knobs (detection in `config/engine.py`, scoring in `config/scoring.py`; `config/settings.py` is
+only the namespace that re-exports them) — read, in this order:
 
 1. **`docs/strategy_alpha.md`** — the THEORY (Reading Model at minimum). The source of truth for
    how we understand chart analysis; the code implements it, not the other way around.

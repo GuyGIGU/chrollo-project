@@ -15,10 +15,10 @@ These are intentional — do not flag as findings.
 the key.
 **Origin:** Fowler / Hunt — Council Review 2026-06-30-1124
 **Rationale:** Renaming the live archive tag is a live-SQLite migration for cosmetic gain; the boundary leak it
-caused is closed by EC-1 instead (the split lives, correctly, only inside `universe.py`).
+caused is closed by EC-1 instead (the split lives, correctly, only inside `universe/descriptor.py`).
 
 ### AP-2: `fetch_data` cold/incremental/repair state machine
-**Pattern:** `core/pipeline/downloads.py` `fetch_data` is a ~70-line lock→scope→fresh?→current?→incremental?→cold
+**Pattern:** `core/pipeline/market_data/downloads.py` `fetch_data` is a ~70-line lock→scope→fresh?→current?→incremental?→cold
 sequence of named `_try_*`/`_*_result` helpers with IO/mutations visible at the helper boundaries. Do NOT
 "simplify" or split it further.
 **Origin:** Fowler (LEAD) — Council Review 2026-06-30-1124
@@ -26,7 +26,7 @@ sequence of named `_try_*`/`_*_result` helpers with IO/mutations visible at the 
 contained.
 
 ### AP-3: Per-call `Universe` registry build + lazy settings reads
-**Pattern:** `core/pipeline/universe.py` rebuilds the registry per call and reads settings at call time (not
+**Pattern:** `core/pipeline/universe/descriptor.py` rebuilds the registry per call and reads settings at call time (not
 module-level attribute reads). Do NOT hoist the registry to a module-level materialization.
 **Origin:** universe.py design — Council Review 2026-06-30-1124
 **Rationale:** Avoids the config-vs-cwd shadowing trap (the backend cwd shadows the repo-root `config` package).
@@ -39,7 +39,7 @@ Yahoo's scraper / OHLC adjustment — it is a supply-chain + byte-parity control
 
 ### AP-5: The price-independent fill ledger is a necessary JS↔Python twin
 **Pattern:** `summarizeFillLedger` (and the price-independent half of `deriveTradeRow`) stays in
-`webapp/frontend/src/utils/tradeTableUtils.js` even though `webapp/backend/services/trade_risk.py`
+`webapp/frontend/src/features/journal/model/tradeTableUtils.js` even though `webapp/backend/domains/trading/risk.py`
 ports the same ledger. The JS copy backs a WRITE path (the fill-save payload in `useTradeFills` +
 inline `position_size` in `useTradeCellEditing`) that a read-only GET cannot serve. Do NOT flag this
 as a dual implementation / EC-3 violation — it is a deliberate cross-language twin reconciled by the
@@ -47,8 +47,8 @@ parity test (`tests/contracts/test_trade_risk.py`).
 **Origin:** Fowler / McKinney — Council Review 2026-06-30-1338
 **Rationale:** Only the price-DEPENDENT live overlay was centralized; the ledger twin is forced by the write path.
 
-### AP-6: `_js_number(None) == 0.0` in `trade_risk.py` is intentional
-**Pattern:** `services/trade_risk.py` maps `None`→`0.0` (mirroring JS `Number(null)`), which differs from
+### AP-6: `_js_number(None) == 0.0` in `domains/trading/risk.py` is intentional
+**Pattern:** `domains/trading/risk.py` maps `None`→`0.0` (mirroring JS `Number(null)`), which differs from
 JS `Number(undefined)=NaN` only on a literally key-absent `entry_price`. Do NOT "fix" `infer_direction`
 to treat `None` as not-knowable: the router always materializes `entry_price` present-as-None (the
 agreeing case), so the current code matches JS on every reachable input, and the proposed fix would
@@ -102,7 +102,7 @@ not just the primary writer.
 
 ### EC-5: Live open-trade risk is derived once, server-side
 **Convention:** The price-dependent live-trade risk overlay (live price, unrealized P&L $/%, R-multiple,
-distance-to-stop %/R, stop tone, target distances) is derived ONLY in `webapp/backend/services/trade_risk.py`
+distance-to-stop %/R, stop tone, target distances) is derived ONLY in `webapp/backend/domains/trading/risk.py`
 (the single source of truth); the frontend consumes it via the `riskFor` accessor. Never re-add a live-risk
 computation in JS. R-multiple/`riskDistance` anchor 1R to `planned_stop`→`stop_loss`→None (never fabricated);
 distance-to-stop and the stop tone use the CURRENT working `stop_loss` on both sides.
@@ -525,7 +525,7 @@ operator-delegated 2026-08-08
 watchlist save's pinned setup today; any future "what I saw when I acted" record), the identity
 columns are copied VERBATIM from the displayed payload's own identity — never recomputed from any
 clock at write time. Chrollo runs three clocks that disagree by design: `scan_date` is the scan
-machine's LOCAL civil date (`core/pipeline/scan_job.py`), the scheduler fires on
+machine's LOCAL civil date (`core/pipeline/screening/scan_job.py`), the scheduler fires on
 `America/New_York`, and server stamps are UTC — so "match today's date to the scan row" is provably
 wrong in definable windows (UTC trails local 00:00–03:00 local; a post-close run at ~22:30 local can
 stamp the following day; the ET↔Israel offset moves twice a year). Artifact-sourced identity is

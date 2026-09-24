@@ -1,0 +1,4981 @@
+{
+ "title": "2026-09 domain refactor: the move map",
+ "baseline": "3bd4531",
+ "head": "93ac245",
+ "generated_from": "git diff -M --name-status --find-renames=50% 3bd4531 93ac245 (R rows), plus the manual rows marked in 'source' and the notes below",
+ "roots": {
+  "repo": "the repository root (engine_alpha, core, tools, config, ...)",
+  "backend": "webapp/backend, which the service puts on sys.path (domains.x, app.x, services.x); the same modules import from the repo root as webapp.backend.<name>"
+ },
+ "file_moves": [
+  {
+   "old": "webapp/backend/ibkr/broadcaster.py",
+   "new": "webapp/backend/domains/ibkr/broadcaster.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/ibkr/mapping.py",
+   "new": "webapp/backend/domains/ibkr/mapping.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/ibkr/service.py",
+   "new": "webapp/backend/domains/ibkr/service.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/analytics.py",
+   "new": "webapp/backend/domains/trading/analytics.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/archive.py",
+   "new": "webapp/backend/domains/archive/router.py",
+   "area": "backend",
+   "similarity": 60,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/archive_actions.py",
+   "new": "webapp/backend/domains/archive/actions.py",
+   "area": "backend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/archive_browse.py",
+   "new": "webapp/backend/domains/archive/browse.py",
+   "area": "backend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/archive_calibration.py",
+   "new": "webapp/backend/domains/archive/calibration.py",
+   "area": "backend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/archive_reviews.py",
+   "new": "webapp/backend/domains/archive/reviews.py",
+   "area": "backend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/archive_schemas.py",
+   "new": "webapp/backend/domains/archive/schemas.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/calibration.py",
+   "new": "webapp/backend/domains/calibration/router.py",
+   "area": "backend",
+   "similarity": 82,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/candles.py",
+   "new": "webapp/backend/domains/market_data/candles.py",
+   "area": "backend",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/engine_edge.py",
+   "new": "webapp/backend/domains/archive/edge_router.py",
+   "area": "backend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/ibkr.py",
+   "new": "webapp/backend/domains/ibkr/router.py",
+   "area": "backend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/journal.py",
+   "new": "webapp/backend/domains/trading/journal.py",
+   "area": "backend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/market_data.py",
+   "new": "webapp/backend/domains/market_data/router.py",
+   "area": "backend",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/portfolio.py",
+   "new": "webapp/backend/domains/portfolio/router.py",
+   "area": "backend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/portfolio_streams.py",
+   "new": "webapp/backend/domains/portfolio/streams.py",
+   "area": "backend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/prices.py",
+   "new": "webapp/backend/domains/market_data/prices.py",
+   "area": "backend",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/screener.py",
+   "new": "webapp/backend/domains/screener/router.py",
+   "area": "backend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/tags.py",
+   "new": "webapp/backend/domains/trading/tags.py",
+   "area": "backend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/trade_risk.py",
+   "new": "webapp/backend/domains/trading/risk_router.py",
+   "area": "backend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/trades.py",
+   "new": "webapp/backend/domains/trading/router.py",
+   "area": "backend",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/routers/watchlist.py",
+   "new": "webapp/backend/domains/watchlist/router.py",
+   "area": "backend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/schemas.py",
+   "new": "webapp/backend/domains/trading/schemas.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/alpaca_prices.py",
+   "new": "webapp/backend/domains/market_data/alpaca_prices.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/archive_queries.py",
+   "new": "webapp/backend/domains/archive/queries.py",
+   "area": "backend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/auto_import.py",
+   "new": "webapp/backend/domains/trading/auto_import.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/calibration_agreement.py",
+   "new": "webapp/backend/domains/calibration/agreement.py",
+   "area": "backend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/calibration_fired.py",
+   "new": "webapp/backend/domains/calibration/fired.py",
+   "area": "backend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/candle_cache.py",
+   "new": "webapp/backend/domains/market_data/candle_cache.py",
+   "area": "backend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/concordance.py",
+   "new": "webapp/backend/domains/archive/concordance.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/core_settings.py",
+   "new": "webapp/backend/app/core_settings.py",
+   "area": "backend",
+   "similarity": null,
+   "source": "manual: git pairs it as D + A because the loader body was rewritten; load_core_settings keeps its name and contract"
+  },
+  {
+   "old": "webapp/backend/services/csv_import.py",
+   "new": "webapp/backend/domains/trading/csv_import.py",
+   "area": "backend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/earnings.py",
+   "new": "webapp/backend/domains/market_data/earnings.py",
+   "area": "backend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/engine_edge.py",
+   "new": "webapp/backend/domains/archive/edge.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/episode_cache.py",
+   "new": "webapp/backend/domains/archive/episode_cache.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/frontend.py",
+   "new": "webapp/backend/app/frontend.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/journal_stats.py",
+   "new": "webapp/backend/domains/trading/statistics.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/log_encoding.py",
+   "new": "webapp/backend/app/log_encoding.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/market_data.py",
+   "new": "webapp/backend/domains/market_data/service.py",
+   "area": "backend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/portfolio_snapshot.py",
+   "new": "webapp/backend/domains/portfolio/snapshot.py",
+   "area": "backend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/screener_data.py",
+   "new": "webapp/backend/domains/screener/data.py",
+   "area": "backend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/trade_risk.py",
+   "new": "webapp/backend/domains/trading/risk.py",
+   "area": "backend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/trigger_grade.py",
+   "new": "webapp/backend/domains/calibration/trigger_grade.py",
+   "area": "backend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/watchlist_candles.py",
+   "new": "webapp/backend/domains/market_data/watchlist_candles.py",
+   "area": "backend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/backend/services/watchlist_ledger.py",
+   "new": "webapp/backend/domains/watchlist/ledger.py",
+   "area": "backend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/box_events.py",
+   "new": "engine_alpha/structure/events/box_events.py",
+   "area": "engine",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/box_gates.py",
+   "new": "engine_alpha/structure/box/box_gates.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/box_primitives.py",
+   "new": "engine_alpha/structure/box/box_primitives.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/box_trace.py",
+   "new": "engine_alpha/structure/box/box_trace.py",
+   "area": "engine",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/bricks.py",
+   "new": "engine_alpha/structure/narrative/bricks.py",
+   "area": "engine",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/chain.py",
+   "new": "engine_alpha/structure/narrative/chain.py",
+   "area": "engine",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/consolidation.py",
+   "new": "engine_alpha/structure/box/consolidation.py",
+   "area": "engine",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/displacement.py",
+   "new": "engine_alpha/structure/events/displacement.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/event_map.py",
+   "new": "engine_alpha/structure/events/event_map.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/event_vocabulary.py",
+   "new": "engine_alpha/structure/events/event_vocabulary.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/gate_margins.py",
+   "new": "engine_alpha/structure/box/gate_margins.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/htf.py",
+   "new": "engine_alpha/structure/context/htf.py",
+   "area": "engine",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/indicators.py",
+   "new": "engine_alpha/structure/metrics/indicators.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/inner_box.py",
+   "new": "engine_alpha/structure/box/inner_box.py",
+   "area": "engine",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/lps.py",
+   "new": "engine_alpha/structure/lps/detection.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/market_structure.py",
+   "new": "engine_alpha/structure/events/market_structure.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/metrics.py",
+   "new": "engine_alpha/structure/metrics/base.py",
+   "area": "engine",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/narrative.py",
+   "new": "engine_alpha/structure/narrative/reader.py",
+   "area": "engine",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/near_miss.py",
+   "new": "engine_alpha/structure/box/near_miss.py",
+   "area": "engine",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/phase_a.py",
+   "new": "engine_alpha/structure/phases/phase_a.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/phase_d.py",
+   "new": "engine_alpha/structure/phases/phase_d.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/phase_features.py",
+   "new": "engine_alpha/structure/phases/phase_features.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/pivots.py",
+   "new": "engine_alpha/structure/metrics/pivots.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/power_play.py",
+   "new": "engine_alpha/structure/context/power_play.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/rail_qualification.py",
+   "new": "engine_alpha/structure/box/rail_qualification.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/scope.py",
+   "new": "engine_alpha/structure/context/scope.py",
+   "area": "engine",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/segmentation.py",
+   "new": "engine_alpha/structure/phases/segmentation.py",
+   "area": "engine",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/strategy_read.py",
+   "new": "engine_alpha/structure/context/strategy_read.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "engine_alpha/structure/trace_export.py",
+   "new": "engine_alpha/structure/box/trace_export.py",
+   "area": "engine",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/App.jsx",
+   "new": "webapp/frontend/src/app/App.jsx",
+   "area": "frontend",
+   "similarity": 67,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/api.js",
+   "new": "webapp/frontend/src/api/base.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/AnalyticsPanel.jsx",
+   "new": "webapp/frontend/src/features/journal/components/AnalyticsPanel.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/AppShell.jsx",
+   "new": "webapp/frontend/src/app/components/AppShell.jsx",
+   "area": "frontend",
+   "similarity": 84,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/AppTopbar.jsx",
+   "new": "webapp/frontend/src/app/components/AppTopbar.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/AppearanceControl.jsx",
+   "new": "webapp/frontend/src/app/components/AppearanceControl.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ArchiveMaintenanceModals.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveMaintenanceModals.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ArchiveTab.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveTab.jsx",
+   "area": "frontend",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/AttachmentUploader.jsx",
+   "new": "webapp/frontend/src/features/journal/components/AttachmentUploader.jsx",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/CalculatorModal.jsx",
+   "new": "webapp/frontend/src/features/journal/components/CalculatorModal.jsx",
+   "area": "frontend",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/CalibrationMarkingBar.jsx",
+   "new": "webapp/frontend/src/features/calibration/components/CalibrationMarkingBar.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/CalibrationMarksList.jsx",
+   "new": "webapp/frontend/src/features/calibration/components/CalibrationMarksList.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/CalibrationRail.jsx",
+   "new": "webapp/frontend/src/features/calibration/components/CalibrationRail.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/CalibrationSaveBar.jsx",
+   "new": "webapp/frontend/src/features/calibration/components/CalibrationSaveBar.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/CalibrationTab.jsx",
+   "new": "webapp/frontend/src/features/calibration/components/CalibrationTab.jsx",
+   "area": "frontend",
+   "similarity": 85,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/CandleChart.jsx",
+   "new": "webapp/frontend/src/shared/charts/CandleChart.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/DashboardStats.jsx",
+   "new": "webapp/frontend/src/features/journal/components/DashboardStats.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/EquityCurve.jsx",
+   "new": "webapp/frontend/src/features/journal/components/EquityCurve.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ErrorBoundary.jsx",
+   "new": "webapp/frontend/src/shared/components/ErrorBoundary.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/FrameThumb.jsx",
+   "new": "webapp/frontend/src/features/calibration/components/FrameThumb.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/HealthBoard.jsx",
+   "new": "webapp/frontend/src/features/screener/components/HealthBoard.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/IbkrModeControls.jsx",
+   "new": "webapp/frontend/src/features/ibkr/components/IbkrModeControls.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/MarketPulse.jsx",
+   "new": "webapp/frontend/src/features/home/components/MarketPulse.jsx",
+   "area": "frontend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/MarketRegimeDetailModal.jsx",
+   "new": "webapp/frontend/src/features/home/components/MarketRegimeDetailModal.jsx",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/NavIcons.jsx",
+   "new": "webapp/frontend/src/shared/components/NavIcons.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PortfolioDailyPnl.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/PortfolioDailyPnl.jsx",
+   "area": "frontend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PortfolioPositionChart.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/PortfolioPositionChart.jsx",
+   "area": "frontend",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PortfolioPositionInsights.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/PortfolioPositionInsights.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PortfolioStatusBar.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/PortfolioStatusBar.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PortfolioSummary.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/PortfolioSummary.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PortfolioTab.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/PortfolioTab.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PortfolioTables.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/PortfolioTables.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/PositionCalculator.jsx",
+   "new": "webapp/frontend/src/features/journal/components/PositionCalculator.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/RMultipleHistogram.jsx",
+   "new": "webapp/frontend/src/features/journal/components/RMultipleHistogram.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/RegimePanel.jsx",
+   "new": "webapp/frontend/src/features/home/components/RegimePanel.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScanHistoryModal.jsx",
+   "new": "webapp/frontend/src/features/screener/components/ScanHistoryModal.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerCard.jsx",
+   "new": "webapp/frontend/src/shared/setup/ScreenerCard.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerGrid.jsx",
+   "new": "webapp/frontend/src/features/screener/components/ScreenerGrid.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerMiniChart.jsx",
+   "new": "webapp/frontend/src/shared/charts/ScreenerMiniChart.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerModal.jsx",
+   "new": "webapp/frontend/src/shared/setup/ScreenerModal.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerPager.jsx",
+   "new": "webapp/frontend/src/features/screener/components/ScreenerPager.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerScanProgress.jsx",
+   "new": "webapp/frontend/src/features/screener/components/ScreenerScanProgress.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerStockLens.jsx",
+   "new": "webapp/frontend/src/shared/setup/ScreenerStockLens.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerToolbar.jsx",
+   "new": "webapp/frontend/src/features/screener/components/ScreenerToolbar.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ScreenerWatchlistPanel.jsx",
+   "new": "webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx",
+   "area": "frontend",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/SetupStoryPanel.jsx",
+   "new": "webapp/frontend/src/shared/setup/SetupStoryPanel.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/SetupTags.jsx",
+   "new": "webapp/frontend/src/shared/setup/SetupTags.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/TimeframeMainChart.jsx",
+   "new": "webapp/frontend/src/shared/charts/TimeframeMainChart.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/TimeframeMiniRow.jsx",
+   "new": "webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/TradeDetailDrawer.jsx",
+   "new": "webapp/frontend/src/features/journal/components/TradeDetailDrawer.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/TradeTable.jsx",
+   "new": "webapp/frontend/src/features/journal/components/TradeTable.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/UniverseSwitcher.jsx",
+   "new": "webapp/frontend/src/features/screener/components/UniverseSwitcher.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/WeeklyReview.jsx",
+   "new": "webapp/frontend/src/features/watchlist/components/WeeklyReview.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/AddSetupModal.jsx",
+   "new": "webapp/frontend/src/features/archive/components/AddSetupModal.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveCalibrationPanels.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveCalibrationPanels.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveEquityCurve.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveEquityCurve.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveFilters.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveFilters.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveHeader.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveHeader.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveReweightingStrip.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveReweightingStrip.jsx",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveSummary.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveSummary.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveTable.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveTable.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive/ArchiveTierCards.jsx",
+   "new": "webapp/frontend/src/features/archive/components/ArchiveTierCards.jsx",
+   "area": "frontend",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/calibrationAsOfLine.js",
+   "new": "webapp/frontend/src/features/calibration/chart/calibrationAsOfLine.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/calibrationDraw.js",
+   "new": "webapp/frontend/src/features/calibration/chart/calibrationDraw.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/calibrationHover.js",
+   "new": "webapp/frontend/src/features/calibration/chart/calibrationHover.js",
+   "area": "frontend",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chapterStrip.js",
+   "new": "webapp/frontend/src/shared/setup/chapterStrip.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chapterStrip.test.js",
+   "new": "webapp/frontend/src/shared/setup/chapterStrip.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chartGeometry.js",
+   "new": "webapp/frontend/src/shared/charts/chartGeometry.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chartGeometry.test.js",
+   "new": "webapp/frontend/src/shared/charts/chartGeometry.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chartIndicators.js",
+   "new": "webapp/frontend/src/shared/charts/chartIndicators.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chartPhaseOverlay.js",
+   "new": "webapp/frontend/src/shared/charts/chartPhaseOverlay.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chartRails.js",
+   "new": "webapp/frontend/src/shared/charts/chartRails.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/chartTheme.js",
+   "new": "webapp/frontend/src/shared/charts/chartTheme.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/glanceCache.js",
+   "new": "webapp/frontend/src/shared/charts/glance/glanceCache.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/glanceCache.test.js",
+   "new": "webapp/frontend/src/shared/charts/glance/glanceCache.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/glanceMath.js",
+   "new": "webapp/frontend/src/shared/charts/glance/glanceMath.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/glanceMath.test.js",
+   "new": "webapp/frontend/src/shared/charts/glance/glanceMath.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/glanceResolvers.js",
+   "new": "webapp/frontend/src/shared/charts/glance/glanceResolvers.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/healthBoardSort.js",
+   "new": "webapp/frontend/src/features/screener/presentation/healthBoardSort.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/healthBoardSort.test.js",
+   "new": "webapp/frontend/src/features/screener/presentation/healthBoardSort.test.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/healthStateData.js",
+   "new": "webapp/frontend/src/shared/setup/healthStateData.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/ActionCenter.jsx",
+   "new": "webapp/frontend/src/features/home/components/ActionCenter.jsx",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/BridgeOut.jsx",
+   "new": "webapp/frontend/src/features/home/components/BridgeOut.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/EdgePulse.jsx",
+   "new": "webapp/frontend/src/features/home/components/EdgePulse.jsx",
+   "area": "frontend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/HomeView.jsx",
+   "new": "webapp/frontend/src/features/home/components/HomeView.jsx",
+   "area": "frontend",
+   "similarity": 85,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/HomeZone.jsx",
+   "new": "webapp/frontend/src/features/home/components/HomeZone.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/JournalPulseZone.jsx",
+   "new": "webapp/frontend/src/features/home/components/JournalPulseZone.jsx",
+   "area": "frontend",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/OpenBookZone.jsx",
+   "new": "webapp/frontend/src/features/home/components/OpenBookZone.jsx",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/WatchlistZone.jsx",
+   "new": "webapp/frontend/src/features/home/components/WatchlistZone.jsx",
+   "area": "frontend",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/home/homeFormat.js",
+   "new": "webapp/frontend/src/features/home/presentation/homeFormat.js",
+   "area": "frontend",
+   "similarity": 84,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/marketRegimeFormat.js",
+   "new": "webapp/frontend/src/features/home/presentation/marketRegimeFormat.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/narrativeRead.js",
+   "new": "webapp/frontend/src/shared/setup/narrativeRead.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/narrativeRead.test.js",
+   "new": "webapp/frontend/src/shared/setup/narrativeRead.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/portfolioFormat.js",
+   "new": "webapp/frontend/src/features/portfolio/presentation/portfolioFormat.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/replayAdapter.js",
+   "new": "webapp/frontend/src/shared/charts/glance/replayAdapter.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/replayAdapter.test.js",
+   "new": "webapp/frontend/src/shared/charts/glance/replayAdapter.test.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/setupStoryRows.js",
+   "new": "webapp/frontend/src/shared/setup/setupStoryRows.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/setupStoryRows.test.js",
+   "new": "webapp/frontend/src/shared/setup/setupStoryRows.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tagCatalog.js",
+   "new": "webapp/frontend/src/shared/setup/tagCatalog.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tagResolver.js",
+   "new": "webapp/frontend/src/shared/setup/tagResolver.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tagResolver.test.js",
+   "new": "webapp/frontend/src/shared/setup/tagResolver.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tagTooltips.js",
+   "new": "webapp/frontend/src/shared/setup/tagTooltips.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tooltipText.js",
+   "new": "webapp/frontend/src/shared/formatting/tooltipText.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeDetail/ExecutionsTab.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeDetail/ExecutionsTab.jsx",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeDetail/NotesTab.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeDetail/NotesTab.jsx",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeDetail/TradeSetupChart.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeDetail/TradeSetupChart.jsx",
+   "area": "frontend",
+   "similarity": 89,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeDetail/styles.js",
+   "new": "webapp/frontend/src/features/journal/components/tradeDetail/styles.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeDetail/tradePlanDrawerStyles.js",
+   "new": "webapp/frontend/src/features/journal/components/tradeDetail/tradePlanDrawerStyles.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeTable/DraftTradeRow.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeTable/DraftTradeRow.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeTable/FillsRow.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeTable/FillsRow.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeTable/TradeCells.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeTable/TradeCells.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeTable/TradeRiskAlerts.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeTable/TradeRiskAlerts.jsx",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeTable/TradeRow.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeTable/TradeRow.jsx",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeTable/TradeTablePager.jsx",
+   "new": "webapp/frontend/src/features/journal/components/tradeTable/TradeTablePager.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/FeedbackHost.jsx",
+   "new": "webapp/frontend/src/app/components/FeedbackHost.jsx",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/HoverGlass.jsx",
+   "new": "webapp/frontend/src/shared/charts/glance/HoverGlass.jsx",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/InstrumentTable.jsx",
+   "new": "webapp/frontend/src/shared/components/InstrumentTable.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/MetricTile.jsx",
+   "new": "webapp/frontend/src/features/portfolio/components/MetricTile.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/Modal.jsx",
+   "new": "webapp/frontend/src/shared/components/Modal.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/Panel.jsx",
+   "new": "webapp/frontend/src/shared/components/Panel.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/Popover.jsx",
+   "new": "webapp/frontend/src/features/screener/components/Popover.jsx",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/ui/feedback.js",
+   "new": "webapp/frontend/src/shared/components/feedback.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/universeSwitcherData.js",
+   "new": "webapp/frontend/src/shared/presentation/universeSwitcherData.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/watchlist/WatchlistCardGrid.jsx",
+   "new": "webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx",
+   "area": "frontend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/watchlist/WatchlistChartCluster.jsx",
+   "new": "webapp/frontend/src/features/watchlist/components/WatchlistChartCluster.jsx",
+   "area": "frontend",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/watchlist/WatchlistPage.jsx",
+   "new": "webapp/frontend/src/features/watchlist/components/WatchlistPage.jsx",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/wireVocabulary.js",
+   "new": "webapp/frontend/src/shared/presentation/wireVocabulary.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/components/wireVocabulary.test.js",
+   "new": "webapp/frontend/src/shared/presentation/wireVocabulary.test.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/screenerStore.js",
+   "new": "webapp/frontend/src/features/screener/hooks/screenerStore.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/screenerStore.test.js",
+   "new": "webapp/frontend/src/features/screener/hooks/screenerStore.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useArchiveAddSetup.js",
+   "new": "webapp/frontend/src/features/archive/hooks/useArchiveAddSetup.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useArchiveChart.js",
+   "new": "webapp/frontend/src/features/archive/hooks/useArchiveChart.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useArchiveData.js",
+   "new": "webapp/frontend/src/features/archive/hooks/useArchiveData.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useArchiveGrid.js",
+   "new": "webapp/frontend/src/features/archive/hooks/useArchiveGrid.js",
+   "area": "frontend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useArchiveMaintenance.js",
+   "new": "webapp/frontend/src/features/archive/hooks/useArchiveMaintenance.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useCalibrationChart.js",
+   "new": "webapp/frontend/src/features/calibration/hooks/useCalibrationChart.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useCalibrationMarks.js",
+   "new": "webapp/frontend/src/features/calibration/hooks/useCalibrationMarks.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useDailyStructureChart.js",
+   "new": "webapp/frontend/src/shared/charts/useDailyStructureChart.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useDashboardData.js",
+   "new": "webapp/frontend/src/features/journal/hooks/useDashboardData.js",
+   "area": "frontend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useDrilldown.js",
+   "new": "webapp/frontend/src/features/screener/hooks/useDrilldown.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useEdgePulse.js",
+   "new": "webapp/frontend/src/features/home/hooks/useEdgePulse.js",
+   "area": "frontend",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useEngineRead.js",
+   "new": "webapp/frontend/src/features/calibration/hooks/useEngineRead.js",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useFrameThumb.js",
+   "new": "webapp/frontend/src/features/calibration/hooks/useFrameThumb.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useHoverGlance.js",
+   "new": "webapp/frontend/src/shared/charts/glance/useHoverGlance.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useIBKRStatus.js",
+   "new": "webapp/frontend/src/features/ibkr/hooks/useIBKRStatus.js",
+   "area": "frontend",
+   "similarity": 87,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useIbkrActions.js",
+   "new": "webapp/frontend/src/features/ibkr/hooks/useIbkrActions.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useLightweightChart.js",
+   "new": "webapp/frontend/src/shared/charts/useLightweightChart.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useLivePrices.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/useLivePrices.js",
+   "area": "frontend",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useLiveRisk.js",
+   "new": "webapp/frontend/src/features/journal/hooks/useLiveRisk.js",
+   "area": "frontend",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useMarkAgreement.js",
+   "new": "webapp/frontend/src/features/calibration/hooks/useMarkAgreement.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useMarkFired.js",
+   "new": "webapp/frontend/src/features/calibration/hooks/useMarkFired.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/usePollingInterval.js",
+   "new": "webapp/frontend/src/shared/hooks/usePollingInterval.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/usePortfolioSnapshot.js",
+   "new": "webapp/frontend/src/features/portfolio/hooks/usePortfolioSnapshot.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/usePositionChartData.js",
+   "new": "webapp/frontend/src/shared/charts/usePositionChartData.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useReviews.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/useReviews.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useSSE.js",
+   "new": "webapp/frontend/src/features/portfolio/hooks/useSSE.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useScanHistory.js",
+   "new": "webapp/frontend/src/features/screener/hooks/useScanHistory.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useScanRunner.js",
+   "new": "webapp/frontend/src/features/screener/hooks/useScanRunner.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useScreenerData.js",
+   "new": "webapp/frontend/src/features/screener/hooks/useScreenerData.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useScreenerFilters.js",
+   "new": "webapp/frontend/src/features/screener/hooks/useScreenerFilters.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useTradeCellEditing.js",
+   "new": "webapp/frontend/src/features/journal/hooks/useTradeCellEditing.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useTradeFills.js",
+   "new": "webapp/frontend/src/features/journal/hooks/useTradeFills.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useTradePlanEditor.js",
+   "new": "webapp/frontend/src/features/journal/hooks/useTradePlanEditor.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useTriggerGrade.js",
+   "new": "webapp/frontend/src/features/calibration/hooks/useTriggerGrade.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useWatchlist.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/useWatchlist.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useWatchlistCandles.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/useWatchlistCandles.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useWatchlistHistory.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/useWatchlistHistory.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/useWatchlistRecords.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/useWatchlistRecords.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/watchlistCandlesStore.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/watchlistCandlesStore.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/watchlistCandlesStore.test.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/watchlistCandlesStore.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/hooks/watchlistStore.js",
+   "new": "webapp/frontend/src/features/watchlist/hooks/watchlistStore.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/ArchiveRoute.jsx",
+   "new": "webapp/frontend/src/features/archive/ArchiveRoute.jsx",
+   "area": "frontend",
+   "similarity": 56,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/CalibrationRoute.jsx",
+   "new": "webapp/frontend/src/features/calibration/CalibrationRoute.jsx",
+   "area": "frontend",
+   "similarity": 56,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/DashboardRoute.jsx",
+   "new": "webapp/frontend/src/features/journal/DashboardRoute.jsx",
+   "area": "frontend",
+   "similarity": 82,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/HomeRoute.jsx",
+   "new": "webapp/frontend/src/features/home/HomeRoute.jsx",
+   "area": "frontend",
+   "similarity": 76,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/LoadingPanel.jsx",
+   "new": "webapp/frontend/src/shared/components/LoadingPanel.jsx",
+   "area": "frontend",
+   "similarity": 89,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/OptionsRoute.jsx",
+   "new": "webapp/frontend/src/features/options/OptionsRoute.jsx",
+   "area": "frontend",
+   "similarity": 76,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/PortfolioRoute.jsx",
+   "new": "webapp/frontend/src/features/portfolio/PortfolioRoute.jsx",
+   "area": "frontend",
+   "similarity": 76,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/ScreenerRoute.jsx",
+   "new": "webapp/frontend/src/features/screener/ScreenerRoute.jsx",
+   "area": "frontend",
+   "similarity": 69,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/routes/WatchlistRoute.jsx",
+   "new": "webapp/frontend/src/features/watchlist/WatchlistRoute.jsx",
+   "area": "frontend",
+   "similarity": 69,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/theme.js",
+   "new": "webapp/frontend/src/shared/presentation/theme.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/actionCenterState.js",
+   "new": "webapp/frontend/src/features/home/presentation/actionCenterState.js",
+   "area": "frontend",
+   "similarity": 84,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/actionCenterState.test.js",
+   "new": "webapp/frontend/src/features/home/presentation/actionCenterState.test.js",
+   "area": "frontend",
+   "similarity": 79,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/alertMuting.js",
+   "new": "webapp/frontend/src/features/journal/model/alertMuting.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/alertMuting.test.js",
+   "new": "webapp/frontend/src/features/journal/model/alertMuting.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/appFormat.js",
+   "new": "webapp/frontend/src/shared/formatting/appFormat.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/appFormat.test.js",
+   "new": "webapp/frontend/src/shared/formatting/appFormat.test.js",
+   "area": "frontend",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/archiveTabUtils.js",
+   "new": "webapp/frontend/src/features/archive/presentation/archiveTabUtils.js",
+   "area": "frontend",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/calibrationChartUtils.js",
+   "new": "webapp/frontend/src/features/calibration/model/calibrationChartUtils.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/calibrationChartUtils.test.js",
+   "new": "webapp/frontend/src/features/calibration/model/calibrationChartUtils.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/calibrationMarking.js",
+   "new": "webapp/frontend/src/features/calibration/model/calibrationMarking.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/calibrationMarking.remark.test.js",
+   "new": "webapp/frontend/src/features/calibration/model/calibrationMarking.remark.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/calibrationMarking.test.js",
+   "new": "webapp/frontend/src/features/calibration/model/calibrationMarking.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/calibrationTables.js",
+   "new": "webapp/frontend/src/features/calibration/model/calibrationTables.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/calibrationTables.test.js",
+   "new": "webapp/frontend/src/features/calibration/model/calibrationTables.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/format.js",
+   "new": "webapp/frontend/src/shared/formatting/format.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/format.test.js",
+   "new": "webapp/frontend/src/shared/formatting/format.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/frameThumb.js",
+   "new": "webapp/frontend/src/features/calibration/model/frameThumb.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/frameThumb.test.js",
+   "new": "webapp/frontend/src/features/calibration/model/frameThumb.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/inkContrast.test.js",
+   "new": "webapp/frontend/src/app/appearance/inkContrast.test.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/leaveGuard.js",
+   "new": "webapp/frontend/src/shared/navigation/leaveGuard.js",
+   "area": "frontend",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/leaveGuard.test.js",
+   "new": "webapp/frontend/src/shared/navigation/leaveGuard.test.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/portfolioPlanUtils.js",
+   "new": "webapp/frontend/src/features/portfolio/model/portfolioPlanUtils.js",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/portfolioPlanUtils.test.js",
+   "new": "webapp/frontend/src/features/portfolio/model/portfolioPlanUtils.test.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/scanStream.js",
+   "new": "webapp/frontend/src/features/screener/api/scanStream.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/scanStream.test.js",
+   "new": "webapp/frontend/src/features/screener/api/scanStream.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/scoreFormat.js",
+   "new": "webapp/frontend/src/shared/formatting/scoreFormat.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/scoreFormat.test.js",
+   "new": "webapp/frontend/src/shared/formatting/scoreFormat.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/screenerCardData.js",
+   "new": "webapp/frontend/src/shared/setup/screenerCardData.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/tradeDetailFormat.js",
+   "new": "webapp/frontend/src/features/journal/presentation/tradeDetailFormat.js",
+   "area": "frontend",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/tradeTableUtils.js",
+   "new": "webapp/frontend/src/features/journal/model/tradeTableUtils.js",
+   "area": "frontend",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/tradeTableUtils.test.js",
+   "new": "webapp/frontend/src/features/journal/model/tradeTableUtils.test.js",
+   "area": "frontend",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/tradeUtils.js",
+   "new": "webapp/frontend/src/features/journal/model/tradeUtils.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/triggerProximity.js",
+   "new": "webapp/frontend/src/shared/setup/triggerProximity.js",
+   "area": "frontend",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/uiScale.js",
+   "new": "webapp/frontend/src/app/appearance/uiScale.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/uiScale.test.js",
+   "new": "webapp/frontend/src/app/appearance/uiScale.test.js",
+   "area": "frontend",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/watchlistChartData.js",
+   "new": "webapp/frontend/src/features/watchlist/presentation/watchlistChartData.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/watchlistChartData.test.js",
+   "new": "webapp/frontend/src/features/watchlist/presentation/watchlistChartData.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/watchlistTable.js",
+   "new": "webapp/frontend/src/features/watchlist/presentation/watchlistTable.js",
+   "area": "frontend",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "webapp/frontend/src/utils/watchlistTable.test.js",
+   "new": "webapp/frontend/src/features/watchlist/presentation/watchlistTable.test.js",
+   "area": "frontend",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/cache.py",
+   "new": "core/pipeline/market_data/cache.py",
+   "area": "pipeline",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/cache_status.py",
+   "new": "core/pipeline/market_data/cache_status.py",
+   "area": "pipeline",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/candles.py",
+   "new": "core/pipeline/market_data/candles.py",
+   "area": "pipeline",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/data_freshness.py",
+   "new": "core/pipeline/market_data/data_freshness.py",
+   "area": "pipeline",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/downloads.py",
+   "new": "core/pipeline/market_data/downloads.py",
+   "area": "pipeline",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/fetch_health.py",
+   "new": "core/pipeline/market_data/fetch_health.py",
+   "area": "pipeline",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/file_lock.py",
+   "new": "core/pipeline/market_data/file_lock.py",
+   "area": "pipeline",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/health_board.py",
+   "new": "core/pipeline/context/health_board.py",
+   "area": "pipeline",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/market_calendar.py",
+   "new": "core/pipeline/market_data/market_calendar.py",
+   "area": "pipeline",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/market_context.py",
+   "new": "core/pipeline/context/market_context.py",
+   "area": "pipeline",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/market_data_health.py",
+   "new": "core/pipeline/market_data/market_data_health.py",
+   "area": "pipeline",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/providers.py",
+   "new": "core/pipeline/market_data/providers.py",
+   "area": "pipeline",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/rate_limit.py",
+   "new": "core/pipeline/market_data/rate_limit.py",
+   "area": "pipeline",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/scan_job.py",
+   "new": "core/pipeline/screening/scan_job.py",
+   "area": "pipeline",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/scan_metrics.py",
+   "new": "core/pipeline/telemetry/scan_metrics.py",
+   "area": "pipeline",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/screener.py",
+   "new": "core/pipeline/screening/screener.py",
+   "area": "pipeline",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/ticker_admission.py",
+   "new": "core/pipeline/universe/ticker_admission.py",
+   "area": "pipeline",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/tickers.py",
+   "new": "core/pipeline/universe/tickers.py",
+   "area": "pipeline",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "core/pipeline/universe.py",
+   "new": "core/pipeline/universe/descriptor.py",
+   "area": "pipeline",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "output/dashboard.py",
+   "new": "core/pipeline/screening/dashboard.py",
+   "area": "pipeline",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "output/terminal.py",
+   "new": "core/pipeline/screening/terminal.py",
+   "area": "pipeline",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "output/bar_state_census_2026-08-30.json",
+   "new": "research/evidence/bar_state_census_2026-08-30.json",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "output/miss_lane_census_2026-08-28.json",
+   "new": "research/evidence/miss_lane_census_2026-08-28.json",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "output/miss_lane_census_2026-08-29.json",
+   "new": "research/evidence/miss_lane_census_2026-08-29.json",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "output/rail_area_census_2026-08-30.json",
+   "new": "research/evidence/rail_area_census_2026-08-30.json",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "output/shape_profile_2026-08-29.json",
+   "new": "research/evidence/shape_profile_2026-08-29.json",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "output/trend_terminal_ab_2026-08-31.json",
+   "new": "research/evidence/trend_terminal_ab_2026-08-31.json",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/ar_first_reaction_2026-08-13/README.md",
+   "new": "research/fidelity/ar_first_reaction_2026-08-13/README.md",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/ar_first_reaction_2026-08-13/scan_2026-08-13.txt",
+   "new": "research/fidelity/ar_first_reaction_2026-08-13/scan_2026-08-13.txt",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/ar_first_reaction_2026-08-31/rekey_isolation.json",
+   "new": "research/fidelity/ar_first_reaction_2026-08-31/rekey_isolation.json",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/ar_first_reaction_2026-08-31/rekey_isolation.py",
+   "new": "research/fidelity/ar_first_reaction_2026-08-31/rekey_isolation.py",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/ar_first_reaction_2026-08-31/scan_2026-08-31.txt",
+   "new": "research/fidelity/ar_first_reaction_2026-08-31/scan_2026-08-31.txt",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/BKH.png",
+   "new": "research/fidelity/box_backext/BKH.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/BYD.png",
+   "new": "research/fidelity/box_backext/BYD.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/CNP.png",
+   "new": "research/fidelity/box_backext/CNP.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/EMA.png",
+   "new": "research/fidelity/box_backext/EMA.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/FELE.png",
+   "new": "research/fidelity/box_backext/FELE.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/GCV.png",
+   "new": "research/fidelity/box_backext/GCV.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/HR.png",
+   "new": "research/fidelity/box_backext/HR.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/INMD.png",
+   "new": "research/fidelity/box_backext/INMD.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/LOVE.png",
+   "new": "research/fidelity/box_backext/LOVE.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/MLAB.png",
+   "new": "research/fidelity/box_backext/MLAB.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/MTG.png",
+   "new": "research/fidelity/box_backext/MTG.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/MXF.png",
+   "new": "research/fidelity/box_backext/MXF.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/box_backext/ab_log.txt",
+   "new": "research/fidelity/box_backext/ab_log.txt",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/full_package/LOSSES.md",
+   "new": "research/fidelity/full_package/LOSSES.md",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/full_package/index.html",
+   "new": "research/fidelity/full_package/index.html",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/AGCO.png",
+   "new": "research/fidelity/pip_phase_a/AGCO.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/ATI.png",
+   "new": "research/fidelity/pip_phase_a/ATI.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/AXTA.png",
+   "new": "research/fidelity/pip_phase_a/AXTA.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/BCH.png",
+   "new": "research/fidelity/pip_phase_a/BCH.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/BSAC.png",
+   "new": "research/fidelity/pip_phase_a/BSAC.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/BYD.png",
+   "new": "research/fidelity/pip_phase_a/BYD.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/GOOD.png",
+   "new": "research/fidelity/pip_phase_a/GOOD.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/MO.png",
+   "new": "research/fidelity/pip_phase_a/MO.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/MPLX.png",
+   "new": "research/fidelity/pip_phase_a/MPLX.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/MTRX.png",
+   "new": "research/fidelity/pip_phase_a/MTRX.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/PH.png",
+   "new": "research/fidelity/pip_phase_a/PH.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/POCI.png",
+   "new": "research/fidelity/pip_phase_a/POCI.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/SABS.png",
+   "new": "research/fidelity/pip_phase_a/SABS.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/SAFE.png",
+   "new": "research/fidelity/pip_phase_a/SAFE.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/TFX.png",
+   "new": "research/fidelity/pip_phase_a/TFX.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/TNC.png",
+   "new": "research/fidelity/pip_phase_a/TNC.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a/WFG.png",
+   "new": "research/fidelity/pip_phase_a/WFG.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/APH.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/APH.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/AWR.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/AWR.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/BALL.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/BALL.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/BCS.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/BCS.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/BMRC.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/BMRC.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/CDP.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/CDP.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/CNI.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/CNI.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/CWT.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/CWT.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/DIN.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/DIN.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/EVER.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/EVER.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/IMO.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/IMO.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/KMX.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/KMX.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/KN.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/KN.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/LOSSES.md",
+   "new": "research/fidelity/trend_terminal_2026-08-13/LOSSES.md",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/NAT.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/NAT.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/NPO.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/NPO.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/OSK.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/OSK.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/SNA.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/SNA.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/SXC.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/SXC.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/TFIN.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/TFIN.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/UTL.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/UTL.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/WFC.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/WFC.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/XOM.png",
+   "new": "research/fidelity/trend_terminal_2026-08-13/XOM.png",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13/index.html",
+   "new": "research/fidelity/trend_terminal_2026-08-13/index.html",
+   "area": "research",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_advisory_wiring.py",
+   "new": "tests/pipeline/test_advisory_wiring.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_agreement.py",
+   "new": "tests/tooling/test_agreement.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_analyze_anchor_seam.py",
+   "new": "tests/archive/test_analyze_anchor_seam.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_analyze_dedup.py",
+   "new": "tests/archive/test_analyze_dedup.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_analyze_reporter_gates.py",
+   "new": "tests/archive/test_analyze_reporter_gates.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_actions_guard.py",
+   "new": "tests/backend/test_archive_actions_guard.py",
+   "area": "tests",
+   "similarity": 84,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_column_parity.py",
+   "new": "tests/archive/test_archive_column_parity.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_feed_completeness.py",
+   "new": "tests/archive/test_archive_feed_completeness.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_glance_window.py",
+   "new": "tests/backend/test_archive_glance_window.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_purge.py",
+   "new": "tests/archive/test_archive_purge.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_reliability.py",
+   "new": "tests/backend/test_archive_reliability.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_row_assembly.py",
+   "new": "tests/archive/test_archive_row_assembly.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_archive_version_scope.py",
+   "new": "tests/backend/test_archive_version_scope.py",
+   "area": "tests",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_backend_services.py",
+   "new": "tests/backend/test_backend_services.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_backtest_engine.py",
+   "new": "tests/tooling/test_backtest_engine.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_bricks.py",
+   "new": "tests/engine/test_bricks.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_build_universe_returns.py",
+   "new": "tests/tooling/test_build_universe_returns.py",
+   "area": "tests",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_calibration_harness.py",
+   "new": "tests/tooling/test_calibration_harness.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_calibration_marks_schema.py",
+   "new": "tests/backend/test_calibration_marks_schema.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_calibration_router.py",
+   "new": "tests/backend/test_calibration_router.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_candle_cache.py",
+   "new": "tests/backend/test_candle_cache.py",
+   "area": "tests",
+   "similarity": 80,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_candle_parity.py",
+   "new": "tests/market_data/test_candle_parity.py",
+   "area": "tests",
+   "similarity": 89,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_candles_router.py",
+   "new": "tests/backend/test_candles_router.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_cause_veto_bite.py",
+   "new": "tests/regression/test_cause_veto_bite.py",
+   "area": "tests",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_chain.py",
+   "new": "tests/engine/test_chain.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_charter_measurements.py",
+   "new": "tests/engine/test_charter_measurements.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_concordance.py",
+   "new": "tests/backend/test_concordance.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_core_logic.py",
+   "new": "tests/engine/test_core_logic.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_csv_import.py",
+   "new": "tests/backend/test_csv_import.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_dashboard_wire.py",
+   "new": "tests/contracts/test_dashboard_wire.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_data_freshness.py",
+   "new": "tests/market_data/test_data_freshness.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_db_isolation.py",
+   "new": "tests/integration/test_db_isolation.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_displacement.py",
+   "new": "tests/engine/test_displacement.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_docs_sync.py",
+   "new": "tests/tooling/test_docs_sync.py",
+   "area": "tests",
+   "similarity": 82,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_doctrine_audit.py",
+   "new": "tests/tooling/test_doctrine_audit.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_download_integrity.py",
+   "new": "tests/market_data/test_download_integrity.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_election_stability.py",
+   "new": "tests/engine/test_election_stability.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_election_surgery.py",
+   "new": "tests/engine/test_election_surgery.py",
+   "area": "tests",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_engine_alpha_runtime.py",
+   "new": "tests/integration/test_engine_alpha_runtime.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_episode_cache.py",
+   "new": "tests/backend/test_episode_cache.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_episodes.py",
+   "new": "tests/archive/test_episodes.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_eval_error_counter.py",
+   "new": "tests/pipeline/test_eval_error_counter.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_event_map.py",
+   "new": "tests/engine/test_event_map.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_event_vocabulary.py",
+   "new": "tests/engine/test_event_vocabulary.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_fetch_health.py",
+   "new": "tests/market_data/test_fetch_health.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_fetch_repair.py",
+   "new": "tests/market_data/test_fetch_repair.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_file_lock.py",
+   "new": "tests/market_data/test_file_lock.py",
+   "area": "tests",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_fired_tags.py",
+   "new": "tests/scoring/test_fired_tags.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_first_legal_look.py",
+   "new": "tests/engine/test_first_legal_look.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_fold_parity.py",
+   "new": "tests/tooling/test_fold_parity.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_frame_store.py",
+   "new": "tests/backend/test_frame_store.py",
+   "area": "tests",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_framing_identity.py",
+   "new": "tests/engine/test_framing_identity.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_fundamentals_metrics.py",
+   "new": "tests/pipeline/test_fundamentals_metrics.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_fundamentals_post_pass.py",
+   "new": "tests/pipeline/test_fundamentals_post_pass.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_fundamentals_provider.py",
+   "new": "tests/market_data/test_fundamentals_provider.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_gate_leg_registry.py",
+   "new": "tests/engine/test_gate_leg_registry.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_gate_margins.py",
+   "new": "tests/engine/test_gate_margins.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_grading_frame.py",
+   "new": "tests/backend/test_grading_frame.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_guards.py",
+   "new": "tests/integration/test_guards.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_handler_concurrency_shape.py",
+   "new": "tests/backend/test_handler_concurrency_shape.py",
+   "area": "tests",
+   "similarity": 79,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_health_board.py",
+   "new": "tests/pipeline/test_health_board.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_htf.py",
+   "new": "tests/engine/test_htf.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_ibkr_hardening.py",
+   "new": "tests/backend/test_ibkr_hardening.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_inner_position_archive.py",
+   "new": "tests/archive/test_inner_position_archive.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_invariants.py",
+   "new": "tests/engine/test_invariants.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_loader_universe_filter.py",
+   "new": "tests/archive/test_loader_universe_filter.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_log_encoding.py",
+   "new": "tests/backend/test_log_encoding.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_lps.py",
+   "new": "tests/engine/test_lps.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_lps_two_form_guards.py",
+   "new": "tests/engine/test_lps_two_form_guards.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_manual_add_universe_stamp.py",
+   "new": "tests/archive/test_manual_add_universe_stamp.py",
+   "area": "tests",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_market_context_universe.py",
+   "new": "tests/pipeline/test_market_context_universe.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_market_data_cache.py",
+   "new": "tests/backend/test_market_data_cache.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_market_data_health.py",
+   "new": "tests/market_data/test_market_data_health.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_market_data_service.py",
+   "new": "tests/backend/test_market_data_service.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_market_structure.py",
+   "new": "tests/engine/test_market_structure.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_marks_corpus.py",
+   "new": "tests/regression/test_marks_corpus.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_marks_json.py",
+   "new": "tests/tooling/test_marks_json.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_marks_validity.py",
+   "new": "tests/contracts/test_marks_validity.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_mini_consolidation_position.py",
+   "new": "tests/engine/test_mini_consolidation_position.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_miss_program_lanes.py",
+   "new": "tests/engine/test_miss_program_lanes.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_missed_winners.py",
+   "new": "tests/archive/test_missed_winners.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_narrative.py",
+   "new": "tests/engine/test_narrative.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_narrative_surface_guards.py",
+   "new": "tests/engine/test_narrative_surface_guards.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_archive.py",
+   "new": "tests/archive/test_near_miss_archive.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_deferred.py",
+   "new": "tests/pipeline/test_near_miss_deferred.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_guards.py",
+   "new": "tests/engine/test_near_miss_guards.py",
+   "area": "tests",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_identity_migration.py",
+   "new": "tests/backend/test_near_miss_identity_migration.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_outcomes.py",
+   "new": "tests/archive/test_near_miss_outcomes.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_report.py",
+   "new": "tests/tooling/test_near_miss_report.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_ruling.py",
+   "new": "tests/engine/test_near_miss_ruling.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_near_miss_wiring.py",
+   "new": "tests/pipeline/test_near_miss_wiring.py",
+   "area": "tests",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_negative_corpus.py",
+   "new": "tests/regression/test_negative_corpus.py",
+   "area": "tests",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_outcomes.py",
+   "new": "tests/archive/test_outcomes.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_phase_a.py",
+   "new": "tests/engine/test_phase_a.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_phase_bins.py",
+   "new": "tests/engine/test_phase_bins.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_pointer_audit.py",
+   "new": "tests/tooling/test_pointer_audit.py",
+   "area": "tests",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_portfolio_stream_lifecycle.py",
+   "new": "tests/backend/test_portfolio_stream_lifecycle.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_power_play_acceptance.py",
+   "new": "tests/regression/test_power_play_acceptance.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_power_play_archive.py",
+   "new": "tests/archive/test_power_play_archive.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_power_play_census.py",
+   "new": "tests/tooling/test_power_play_census.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_power_play_lane.py",
+   "new": "tests/engine/test_power_play_lane.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_power_play_preset.py",
+   "new": "tests/engine/test_power_play_preset.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_power_play_sheets.py",
+   "new": "tests/tooling/test_power_play_sheets.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_price_regime.py",
+   "new": "tests/pipeline/test_price_regime.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_price_scale_unknown.py",
+   "new": "tests/archive/test_price_scale_unknown.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_provider_capabilities.py",
+   "new": "tests/market_data/test_provider_capabilities.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_provider_parity.py",
+   "new": "tests/tooling/test_provider_parity.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_providers.py",
+   "new": "tests/market_data/test_providers.py",
+   "area": "tests",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_rail_margin_evidence.py",
+   "new": "tests/tooling/test_rail_margin_evidence.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_rail_qualification.py",
+   "new": "tests/engine/test_rail_qualification.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_rate_limit.py",
+   "new": "tests/market_data/test_rate_limit.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_reader_pin.py",
+   "new": "tests/regression/test_reader_pin.py",
+   "area": "tests",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_recovery_view.py",
+   "new": "tests/engine/test_recovery_view.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_refusal_telemetry.py",
+   "new": "tests/engine/test_refusal_telemetry.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_regime_primitives.py",
+   "new": "tests/pipeline/test_regime_primitives.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_regression_guards.py",
+   "new": "tests/regression/test_regression_guards.py",
+   "area": "tests",
+   "similarity": 87,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_replay_layer.py",
+   "new": "tests/tooling/test_replay_layer.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_request_logging.py",
+   "new": "tests/backend/test_request_logging.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_resistance_contraction.py",
+   "new": "tests/engine/test_resistance_contraction.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_result_adapter.py",
+   "new": "tests/archive/test_result_adapter.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_same_app_guard.py",
+   "new": "tests/backend/test_same_app_guard.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_scan_diagnosis.py",
+   "new": "tests/backend/test_scan_diagnosis.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_scan_metrics.py",
+   "new": "tests/pipeline/test_scan_metrics.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_scan_status.py",
+   "new": "tests/backend/test_scan_status.py",
+   "area": "tests",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_scheduler_misfire.py",
+   "new": "tests/backend/test_scheduler_misfire.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_scope_phase_d.py",
+   "new": "tests/engine/test_scope_phase_d.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_score_taxonomy.py",
+   "new": "tests/scoring/test_score_taxonomy.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_scoring.py",
+   "new": "tests/scoring/test_scoring.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_seed_force_curation.py",
+   "new": "tests/archive/test_seed_force_curation.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_seed_recall.py",
+   "new": "tests/regression/test_seed_recall.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_seed_recall_hermetic.py",
+   "new": "tests/regression/test_seed_recall_hermetic.py",
+   "area": "tests",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_seeding_refusals.py",
+   "new": "tests/engine/test_seeding_refusals.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_service_boot.py",
+   "new": "tests/backend/test_service_boot.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_setup_like_verdict.py",
+   "new": "tests/backend/test_setup_like_verdict.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_shelf_harness.py",
+   "new": "tests/tooling/test_shelf_harness.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_startup_migrations.py",
+   "new": "tests/backend/test_startup_migrations.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_story_chain_candidates.py",
+   "new": "tests/tooling/test_story_chain_candidates.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_story_pool.py",
+   "new": "tests/engine/test_story_pool.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_story_pool_guards.py",
+   "new": "tests/engine/test_story_pool_guards.py",
+   "area": "tests",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_strategy_read.py",
+   "new": "tests/engine/test_strategy_read.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_suggested_weights.py",
+   "new": "tests/archive/test_suggested_weights.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_ta_grade_archive_replay.py",
+   "new": "tests/tooling/test_ta_grade_archive_replay.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_ta_grade_cascade.py",
+   "new": "tests/scoring/test_ta_grade_cascade.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_ticker_admission.py",
+   "new": "tests/pipeline/test_ticker_admission.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_tickers.py",
+   "new": "tests/pipeline/test_tickers.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_tool_sealed_guards.py",
+   "new": "tests/tooling/test_tool_sealed_guards.py",
+   "area": "tests",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_trace_export.py",
+   "new": "tests/engine/test_trace_export.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_trade_risk.py",
+   "new": "tests/contracts/test_trade_risk.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_trend_state.py",
+   "new": "tests/engine/test_trend_state.py",
+   "area": "tests",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_trend_terminal_floor.py",
+   "new": "tests/engine/test_trend_terminal_floor.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_trigger_grade_spec.py",
+   "new": "tests/backend/test_trigger_grade_spec.py",
+   "area": "tests",
+   "similarity": 80,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_universe_descriptor.py",
+   "new": "tests/pipeline/test_universe_descriptor.py",
+   "area": "tests",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_universe_migration.py",
+   "new": "tests/backend/test_universe_migration.py",
+   "area": "tests",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_universe_scope_invariant.py",
+   "new": "tests/archive/test_universe_scope_invariant.py",
+   "area": "tests",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_upload_handlers.py",
+   "new": "tests/backend/test_upload_handlers.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_watchlist_migration.py",
+   "new": "tests/backend/test_watchlist_migration.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tests/test_watchlist_router.py",
+   "new": "tests/backend/test_watchlist_router.py",
+   "area": "tests",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tools/ChrolloBackup.ps1",
+   "new": "tools/ops/ChrolloBackup.ps1",
+   "area": "tools",
+   "similarity": 99,
+   "source": "git"
+  },
+  {
+   "old": "tools/agreement.py",
+   "new": "tools/calibration/agreement.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/backtest_engine.py",
+   "new": "tools/research/backtest_engine.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/bar_state_census.py",
+   "new": "tools/research/bar_state_census.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/build_universe_returns.py",
+   "new": "tools/research/build_universe_returns.py",
+   "area": "tools",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tools/calibration_harness.py",
+   "new": "tools/calibration/calibration_harness.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/calibration_stat_card.py",
+   "new": "tools/calibration/calibration_stat_card.py",
+   "area": "tools",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tools/cause_veto_corpus.py",
+   "new": "tools/regression/cause_veto_corpus.py",
+   "area": "tools",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tools/chart_framing_census.mjs",
+   "new": "tools/research/chart_framing_census.mjs",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/correspondence_census.py",
+   "new": "tools/research/correspondence_census.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/doctrine_audit.py",
+   "new": "tools/audits/doctrine_audit.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/event_map_census.py",
+   "new": "tools/research/event_map_census.py",
+   "area": "tools",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tools/event_map_chronology.py",
+   "new": "tools/audits/event_map_chronology.py",
+   "area": "tools",
+   "similarity": 89,
+   "source": "git"
+  },
+  {
+   "old": "tools/fold_parity.py",
+   "new": "tools/regression/fold_parity.py",
+   "area": "tools",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "tools/full_package_render.py",
+   "new": "tools/research/full_package_render.py",
+   "area": "tools",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tools/guided_list_export.py",
+   "new": "tools/calibration/guided_list_export.py",
+   "area": "tools",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tools/htf_audit.py",
+   "new": "tools/audits/htf_audit.py",
+   "area": "tools",
+   "similarity": 84,
+   "source": "git"
+  },
+  {
+   "old": "tools/marks_corpus.py",
+   "new": "tools/regression/marks_corpus.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/marks_json.py",
+   "new": "tools/calibration/marks_json.py",
+   "area": "tools",
+   "similarity": 98,
+   "source": "git"
+  },
+  {
+   "old": "tools/miss_lane_census.py",
+   "new": "tools/research/miss_lane_census.py",
+   "area": "tools",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tools/near_miss_census.py",
+   "new": "tools/research/near_miss_census.py",
+   "area": "tools",
+   "similarity": 94,
+   "source": "git"
+  },
+  {
+   "old": "tools/near_miss_report.py",
+   "new": "tools/research/near_miss_report.py",
+   "area": "tools",
+   "similarity": 90,
+   "source": "git"
+  },
+  {
+   "old": "tools/negative_corpus.py",
+   "new": "tools/regression/negative_corpus.py",
+   "area": "tools",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tools/operator_marks_diff.py",
+   "new": "tools/research/operator_marks_diff.py",
+   "area": "tools",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tools/pointer_audit.py",
+   "new": "tools/audits/pointer_audit.py",
+   "area": "tools",
+   "similarity": 88,
+   "source": "git"
+  },
+  {
+   "old": "tools/power_play_census.py",
+   "new": "tools/research/power_play_census.py",
+   "area": "tools",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tools/power_play_fixture.py",
+   "new": "tools/regression/power_play_fixture.py",
+   "area": "tools",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tools/power_play_sheets.py",
+   "new": "tools/research/power_play_sheets.py",
+   "area": "tools",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tools/provider_parity.py",
+   "new": "tools/audits/provider_parity.py",
+   "area": "tools",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tools/rail_area_census.py",
+   "new": "tools/research/rail_area_census.py",
+   "area": "tools",
+   "similarity": 97,
+   "source": "git"
+  },
+  {
+   "old": "tools/rail_margin_ab.py",
+   "new": "tools/research/rail_margin_ab.py",
+   "area": "tools",
+   "similarity": 88,
+   "source": "git"
+  },
+  {
+   "old": "tools/rail_margin_evidence.py",
+   "new": "tools/research/rail_margin_evidence.py",
+   "area": "tools",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tools/reader_pin.py",
+   "new": "tools/regression/reader_pin.py",
+   "area": "tools",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tools/recover_service_python.bat",
+   "new": "tools/ops/recover_service_python.bat",
+   "area": "tools",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/recover_service_python.ps1",
+   "new": "tools/ops/recover_service_python.ps1",
+   "area": "tools",
+   "similarity": 100,
+   "source": "git"
+  },
+  {
+   "old": "tools/replay.py",
+   "new": "tools/calibration/replay.py",
+   "area": "tools",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tools/restore_drill.py",
+   "new": "tools/ops/restore_drill.py",
+   "area": "tools",
+   "similarity": 92,
+   "source": "git"
+  },
+  {
+   "old": "tools/settings_reference.py",
+   "new": "tools/maintenance/settings_reference.py",
+   "area": "tools",
+   "similarity": 82,
+   "source": "git"
+  },
+  {
+   "old": "tools/shadow_diff.py",
+   "new": "tools/regression/shadow_diff.py",
+   "area": "tools",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tools/shape_profile.py",
+   "new": "tools/research/shape_profile.py",
+   "area": "tools",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tools/shelf_harness.py",
+   "new": "tools/calibration/shelf_harness.py",
+   "area": "tools",
+   "similarity": 93,
+   "source": "git"
+  },
+  {
+   "old": "tools/story_chain_candidates.py",
+   "new": "tools/research/story_chain_candidates.py",
+   "area": "tools",
+   "similarity": 95,
+   "source": "git"
+  },
+  {
+   "old": "tools/structure_case_audit.py",
+   "new": "tools/audits/structure_case_audit.py",
+   "area": "tools",
+   "similarity": 96,
+   "source": "git"
+  },
+  {
+   "old": "tools/ta_grade_archive_replay.py",
+   "new": "tools/research/ta_grade_archive_replay.py",
+   "area": "tools",
+   "similarity": 91,
+   "source": "git"
+  },
+  {
+   "old": "tools/ta_grade_timing.py",
+   "new": "tools/audits/ta_grade_timing.py",
+   "area": "tools",
+   "similarity": 84,
+   "source": "git"
+  }
+ ],
+ "dir_moves": [
+  {
+   "old": "tools/fidelity/ar_first_reaction_2026-08-13",
+   "new": "research/fidelity/ar_first_reaction_2026-08-13"
+  },
+  {
+   "old": "tools/fidelity/ar_first_reaction_2026-08-31",
+   "new": "research/fidelity/ar_first_reaction_2026-08-31"
+  },
+  {
+   "old": "tools/fidelity/box_backext",
+   "new": "research/fidelity/box_backext"
+  },
+  {
+   "old": "tools/fidelity/full_package",
+   "new": "research/fidelity/full_package"
+  },
+  {
+   "old": "tools/fidelity/pip_phase_a",
+   "new": "research/fidelity/pip_phase_a"
+  },
+  {
+   "old": "tools/fidelity/trend_terminal_2026-08-13",
+   "new": "research/fidelity/trend_terminal_2026-08-13"
+  },
+  {
+   "old": "webapp/frontend/src/components/archive",
+   "new": "webapp/frontend/src/features/archive/components"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeDetail",
+   "new": "webapp/frontend/src/features/journal/components/tradeDetail"
+  },
+  {
+   "old": "webapp/frontend/src/components/tradeTable",
+   "new": "webapp/frontend/src/features/journal/components/tradeTable"
+  },
+  {
+   "old": "webapp/frontend/src/components/watchlist",
+   "new": "webapp/frontend/src/features/watchlist/components"
+  }
+ ],
+ "module_moves": [
+  {
+   "old": "ibkr.broadcaster",
+   "new": "domains.ibkr.broadcaster",
+   "root": "backend"
+  },
+  {
+   "old": "ibkr.mapping",
+   "new": "domains.ibkr.mapping",
+   "root": "backend"
+  },
+  {
+   "old": "ibkr.service",
+   "new": "domains.ibkr.service",
+   "root": "backend"
+  },
+  {
+   "old": "routers.analytics",
+   "new": "domains.trading.analytics",
+   "root": "backend"
+  },
+  {
+   "old": "routers.archive",
+   "new": "domains.archive.router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.archive_actions",
+   "new": "domains.archive.actions",
+   "root": "backend"
+  },
+  {
+   "old": "routers.archive_browse",
+   "new": "domains.archive.browse",
+   "root": "backend"
+  },
+  {
+   "old": "routers.archive_calibration",
+   "new": "domains.archive.calibration",
+   "root": "backend"
+  },
+  {
+   "old": "routers.archive_reviews",
+   "new": "domains.archive.reviews",
+   "root": "backend"
+  },
+  {
+   "old": "routers.archive_schemas",
+   "new": "domains.archive.schemas",
+   "root": "backend"
+  },
+  {
+   "old": "routers.calibration",
+   "new": "domains.calibration.router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.candles",
+   "new": "domains.market_data.candles",
+   "root": "backend"
+  },
+  {
+   "old": "routers.engine_edge",
+   "new": "domains.archive.edge_router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.ibkr",
+   "new": "domains.ibkr.router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.journal",
+   "new": "domains.trading.journal",
+   "root": "backend"
+  },
+  {
+   "old": "routers.market_data",
+   "new": "domains.market_data.router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.portfolio",
+   "new": "domains.portfolio.router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.portfolio_streams",
+   "new": "domains.portfolio.streams",
+   "root": "backend"
+  },
+  {
+   "old": "routers.prices",
+   "new": "domains.market_data.prices",
+   "root": "backend"
+  },
+  {
+   "old": "routers.screener",
+   "new": "domains.screener.router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.tags",
+   "new": "domains.trading.tags",
+   "root": "backend"
+  },
+  {
+   "old": "routers.trade_risk",
+   "new": "domains.trading.risk_router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.trades",
+   "new": "domains.trading.router",
+   "root": "backend"
+  },
+  {
+   "old": "routers.watchlist",
+   "new": "domains.watchlist.router",
+   "root": "backend"
+  },
+  {
+   "old": "schemas",
+   "new": "domains.trading.schemas",
+   "root": "backend"
+  },
+  {
+   "old": "services.alpaca_prices",
+   "new": "domains.market_data.alpaca_prices",
+   "root": "backend"
+  },
+  {
+   "old": "services.archive_queries",
+   "new": "domains.archive.queries",
+   "root": "backend"
+  },
+  {
+   "old": "services.auto_import",
+   "new": "domains.trading.auto_import",
+   "root": "backend"
+  },
+  {
+   "old": "services.calibration_agreement",
+   "new": "domains.calibration.agreement",
+   "root": "backend"
+  },
+  {
+   "old": "services.calibration_fired",
+   "new": "domains.calibration.fired",
+   "root": "backend"
+  },
+  {
+   "old": "services.candle_cache",
+   "new": "domains.market_data.candle_cache",
+   "root": "backend"
+  },
+  {
+   "old": "services.concordance",
+   "new": "domains.archive.concordance",
+   "root": "backend"
+  },
+  {
+   "old": "services.core_settings",
+   "new": "app.core_settings",
+   "root": "backend"
+  },
+  {
+   "old": "services.csv_import",
+   "new": "domains.trading.csv_import",
+   "root": "backend"
+  },
+  {
+   "old": "services.earnings",
+   "new": "domains.market_data.earnings",
+   "root": "backend"
+  },
+  {
+   "old": "services.engine_edge",
+   "new": "domains.archive.edge",
+   "root": "backend"
+  },
+  {
+   "old": "services.episode_cache",
+   "new": "domains.archive.episode_cache",
+   "root": "backend"
+  },
+  {
+   "old": "services.frontend",
+   "new": "app.frontend",
+   "root": "backend"
+  },
+  {
+   "old": "services.journal_stats",
+   "new": "domains.trading.statistics",
+   "root": "backend"
+  },
+  {
+   "old": "services.log_encoding",
+   "new": "app.log_encoding",
+   "root": "backend"
+  },
+  {
+   "old": "services.market_data",
+   "new": "domains.market_data.service",
+   "root": "backend"
+  },
+  {
+   "old": "services.portfolio_snapshot",
+   "new": "domains.portfolio.snapshot",
+   "root": "backend"
+  },
+  {
+   "old": "services.screener_data",
+   "new": "domains.screener.data",
+   "root": "backend"
+  },
+  {
+   "old": "services.trade_risk",
+   "new": "domains.trading.risk",
+   "root": "backend"
+  },
+  {
+   "old": "services.trigger_grade",
+   "new": "domains.calibration.trigger_grade",
+   "root": "backend"
+  },
+  {
+   "old": "services.watchlist_candles",
+   "new": "domains.market_data.watchlist_candles",
+   "root": "backend"
+  },
+  {
+   "old": "services.watchlist_ledger",
+   "new": "domains.watchlist.ledger",
+   "root": "backend"
+  },
+  {
+   "old": "core.pipeline.cache",
+   "new": "core.pipeline.market_data.cache",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.cache_status",
+   "new": "core.pipeline.market_data.cache_status",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.candles",
+   "new": "core.pipeline.market_data.candles",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.data_freshness",
+   "new": "core.pipeline.market_data.data_freshness",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.downloads",
+   "new": "core.pipeline.market_data.downloads",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.fetch_health",
+   "new": "core.pipeline.market_data.fetch_health",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.file_lock",
+   "new": "core.pipeline.market_data.file_lock",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.health_board",
+   "new": "core.pipeline.context.health_board",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.market_calendar",
+   "new": "core.pipeline.market_data.market_calendar",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.market_context",
+   "new": "core.pipeline.context.market_context",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.market_data_health",
+   "new": "core.pipeline.market_data.market_data_health",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.providers",
+   "new": "core.pipeline.market_data.providers",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.rate_limit",
+   "new": "core.pipeline.market_data.rate_limit",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.scan_job",
+   "new": "core.pipeline.screening.scan_job",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.scan_metrics",
+   "new": "core.pipeline.telemetry.scan_metrics",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.screener",
+   "new": "core.pipeline.screening.screener",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.ticker_admission",
+   "new": "core.pipeline.universe.ticker_admission",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.tickers",
+   "new": "core.pipeline.universe.tickers",
+   "root": "repo"
+  },
+  {
+   "old": "core.pipeline.universe",
+   "new": "core.pipeline.universe.descriptor",
+   "root": "repo",
+   "package": "core.pipeline.universe"
+  },
+  {
+   "old": "engine_alpha.structure.box_events",
+   "new": "engine_alpha.structure.events.box_events",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.box_gates",
+   "new": "engine_alpha.structure.box.box_gates",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.box_primitives",
+   "new": "engine_alpha.structure.box.box_primitives",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.box_trace",
+   "new": "engine_alpha.structure.box.box_trace",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.bricks",
+   "new": "engine_alpha.structure.narrative.bricks",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.chain",
+   "new": "engine_alpha.structure.narrative.chain",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.consolidation",
+   "new": "engine_alpha.structure.box.consolidation",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.displacement",
+   "new": "engine_alpha.structure.events.displacement",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.event_map",
+   "new": "engine_alpha.structure.events.event_map",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.event_vocabulary",
+   "new": "engine_alpha.structure.events.event_vocabulary",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.gate_margins",
+   "new": "engine_alpha.structure.box.gate_margins",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.htf",
+   "new": "engine_alpha.structure.context.htf",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.indicators",
+   "new": "engine_alpha.structure.metrics.indicators",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.inner_box",
+   "new": "engine_alpha.structure.box.inner_box",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.lps",
+   "new": "engine_alpha.structure.lps.detection",
+   "root": "repo",
+   "package": "engine_alpha.structure.lps"
+  },
+  {
+   "old": "engine_alpha.structure.market_structure",
+   "new": "engine_alpha.structure.events.market_structure",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.metrics",
+   "new": "engine_alpha.structure.metrics.base",
+   "root": "repo",
+   "package": "engine_alpha.structure.metrics"
+  },
+  {
+   "old": "engine_alpha.structure.narrative",
+   "new": "engine_alpha.structure.narrative.reader",
+   "root": "repo",
+   "package": "engine_alpha.structure.narrative"
+  },
+  {
+   "old": "engine_alpha.structure.near_miss",
+   "new": "engine_alpha.structure.box.near_miss",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.phase_a",
+   "new": "engine_alpha.structure.phases.phase_a",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.phase_d",
+   "new": "engine_alpha.structure.phases.phase_d",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.phase_features",
+   "new": "engine_alpha.structure.phases.phase_features",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.pivots",
+   "new": "engine_alpha.structure.metrics.pivots",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.power_play",
+   "new": "engine_alpha.structure.context.power_play",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.rail_qualification",
+   "new": "engine_alpha.structure.box.rail_qualification",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.scope",
+   "new": "engine_alpha.structure.context.scope",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.segmentation",
+   "new": "engine_alpha.structure.phases.segmentation",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.strategy_read",
+   "new": "engine_alpha.structure.context.strategy_read",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.structure.trace_export",
+   "new": "engine_alpha.structure.box.trace_export",
+   "root": "repo"
+  },
+  {
+   "old": "output.dashboard",
+   "new": "core.pipeline.screening.dashboard",
+   "root": "repo"
+  },
+  {
+   "old": "output.terminal",
+   "new": "core.pipeline.screening.terminal",
+   "root": "repo"
+  },
+  {
+   "old": "tools.agreement",
+   "new": "tools.calibration.agreement",
+   "root": "repo"
+  },
+  {
+   "old": "tools.backtest_engine",
+   "new": "tools.research.backtest_engine",
+   "root": "repo"
+  },
+  {
+   "old": "tools.bar_state_census",
+   "new": "tools.research.bar_state_census",
+   "root": "repo"
+  },
+  {
+   "old": "tools.build_universe_returns",
+   "new": "tools.research.build_universe_returns",
+   "root": "repo"
+  },
+  {
+   "old": "tools.calibration_harness",
+   "new": "tools.calibration.calibration_harness",
+   "root": "repo"
+  },
+  {
+   "old": "tools.calibration_stat_card",
+   "new": "tools.calibration.calibration_stat_card",
+   "root": "repo"
+  },
+  {
+   "old": "tools.cause_veto_corpus",
+   "new": "tools.regression.cause_veto_corpus",
+   "root": "repo"
+  },
+  {
+   "old": "tools.correspondence_census",
+   "new": "tools.research.correspondence_census",
+   "root": "repo"
+  },
+  {
+   "old": "tools.doctrine_audit",
+   "new": "tools.audits.doctrine_audit",
+   "root": "repo"
+  },
+  {
+   "old": "tools.event_map_census",
+   "new": "tools.research.event_map_census",
+   "root": "repo"
+  },
+  {
+   "old": "tools.event_map_chronology",
+   "new": "tools.audits.event_map_chronology",
+   "root": "repo"
+  },
+  {
+   "old": "tools.fold_parity",
+   "new": "tools.regression.fold_parity",
+   "root": "repo"
+  },
+  {
+   "old": "tools.full_package_render",
+   "new": "tools.research.full_package_render",
+   "root": "repo"
+  },
+  {
+   "old": "tools.guided_list_export",
+   "new": "tools.calibration.guided_list_export",
+   "root": "repo"
+  },
+  {
+   "old": "tools.htf_audit",
+   "new": "tools.audits.htf_audit",
+   "root": "repo"
+  },
+  {
+   "old": "tools.marks_corpus",
+   "new": "tools.regression.marks_corpus",
+   "root": "repo"
+  },
+  {
+   "old": "tools.marks_json",
+   "new": "tools.calibration.marks_json",
+   "root": "repo"
+  },
+  {
+   "old": "tools.miss_lane_census",
+   "new": "tools.research.miss_lane_census",
+   "root": "repo"
+  },
+  {
+   "old": "tools.near_miss_census",
+   "new": "tools.research.near_miss_census",
+   "root": "repo"
+  },
+  {
+   "old": "tools.near_miss_report",
+   "new": "tools.research.near_miss_report",
+   "root": "repo"
+  },
+  {
+   "old": "tools.negative_corpus",
+   "new": "tools.regression.negative_corpus",
+   "root": "repo"
+  },
+  {
+   "old": "tools.operator_marks_diff",
+   "new": "tools.research.operator_marks_diff",
+   "root": "repo"
+  },
+  {
+   "old": "tools.pointer_audit",
+   "new": "tools.audits.pointer_audit",
+   "root": "repo"
+  },
+  {
+   "old": "tools.power_play_census",
+   "new": "tools.research.power_play_census",
+   "root": "repo"
+  },
+  {
+   "old": "tools.power_play_fixture",
+   "new": "tools.regression.power_play_fixture",
+   "root": "repo"
+  },
+  {
+   "old": "tools.power_play_sheets",
+   "new": "tools.research.power_play_sheets",
+   "root": "repo"
+  },
+  {
+   "old": "tools.provider_parity",
+   "new": "tools.audits.provider_parity",
+   "root": "repo"
+  },
+  {
+   "old": "tools.rail_area_census",
+   "new": "tools.research.rail_area_census",
+   "root": "repo"
+  },
+  {
+   "old": "tools.rail_margin_ab",
+   "new": "tools.research.rail_margin_ab",
+   "root": "repo"
+  },
+  {
+   "old": "tools.rail_margin_evidence",
+   "new": "tools.research.rail_margin_evidence",
+   "root": "repo"
+  },
+  {
+   "old": "tools.reader_pin",
+   "new": "tools.regression.reader_pin",
+   "root": "repo"
+  },
+  {
+   "old": "tools.replay",
+   "new": "tools.calibration.replay",
+   "root": "repo"
+  },
+  {
+   "old": "tools.restore_drill",
+   "new": "tools.ops.restore_drill",
+   "root": "repo"
+  },
+  {
+   "old": "tools.settings_reference",
+   "new": "tools.maintenance.settings_reference",
+   "root": "repo"
+  },
+  {
+   "old": "tools.shadow_diff",
+   "new": "tools.regression.shadow_diff",
+   "root": "repo"
+  },
+  {
+   "old": "tools.shape_profile",
+   "new": "tools.research.shape_profile",
+   "root": "repo"
+  },
+  {
+   "old": "tools.shelf_harness",
+   "new": "tools.calibration.shelf_harness",
+   "root": "repo"
+  },
+  {
+   "old": "tools.story_chain_candidates",
+   "new": "tools.research.story_chain_candidates",
+   "root": "repo"
+  },
+  {
+   "old": "tools.structure_case_audit",
+   "new": "tools.audits.structure_case_audit",
+   "root": "repo"
+  },
+  {
+   "old": "tools.ta_grade_archive_replay",
+   "new": "tools.research.ta_grade_archive_replay",
+   "root": "repo"
+  },
+  {
+   "old": "tools.ta_grade_timing",
+   "new": "tools.audits.ta_grade_timing",
+   "root": "repo"
+  }
+ ],
+ "notes": [
+  {
+   "module": "config.settings",
+   "root": "repo",
+   "kind": "split",
+   "report": false,
+   "text": "config/settings.py was split: the defaults now live in config/engine.py (detection knobs), config/scoring.py (SCORE_*/TIER_*), config/enrichment.py, config/archive.py, config/market_data.py, config/market_context.py and config/runtime.py. settings.py re-exports them by name and stays the ONE namespace: consumers keep 'from config import settings', and scoped overrides setattr config.settings. A branch that adds or changes a knob puts the value in the owning domain file and adds the name to that file's import list in settings.py."
+  },
+  {
+   "module": "services.startup",
+   "root": "backend",
+   "kind": "split",
+   "report": true,
+   "text": "services/startup.py was split into app/startup.py (initialize_database), app/migrations/{additive,archive,calibration,watchlist}.py, app/reconciliation.py; the lifespan handler moved from main.py to app/lifecycle.py. Import each name from its new home.",
+   "names": {
+    "_MIGRATIONS": "app.migrations.additive",
+    "initialize_database": "app.startup",
+    "_apply_migrations": "app.migrations.additive",
+    "_reconcile_orphaned_runs": "app.reconciliation",
+    "_has_universe_identity": "app.migrations.archive",
+    "migrate_universe_type": "app.migrations.archive",
+    "migrate_watchlist_ledger": "app.migrations.watchlist",
+    "_NEAR_MISS_IDENTITY": "app.migrations.archive",
+    "_has_near_miss_framing_identity": "app.migrations.archive",
+    "migrate_near_miss_framing_identity": "app.migrations.archive",
+    "_live_event_type_vocabulary": "app.migrations.calibration",
+    "migrate_calibration_event_types": "app.migrations.calibration",
+    "_MIGRATED_ARCHIVE_MODELS": "app.migrations.additive",
+    "model_add_column_migrations": "app.migrations.additive",
+    "_apply_model_add_columns": "app.migrations.additive"
+   }
+  },
+  {
+   "module": "routers.calibration",
+   "root": "backend",
+   "kind": "split",
+   "report": true,
+   "text": "routers/calibration.py moved to domains/calibration/router.py; require_same_app moved to app/dependencies.py and the request/response schemas to domains/calibration/schemas.py. The rewrite points at the router; import these names from their new homes instead.",
+   "names": {
+    "_CLIENT_HEADER_VALUE": "app.dependencies",
+    "require_same_app": "app.dependencies",
+    "EventIn": "domains.calibration.schemas",
+    "MarkIn": "domains.calibration.schemas",
+    "EventOut": "domains.calibration.schemas",
+    "MarkOut": "domains.calibration.schemas"
+   }
+  },
+  {
+   "module": "main",
+   "root": "backend",
+   "kind": "split",
+   "report": true,
+   "text": "main.py no longer defines the lifespan handler; it lives in app/lifecycle.py.",
+   "names": {
+    "lifespan": "app.lifecycle",
+    "_stop_services": "app.lifecycle"
+   }
+  },
+  {
+   "module": "ibkr",
+   "root": "backend",
+   "kind": "deleted",
+   "report": true,
+   "text": "The ibkr/ package (a re-export __init__ plus three modules) is gone; the modules live in domains/ibkr/ and domains/ibkr/__init__.py re-exports the same two names.",
+   "names": {
+    "IBKRService": "domains.ibkr.service",
+    "get_ibkr_service": "domains.ibkr.service"
+   }
+  },
+  {
+   "module": "broker_config",
+   "root": "backend",
+   "kind": "unchanged",
+   "report": false,
+   "text": "broker_config.py stays at the backend root: it carries its own manual-connection safety contract."
+  },
+  {
+   "module": "frame_store",
+   "root": "backend",
+   "kind": "alias",
+   "report": false,
+   "alias_of": "domains.calibration.frame_store",
+   "text": "Compatibility alias kept at the backend root (tools import webapp.backend.frame_store); the implementation is domains/calibration/frame_store.py."
+  },
+  {
+   "module": "marks_validity",
+   "root": "backend",
+   "kind": "alias",
+   "report": false,
+   "alias_of": "domains.calibration.validation",
+   "text": "Compatibility alias kept at the backend root (tools import webapp.backend.marks_validity); the implementation is domains/calibration/validation.py."
+  },
+  {
+   "module": "models",
+   "root": "backend",
+   "kind": "alias",
+   "report": false,
+   "text": "Compatibility model registry: it imports every ORM model from domains/<name>/models.py so create_all sees them all. Existing imports keep working."
+  },
+  {
+   "module": "archive_models",
+   "root": "backend",
+   "kind": "alias",
+   "report": false,
+   "text": "Compatibility facade for the archive ORM (domains/archive/models.py) and the market context enrichment (domains/archive/market_context.py). New code imports those."
+  }
+ ],
+ "deleted": [
+  {
+   "path": "output/__init__.py",
+   "why": "output/ holds runtime files only; its two Python modules (dashboard, terminal) moved to core/pipeline/screening/, so it is no longer a package."
+  },
+  {
+   "path": "webapp/backend/ibkr/__init__.py",
+   "why": "Dead re-export package once its modules moved to domains/ibkr/ (domains/ibkr/__init__.py carries the same two names)."
+  },
+  {
+   "path": "webapp/backend/routers/__init__.py",
+   "why": "Every router moved into its domain folder; the empty package was left with no modules."
+  },
+  {
+   "path": "webapp/backend/services/startup.py",
+   "why": "Split into app/startup.py, app/migrations/*, app/reconciliation.py (the lifespan went to app/lifecycle.py); after the split it was only an alias."
+  },
+  {
+   "path": "webapp/backend/services/core_settings.py",
+   "why": "Moved to app/core_settings.py (recorded as a manual move; git scores it as delete + add)."
+  }
+ ]
+}

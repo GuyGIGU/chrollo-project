@@ -11,6 +11,9 @@ TWS / TradingView. Chrollo is an **idea-generation and bookkeeping tool — it d
 > classifier. When in doubt, it favors structural correctness over catching more names.
 
 New here? Read this file top-to-bottom, then:
+- [`docs/architecture.md`](docs/architecture.md) — where every part of the repo lives, which way
+  imports run, and where new code belongs.
+- [`docs/current_state.md`](docs/current_state.md) — what is live, what is dark, and what comes next.
 - [`core/MAP.md`](core/MAP.md) — plain-English tour of how the engine is organized.
 - The engine docs are split by lifecycle, and each has one job:
   [`docs/strategy_alpha.md`](docs/strategy_alpha.md) = the **theory** (what a good setup IS;
@@ -52,8 +55,8 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
                           │               (pure geometry: boxes, LPS,          │
                           │                contractions, ADR) — no opinion     │
                           │   engine_alpha/scoring/    Scoring Engine          │
-                          │               (facts → points → tier; all          │
-                          │                knobs in config/settings.py)        │
+                          │               (facts → points → tier;              │
+                          │                weights in config/scoring.py)       │
                           │   core/pipeline/  the conductor (data + per-ticker │
                           │                orchestration, ProcessPool)         │
                           │   core/archive/   the measuring stick (record,     │
@@ -75,7 +78,9 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
 
 **Two engines + a conductor** is the core design principle: `engine_alpha/structure/` *measures*
 (it has no opinion and never assigns points), `engine_alpha/scoring/` *judges* (every weight is a
-tunable in `config/settings.py`), and `core/pipeline/` wires them together. `core/archive/` exists
+tunable in `config/scoring.py`; code reads it through the one `config.settings` namespace), and
+`core/pipeline/` wires them together. `engine_alpha/` is a leaf: it never imports the pipeline,
+the archive, the web app or the tools. `core/archive/` exists
 so the opinions in `scoring/` can eventually be validated against real forward outcomes rather
 than intuition. (The reading engine was extracted from `core/` into `engine_alpha/` in the
 2026-07-18/20 engine-α freeze.)
@@ -92,34 +97,51 @@ absolute volatility) were all added this way.
 
 ## Repository layout
 
+The full map, with import rules, compatibility paths and a "where do I put this?" table, is
+[`docs/architecture.md`](docs/architecture.md).
+
 ```
 engine_alpha/          The frozen reading engine (see core/MAP.md)
-  structure/           Visual Structure Engine — geometry: box/LPS detection, contractions,
-                         ADR (no opinion)
-  scoring/             Scoring Engine — score_setup, compose_ta_grade, calculate_structure_tier
-                         (opinion; weights live in config/settings.py)
-  evaluation.py        Per-ticker evaluation: baseline filter → structure → LPS → scoring
+  structure/           Measurement, no opinion: box/, phases/, lps/, events/, narrative/,
+                         metrics/, context/
+  scoring/             Opinion: score_setup, compose_ta_grade, calculate_structure_tier,
+                         tags.py (chip verdicts); weights live in config/scoring.py
+  evaluation.py        The one per-ticker chain: baseline filter → structure → LPS → scoring
+  freeze/manifest.py   The engine config hash
 core/
-  pipeline/            Conductor — data.py public API; tickers.py, downloads.py,
-                         market_context.py, cache.py; screener.py (run_screener);
-                         scan_job.py (scan → dashboard → archive)
-  archive/             writer.py, forward_returns.py, analyze.py, seed.py, purge.py
-config/                settings.py (all tunables), tickers.csv (cached NASDAQ universe),
+  pipeline/            Conductor — data.py (public data door); market_data/, universe/,
+                         context/, telemetry/; screening/ (screener.py run_screener,
+                         scan_job.py scan → dashboard → archive, dashboard.py + terminal.py)
+  archive/             writer.py, forward_returns.py, analyze.py, seed.py, purge.py,
+                         episodes.py, outcomes.py
+  backtest/            Edge report + backtest statistics (production: the edge tile uses it)
+  regime/, fundamentals/   Relative strength, sector ranking, fundamentals (dark lanes)
+config/                Defaults by domain: engine.py (detection knobs), scoring.py (weights,
+                         tiers), enrichment.py, archive.py, market_data.py,
+                         market_context.py, runtime.py; settings.py = the one namespace code
+                         reads. tickers.csv (cached NASDAQ universe, gitignored),
                          tickers_us_sectors.csv / tickers_commodities_etf.csv (the curated ETF
                          universes), commodity_equity_map.json (ETF → related-equity drill-down)
-output/                Generated screener_data.json, watchlists, logs (data files gitignored)
+output/                Runtime files: screener_data.json, watchlists, logs (gitignored)
 webapp/
-  backend/             FastAPI app — main.py, routers/, services/ (scan_runner, scheduler,
-                         scan_status, scan_watchdog, health), ibkr/, broker_config.py,
-                         database.py
-  frontend/            React + Vite — src/components/, src/hooks/, api.js, App.jsx,
+  backend/             FastAPI app — main.py; domains/ (archive, calibration, ibkr,
+                         market_data, portfolio, screener, trading, watchlist); app/
+                         (startup, lifespan, migrations); services/ (scan_runner, scheduler,
+                         scan_status, scan_watchdog, health, scan_diagnosis);
+                         broker_config.py, database.py
+  frontend/            React + Vite — src/app/ (routes, shell), src/features/<screen>/,
+                         src/shared/ (used by unrelated features), src/api/base.js;
                          dist/ (built, gitignored)
-docs/                  strategy_alpha.md (theory), engine_reference.md (how built),
+docs/                  architecture.md (layout), current_state.md (live/dark/next),
+                         strategy_alpha.md (theory), engine_reference.md (how built),
                          decisions.md (rulings), structure_legend.md (vocab), deploy.md (go-live)
 tools/                 Dev tools, one folder per job: regression/ (drift ratchets), audits/,
                          calibration/, research/ (censuses, A/Bs, renders), maintenance/,
                          ops/ (backup, restore drill, service recovery)
-research/fidelity/     Chart-evidence sheets the rulings cite (moved from tools/ 2026-09-24)
+tests/                 pytest, one folder per thing it protects (engine/, scoring/, pipeline/,
+                         market_data/, archive/, backend/, contracts/, tooling/, regression/,
+                         integration/); baselines/ and fixtures/ are data
+research/              Evidence the rulings cite: evidence/ (census JSON), fidelity/ (renders, logs, A/B sheets)
 run_screener.py        CLI entry: one scan → dashboard JSON → archive
 setup.bat              One-time: install Python + frontend deps, build the frontend
 start_dashboard.bat    Manual launcher: one uvicorn process serving UI + API at :8000
@@ -146,7 +168,7 @@ A single FastAPI process serves both the JSON API and the **built** React app fr
 Tag chips and score pills render verdicts the engine already resolved on the wire — no scoring
 cap, threshold, or fire-rule is re-declared in frontend JS (conventions.md EC-28);
 the legacy client-side score path RETIRED 2026-08-23 — `setupScoreMath.js` and its fire rules
-are gone, and `webapp/frontend/src/components/tagCatalog.js` carries what remains: labels,
+are gone, and `webapp/frontend/src/shared/setup/tagCatalog.js` carries what remains: labels,
 groups and tones, never a threshold.
 
 ---
