@@ -1,0 +1,85 @@
+
+========================================================================
+  CHROLLO ARCHIVE ANALYSIS
+========================================================================
+DB: <DB>
+Episode dedup: 0 raw rows -> 0 episodes (0 continuation re-flags collapsed to the first-seen anchor).
+All sections below run on EPISODES (one row per logical setup) via the same
+first-seen grouping the archive episode table + /calibration use — raw
+continuation re-flags would inflate n and bias every correlation / edge verdict.
+
+========================================================================
+  1. SAMPLE COMPOSITION & BIAS DETECTION
+========================================================================
+Total setups (episodes): 0
+Archive is empty - nothing to analyze.
+
+========================================================================
+  2. WINNER STRUCTURAL FINGERPRINT
+========================================================================
+The structural profile of setups in the archive. On seed/winners data this
+is the 'what a clean tight setup looks like' template to bias toward.
+
+-- All setups ----------------------------------------------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+
+-- Horizontal axis - time structure (duration, rail tests, traversal) --
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+
+-- Vertical axis - price magnitude (rails/height, undercut, thrust) ----
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+
+========================================================================
+  3. SEGMENTED PERFORMANCE
+========================================================================
+!  Outcome metrics below are computed on winners-biased data -
+   read the SHAPE (relative differences between segments), not the
+   absolute win/trigger rates. They become trustworthy with live data.
+
+-- By tier -------------------------------------------------------------
+tier               n   med20d   avg20d   med60d   win%  trig%   avgR   expR
+----------------------------------------------------------------------------
+
+-- By setup_type -------------------------------------------------------
+setup_type         n   med20d   avg20d   med60d   win%  trig%   avgR   expR
+----------------------------------------------------------------------------
+
+========================================================================
+  4. PREDICTOR CORRELATIONS vs FORWARD OUTCOMES
+========================================================================
+!  Correlations need outcome VARIANCE to mean anything. On winners-only
+   data every setup 'worked', so correlations here are near-noise.
+   Shown for plumbing-verification; revisit once live losers accrue.
+
+========================================================================
+  5. PRIME-DIRECTIVE TEST - IS TIGHTNESS PREDICTIVE?
+========================================================================
+The engine's core thesis: tighter, cleaner structure -> better outcomes.
+This isolates the tightness features and tests that claim directly.
+
+!  Cannot test the claim yet - needs live winners AND losers so there
+   is outcome variance to separate tight-good from loose-bad.
+   Until then, here is the tightness-feature distribution among the
+   archived (mostly winning) setups - i.e. the values that tend to win:
+
+-- Tightness-feature distribution (archived setups) --------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+
+========================================================================
+  6. SIGNAL EDGE & SUBTRACTION CANDIDATES (Stage 1)
+========================================================================
+Each scoring sub-score is meant to REWARD a setup. This ranks them by
+rank-association with realized outcome and flags the ones that don't
+earn their points: HARMFUL (negative) or INERT (near-zero). These are
+subtraction CANDIDATES only — re-weighting is a separate guarded step.
+
+!  No outcome column has enough labelled rows yet (need durable_win /
+   barrier_win / r_multiple_20d / fwd_return_20d). Backfill, then re-run.
+
+========================================================================
+  END OF REPORT
+========================================================================

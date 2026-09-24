@@ -1,0 +1,88 @@
+#### fingerprint across a seam with no scan dates
+
+========================================================================
+  2. WINNER STRUCTURAL FINGERPRINT
+========================================================================
+The structural profile of setups in the archive. On seed/winners data this
+is the 'what a clean tight setup looks like' template to bias toward.
+
+-- All setups ----------------------------------------------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              3      0.06      0.06      0.07      0.05      0.07
+
+-- Phase-A anchor family - NOT pooled (measures the climax->AR span) ---
+These move when the ENGINE re-anchors, not only when the chart does:
+the climax-terminality repair, and the dark AR_FIRST_REACTION_ENABLED
+tighten. This archive spans more than one engine epoch, so pooling them
+would average two different measurements of the same word.
+No versioned rows here - the family is withheld with nothing to scope
+it to. Re-run once the archive carries engine_config_version.
+
+-- Horizontal axis - time structure (duration, rail tests, traversal) --
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+
+-- Vertical axis - price magnitude (rails/height, undercut, thrust) ----
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              3      0.06      0.06      0.07      0.05      0.07
+
+-- setup_type = LPS  (n=3) ---------------------------------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              3      0.06      0.06      0.07      0.05      0.07
+
+-- tier = S  (n=3) -----------------------------------------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              3      0.06      0.06      0.07      0.05      0.07
+#### signal edge where every sub-score earns its points
+
+========================================================================
+  6. SIGNAL EDGE & SUBTRACTION CANDIDATES (Stage 1)
+========================================================================
+Each scoring sub-score is meant to REWARD a setup. This ranks them by
+rank-association with realized outcome and flags the ones that don't
+earn their points: HARMFUL (negative) or INERT (near-zero). These are
+subtraction CANDIDATES only — re-weighting is a separate guarded step.
+
+-- Win quality (durable vs cash-grab) ----------------------------------
+  durable wins: 15   cash-grab wins: 0 (round-trip to stop within 5 bars of target)
+
+Primary outcome: durable_win  (n=30, minority class=15, noise floor |r| < 0.19)
+
+sub-score                    n   rank_r  verdict       mag_r  vs P(MFE>=25%)
+----------------------------------------------------------------------------
+score_touch_density         30     0.87  beneficial        -  unknown     
+score_box_tightness         30     0.88  beneficial        -  unknown     
+
+-- Subtraction shortlist -----------------------------------------------
+  HARMFUL (down-weight / zero): (none)
+  INERT   (candidate to trim):  (none)
+#### signal edge on exactly min_n labelled rows
+
+========================================================================
+  6. SIGNAL EDGE & SUBTRACTION CANDIDATES (Stage 1)
+========================================================================
+Each scoring sub-score is meant to REWARD a setup. This ranks them by
+rank-association with realized outcome and flags the ones that don't
+earn their points: HARMFUL (negative) or INERT (near-zero). These are
+subtraction CANDIDATES only — re-weighting is a separate guarded step.
+
+Primary outcome: r_multiple_20d  (n=8, noise floor |r| < 0.45)
+
+!  VERDICTS WITHHELD — the sample can't support harmful/inert calls.
+   Need >= 25 labelled pairs. Have n=8.
+   Re-run once live, mixed-outcome rows (winners AND losers) accrue.
+#### tightness test with one thin feature
+
+========================================================================
+  5. PRIME-DIRECTIVE TEST - IS TIGHTNESS PREDICTIVE?
+========================================================================
+The engine's core thesis: tighter, cleaner structure -> better outcomes.
+This isolates the tightness features and tests that claim directly.
+
+-- box_width: tight-tertile vs loose-tertile fwd_return_20d ------------
+  tight (n=4): mean +27.0%   loose (n=4): mean +11.0%
+  edge from tightness: +16.0%  -> supports thesis OK
