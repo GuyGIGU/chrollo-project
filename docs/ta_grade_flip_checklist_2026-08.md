@@ -63,22 +63,22 @@ banners this basis on both output modes when such rows are present.
    archive/watchlist vocab but is un-filterable on those three — do not
    fork it further).
 3. The scripted re-bless, in this order, all in the flip commit:
-   - `"$PY" -m tools.shadow_diff --capture` (score/tier/ranking recapture
-     — BY DESIGN at this seam), then `"$PY" -m tools.shadow_diff --check`
+   - `"$PY" -m tools.regression.shadow_diff --capture` (score/tier/ranking recapture
+     — BY DESIGN at this seam), then `"$PY" -m tools.regression.shadow_diff --check`
      green;
    - `"$PY" -m core.archive.seed_recall --fresh-capture` then
      `--fresh-check` green (informational tier/score fields go stale even
      when green);
-   - `"$PY" -m tools.marks_corpus --build-fixture` then `--check` green —
+   - `"$PY" -m tools.regression.marks_corpus --build-fixture` then `--check` green —
      the re-freeze is an explicit EC-7 event (ratchet stays 28/33 or better
      — a regressed pinned hit is a design falsification, not a threshold to
      tune);
-   - `"$PY" -m tools.fold_parity --capture output/flip_fold_parity.json`
+   - `"$PY" -m tools.regression.fold_parity --capture output/flip_fold_parity.json`
      (the fresh fold-parity basis);
-   - `"$PY" -m tools.settings_reference --write` (Quick-Reference; the
+   - `"$PY" -m tools.maintenance.settings_reference --write` (Quick-Reference; the
      manifest rotation is THE seam).
 4. Cost + payload certification (EC-8): run the COMMITTED instrument
-   `"$PY" -m tools.ta_grade_timing` and record its numbers in the flip
+   `"$PY" -m tools.audits.ta_grade_timing` and record its numbers in the flip
    evidence. Post-review baseline (2026-08-08, after the finding-8 walk
    fix made the ratio honest by always paying the full root budget):
    median 0.64 ms / p90 1.02 / max 1.37 ms per fire on the 32 firing

@@ -181,7 +181,7 @@ def test_new_style_imports_are_left_alone():
      'patch("engine_alpha.structure.lps.detection.detect_lps")'),
     ('SPEC = "services.' + 'trigger_grade"', 'SPEC = "domains.calibration.trigger_grade"'),
     ('cmd = "python -m tools.' + 'reader_pin --check"', 'cmd = "python -m tools.regression.reader_pin --check"'),
-    ("# see engine_alpha/structure/pivots.py", "# see engine_alpha/structure/metrics/pivots.py"),
+    ("# see engine_alpha/structure/" + "pivots.py", "# see engine_alpha/structure/metrics/pivots.py"),
 ])
 def test_dotted_names_and_paths_are_rewritten_once(old, new):
     once, twice = _twice("tests/engine/test_example.py", old + "\n")
@@ -382,6 +382,7 @@ needs_baseline = pytest.mark.skipif(not _baseline_reachable(),
 # packages, sibling imports inside them, dotted patch targets, backend routers
 # and services under both spellings, the split modules, and tools.
 _T = "tools/"
+_R = "webapp/backend/" + "routers/"
 PY_CORPUS = [
     "tests/test_bricks.py", "tests/test_ticker_admission.py", "tests/test_tickers.py",
     "tests/test_universe_descriptor.py", "tests/test_download_integrity.py",
@@ -389,8 +390,7 @@ PY_CORPUS = [
     "tests/test_miss_program_lanes.py", "tests/test_election_stability.py",
     "tests/test_doctrine_audit.py", "tests/test_health_board.py",
     "tests/test_trigger_grade_spec.py", "tests/test_backend_services.py",
-    "webapp/backend/main.py", "webapp/backend/routers/archive.py",
-    "webapp/backend/routers/calibration.py", "webapp/backend/routers/watchlist.py",
+    "webapp/backend/main.py", _R + "archive.py", _R + "calibration.py", _R + "watchlist.py",
     _T + "calibration_stat_card.py", _T + "structure_case_audit.py", _T + "marks_corpus.py",
 ]
 # AppShell and useScanRunner import '../api', a module that became a folder

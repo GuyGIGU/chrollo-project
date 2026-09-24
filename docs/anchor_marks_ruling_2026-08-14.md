@@ -135,7 +135,7 @@ directly, so this document cannot quietly go stale the way the 2026-07-27
 eyeball sheet did:
 
 ```
-python -m tools.operator_marks_diff
+python -m tools.research.operator_marks_diff
 ```
 
 Two cautions it prints for itself. Elections are not stable day to day — a name

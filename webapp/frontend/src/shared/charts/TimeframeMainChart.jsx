@@ -7,7 +7,7 @@ import { baseChartOptions, RAIL_STYLE } from './chartTheme';
 // D/W/M interval tabs AND the Watchlist page's stacked M/W panes. It's the
 // SAME Trend+Box read the daily engine does, one and two timeframes up ("all
 // relative and derivative"): candles are resampled on the backend (the shared
-// core/pipeline/candles builders) from the full daily history; the blue rails
+// core/pipeline/market_data/candles builders) from the full daily history; the blue rails
 // are the higher-timeframe consolidation box when one is in view (absent on a
 // clean candles-only payload); the caption is the plain-language structural
 // read. Styled to match the daily chart (useDailyStructureChart) so switching

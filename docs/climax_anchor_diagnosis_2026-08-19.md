@@ -230,7 +230,7 @@ knowingly from "the two flags flip together or not at all".
 **And the AR flag's 2026-09-15 kill-by still stands.** Its blocking condition was
 "cannot be ruled until `climax_bar` lands on a trend end". That is now partly
 satisfied — the anchor is materially closer on aggregate — so the flip question
-can be re-put on current numbers (`python -m tools.operator_marks_diff`) rather
+can be re-put on current numbers (`python -m tools.research.operator_marks_diff`) rather
 than allowed to expire by default. Today the retarget is closer on 5 of 6 names
 but carries more total error (166 vs 129 trading days), because on the names
 where the climax now collapses to the box open the retarget has nothing left to

@@ -8,7 +8,7 @@ This file is the **committed evidence record** (EC-16) behind the two 2026-08-30
 [decisions.md](decisions.md) — *"THE RAIL AREA IS RULED: ±0.50 ATR, symmetric, both rails"* and the
 three-ceiling-states row that commissioned the census. Those rows originally cited
 `BARSTATES.md` / `BARSTATE-VERDICT.md` in a session scratchpad, which no fresh clone can read; the
-instrument `tools/bar_state_census.py` and this record replace that pointer. The sidecar of the
+instrument `tools/research/bar_state_census.py` and this record replace that pointer. The sidecar of the
 reproducing run is `research/evidence/bar_state_census_2026-08-30.json`.
 
 **Measure-first discipline: no gate, no threshold and no knob is proposed anywhere in this file.**
@@ -69,7 +69,7 @@ consumes the tolerance. ONE frame-level ATR per box.
 
 ## Reproduction check — every cited number, sealed vs re-run
 
-Run 2026-08-31 on `tools/bar_state_census.py`, against the sealed scratchpad report:
+Run 2026-08-31 on `tools/research/bar_state_census.py`, against the sealed scratchpad report:
 
 | cited number | sealed | reproduced |
 |---|---|---|
@@ -314,7 +314,7 @@ and drops the rest:
 ## Reproducing it
 
 ```powershell
-.\.venv\Scripts\python.exe -m tools.bar_state_census --json output\bar_state_census_2026-08-30.json
+.\.venv\Scripts\python.exe -m tools.research.bar_state_census --json output\bar_state_census_2026-08-30.json
 ```
 
 Read-only and offline: it reads the calibration marks DB, the frozen frame store and the committed

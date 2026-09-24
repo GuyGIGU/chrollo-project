@@ -21,8 +21,8 @@ and the re-key isolation (script + result) in the same directory.
 
 ```
 & "C:\Users\User\Documents\Projects\Chrollo Project\.venv\Scripts\python.exe" -m tools.ar_first_reaction_diff --scan --no-render
-& "...\python.exe" -m tools.operator_marks_diff
-& "...\python.exe" -m tools.operator_marks_diff --json <scratch>\operator_marks_diff_2026-08-31.json
+& "...\python.exe" -m tools.research.operator_marks_diff
+& "...\python.exe" -m tools.research.operator_marks_diff --json <scratch>\operator_marks_diff_2026-08-31.json
 & "...\python.exe" <scratch>\rekey_isolation.py 14      # pre-e4471e0 polarity, same cache
 & "...\python.exe" <scratch>\span_stats.py <both scans> # span medians from the mover tables
 ```

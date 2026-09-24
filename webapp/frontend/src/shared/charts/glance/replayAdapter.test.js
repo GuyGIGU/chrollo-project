@@ -49,7 +49,7 @@ test('unknown versions and empty snapshots are refused, not mis-drawn', () => {
 });
 
 test('every archive verdict in the closed registry has copy', () => {
-  // Frontend twin of services/watchlist_ledger.ARCHIVE_STATUSES (EC-33): a
+  // Frontend twin of domains/watchlist/ledger.ARCHIVE_STATUSES (EC-33): a
   // verdict the server can emit without copy here would render as raw enum.
   const registry = ['matched', 'rewritten', 'purged', 'never_archived', 'no_pin'];
   for (const status of registry) {

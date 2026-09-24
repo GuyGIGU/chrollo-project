@@ -30,8 +30,8 @@ manifest hash of the EXACT configuration it ran (baseline hash for baseline runs
 effective hash for variant runs). A baseline/variant pair whose stamps do not pair is void
 evidence — rerun it, don't argue from it.
 
-Variant runs are **CLI-subprocess only** (`python -m tools.calibration_harness --variant …`,
-`python -m tools.negative_corpus`, `python -m tools.marks_corpus`). The backend's in-process
+Variant runs are **CLI-subprocess only** (`python -m tools.calibration.calibration_harness --variant …`,
+`python -m tools.regression.negative_corpus`, `python -m tools.regression.marks_corpus`). The backend's in-process
 fired seam is baseline-only by contract. A grading-SEMANTICS change that moves no manifest
 constant requires a `HARNESS_POLICY_VERSION` bump in the same change.
 

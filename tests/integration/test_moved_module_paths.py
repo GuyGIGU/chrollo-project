@@ -1,4 +1,4 @@
-"""No live Python may name a module the 2026-09 domain refactor moved.
+"""No live code may name a module the 2026-09 domain refactor moved.
 
 The refactor moved the engine's structure modules into subpackages, the
 pipeline into screening/market_data/universe/context/telemetry, and the backend
@@ -12,6 +12,10 @@ double-rewrite forms that broke them are. The flat tools/ folder was then sorted
 into category folders (2026-09-24): tools.<name> became tools.<category>.<name>,
 so the old dotted names, the ``from tools import <name>`` spelling and the old
 ``tools/<name>.py`` paths are all stale.
+
+Comments also spell a module as a path (``<folder>/<module>.NAME``,
+a frontend twin's pointer at its backend source), so every old name is matched
+in its slash form too, and the frontend's JS is scanned with the Python.
 
 Names are built by concatenation so this guard's own source never matches.
 """
@@ -72,6 +76,11 @@ _OLD_TOOLS_ALT = "(?:" + "|".join(_OLD_TOOL_NAMES) + ")"
 _STALE = re.compile("|".join(
     [r"(?<![\w.])" + re.escape(name) + r"(?!\w)" for name in _OLD_ENGINE_AND_PIPELINE]
     + [r"(?<![\w.])(?:webapp\.backend\.)?" + re.escape(name) + r"(?!\w)" for name in _OLD_BACKEND]
+    # The same names spelled as paths (<folder>/<module>.NAME in a comment).
+    + [r"(?<![\w./\\])" + re.escape(name.replace(".", "/")) + r"(?![\w/])"
+       for name in _OLD_ENGINE_AND_PIPELINE]
+    + [r"(?<![\w./\\])(?:webapp/backend/)?" + re.escape(name.replace(".", "/")) + r"(?![\w/])"
+       for name in _OLD_BACKEND]
     # The double-rewrite collision: a sibling module imported from the
     # implementation module instead of from its package.
     + [r"narrative\.reader" + r" import (?:bricks|chain)\b",
@@ -85,29 +94,34 @@ _STALE = re.compile("|".join(
 ))
 
 _SKIP_PARTS = {".git", ".claude", ".council", ".venv", "__pycache__",
-               "node_modules", "context-handling"}
+               "node_modules", "context-handling", "dist"}
+_FRONTEND = "webapp/frontend/"
 # Historical records keep the names they were written with.
 _HISTORICAL = ("docs/archive/", "research/fidelity/")
 
 
-def _live_python_files():
+def _live_code_files():
+    """Every live .py file, plus the frontend's .js/.jsx/.mjs."""
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames if d not in _SKIP_PARTS]
         for name in filenames:
             path = Path(dirpath) / name
-            rel = path.relative_to(ROOT)
-            if name.endswith(".py") and not rel.as_posix().startswith(_HISTORICAL):
+            rel = path.relative_to(ROOT).as_posix()
+            if rel.startswith(_HISTORICAL):
+                continue
+            if name.endswith(".py") or (rel.startswith(_FRONTEND) and name.endswith((".js", ".jsx", ".mjs"))):
                 yield path, rel
 
 
-def test_no_live_python_names_a_moved_module():
+def test_no_live_code_names_a_moved_module():
     offences = []
-    scanned = 0
-    for path, rel in _live_python_files():
+    scanned = frontend = 0
+    for path, rel in _live_code_files():
         scanned += 1
+        frontend += rel.startswith(_FRONTEND)
         for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             match = _STALE.search(line)
             if match:
-                offences.append(f"{rel.as_posix()}:{number}: {match.group(0)}")
-    assert scanned >= 300, "scan went vacuous"
+                offences.append(f"{rel}:{number}: {match.group(0)}")
+    assert scanned >= 500 and frontend >= 150, f"scan went vacuous ({scanned} files, {frontend} frontend)"
     assert not offences, "names of moved modules survive:\n" + "\n".join(offences)

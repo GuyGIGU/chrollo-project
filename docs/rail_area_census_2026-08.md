@@ -3,14 +3,14 @@
 The **committed evidence record** (EC-16) behind the two 2026-08-30 rail-area rows in
 `decisions.md`: *"THE RAIL AREA IS RULED: ±0.50 ATR, symmetric, both rails"* and *"the rail
 area is BAR-SCALED (ATR)"*. Those rows cited a three-lane exploration that lived only in a
-session scratchpad; nothing committed reproduced their numbers. `tools/rail_area_census.py`
+session scratchpad; nothing committed reproduced their numbers. `tools/research/rail_area_census.py`
 is the promotion — a small instrument that recomputes **exactly the figures the rulings
 quote**, prints itself against them, and fails loudly rather than re-fitting.
 
 **Run it:**
 
 ```powershell
-.\.venv\Scripts\python.exe -m tools.rail_area_census --json output/rail_area_census_2026-08-30.json
+.\.venv\Scripts\python.exe -m tools.research.rail_area_census --json output/rail_area_census_2026-08-30.json
 ```
 
 ~50 seconds end to end, no flags, no network, no engine or archive write. The sidecar is

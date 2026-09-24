@@ -18,7 +18,7 @@ The JSON records 586 file moves, 138 Python module moves, 10 whole-folder moves 
 
 ## How to port a branch
 
-Seven `claude/` branches were cut before the refactor and edit files it moved. On 2026-09-24 (refactor tip `93ac245`) they stood as below. *Changed* counts the files each branch changed since its merge base with `claude/domain-refactor`; *moved* counts how many of those are an old path in the map, a deleted file, or `config/settings.py`. None of the merge bases has a rename between it and the baseline, so this map covers them all. Which branch lands first is the operator's call.
+Nine branches were cut before the refactor and edit files it moved. On 2026-09-24 (refactor tip `93ac245`) they stood as below. *Changed* counts the files each branch changed since its merge base with `claude/domain-refactor`; *moved* counts how many of those are an old path in the map, a deleted file, or `config/settings.py`. Every merge base but one has no rename between it and the baseline, so this map covers them; `wip/signal-edge-backtest` is older (38 renames lie between its merge base and the baseline), so port it after the earlier moves, or port `revive/signal-edge`, which carries the same new files on a newer base. Which branch lands first is the operator's call.
 
 | Branch | Merge base | Changed | Moved |
 |---|---|---|---|
@@ -29,6 +29,10 @@ Seven `claude/` branches were cut before the refactor and edit files it moved. O
 | `claude/eager-chatelet-65e8d4` | `2a5dd13` | 78 | 25 |
 | `claude/engine-time-axis-and-nan-contract` | `516b36f` | 12 | 7 |
 | `claude/indexless-universe-cold-gate` | `2a5dd13` | 3 | 2 |
+| `revive/signal-edge` | `2a5dd13` | 15 | 1 |
+| `wip/signal-edge-backtest` | `52e9182` | 11 | 1 |
+
+The two signal-edge branches also add files in the old flat folders (`tools/backtest_exits.py`, `tools/backtest_backfill.py`, `tests/test_deflated_sharpe.py`, `tests/test_event_study.py`, `tests/test_exit_sim.py`): step 5 below applies to each.
 
 For each branch:
 

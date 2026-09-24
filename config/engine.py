@@ -94,7 +94,7 @@ ROOT_TREND_SMA = 200             # Long-trend MA gate in collect_root_anchors: a
 AR_MIN_DROP_PCT = 0.05           # Price must drop >= 5% from BC high (or rise from SC low)
 AR_MAX_BARS = 15                 # ...within this many bars of the climax
 
-# Cause-before-effect election precondition (engine_alpha/structure/bricks.cause_maturity,
+# Cause-before-effect election precondition (engine_alpha/structure/narrative/bricks.cause_maturity,
 # consulted in narrative.read_structure). A box may not be elected over a live trend that
 # never matured a cause: the MIDD class, where price trends UP through both rails into a
 # blow-off so the consolidation predates its own climax. Veto ONLY when ALL THREE reads

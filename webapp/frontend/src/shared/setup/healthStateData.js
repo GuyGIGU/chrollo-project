@@ -1,6 +1,6 @@
 // The seven position-in-cycle states for the Market & Sector Health Board, in
 // decision-proximity order — the SAME closed set + order the engine emits
-// (core/pipeline/health_board.HealthState / the serve-boundary HealthStateName
+// (core/pipeline/context/health_board.HealthState / the serve-boundary HealthStateName
 // Literal). This is the single frontend source for how each state is NAMED,
 // EXPLAINED, and ORDERED; the sort selector and the board bands both read it.
 //

@@ -8,7 +8,7 @@ and everything decision-bearing is reproduced below. Reproduce any of it fresh w
 standing instrument:
 
 ```bash
-python -m tools.event_map_census --check
+python -m tools.research.event_map_census --check
 ```
 
 (ChrolloDashboard venv python. `--check` recomputes everything from the sealed fixtures +
@@ -135,7 +135,7 @@ exercise it as a routine tweak.
   Census re-run: all pins reproduce (EGBN profile unchanged); NKTR's archived admitting
   sentence gains one `~` (semantics identical).
 - Standing gates before any merge/flip touching the episode reader:
-  `python -m tools.event_map_census --check` (fingerprint + headline pins) alongside the
+  `python -m tools.research.event_map_census --check` (fingerprint + headline pins) alongside the
   pytest battery (truth table, truncation invariance, split-side horizon, the pinned
   NKTR/YPF conversions).
 - `STORY_POOL_ENABLED` **FLIPPED LIVE 2026-07-26.** The final gate — the operator's

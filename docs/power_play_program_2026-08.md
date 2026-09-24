@@ -455,7 +455,7 @@ record with the old name where it was written.
   documented two-installs trap. Copy-runnable, from the repo root:
 
   ```
-  "C:\Users\User\AppData\Local\ChrolloDashboard\venv\Scripts\python.exe" -m tools.power_play_census --out output\power_play_census_species.json
+  "C:\Users\User\AppData\Local\ChrolloDashboard\venv\Scripts\python.exe" -m tools.research.power_play_census --out output\power_play_census_species.json
   ```
 
   (Hours-scale on the full cache — the honest pricing is in the tool's `--plan` output;

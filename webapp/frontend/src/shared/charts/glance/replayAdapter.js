@@ -7,7 +7,7 @@
 export const SNAPSHOT_VERSION = 1;
 
 // Frontend twin of the backend's closed archive-verdict registry
-// (services/watchlist_ledger.ARCHIVE_STATUSES) — copy strings only.
+// (domains/watchlist/ledger.ARCHIVE_STATUSES) — copy strings only.
 export const ARCHIVE_STATUS_COPY = {
   matched: 'archive row intact',
   rewritten: 'archive re-scanned under a different engine config — no longer what you saw',

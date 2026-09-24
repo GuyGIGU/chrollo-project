@@ -212,14 +212,14 @@ _NEW_COLUMNS: dict[str, str] = {
 # NOTE: the Lane E advisory columns (fund_*, days_to_earnings, rs_rating,
 # rs_line_*, sector_rank_*) are intentionally NOT hand-listed here. Like
 # engine_config_version, they are MODEL-ONLY adds: the backend's Track B
-# auto-migration (startup._apply_model_add_columns) and this writer's own
+# auto-migration (app/migrations/additive._apply_model_add_columns) and this writer's own
 # model-derived second pass in _ensure_new_columns ADD them from
 # SetupArchive.__table__, so the model stays the single source and the
 # _NEW_COLUMNS <= _MIGRATIONS guard (test_archive_writer_columns_are_modeled_
 # and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 # NOTE: engine_config_version (the frozen-config stamp) is intentionally NOT in
 # _NEW_COLUMNS. It is added to the live schema by Track B's model-derived
-# auto-migration (webapp/backend/services/startup._apply_model_add_columns,
+# auto-migration (webapp/backend/app/migrations/additive._apply_model_add_columns,
 # which diffs SetupArchive.__table__ at backend boot) and by create_all on a
 # fresh table — so the writer needs no hand-listed ALTER for it, and the
 # _NEW_COLUMNS <= _MIGRATIONS guard (test_archive_writer_columns_are_modeled_

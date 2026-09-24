@@ -65,8 +65,8 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
    (`wc -l`, 2026-09-24). Pin behaviour with tests first. Engine files wait until
    `claude/two-eyes-reader` lands, and change only through operator rulings.
 
-**Merge-order risk.** Nine local branches are unmerged (`git branch --no-merged`) and seven of
-them edit paths that `3bd4531..93ac245` renamed or deleted: most of all `claude/two-eyes-reader`
+**Merge-order risk.** Nine local branches are unmerged (`git branch --no-merged`) and all nine
+edit paths that `3bd4531..93ac245` renamed or deleted: most of all `claude/two-eyes-reader`
 (72 paths, counting `config/settings.py`), `claude/method-steps-7-12` (59), `claude/sos-session` (27).
 The per-branch table and the porting steps are in
 [`migrations/2026-09-domain-refactor.md`](migrations/2026-09-domain-refactor.md). Merge order is the operator's call.
