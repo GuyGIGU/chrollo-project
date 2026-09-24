@@ -24,7 +24,7 @@ def _reconcile_orphaned_runs(bind) -> None:
     never block backend boot.
 
     This RECORDS A FACT and claims no cause. The row is tagged with the pending
-    failure kind; services/scan_diagnosis.resolve_pending works out WHY later,
+    failure kind; services/interruption_cause.resolve_pending works out WHY later,
     from the backend's lifespan startup, when the Windows Event Log service is
     actually up. Measured 2026-09-05: this reconcile can run seconds INTO a
     shutdown (NSSM restarts uvicorn as Windows stops the service), one second

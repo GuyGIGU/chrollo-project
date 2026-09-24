@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 import services.scan_diagnosis as diag  # noqa: E402
+import services.interruption_cause as cause  # noqa: E402
 from app.startup import _MIGRATIONS  # noqa: E402
 
 UTC = timezone.utc
@@ -53,7 +54,7 @@ def test_shutdown_inside_the_window_names_the_power_off():
     session and the reconcile ran on the SAME boot). Replacing the body of
     classify_interrupted with that rule must turn this test red.
     """
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         INCIDENT_START, INCIDENT_DETECTED,
         [ev(1074, INCIDENT_1074)], INCIDENT_BOOT, INCIDENT_NOW,
     )
@@ -70,7 +71,7 @@ def test_readable_log_with_no_shutdown_never_claims_the_computer_was_off():
     """THE ANTI-LIE GUARD. An empty (but successfully read) log plus a machine
     that has not rebooted since the run began = the service restarted."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         start.isoformat(), (start + timedelta(seconds=30)).isoformat(),
         [], start - timedelta(hours=12), start + timedelta(hours=1),
     )
@@ -85,9 +86,9 @@ def test_unreadable_log_is_a_distinct_refusal_from_an_empty_one():
     different facts; collapsing them is the most dangerous mutation here."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
     args = ((start + timedelta(seconds=30)).isoformat(),)
-    unreadable = diag.classify_interrupted(
+    unreadable = cause.classify_interrupted(
         start.isoformat(), *args, None, start - timedelta(hours=12), start + timedelta(hours=1))
-    empty = diag.classify_interrupted(
+    empty = cause.classify_interrupted(
         start.isoformat(), *args, [], start - timedelta(hours=12), start + timedelta(hours=1))
     assert unreadable == "interrupted_unknown"
     assert empty != unreadable
@@ -97,7 +98,7 @@ def test_no_shutdown_but_rebooted_since_refuses_the_stayed_on_claim():
     """The boot clock may only REFUSE. If the machine has restarted since the
     run began we cannot say it stayed on, so the row reads 'not recorded'."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         start.isoformat(), (start + timedelta(seconds=30)).isoformat(),
         [], start + timedelta(hours=9), start + timedelta(hours=10),
     )
@@ -109,7 +110,7 @@ def test_shutdown_outside_the_bounded_window_is_ignored():
     crashed alone at 01:00, the machine stayed up all night, and a normal
     reboot at 09:00 must NOT be reported as killing it."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         start.isoformat(), (start + timedelta(days=6)).isoformat(),
         [ev(1074, start + timedelta(hours=8))],
         start - timedelta(hours=12), start + timedelta(days=6, hours=1),
@@ -132,7 +133,7 @@ def test_a_shutdown_far_from_the_detection_stamp_is_not_blamed_for_the_death():
     detected = datetime(2026, 9, 7, 6, 10, tzinfo=UTC)  # next boot's reconcile
     habitual_power_off = datetime(2026, 9, 6, 22, 42, 27, tzinfo=UTC)
 
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         start.isoformat(), detected.isoformat(),
         [ev(1074, habitual_power_off)],
         datetime(2026, 9, 7, 6, 9, tzinfo=UTC),  # rebooted since: cannot say it stayed on
@@ -149,7 +150,7 @@ def test_a_machine_down_record_is_never_called_a_deliberate_shutdown_on_its_own(
     must never be announced as "the computer was shut down"."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
     for event_id in (6008, 41):
-        kind = diag.classify_interrupted(
+        kind = cause.classify_interrupted(
             start.isoformat(), (start + timedelta(seconds=30)).isoformat(),
             [ev(event_id, start + timedelta(seconds=20))], None, start + timedelta(hours=1),
         )
@@ -165,7 +166,7 @@ def test_a_run_past_the_evidence_horizon_is_closed_out_as_unrecorded():
     suppress the claim."""
     start = datetime(2025, 1, 1, tzinfo=UTC)
     detected = start + timedelta(seconds=30)
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         start.isoformat(), detected.isoformat(),
         [ev(1074, start + timedelta(seconds=20))], None, start + timedelta(days=400),
     )
@@ -173,15 +174,28 @@ def test_a_run_past_the_evidence_horizon_is_closed_out_as_unrecorded():
 
 
 def test_unparseable_started_at_never_raises():
-    assert diag.classify_interrupted(
+    assert cause.classify_interrupted(
         "not-a-date", None, [], None, datetime.now(UTC)) == "interrupted_unknown"
+
+
+def test_stamps_are_read_as_utc_and_never_raise():
+    """The one reader of scan_runs and event-log stamps: a naive stamp is UTC,
+    'Z' is UTC, and anything unreadable is None — a comparison against an
+    aware clock must never meet a naive datetime."""
+    expected = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
+    assert diag.parse_iso("2026-09-04T22:00:00") == expected
+    assert diag.parse_iso("2026-09-04T22:00:00Z") == expected
+    assert diag.parse_iso("2026-09-05T01:00:00+03:00") == expected
+    assert diag.parse_iso("2026-09-04T22:00:00").tzinfo is not None
+    for unreadable in (None, "", "not-a-date", 12):
+        assert diag.parse_iso(unreadable) is None, unreadable
 
 
 def test_a_shutdown_with_no_detection_stamp_is_never_blamed():
     """The claim is anchored on the detection moment. With no such moment there
     is nothing to anchor it to, however close the record sits to the start."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         start.isoformat(), None,
         [ev(1074, start + timedelta(seconds=20))], None, start + timedelta(hours=1),
     )
@@ -193,7 +207,7 @@ def test_a_late_detection_is_not_called_a_dashboard_restart():
     AND the orphan found while the run could still have been alive. Found three
     hours in, it was already hung by any measure, so the cause stays unrecorded."""
     start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
-    kind = diag.classify_interrupted(
+    kind = cause.classify_interrupted(
         start.isoformat(), (start + timedelta(hours=3)).isoformat(),
         [], start - timedelta(hours=12), start + timedelta(hours=4),
     )
@@ -203,14 +217,14 @@ def test_a_late_detection_is_not_called_a_dashboard_restart():
 def test_window_grants_grace_past_the_detection_stamp_but_caps_a_late_one():
     start = datetime.fromisoformat(INCIDENT_START)
     detected = datetime.fromisoformat(INCIDENT_DETECTED)
-    end = diag.evidence_window_end(start, detected)
+    end = cause.evidence_window_end(start, detected)
     # The 1074 is inside, and the end sits past the detection stamp (Windows'
     # own "shutting down" record landed a second AFTER it).
     assert start <= INCIDENT_1074 <= end
     assert end > detected
     # A reconcile six days late (live rows 47/48) may not borrow six days of
     # unrelated evening shutdowns.
-    late = diag.evidence_window_end(start, start + timedelta(days=6))
+    late = cause.evidence_window_end(start, start + timedelta(days=6))
     assert late - start <= timedelta(hours=diag.HUNG_RUNNING_HOURS, seconds=120)
 
 
@@ -399,10 +413,30 @@ def test_describe_run_is_pure(monkeypatch):
         raise AssertionError("describe_run must not shell out")
 
     monkeypatch.setattr(subprocess, "run", explode)
-    monkeypatch.setattr(diag, "collect_machine_down_events", explode)
-    monkeypatch.setattr(diag, "_pending_rows", explode)
+    monkeypatch.setattr(cause, "collect_machine_down_events", explode)
+    monkeypatch.setattr(cause, "_pending_rows", explode)
     for kind in diag.FAILURE_KINDS:
         assert diag.describe_run({"status": "failed", "failure_kind": kind})["reason"]
+
+
+def test_the_publisher_loads_without_the_resolver_or_a_database():
+    """The boot reconcile, the migration backfill, the watchdog and /health all
+    import their constants from scan_diagnosis. It stays standard-library-only at
+    load, so that costs them nothing and describe_run's purity is structural:
+    the event-log reader and the database live in interruption_cause."""
+    import subprocess
+
+    code = (
+        "import sys\n"
+        "import services.scan_diagnosis\n"
+        "heavy = ('sqlalchemy', 'database', 'services.interruption_cause', "
+        "'xml.etree.ElementTree')\n"
+        "print(sorted(m for m in heavy if m in sys.modules))\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", code], cwd=str(BACKEND_DIR),
+                          capture_output=True, text=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == "[]"
 
 
 def test_ok_and_running_rows_carry_no_reason():
@@ -432,14 +466,14 @@ def test_events_are_parsed_from_xml_in_utc():
         "<Channel>System</Channel></System>"
         "<EventData><Data Name='param5'>power off</Data></EventData></Event>"
     )
-    events = diag.parse_events(xml)
+    events = cause.parse_events(xml)
     assert len(events) == 1
     assert events[0]["event_id"] == 1074
     assert events[0]["time"] == INCIDENT_1074
 
 
 def test_unparseable_event_output_is_unreadable_not_empty():
-    assert diag.parse_events("<Event><broken") is None
+    assert cause.parse_events("<Event><broken") is None
 
 
 def test_collector_degrades_when_wevtutil_is_missing(monkeypatch):
@@ -449,7 +483,7 @@ def test_collector_degrades_when_wevtutil_is_missing(monkeypatch):
         subprocess, "run",
         lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError("wevtutil")))
     now = datetime.now(UTC)
-    assert diag.collect_machine_down_events(now, now) is None
+    assert cause.collect_machine_down_events(now, now) is None
 
 
 def test_collector_refuses_when_wevtutil_exits_non_zero(monkeypatch):
@@ -467,7 +501,7 @@ def test_collector_refuses_when_wevtutil_exits_non_zero(monkeypatch):
         lambda *a, **k: subprocess.CompletedProcess(
             a[0] if a else [], 1, "", "Failed to open log System. Access is denied."))
     now = datetime.now(UTC)
-    assert diag.collect_machine_down_events(now, now) is None
+    assert cause.collect_machine_down_events(now, now) is None
 
 
 def test_empty_wevtutil_output_means_found_nothing_not_unreadable(monkeypatch):
@@ -475,12 +509,12 @@ def test_empty_wevtutil_output_means_found_nothing_not_unreadable(monkeypatch):
     matching record is [], never None."""
     import subprocess
 
-    assert diag.parse_events("") == []
+    assert cause.parse_events("") == []
     monkeypatch.setattr(
         subprocess, "run",
         lambda *a, **k: subprocess.CompletedProcess(a[0] if a else [], 0, "", ""))
     now = datetime.now(UTC)
-    assert diag.collect_machine_down_events(now, now) == []
+    assert cause.collect_machine_down_events(now, now) == []
 
 
 def test_collector_degrades_on_timeout(monkeypatch):
@@ -491,7 +525,7 @@ def test_collector_degrades_on_timeout(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", timeout)
     now = datetime.now(UTC)
-    assert diag.collect_machine_down_events(now, now) is None
+    assert cause.collect_machine_down_events(now, now) is None
 
 
 def test_the_event_log_query_asks_only_for_the_shutdown_record_in_utc(monkeypatch):
@@ -508,7 +542,7 @@ def test_the_event_log_query_asks_only_for_the_shutdown_record_in_utc(monkeypatc
     monkeypatch.setattr(subprocess, "run", record)
     start = datetime(2026, 9, 4, 22, 0, 1, 532328, tzinfo=UTC)
     end = datetime(2026, 9, 5, 0, 30, tzinfo=timezone(timedelta(hours=3)))
-    assert diag.collect_machine_down_events(start, end) == []
+    assert cause.collect_machine_down_events(start, end) == []
 
     assert calls == [(
         ["wevtutil", "qe", "System",
@@ -534,11 +568,11 @@ def test_malformed_event_records_are_skipped_not_fatal():
         "<TimeCreated SystemTime='yesterday'/></System>",             # bad timestamp
         good,
     ))
-    assert diag.parse_events(xml) == [{"event_id": 1074, "time": INCIDENT_1074}]
+    assert cause.parse_events(xml) == [{"event_id": 1074, "time": INCIDENT_1074}]
 
 
 def test_boot_time_is_an_aware_instant_in_the_past():
-    booted = diag.boot_time()
+    booted = cause.boot_time()
     assert booted is not None and booted.tzinfo is not None
     assert booted <= datetime.now(UTC)
 
@@ -582,14 +616,14 @@ def test_resolution_is_stamped_once_and_survives_the_evidence_rolling(runs_engin
     run_id = _insert(runs_engine, start.isoformat(), (start + timedelta(seconds=30)).isoformat())
 
     monkeypatch.setattr(
-        diag, "collect_machine_down_events",
+        cause, "collect_machine_down_events",
         lambda *a: [ev(1074, start + timedelta(seconds=20))])
-    assert diag.resolve_pending(runs_engine) == 1
+    assert cause.resolve_pending(runs_engine) == 1
     assert _kind_of(runs_engine, run_id) == "interrupted_shutdown"
 
     # Same row, later, with the record gone from the log.
-    monkeypatch.setattr(diag, "collect_machine_down_events", lambda *a: [])
-    assert diag.resolve_pending(runs_engine) == 0
+    monkeypatch.setattr(cause, "collect_machine_down_events", lambda *a: [])
+    assert cause.resolve_pending(runs_engine) == 0
     assert _kind_of(runs_engine, run_id) == "interrupted_shutdown"
 
 
@@ -600,7 +634,7 @@ def test_a_resolved_row_is_never_offered_for_re_resolution(runs_engine):
     _insert(runs_engine, start.isoformat(), start.isoformat(),
             failure_kind="interrupted_shutdown")
 
-    assert diag._pending_rows(runs_engine, 10) == []
+    assert cause._pending_rows(runs_engine, 10) == []
 
 
 def test_stamping_never_overwrites_a_row_that_already_has_a_cause(runs_engine):
@@ -611,7 +645,7 @@ def test_stamping_never_overwrites_a_row_that_already_has_a_cause(runs_engine):
     run_id = _insert(runs_engine, start.isoformat(), start.isoformat(),
                      failure_kind="interrupted_shutdown")
 
-    assert diag._stamp_kind(runs_engine, run_id, "interrupted_unrecorded") == 0
+    assert cause._stamp_kind(runs_engine, run_id, "interrupted_unrecorded") == 0
     assert _kind_of(runs_engine, run_id) == "interrupted_shutdown"
 
 
@@ -619,9 +653,9 @@ def test_resolution_leaves_a_row_pending_when_the_log_cannot_be_read(runs_engine
     now = datetime.now(UTC)
     start = now - timedelta(hours=3)
     run_id = _insert(runs_engine, start.isoformat(), (start + timedelta(seconds=30)).isoformat())
-    monkeypatch.setattr(diag, "collect_machine_down_events", lambda *a: None)
+    monkeypatch.setattr(cause, "collect_machine_down_events", lambda *a: None)
 
-    assert diag.resolve_pending(runs_engine) == 0
+    assert cause.resolve_pending(runs_engine) == 0
     assert _kind_of(runs_engine, run_id) == diag.PENDING_KIND
 
 
@@ -633,8 +667,8 @@ def test_resolution_never_raises_when_the_collector_throws(runs_engine, monkeypa
     def boom(*a):
         raise RuntimeError("event log service is stopped")
 
-    monkeypatch.setattr(diag, "collect_machine_down_events", boom)
-    assert diag.resolve_pending(runs_engine) == 0
+    monkeypatch.setattr(cause, "collect_machine_down_events", boom)
+    assert cause.resolve_pending(runs_engine) == 0
     assert _kind_of(runs_engine, run_id) == diag.PENDING_KIND
 
 
@@ -645,8 +679,8 @@ def test_an_old_pending_row_is_closed_out_without_reading_the_log(runs_engine, m
     def explode(*a):  # pragma: no cover - must never run
         raise AssertionError("an out-of-horizon row must not query the event log")
 
-    monkeypatch.setattr(diag, "collect_machine_down_events", explode)
-    assert diag.resolve_pending(runs_engine) == 1
+    monkeypatch.setattr(cause, "collect_machine_down_events", explode)
+    assert cause.resolve_pending(runs_engine) == 1
     assert _kind_of(runs_engine, run_id) == "interrupted_unrecorded"
 
 
@@ -664,12 +698,12 @@ def test_one_event_log_read_covers_every_fresh_rows_window(runs_engine, monkeypa
     garbled_id = _insert(runs_engine, "not-a-date", now.isoformat())
 
     reads = []
-    monkeypatch.setattr(diag, "collect_machine_down_events",
+    monkeypatch.setattr(cause, "collect_machine_down_events",
                         lambda *window: reads.append(window) or [])
-    monkeypatch.setattr(diag, "boot_time", lambda: now - timedelta(days=1))
+    monkeypatch.setattr(cause, "boot_time", lambda: now - timedelta(days=1))
 
-    assert diag.resolve_pending(runs_engine) == 3
-    assert reads == [(early, late + timedelta(hours=1, seconds=diag.DETECTION_GRACE_SECONDS))]
+    assert cause.resolve_pending(runs_engine) == 3
+    assert reads == [(early, late + timedelta(hours=1, seconds=cause.DETECTION_GRACE_SECONDS))]
     assert _kind_of(runs_engine, early_id) == "interrupted_service_only"
     assert _kind_of(runs_engine, late_id) == "interrupted_service_only"
     assert _kind_of(runs_engine, old_id) == "interrupted_unrecorded"
@@ -681,14 +715,24 @@ def test_resolution_takes_the_newest_pending_rows_first(runs_engine, monkeypatch
     start = now - timedelta(hours=3)
     stamps = (start.isoformat(), (start + timedelta(seconds=30)).isoformat())
     older_id, newer_id = _insert(runs_engine, *stamps), _insert(runs_engine, *stamps)
-    monkeypatch.setattr(diag, "collect_machine_down_events", lambda *a: [])
-    monkeypatch.setattr(diag, "boot_time", lambda: now - timedelta(days=1))
+    monkeypatch.setattr(cause, "collect_machine_down_events", lambda *a: [])
+    monkeypatch.setattr(cause, "boot_time", lambda: now - timedelta(days=1))
 
     # A limit below one still reads one row: the newest.
-    assert [r["id"] for r in diag._pending_rows(runs_engine, 0)] == [newer_id]
-    assert diag.resolve_pending(runs_engine, limit=1) == 1
+    assert [r["id"] for r in cause._pending_rows(runs_engine, 0)] == [newer_id]
+    assert cause.resolve_pending(runs_engine, limit=1) == 1
     assert _kind_of(runs_engine, newer_id) == "interrupted_service_only"
     assert _kind_of(runs_engine, older_id) == diag.PENDING_KIND
+
+
+def test_the_resolver_stamps_from_the_publishers_own_vocabulary():
+    """EC-3. The resolver may only write a kind the publisher can put words to,
+    and bounds its evidence window by the same hang threshold the watchdog and
+    /health use — the same OBJECTS, not copies that could drift."""
+    assert cause.FAILURE_KINDS is diag.FAILURE_KINDS
+    assert cause.PENDING_KIND is diag.PENDING_KIND
+    assert cause.HUNG_RUNNING_HOURS is diag.HUNG_RUNNING_HOURS
+    assert cause.parse_iso is diag.parse_iso
 
 
 def test_stamping_refuses_a_kind_outside_the_closed_set(runs_engine):
@@ -696,7 +740,7 @@ def test_stamping_refuses_a_kind_outside_the_closed_set(runs_engine):
     run_id = _insert(runs_engine, start.isoformat(), start.isoformat())
 
     with pytest.raises(ValueError):
-        diag._stamp_kind(runs_engine, run_id, "interrupted_power_loss")
+        cause._stamp_kind(runs_engine, run_id, "interrupted_power_loss")
     assert _kind_of(runs_engine, run_id) == diag.PENDING_KIND
 
 
@@ -711,7 +755,7 @@ def test_the_lifespan_resolves_interrupted_runs_off_the_event_loop(monkeypatch):
     from app import lifecycle
 
     ran_on = []
-    monkeypatch.setattr(diag, "resolve_pending", lambda: ran_on.append(threading.get_ident()))
+    monkeypatch.setattr(cause, "resolve_pending", lambda: ran_on.append(threading.get_ident()))
     monkeypatch.setattr(lifecycle.settings, "ibkr_auto_connect", False)
     for owner, name in ((lifecycle.auto_import, "start_writer"),
                         (lifecycle.auto_import, "stop_writer"),
