@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import AppTopbar from './AppTopbar';
 import ErrorBoundary from '../../shared/components/ErrorBoundary';
-import FeedbackHost from '../../shared/components/FeedbackHost';
+import FeedbackHost from './FeedbackHost';
 import { toast } from '../../shared/components/feedback';
 import TradeRiskAlerts from '../../features/journal/components/tradeTable/TradeRiskAlerts';
 import useDashboardData from '../../features/journal/hooks/useDashboardData';

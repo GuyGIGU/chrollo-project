@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import Modal from './Modal';
-import { dismissToast, getFeedbackState, settleConfirm, subscribeFeedback } from './feedback';
+import Modal from '../../shared/components/Modal';
+import { dismissToast, getFeedbackState, settleConfirm, subscribeFeedback } from '../../shared/components/feedback';
 
 // Renders the feedback store: a bottom-right toast stack + the (single)
 // confirm dialog on the shared Modal primitive. Mounted once in AppShell.

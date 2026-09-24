@@ -24,8 +24,8 @@ from core.pipeline.market_data.market_data_health import (
 from core.pipeline.market_data.market_calendar import latest_completed_session
 from core.pipeline.screening.screener import CachedMarketDataError
 from core.pipeline.universe.descriptor import all_universes, resolve_universe
-from output.dashboard import generate_dashboard
-from output.terminal import print_finviz_url, print_results, save_csv
+from core.pipeline.screening.dashboard import generate_dashboard
+from core.pipeline.screening.terminal import print_finviz_url, print_results, save_csv
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 log = logging.getLogger("chrollo.scan_job")
@@ -268,7 +268,7 @@ def _maybe_build_health_board(data, universe):
         return None
     try:
         from core.pipeline.context.health_board import classify_universe_members
-        from output.dashboard import build_health_payload
+        from core.pipeline.screening.dashboard import build_health_payload
 
         members, unreadable = classify_universe_members(data, universe)
         payload = build_health_payload(members, unreadable, data, universe)

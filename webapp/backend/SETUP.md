@@ -27,7 +27,7 @@ Chrollo connects to Interactive Brokers over the TWS API (`ib_async`). Before st
 | `ALPACA_KEY_ID`       | _(unset)_     | Alpaca Market Data API key. If set together with `ALPACA_SECRET_KEY`, the `/live-prices/` endpoint serves real-time IEX quotes via Alpaca's batch endpoint instead of polling yfinance one-symbol-at-a-time. Missing keys → silently falls back to yfinance. |
 | `ALPACA_SECRET_KEY`   | _(unset)_     | Alpaca Market Data API secret (paired with `ALPACA_KEY_ID`). Free signup at [alpaca.markets](https://alpaca.markets); the Market Data v2 endpoint is included on the free tier (real-time IEX, 200 req/min). |
 
-When `IBKR_MODE=live`, the app's top bar shows a red **LIVE** badge (the old vertical sidebar was replaced by the single global bar). Default is live because Chrollo reads the real portfolio, but boot still stays broker-free: `IBKRService.start()` ([ibkr/service.py](ibkr/service.py)) refuses a live start without a per-click confirmation, so the backend only reaches IBKR after **Connect IBKR** is clicked in the top bar.
+When `IBKR_MODE=live`, the app's top bar shows a red **LIVE** badge (the old vertical sidebar was replaced by the single global bar). Default is live because Chrollo reads the real portfolio, but boot still stays broker-free: `IBKRService.start()` ([domains/ibkr/service.py](domains/ibkr/service.py)) refuses a live start without a per-click confirmation, so the backend only reaches IBKR after **Connect IBKR** is clicked in the top bar.
 
 ## Running
 
@@ -46,7 +46,7 @@ Visit [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) — `status: 
 
 ## Database migrations
 
-Every migration is automatic and runs at **import** of [main.py](main.py) — `initialize_database()` in [services/startup.py](services/startup.py) is called at module level, before the app object exists and before the lifespan handler starts the scheduler. It does six things, in this order:
+Every migration is automatic and runs at **import** of [main.py](main.py) — `initialize_database()` in [app/startup.py](app/startup.py) (the steps live in [app/migrations/](app/migrations/)) is called at module level, before the app object exists and before the lifespan handler starts the scheduler. It does six things, in this order:
 
 1. `models.Base.metadata.create_all(...)` + `archive_models.SetupArchive.metadata.create_all(...)` — creates any missing table. Both modules declare against the one `Base` from [database.py](database.py), so between them this covers every model in [models.py](models.py) (`TradeLog`, `Execution`, `Tag`, `TradeTag`, `TradePlan`, `TradeNote`, `TradeAttachment`, `Watchlist`, `SetupReview`, `ReadVerdict`, `CalibrationMark`, `CalibrationMarkEvent`, `PortfolioSnapshotCache`) and in [archive_models.py](archive_models.py) (`SetupArchive`, `NearMissArchive`). `scan_runs` is the one table no model declares — it is hand-built by the `CREATE TABLE IF NOT EXISTS` at the head of `_MIGRATIONS`.
 2. `_apply_migrations()` — the hand-written `_MIGRATIONS` list: mostly `ALTER TABLE … ADD COLUMN`, plus a few one-off `DROP COLUMN`s for retired columns. Each statement is wrapped in try/except and is idempotent — "duplicate column"/"already exists" (a re-run ADD) and "no such column" (a re-run DROP) both mean the end state already holds and are skipped quietly.

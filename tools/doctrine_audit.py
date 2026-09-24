@@ -58,7 +58,7 @@ _PAYLOAD = os.path.join(_PROJECT_ROOT, "output", "screener_data.json")
 _CACHE = os.path.join(_PROJECT_ROOT, "market_data_cache_5y.parquet")
 
 
-# The payload quantizes rails to 2 decimals (output/dashboard.py:261-262,
+# The payload quantizes rails to 2 decimals (core/pipeline/screening/dashboard.py:261-262,
 # ``round(float(row['_R']), 2)``). B6 must therefore ask "would today's rail still
 # SERIALIZE to the value the payload recorded?" — quantize the same way the writer
 # did rather than approximating its cell with an absolute epsilon. The old

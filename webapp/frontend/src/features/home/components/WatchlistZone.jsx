@@ -8,11 +8,11 @@ import { EyeIcon } from '../../../shared/components/NavIcons';
 import useWatchlistRecords from '../../watchlist/hooks/useWatchlistRecords';
 import useHoverGlance from '../../../shared/charts/glance/useHoverGlance';
 import { artifactGlance, snapshotGlance } from '../../../shared/charts/glance/glanceResolvers';
-import { adaptReplaySnapshot, replayProvenance } from '../../watchlist/presentation/replayAdapter';
+import { adaptReplaySnapshot, replayProvenance } from '../../../shared/charts/glance/replayAdapter';
 import { toast } from '../../../shared/components/feedback';
 import { API_BASE } from '../../../api/base';
 import { tierColor } from '../../../shared/presentation/theme';
-import { signedPct } from './homeFormat';
+import { signedPct } from '../presentation/homeFormat';
 import { nearTriggerFrac, triggerFired } from '../../../shared/setup/triggerProximity.js';
 import { finiteOrNull } from '../../../shared/formatting/format.js';
 

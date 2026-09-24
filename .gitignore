@@ -33,7 +33,7 @@ cache_meta_*.json
 market_context.json
 market_context_*.json
 
-# Generated output — keep .py code in output/, exclude bulky generated data
+# Generated output (runtime files only; the code that writes it lives in core/pipeline/screening/)
 output/*.json
 output/*.jsonl
 output/*.bak

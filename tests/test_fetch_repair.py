@@ -24,7 +24,7 @@ import core.pipeline.market_data.downloads as downloads_module
 import core.pipeline.market_data.market_calendar as market_calendar_module
 import core.pipeline.context.market_context as market_context_module
 import core.pipeline.screening.scan_job as scan_job_module
-import output.dashboard as dashboard_module
+import core.pipeline.screening.dashboard as dashboard_module
 import domains.market_data.prices as prices_module
 from domains.market_data.router import _clean_symbol, _is_number
 from domains.portfolio.snapshot import (

@@ -58,7 +58,7 @@ INTRODUCE a divergence on the reachable present-null case.
 
 ### AP-7: The eq_* archive columns' hand-listing is a family-contiguity exception
 **Pattern:** `eq_engagement_respect_frac` / `eq_max_excursion_atr` are hand-listed in
-`webapp/backend/services/startup.py` `_MIGRATIONS` and `core/archive/writer.py` `_NEW_COLUMNS`
+`webapp/backend/app/migrations/additive.py` `_MIGRATIONS` and `core/archive/writer.py` `_NEW_COLUMNS`
 ONLY to keep the eq_* gate-margin family contiguous with its already-listed siblings. Do NOT flag
 this as triple registration, and do NOT grow the hand lists for any new column family — the
 default for new archive columns is MODEL-ONLY registration (the boot pass and the writer's second

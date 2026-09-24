@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import ErrorBoundary from '../../shared/components/ErrorBoundary';
-import LoadingPanel from '../../app/routes/LoadingPanel';
+import LoadingPanel from '../../shared/components/LoadingPanel';
 
 const WatchlistPage = lazy(() => import('./components/WatchlistPage'));
 

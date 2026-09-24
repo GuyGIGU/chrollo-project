@@ -133,7 +133,7 @@ def test_ec17_flag_on_happy_path_through_the_real_cascade(monkeypatch):
     #    block from the same fired row — resolved, display-rounded verdicts
     #    (EC-28), the archive keeping full precision.
     import pandas as pd
-    from output import dashboard as dashboard_module
+    from core.pipeline.screening import dashboard as dashboard_module
     monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker",
                         lambda *_a: None)
     monkeypatch.setattr(settings, "DASHBOARD_CHART_TIERS", [row["Tier"]],

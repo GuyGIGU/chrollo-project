@@ -243,7 +243,7 @@ def _fake_universe_at(path):
 
 
 def test_build_health_payload_shape_carries_no_buy_language():
-    from output.dashboard import build_health_payload
+    from core.pipeline.screening.dashboard import build_health_payload
 
     box = _worked_box(tail=124.3)  # near_resistance, has a box
     panel = pd.concat({"XLE": box}, axis=1)
@@ -264,7 +264,7 @@ def test_build_health_payload_shape_carries_no_buy_language():
 
 
 def test_generate_dashboard_flag_off_omits_health_key(tmp_path, monkeypatch):
-    import output.dashboard as dash
+    import core.pipeline.screening.dashboard as dash
 
     out = tmp_path / "screener_data_us_sectors.json"
     monkeypatch.setattr(dash, "resolve_universe", lambda _u: _fake_universe_at(out))
@@ -280,8 +280,8 @@ def test_generate_dashboard_flag_off_omits_health_key(tmp_path, monkeypatch):
 
 def test_generate_dashboard_rides_health_board_into_same_artifact(tmp_path, monkeypatch):
     import json
-    import output.dashboard as dash
-    from output.dashboard import build_health_payload
+    import core.pipeline.screening.dashboard as dash
+    from core.pipeline.screening.dashboard import build_health_payload
 
     out = tmp_path / "screener_data_us_sectors.json"
     monkeypatch.setattr(dash, "resolve_universe", lambda _u: _fake_universe_at(out))
@@ -307,7 +307,7 @@ def test_generate_dashboard_publishes_the_exact_scan_identity(tmp_path, monkeypa
     the date inside the writer (the midnight-straddle split) or dropping the
     thread must fail here."""
     import json
-    import output.dashboard as dash
+    import core.pipeline.screening.dashboard as dash
 
     out = tmp_path / "screener_data_us_sectors.json"
     monkeypatch.setattr(dash, "resolve_universe", lambda _u: _fake_universe_at(out))

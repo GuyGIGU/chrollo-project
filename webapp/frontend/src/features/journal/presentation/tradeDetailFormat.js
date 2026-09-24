@@ -1,7 +1,7 @@
 // Display formatters for the trade-detail drawer metrics (Live / P&L / To Stop /
 // Next Target). These are all no-multiply: the derived values they receive are
 // already in their final unit (P&L in dollars, distances in percent, R in Rs),
-// so they compose the no-multiply primitives from utils/format. Do NOT swap in
+// so they compose the no-multiply primitives from shared/formatting/format. Do NOT swap in
 // fmtMoneyUsd (currency-aware) or any percent formatter that multiplies by 100
 // — the audit flagged a multiply/no-multiply collision, and the drawer's
 // inputs are the no-multiply family.

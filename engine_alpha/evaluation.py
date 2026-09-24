@@ -858,7 +858,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         # the ruled FOUR-value closed set — touching_both joined 2026-08-30 —
         # at the ±0.5-ATR tolerance) + the raw signed distances it was banded
         # from (re-rulable offline, never by rescan). Labels operator-signed
-        # 2026-08-30: the position token rides the wire (output/dashboard.py)
+        # 2026-08-30: the position token rides the wire (core/pipeline/screening/dashboard.py)
         # and fires the position chips; the raw distances stay archive-only.
         '_inner_position': inner.get('position') if inner is not None else None,
         '_inner_position_r_atr': (

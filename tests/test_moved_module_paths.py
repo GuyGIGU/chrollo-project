@@ -2,7 +2,8 @@
 
 The refactor moved the engine's structure modules into subpackages, the
 pipeline into screening/market_data/universe/context/telemetry, and the backend
-routers and services into domains/ and app/. An import of an old name fails only
+routers and services into domains/ and app/; the dashboard writer left output/
+for core/pipeline/screening/. An import of an old name fails only
 when its line runs (lazy imports hide from every boot check), and an old name in
 a "keep in sync" comment sends the next reader to a file that is gone. The
 modules that became packages of the same name (structure.lps, .narrative,
@@ -45,6 +46,8 @@ _OLD_BACKEND = [("routers." + tail) for tail in (
     "screener_data", "startup", "trade_risk", "trigger_grade",
     "watchlist_candles", "watchlist_ledger",
 )] + [("ibkr." + tail) for tail in ("broadcaster", "mapping", "service")]
+# The scan's payload writers left the runtime output/ folder for screening/.
+_OLD_ENGINE_AND_PIPELINE += [("output." + tail) for tail in ("dashboard", "terminal")]
 
 _STALE = re.compile("|".join(
     [r"(?<![\w.])" + re.escape(name) + r"(?!\w)" for name in _OLD_ENGINE_AND_PIPELINE]

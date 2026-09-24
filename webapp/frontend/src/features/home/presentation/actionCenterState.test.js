@@ -10,7 +10,6 @@ import {
   emptyStateLine,
   partialReadNote,
 } from './actionCenterState.js';
-import { livePriceStatus } from '../../watchlist/model/livePriceStatus.js';
 
 const ALL_ANSWERED = { risk: 'ready', prices: 'ready', screener: 'ready' };
 const ALL_CLEAR = '✓ Nothing needs action right now — no open risk, triggers, or fresh S-tier setups.';
@@ -64,14 +63,3 @@ test('a count from a partial read is marked as a floor, not a total', () => {
   assert.equal(countLabel(1, whole), '1 needs a look');
 });
 
-test('the price status folds in the watchlist load state', () => {
-  // An unloaded watchlist yields an empty ticker set that looks exactly like a
-  // genuinely empty one — the trap the Action Center used to fall into.
-  assert.equal(livePriceStatus('loading', '', 'loading'), 'loading');
-  assert.equal(livePriceStatus('idle', '', 'loading'), 'loading');
-  assert.equal(livePriceStatus('error', '', 'loading'), 'error');
-  assert.equal(livePriceStatus('ready', '', 'loading'), 'idle');   // confirmed empty
-  assert.equal(livePriceStatus('ready', 'AAPL', 'loading'), 'loading');
-  assert.equal(livePriceStatus('ready', 'AAPL', 'ready'), 'ready');
-  assert.equal(livePriceStatus('ready', 'AAPL', 'error'), 'error');
-});

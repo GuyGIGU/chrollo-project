@@ -1,5 +1,5 @@
 import { API_BASE } from '../../../api/base';
-import { adaptReplaySnapshot } from '../../../features/watchlist/presentation/replayAdapter';
+import { adaptReplaySnapshot } from './replayAdapter';
 import { createGlanceCache } from './glanceCache';
 import { glanceChartKey } from './glanceMath';
 

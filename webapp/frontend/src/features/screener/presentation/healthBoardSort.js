@@ -2,7 +2,7 @@
 // selector the board recomputes each render (never stored in state; the engine is
 // the single source of each member's classification, the frontend only orders and
 // groups). Kept out of the JSX component so it stays Node-testable.
-import { healthStateMeta, HEALTH_STATES } from './healthStateData.js';
+import { healthStateMeta, HEALTH_STATES } from '../../../shared/setup/healthStateData.js';
 
 const num = (value, fallback) => {
   const n = Number(value);

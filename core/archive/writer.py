@@ -34,7 +34,7 @@ _SECTOR_ETF_CACHE_PATH = os.path.join(_PROJECT_ROOT, "output", "sector_etf_cache
 
 def load_sector_etf_cache(path: str = _SECTOR_ETF_CACHE_PATH) -> dict:
     """Read the ticker -> sector-ETF map. Any unreadable/garbage file reads as
-    empty (the cache is regenerable). Shared with output/dashboard.py, which
+    empty (the cache is regenerable). Shared with core/pipeline/screening/dashboard.py, which
     passes its own path constant."""
     try:
         with open(path, "r", encoding="utf-8") as f:

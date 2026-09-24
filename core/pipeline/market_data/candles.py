@@ -1,8 +1,8 @@
 """The shared OHLCV→wire candle builders — the EC-3 fold.
 
 Every surface that serializes chart candles imports THESE builders: the scan
-writer (output/dashboard._extract_chart_data), the health board
-(output/dashboard.build_health_payload), and the watchlist candle endpoint.
+writer (core/pipeline/screening/dashboard._extract_chart_data), the health board
+(core/pipeline/screening/dashboard.build_health_payload), and the watchlist candle endpoint.
 One implementation is the parity guarantee: same field names, date strings,
 two-decimal prices, whole-number volumes, caps, and resample ordering from
 every producer, so the same ticker can never draw differently depending on

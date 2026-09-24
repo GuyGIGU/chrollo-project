@@ -193,7 +193,7 @@ def get_drilldown(etf: str = Query(..., min_length=1, max_length=12)):
         members = [t for t in us_ordered if t in targets]
         basis = "commodity"
     else:
-        from output.dashboard import SECTOR_ETF_NAMES  # lazy: heavier import
+        from core.pipeline.screening.dashboard import SECTOR_ETF_NAMES  # lazy: heavier import
 
         if etf_u in SECTOR_ETF_NAMES:
             members = [

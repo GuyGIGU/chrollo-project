@@ -1,5 +1,5 @@
 """The fold's keeper (EC-3): ONE synthetic daily frame pushed through BOTH
-candle wire paths — the scan-payload extraction (output/dashboard, driven
+candle wire paths — the scan-payload extraction (core/pipeline/screening/dashboard, driven
 exactly as tests/test_dashboard_wire.py drives it) and the watchlist candle
 endpoint — asserting the Daily/Weekly/Monthly candle and volume lists are
 VALUE-equal: same date strings, same prices, same volumes, same caps.
@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
 from core.pipeline.universe import descriptor as universe_mod  # noqa: E402
-from output import dashboard as dashboard_module  # noqa: E402
+from core.pipeline.screening import dashboard as dashboard_module  # noqa: E402
 from domains.market_data import watchlist_candles as wc  # noqa: E402
 
 # 1700 business days ending mid-week (2026-08-12 is a Wednesday): crosses the

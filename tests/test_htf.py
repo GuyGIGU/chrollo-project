@@ -199,7 +199,7 @@ def test_backend_schema_and_startup_migrations_have_htf_columns():
 
 
 def test_dashboard_payload_includes_htf_chart_and_context_fields(monkeypatch):
-    from output import dashboard
+    from core.pipeline.screening import dashboard
 
     monkeypatch.setattr(dashboard, "_sector_etf_for_ticker", lambda ticker, cache: None)
     monkeypatch.setattr(

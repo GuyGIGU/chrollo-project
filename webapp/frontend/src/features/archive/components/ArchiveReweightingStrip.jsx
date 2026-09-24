@@ -10,7 +10,7 @@ export default function ArchiveReweightingStrip({ basis, data }) {
       <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Suggested Re-weighting</div>
       <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginBottom: '12px' }}>
         Basis: {basisLabel(basis)}, renormalized to preserve total cap ({fixed(totalCurrent, 0)} pts).
-        Read-only - edit config/settings.py manually if applying.
+        Read-only - edit config/scoring.py manually if applying.
       </div>
       <table style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', width: '100%' }}>
         <thead>

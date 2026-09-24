@@ -4,7 +4,7 @@ former flag-off leg survives as the UNGRADED-row contract).
 
 The scorer tripwire (tests/test_scoring.py::test_score_setup_emits_no_v2_keys)
 guards score_setup's result dict; this file guards the second leak point — the
-serialized per-ticker dashboard payload (output/dashboard._extract_chart_data). It drives the REAL payload
+serialized per-ticker dashboard payload (core/pipeline/screening/dashboard._extract_chart_data). It drives the REAL payload
 builder on a synthetic frame (the established house pattern from
 tests/test_fetch_repair.py) — never a booted server. The sector-ETF lookup is
 the one monkeypatched boundary (external lookup + a disk cache write).
@@ -26,7 +26,7 @@ sys.path.insert(1, str(ROOT / "webapp" / "backend"))
 from config import settings
 from engine_alpha.scoring import taxonomy
 from engine_alpha.scoring.scoring import TA_GRADE_COLUMN_SQL
-from output import dashboard as dashboard_module
+from core.pipeline.screening import dashboard as dashboard_module
 
 
 def _payload(monkeypatch, *, v2_overlay=None):

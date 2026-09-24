@@ -2,7 +2,7 @@ import React from 'react';
 import { TagRow } from './SetupTags';
 import ScreenerMiniChart from '../charts/ScreenerMiniChart';
 import { explainTip } from '../formatting/tooltipText';
-import { healthStateMeta } from '../../features/screener/presentation/healthStateData';
+import { healthStateMeta } from './healthStateData';
 import { tierColor, signColor } from '../presentation/theme';
 import { fx, fmtSignedPctFrac } from '../formatting/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from './screenerCardData';

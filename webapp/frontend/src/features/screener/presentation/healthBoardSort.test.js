@@ -7,7 +7,7 @@ import {
   groupHealthMembers,
   KNOWN_STATE_COUNT,
 } from './healthBoardSort.js';
-import { HEALTH_STATE_ORDER } from './healthStateData.js';
+import { HEALTH_STATE_ORDER } from '../../../shared/setup/healthStateData.js';
 
 const m = (ticker, state, extra = {}) => ({ ticker, state, ...extra });
 

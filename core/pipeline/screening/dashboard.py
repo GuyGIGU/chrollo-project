@@ -1,8 +1,8 @@
 # ============================================================================
 # ⚠️  DO NOT DELETE — THIS MODULE IS LIVE, NOT RETIRED HTML RESIDUE  ⚠️
 # ----------------------------------------------------------------------------
-# The path (output/) and the name `generate_dashboard` LOOK like the retired
-# static-HTML dashboard, but they are NOT. This module is the LIVE writer of
+# The name `generate_dashboard` (and this module's old home, output/) LOOK like
+# the retired static-HTML dashboard, but they are NOT. This module is the LIVE writer of
 # the React frontend's data artifact and is on the hot path of every scan.
 # A name-trusting dead-code sweep that deletes this file WILL break scan -> UI.
 #
@@ -10,7 +10,7 @@
 #     artifact the React frontend loads. No writer => the UI never updates.
 #   • Called   on EVERY scan by core/pipeline/screening/scan_job.py (~lines 176 & 186).
 #   • Exports  SECTOR_ETF_NAMES — imported by
-#     domains/screener/router.py (~line 89) for the sector drill-down.
+#     webapp/backend/domains/screener/router.py for the sector drill-down.
 #   • Coupled  to DASHBOARD_CHART_TIERS (tiering of the chart payload).
 #   • Emits    the "UI update available on local webapp." stdout sentinel that
 #     the frontend's scan stream waits on to reveal fresh results.
@@ -21,8 +21,8 @@
 """
 Data export module for Wyckoff VCP/LPS Screener.
 
-LIVE artifact writer — DO NOT DELETE (see banner above). Despite living in
-output/ and being named generate_dashboard, this is the current, on-every-scan
+LIVE artifact writer — DO NOT DELETE (see banner above). Despite being named
+generate_dashboard, this is the current, on-every-scan
 writer of the React frontend's JSON data artifact (output/screener_data.json),
 NOT the retired static-HTML dashboard. It also exports SECTOR_ETF_NAMES for the
 sector drill-down and prints the "UI update available on local webapp." reveal
@@ -45,7 +45,7 @@ from engine_alpha.structure.context.htf import HTF_COLUMNS, chart_box
 from engine_alpha.structure.box.trace_export import election_trace_chart_fields
 from engine_alpha.scoring.tags import traversal_density_from_counts
 
-PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output")
 SECTOR_ETF_CACHE_PATH = os.path.join(OUTPUT_DIR, "sector_etf_cache.json")

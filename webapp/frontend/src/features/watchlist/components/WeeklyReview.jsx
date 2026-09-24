@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import ScreenerModal from '../../../shared/setup/ScreenerModal';
 import useWatchlist from '../hooks/useWatchlist';
 import { fetchReplay, useWatchlistHistory } from '../hooks/useWatchlistHistory';
-import { adaptReplaySnapshot, replayProvenance } from '../presentation/replayAdapter';
+import { adaptReplaySnapshot, replayProvenance } from '../../../shared/charts/glance/replayAdapter';
 import { toast } from '../../../shared/components/feedback';
 import { tierColor } from '../../../shared/presentation/theme';
 import { fx as fixed } from '../../../shared/formatting/format';

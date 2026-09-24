@@ -1,7 +1,7 @@
 import useEdgePulse from '../hooks/useEdgePulse';
 import HomeZone from './HomeZone';
 import { PulseIcon } from '../../../shared/components/NavIcons';
-import { pct, signedPct } from './homeFormat';
+import { pct, signedPct } from '../presentation/homeFormat';
 import { tierColor } from '../../../shared/presentation/theme';
 import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary';
 

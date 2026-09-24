@@ -1,7 +1,7 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import ErrorBoundary from '../../shared/components/ErrorBoundary';
-import LoadingPanel from '../../app/routes/LoadingPanel';
+import LoadingPanel from '../../shared/components/LoadingPanel';
 
 const DashboardStats = lazy(() => import('./components/DashboardStats'));
 const TradeTable = lazy(() => import('./components/TradeTable'));
