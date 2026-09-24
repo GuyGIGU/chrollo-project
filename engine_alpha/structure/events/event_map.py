@@ -898,7 +898,7 @@ def episode_substrate_fields(win_df, R, S, atr_val) -> dict:
     names, SQL types, row extraction AND the tape cell's shape have a single
     owning module; the per-episode tape keys (rail / outcome / posture /
     span / knowable, date-anchored) are pinned by the serializer guards in
-    tests/test_event_map.py.
+    tests/engine/test_event_map.py.
 
     BASIS NOTE: this is the ELECTED-geometry read (elected window, zone ATR)
     — a DIFFERENT basis from the story pool's admission read (candidate

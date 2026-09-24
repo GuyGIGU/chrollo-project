@@ -16,7 +16,7 @@ import { CHAPTER_LABELS, CHAPTER_ORDER, WARNING_LABELS } from '../presentation/w
 
 // The chapters whose terms read the Event-Map story — their honesty subtext
 // keys off the narrative family's own three-state read. Pinned against the
-// engine by tests/test_score_taxonomy.py (a story-term re-chaptering reds here
+// engine by tests/scoring/test_score_taxonomy.py (a story-term re-chaptering reds here
 // by name).
 const STORY_CHAPTERS = new Set(['consolidation', 'phase_d']);
 

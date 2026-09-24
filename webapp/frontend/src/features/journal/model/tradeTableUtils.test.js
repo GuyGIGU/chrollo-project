@@ -6,7 +6,7 @@ import { buildTradeAlerts, deriveTradeAlerts, deriveTradeRow } from './tradeTabl
 // (partials / VWAP / realized P&L), the R basis and the target prices from the
 // stored trade alone. The live-price overlay (live price, unrealized P&L,
 // R-multiple, distance-to-stop, stop tone) is owned by the backend single source
-// of truth and verified in `tests/test_trade_risk.py` (Python parity test).
+// of truth and verified in `tests/contracts/test_trade_risk.py` (Python parity test).
 // `buildTradeAlerts` / `deriveTradeAlerts` operate on whatever derived row the
 // `riskFor` accessor supplies, so they are exercised here with injected rows.
 

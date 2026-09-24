@@ -103,7 +103,7 @@ def has_all_closes_on(data: pd.DataFrame, symbols: list[str], day: pd.Timestamp)
 
     Note ``close_coverage_on`` normalises through ``unique_symbols``, which drops
     falsy entries — so ``total == 0`` also means "nothing survived normalisation"
-    (e.g. ``[""]``). ``tests/test_universe_descriptor.py`` pins the literal index
+    (e.g. ``[""]``). ``tests/pipeline/test_universe_descriptor.py`` pins the literal index
     sets so a typo'd ``settings.INDEX_SYMBOLS`` cannot reach here silently.
     """
     coverage = close_coverage_on(data, symbols, day)

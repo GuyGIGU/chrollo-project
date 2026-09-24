@@ -1236,7 +1236,7 @@ _Generated from the frozen engine-identity allow-list
 (`engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS`) — every constant that can move a
 detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
-`tests/test_docs_sync.py` fails the suite when this block drifts._
+`tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
 _engine_config_version: `0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42`_
 

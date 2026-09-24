@@ -646,7 +646,7 @@ LPS_VOL_CONTRACTION_MAX = 0.87   # LPS avg volume must be <= 87% of 50d avg. Mov
                                  # episodes): outcome quality is FLAT up to the old edge
                                  # (0.80-0.85 band n=174, +6.7% mean 20d, 80% win) — no cliff;
                                  # deeper dry-up is not better in this archive. 0.88+ stays
-                                 # rejected (companion pin in tests/test_lps.py); Vol_50 gained
+                                 # rejected (companion pin in tests/engine/test_lps.py); Vol_50 gained
                                  # a non-finite refusal guard in the same change.
 # ============================================================
 # HIGHER-TIMEFRAME (HTF) STRUCTURE CONTEXT

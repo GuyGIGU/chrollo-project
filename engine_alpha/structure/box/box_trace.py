@@ -31,7 +31,7 @@ CASCADE_STAGES = ("width", "window", "respect", "occupancy", "traversal",
 # Identity slots of the Candidate tuple (``box_primitives.Candidate`` owns
 # the ORDER; this leaf cannot import it without a cycle). Named here so the
 # framing-identity read below is loud instead of bare magic indices, and
-# PINNED against ``Candidate._fields`` in tests/test_framing_identity.py —
+# PINNED against ``Candidate._fields`` in tests/engine/test_framing_identity.py —
 # a slot insertion over there goes RED here instead of silently skewing
 # every trace annotation (2026-08-25 sweep; the recorded arity-trap class).
 _CAND_R_ANCHOR_BAR = 7

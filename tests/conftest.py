@@ -26,7 +26,7 @@ import pytest
 # observed in the operator's archive. Point the whole session at a throwaway
 # file instead. This runs at conftest IMPORT time, before pytest collects any
 # test module, so a module-scope `import database` already sees it; children
-# inherit it through os.environ. tests/test_db_isolation.py is the guard.
+# inherit it through os.environ. tests/integration/test_db_isolation.py is the guard.
 _TEST_DB_DIR = tempfile.mkdtemp(prefix="chrollo-test-db-")
 os.environ["CHROLLO_DB_PATH"] = os.path.join(_TEST_DB_DIR, "trading_journal.db")
 
@@ -35,7 +35,7 @@ os.environ["CHROLLO_DB_PATH"] = os.path.join(_TEST_DB_DIR, "trading_journal.db")
 # covers all ten front doors at once — including any new one somebody adds. It
 # refuses rather than redirects: a test that reaches the archive is a defect to
 # surface, not to paper over. Proven against a decoy path in
-# tests/test_db_isolation.py, never against the real one (register row 11).
+# tests/integration/test_db_isolation.py, never against the real one (register row 11).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from live_archive_guard import install as _install_live_archive_guard  # noqa: E402
 from core.archive.db_path import DEFAULT_DB_PATH as _LIVE_DB_PATH  # noqa: E402

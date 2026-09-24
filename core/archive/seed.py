@@ -393,7 +393,7 @@ def seed_archive(
         # identical to the former ~161-line hand literal (same populated columns
         # and values; the mapper's extra pass-through columns are all None-valued
         # nullable columns a real seed result never carries — the persisted row is
-        # unchanged). See tests/test_archive_row_assembly.py for the guard.
+        # unchanged). See tests/archive/test_archive_row_assembly.py for the guard.
         from domains.archive.queries import archive_row_from_result
 
         overrides = dict(

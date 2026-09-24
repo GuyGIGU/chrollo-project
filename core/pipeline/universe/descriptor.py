@@ -11,7 +11,7 @@ never disagree about where a universe's artifact lives.
 
 The US-Stocks descriptor resolves to the EXACT current literals, so routing the
 existing scan through the descriptor is byte-parity-preserving by construction
-(locked by ``tests/test_universe_descriptor.py``).
+(locked by ``tests/pipeline/test_universe_descriptor.py``).
 
 Two discipline points baked in here:
 - **Paths anchor to the project root, never cwd** — a universe key resolves to a

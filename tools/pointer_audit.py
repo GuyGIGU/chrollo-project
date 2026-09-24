@@ -27,7 +27,7 @@ TWO CLASSES, and only one can be a hard gate:
   Failing on those would force an allowlist that rots faster than the pointers.
   Read the report; judge each one.
 
-Deliberately IN pytest (``tests/test_pointer_audit.py``), not only here. The
+Deliberately IN pytest (``tests/tooling/test_pointer_audit.py``), not only here. The
 lesson of the dark doctrine gate (2026-08-20) is that an out-of-pytest guard rots
 invisibly - this one is fast and hermetic, so it has no excuse to live outside.
 

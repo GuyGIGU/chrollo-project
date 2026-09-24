@@ -25,7 +25,7 @@ from core.archive.db_path import DEFAULT_DB_PATH, archive_db_path
 # `pytest` run migrates the operator's live archive and — through
 # _reconcile_orphaned_runs — stamps an in-flight scan 'failed'. tests/conftest.py
 # sets it to a throwaway file for the whole session (guarded by
-# tests/test_db_isolation.py). Nothing in the service sets it, so production
+# tests/integration/test_db_isolation.py). Nothing in the service sets it, so production
 # keeps the anchored path.
 _DB_PATH = archive_db_path()
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{_DB_PATH}"

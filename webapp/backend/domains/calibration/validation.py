@@ -10,7 +10,7 @@ agreement denominator).
 The closed sets here are the AUTHORITATIVE, evolvable layer. The CHECK
 constraints in ``models.py`` repeat them as frozen defence-in-depth DDL (an
 existing SQLite table's CHECK does not change when this module does);
-``tests/test_marks_validity.py`` pins the two layers against drift.
+``tests/contracts/test_marks_validity.py`` pins the two layers against drift.
 """
 from __future__ import annotations
 

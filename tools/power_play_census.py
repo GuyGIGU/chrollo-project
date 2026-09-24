@@ -51,7 +51,7 @@ SIDECAR ONLY: rows go to `--out` JSON (never `setup_archive`), stamped with the
 clock, `engine_config_version`, cache state, screen params, and the power-play
 marks fingerprint — analyzed partitioned.
 
-BATTERY (tests/test_power_play_census.py): determinism, the lookahead tripwire
+BATTERY (tests/tooling/test_power_play_census.py): determinism, the lookahead tripwire
 on the operand the pipeline guarantees (a prepared frame may not extend past its
 as-of; a violation VOIDs the run and says so on EVERY output mode — EC-31),
 sealed-output guard on every out-path (EC-14), hand-reasoned first-legal-look

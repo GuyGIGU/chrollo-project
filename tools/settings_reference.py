@@ -7,7 +7,7 @@ drifted: stale values, dozens of newer constants missing). This tool replaces
 it with a GENERATED block: the frozen engine-identity allow-list
 (``engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS`` - every constant that can move
 a detector decision) rendered with its live settings value, in manifest order,
-stamped with the manifest hash. ``tests/test_docs_sync.py`` asserts the
+stamped with the manifest hash. ``tests/tooling/test_docs_sync.py`` asserts the
 committed block matches this generator, so any settings/manifest change that
 skips the doc fails the suite - the read-before-engine-work house rule,
 enforced.
@@ -49,7 +49,7 @@ def render_block() -> str:
         "(`engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS`) — every constant that can move a\n"
         "detector decision, in manifest order, with its live `config/settings.py` value.\n"
         "Regenerate with `python -m tools.settings_reference --write`;\n"
-        "`tests/test_docs_sync.py` fails the suite when this block drifts._\n"
+        "`tests/tooling/test_docs_sync.py` fails the suite when this block drifts._\n"
         "\n"
         f"_engine_config_version: `{manifest_hash()}`_\n"
         "\n"

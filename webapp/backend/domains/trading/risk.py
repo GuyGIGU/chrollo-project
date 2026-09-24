@@ -4,7 +4,7 @@ This is a faithful, stdlib-only Python port of the JavaScript risk math that
 historically lived in ``webapp/frontend/src/features/journal/model/tradeTableUtils.js``
 (``deriveTradeRow`` + ``summarizeFillLedger``). The JS is the live oracle the
 trader has been reading, so this port is PARITY-FIRST: it reproduces the JS
-outputs field-for-field (see ``tests/test_trade_risk.py``), with two deliberate
+outputs field-for-field (see ``tests/contracts/test_trade_risk.py``), with two deliberate
 changes that were settled before the port:
 
   * The R-multiple (``rValue``) anchors 1R to ``planned_stop`` when recorded,

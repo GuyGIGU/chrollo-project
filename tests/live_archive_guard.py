@@ -11,7 +11,7 @@ defect to be surfaced, not papered over; a silent redirect would let the caller
 keep the bug and pass.
 
 Keyed on ``_forbidden_path``, a module attribute rather than a constant baked
-into the closure, so ``tests/test_db_isolation.py`` can prove the mechanism
+into the closure, so ``tests/integration/test_db_isolation.py`` can prove the mechanism
 against a DECOY path. That matters: a proof that handed sqlite the real archive
 path would open the archive on every run where the guard was broken — which is
 precisely the failure it exists to prevent (council review 2026-09-07, finding B).

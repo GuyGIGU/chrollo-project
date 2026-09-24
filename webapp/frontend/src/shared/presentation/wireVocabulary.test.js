@@ -89,7 +89,7 @@ test('no retired jargon and no engineer CONSTANT_CASE in any operator-facing str
 
 test('the scan verdict set is closed, two-valued, and wears operator words', () => {
   // THE OTHER HALF of the server's coverage gate
-  // (tests/test_scan_diagnosis.py::test_every_failure_kind_maps_to_exactly_one_verdict).
+  // (tests/backend/test_scan_diagnosis.py::test_every_failure_kind_maps_to_exactly_one_verdict).
   // The operator asked for exactly TWO states — "either the Scan failed because
   // of a technical issue ... or there is a real issue that needs to be tended by
   // you" — so a third arriving on the wire, or a slug reaching him unlabelled,
@@ -111,7 +111,7 @@ test('the Power Play status set is closed and mirrors the server exactly', () =>
   // THE TWO-SIDED CONTRACT, rehomed. This pin used to live in
   // powerPlayRegister.test.js, which died with the register's Home mount
   // (operator 2026-09-02, "i never asked for this"). The engine side
-  // (tests/test_power_play_lane.py) names this frontend mirror in prose as its
+  // (tests/engine/test_power_play_lane.py) names this frontend mirror in prose as its
   // other half: a membership-only assertion let a server-side widening ship
   // with every gate green and the operator's first sight of it a raw slug
   // (2026-08-17 review, Dodds/Fowler). The DISPLAY is retired; the vocabulary

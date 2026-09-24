@@ -52,7 +52,7 @@ regression into a pass.
 The FULL replay walks every window session (~150 evals, minutes) - too slow for
 the default suite, so it is the dedicated CI / per-stage acceptance step
 (``python -m tools.marks_corpus --check``), like the hermetic seed-recall gate.
-``tests/test_marks_corpus.py`` keeps the plumbing honest on every pytest run.
+``tests/regression/test_marks_corpus.py`` keeps the plumbing honest on every pytest run.
 
 Usage:
     python -m tools.marks_corpus --build-fixture   # per-stage re-freeze, from the frozen frame store

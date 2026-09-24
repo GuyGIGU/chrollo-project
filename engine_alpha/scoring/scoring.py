@@ -499,7 +499,7 @@ def compose_ta_grade(sub_scores: dict, *, has_spring: bool = False,
 # field list). The per-term score_* columns (score_spring, score_story_*,
 # score_setup_quality) deliberately take the established per-term LITERAL
 # route in the three writers instead: the seed pinning guard
-# (tests/test_archive_column_parity.py) requires every score_* column as an
+# (tests/archive/test_archive_column_parity.py) requires every score_* column as an
 # explicit overrides key, and double-providing a key from both a literal and
 # a splat is a TypeError in dict().
 #

@@ -108,7 +108,7 @@ def _history_window(symbol: str, start, end):
     readers are reachable from the manual-add route, so they take the same
     per-instance surface ``providers.daily_candles`` was migrated to. The twin
     in ``core/pipeline/market_data/providers.py`` mirrors this helper; the pair is pinned by
-    tests/test_provider_capabilities.py. ``auto_adjust=True`` preserves
+    tests/market_data/test_provider_capabilities.py. ``auto_adjust=True`` preserves
     ``download``'s adjusted-close default the SMA readers were calibrated
     against, and the tz-aware index ``history`` returns is stripped so the
     tz-naive ``scan_date`` masks below keep working.

@@ -51,7 +51,7 @@ jobs:
 
       # Headline shadow-output drift guard. Offline + deterministic: replays the
       # committed frozen fixture through the pipeline and fails on any canonical
-      # output drift. (Also covered by tests/test_regression_guards.py, but kept
+      # output drift. (Also covered by tests/regression/test_regression_guards.py, but kept
       # as an explicit CI step so a drift is unmistakable in the logs.)
       - name: Shadow-output regression guard
         run: python -m tools.shadow_diff --check
@@ -61,7 +61,7 @@ jobs:
       # charts) through the pipeline and fails if any starts firing. This is
       # the precision direction the two guards above cannot see - the shadow
       # fixture holds only previously-firing tickers and seed-recall only
-      # fails on lost winners. (Also covered by tests/test_negative_corpus.py,
+      # fails on lost winners. (Also covered by tests/regression/test_negative_corpus.py,
       # but kept as an explicit CI step so a precision regression is
       # unmistakable in the logs.)
       - name: Negative-corpus precision guard
@@ -78,7 +78,7 @@ jobs:
       #
       # This is the SOLE full replay: it runs the eval chain ~700x (a few minutes),
       # too slow for the default pytest suite, so it is NOT a pytest test. Instead
-      # tests/test_seed_recall_hermetic.py guards the plumbing cheaply (fixture +
+      # tests/regression/test_seed_recall_hermetic.py guards the plumbing cheaply (fixture +
       # baseline committed, frozen baseline mirrors the live recall, guard bites),
       # and this step is the hard offline gate that actually re-runs the engine.
       - name: Hermetic seed-recall regression guard
@@ -111,7 +111,7 @@ jobs:
       # Widening the window means recapturing the baseline, i.e. an EC-29 seam
       # commit, not an edit that can ride along with a passing change.
       # AGENTS.md has named it a standing gate all along while CI ran it never
-      # (council review 2026-09-07). Also covered by tests/test_reader_pin.py -
+      # (council review 2026-09-07). Also covered by tests/regression/test_reader_pin.py -
       # kept as an explicit step, like the two guards above, so a reading drift
       # is unmistakable in the logs.
       - name: Reader-vocabulary pin
@@ -168,7 +168,7 @@ jobs:
   # Prod is the Windows / Python 3.14 NSSM service; an ubuntu-only gate proved
   # blind to Windows-only classes (the cp1252 stdio-encoding crash under the
   # service). This job repeats the compile + pytest gate on the prod platform
-  # and version, including the service-cwd boot smoke in tests/test_service_boot.py.
+  # and version, including the service-cwd boot smoke in tests/backend/test_service_boot.py.
   verify-windows:
     # Runs on a SELF-HOSTED runner on the operator's own Windows box (the prod
     # platform) — free unlimited minutes + true prod-parity vs the paid, 2x-billed

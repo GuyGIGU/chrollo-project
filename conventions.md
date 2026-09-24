@@ -43,7 +43,7 @@ Yahoo's scraper / OHLC adjustment — it is a supply-chain + byte-parity control
 ports the same ledger. The JS copy backs a WRITE path (the fill-save payload in `useTradeFills` +
 inline `position_size` in `useTradeCellEditing`) that a read-only GET cannot serve. Do NOT flag this
 as a dual implementation / EC-3 violation — it is a deliberate cross-language twin reconciled by the
-parity test (`tests/test_trade_risk.py`).
+parity test (`tests/contracts/test_trade_risk.py`).
 **Origin:** Fowler / McKinney — Council Review 2026-06-30-1338
 **Rationale:** Only the price-DEPENDENT live overlay was centralized; the ledger twin is forced by the write path.
 
@@ -135,7 +135,7 @@ voided and re-measured, so editing a mark can never launder a regression into a 
 
 ### EC-8: Every new engine flag ships with the full flag protocol in one change
 **Convention:** A new engine behavior flag must land in the SAME change as: registration in the frozen
-settings manifest (`engine_alpha/freeze/manifest.py`) AND the dark-flag ledger (`docs/flag_ledger.md`, enforced by `tests/test_invariants.py`); a unit-level
+settings manifest (`engine_alpha/freeze/manifest.py`) AND the dark-flag ledger (`docs/flag_ledger.md`, enforced by `tests/engine/test_invariants.py`); a unit-level
 inert test in its home module; one flag-off frozen-fixture pipeline replay asserting equality with the
 shadow baseline; and an agreed scan-metrics evaluation-phase cost bound measured before the operator
 flips it live. Flag-off must be byte-identical and compute-free.
@@ -545,7 +545,7 @@ operator-confirmed 2026-08-09
 **Pattern:** The `session_lag` health state deliberately splits `can_evaluate=True` from
 `can_archive=False`: a panel one session behind is readable but must NEVER be archived, and the
 archive path's ONLY gate is `can_archive`, enforced at the archive layer and pinned by
-`tests/test_archive_reliability.py`. Do NOT "simplify" the pair into one boolean, and do NOT add
+`tests/backend/test_archive_reliability.py`. Do NOT "simplify" the pair into one boolean, and do NOT add
 a second, parallel archive gate (a belt-and-suspenders twin lets the load-bearing one rot
 unobserved). New consumers of panel readability key on `can_evaluate`; anything that PERSISTS
 keys on `can_archive`.
@@ -801,7 +801,7 @@ request and refuses anything a browser attests came from another page (`Sec-Fetc
 which page JS cannot forge). Do NOT add a per-path exemption to that middleware, and do NOT reach for
 the header dependency as the *only* protection on a new route — `EventSource` cannot send a header,
 so an SSE route can never carry it. A new mutating or streaming route is guarded the moment it is
-registered; `tests/test_service_boot.py` walks every registered route and proves it.
+registered; `tests/backend/test_service_boot.py` walks every registered route and proves it.
 The guard has exactly **one** carve-out and it is keyed on the method, never on a path: the CORS
 preflight (`OPTIONS`), which is what makes the cross-origin dev flow work at all, and which
 `CORSMiddleware` — mounted outside the guard — answers or rejects before a route sees it.
