@@ -177,6 +177,29 @@ def test_unparseable_started_at_never_raises():
         "not-a-date", None, [], None, datetime.now(UTC)) == "interrupted_unknown"
 
 
+def test_a_shutdown_with_no_detection_stamp_is_never_blamed():
+    """The claim is anchored on the detection moment. With no such moment there
+    is nothing to anchor it to, however close the record sits to the start."""
+    start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
+    kind = diag.classify_interrupted(
+        start.isoformat(), None,
+        [ev(1074, start + timedelta(seconds=20))], None, start + timedelta(hours=1),
+    )
+    assert kind == "interrupted_unrecorded"
+
+
+def test_a_late_detection_is_not_called_a_dashboard_restart():
+    """"The computer stayed on" needs BOTH halves: no reboot since the run began
+    AND the orphan found while the run could still have been alive. Found three
+    hours in, it was already hung by any measure, so the cause stays unrecorded."""
+    start = datetime(2026, 9, 4, 22, 0, tzinfo=UTC)
+    kind = diag.classify_interrupted(
+        start.isoformat(), (start + timedelta(hours=3)).isoformat(),
+        [], start - timedelta(hours=12), start + timedelta(hours=4),
+    )
+    assert kind == "interrupted_unrecorded"
+
+
 def test_window_grants_grace_past_the_detection_stamp_but_caps_a_late_one():
     start = datetime.fromisoformat(INCIDENT_START)
     detected = datetime.fromisoformat(INCIDENT_DETECTED)
@@ -246,6 +269,31 @@ def test_the_scan_hour_in_the_prose_is_the_one_config_actually_holds():
                                 int(settings.SCAN_SCHEDULE_MINUTE_ET))
     hour, minute = diag.scan_slot()
     assert f"{hour:02d}:{minute:02d} New York time" in _shutdown_solution()
+
+
+def test_only_the_sentences_that_speak_the_slot_read_it(monkeypatch):
+    """Every sentence on the /health poll goes through the template filler; only
+    the ones that name the hour may pay for reading the settings file."""
+    reads = []
+    monkeypatch.setattr(diag, "scan_slot", lambda: reads.append(1) or (17, 0))
+
+    diag.describe_run({"status": "failed", "error": "boom"})
+    diag.describe_run({"status": "failed", "failure_kind": "interrupted_unknown"})
+    assert reads == []
+
+    diag.describe_run({"status": "failed", "failure_kind": "interrupted_shutdown"})
+    assert reads == [1]
+
+
+def test_an_unreadable_slot_setting_falls_back_to_the_shipped_hour(monkeypatch):
+    """The remedy rides the /health poll, so an unreadable settings file costs
+    the live hour, never the whole sentence."""
+    def unreadable():
+        raise OSError("settings file locked")
+
+    monkeypatch.setattr(diag, "scan_slot", unreadable)
+    assert diag.scan_slot_in_words() == "17:00 New York time"
+    assert "17:00 New York time" in _shutdown_solution()
 
 
 # The ONE filename the operator himself runs. AGENTS.md makes it his gesture
@@ -363,6 +411,14 @@ def test_ok_and_running_rows_carry_no_reason():
             "verdict": None, "reason": None, "solution": None}
 
 
+def test_describe_run_is_total():
+    """A diagnostics passenger may never break the surface it rides on: no row
+    at all, or a row too malformed to read, degrades to no verdict."""
+    empty = {"verdict": None, "reason": None, "solution": None}
+    assert diag.describe_run(None) == empty
+    assert diag.describe_run({"id": 9, "status": "failed", "kind": ["unhashable"]}) == empty
+
+
 # ------------------------------------------------------------ evidence ----
 
 def test_events_are_parsed_from_xml_in_utc():
@@ -436,6 +492,55 @@ def test_collector_degrades_on_timeout(monkeypatch):
     monkeypatch.setattr(subprocess, "run", timeout)
     now = datetime.now(UTC)
     assert diag.collect_machine_down_events(now, now) is None
+
+
+def test_the_event_log_query_asks_only_for_the_shutdown_record_in_utc(monkeypatch):
+    """One record id, a window written in UTC milliseconds whatever zone the
+    caller's datetimes carry, XML output, a bounded count and a short timeout."""
+    import subprocess
+
+    calls = []
+
+    def record(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", record)
+    start = datetime(2026, 9, 4, 22, 0, 1, 532328, tzinfo=UTC)
+    end = datetime(2026, 9, 5, 0, 30, tzinfo=timezone(timedelta(hours=3)))
+    assert diag.collect_machine_down_events(start, end) == []
+
+    assert calls == [(
+        ["wevtutil", "qe", "System",
+         "/q:*[System[(EventID=1074) and TimeCreated["
+         "@SystemTime>='2026-09-04T22:00:01.532Z' and "
+         "@SystemTime<='2026-09-04T21:30:00.000Z']]]",
+         "/f:xml", "/c:50"],
+        {"capture_output": True, "text": True, "timeout": 3},
+    )]
+
+
+def test_malformed_event_records_are_skipped_not_fatal():
+    ns = "xmlns='http://schemas.microsoft.com/win/2004/08/events/event'"
+    good = ("<System><EventID>1074</EventID>"
+            "<TimeCreated SystemTime='2026-09-04T22:00:25.5079768Z'/></System>")
+    xml = "".join(f"<Event {ns}>{body}</Event>" for body in (
+        "<EventData/>",                                              # no System
+        "<System><TimeCreated SystemTime='2026-09-04T22:00:00Z'/></System>",  # no id
+        "<System><EventID>abc</EventID>"
+        "<TimeCreated SystemTime='2026-09-04T22:00:00Z'/></System>",  # id not a number
+        "<System><EventID>1074</EventID></System>",                  # no timestamp
+        "<System><EventID>1074</EventID>"
+        "<TimeCreated SystemTime='yesterday'/></System>",             # bad timestamp
+        good,
+    ))
+    assert diag.parse_events(xml) == [{"event_id": 1074, "time": INCIDENT_1074}]
+
+
+def test_boot_time_is_an_aware_instant_in_the_past():
+    booted = diag.boot_time()
+    assert booted is not None and booted.tzinfo is not None
+    assert booted <= datetime.now(UTC)
 
 
 # ---------------------------------------------------------- resolution ----
@@ -545,6 +650,96 @@ def test_an_old_pending_row_is_closed_out_without_reading_the_log(runs_engine, m
     assert _kind_of(runs_engine, run_id) == "interrupted_unrecorded"
 
 
+def test_one_event_log_read_covers_every_fresh_rows_window(runs_engine, monkeypatch):
+    """ONE read spans the earliest in-horizon start to the latest window end;
+    a row past the horizon or with no readable start widens nothing. Each row is
+    then judged against its OWN window."""
+    now = datetime.now(UTC)
+    early = now - timedelta(hours=5)
+    late = now - timedelta(hours=3)
+    early_id = _insert(runs_engine, early.isoformat(),
+                       (early + timedelta(seconds=30)).isoformat())
+    late_id = _insert(runs_engine, late.isoformat(), (late + timedelta(hours=1)).isoformat())
+    old_id = _insert(runs_engine, (now - timedelta(days=400)).isoformat(), now.isoformat())
+    garbled_id = _insert(runs_engine, "not-a-date", now.isoformat())
+
+    reads = []
+    monkeypatch.setattr(diag, "collect_machine_down_events",
+                        lambda *window: reads.append(window) or [])
+    monkeypatch.setattr(diag, "boot_time", lambda: now - timedelta(days=1))
+
+    assert diag.resolve_pending(runs_engine) == 3
+    assert reads == [(early, late + timedelta(hours=1, seconds=diag.DETECTION_GRACE_SECONDS))]
+    assert _kind_of(runs_engine, early_id) == "interrupted_service_only"
+    assert _kind_of(runs_engine, late_id) == "interrupted_service_only"
+    assert _kind_of(runs_engine, old_id) == "interrupted_unrecorded"
+    assert _kind_of(runs_engine, garbled_id) == diag.PENDING_KIND
+
+
+def test_resolution_takes_the_newest_pending_rows_first(runs_engine, monkeypatch):
+    now = datetime.now(UTC)
+    start = now - timedelta(hours=3)
+    stamps = (start.isoformat(), (start + timedelta(seconds=30)).isoformat())
+    older_id, newer_id = _insert(runs_engine, *stamps), _insert(runs_engine, *stamps)
+    monkeypatch.setattr(diag, "collect_machine_down_events", lambda *a: [])
+    monkeypatch.setattr(diag, "boot_time", lambda: now - timedelta(days=1))
+
+    # A limit below one still reads one row: the newest.
+    assert [r["id"] for r in diag._pending_rows(runs_engine, 0)] == [newer_id]
+    assert diag.resolve_pending(runs_engine, limit=1) == 1
+    assert _kind_of(runs_engine, newer_id) == "interrupted_service_only"
+    assert _kind_of(runs_engine, older_id) == diag.PENDING_KIND
+
+
+def test_stamping_refuses_a_kind_outside_the_closed_set(runs_engine):
+    start = datetime.now(UTC) - timedelta(hours=3)
+    run_id = _insert(runs_engine, start.isoformat(), start.isoformat())
+
+    with pytest.raises(ValueError):
+        diag._stamp_kind(runs_engine, run_id, "interrupted_power_loss")
+    assert _kind_of(runs_engine, run_id) == diag.PENDING_KIND
+
+
+def test_the_lifespan_resolves_interrupted_runs_off_the_event_loop(monkeypatch):
+    """The resolver reads the Windows event log, which is only up at a real
+    service start, so the lifespan starts it there, on a worker thread, and
+    never waits for it. Every other background service is stubbed: this test
+    starts no scheduler, no writer and no broker session."""
+    import asyncio
+    import threading
+
+    from app import lifecycle
+
+    ran_on = []
+    monkeypatch.setattr(diag, "resolve_pending", lambda: ran_on.append(threading.get_ident()))
+    monkeypatch.setattr(lifecycle.settings, "ibkr_auto_connect", False)
+    for owner, name in ((lifecycle.auto_import, "start_writer"),
+                        (lifecycle.auto_import, "stop_writer"),
+                        (lifecycle.scheduler, "start_scheduler"),
+                        (lifecycle.scheduler, "stop_scheduler")):
+        monkeypatch.setattr(owner, name, lambda: None)
+
+    class NoBroker:
+        def add_execution_listener(self, listener):
+            pass
+
+        def start(self):  # pragma: no cover - auto-connect is off
+            raise AssertionError("the lifespan must not connect a broker here")
+
+        def stop(self):
+            pass
+
+    monkeypatch.setattr(lifecycle, "get_ibkr_service", NoBroker)
+
+    async def serve_once():
+        async with lifecycle.lifespan(None):
+            return threading.get_ident()
+
+    loop_thread = asyncio.run(serve_once())
+    assert len(ran_on) == 1
+    assert ran_on[0] != loop_thread
+
+
 # --------------------------------------------------------- missed slot ----
 
 def test_missed_slot_notice_speaks_up_when_no_run_covers_the_passed_slot():
@@ -563,6 +758,34 @@ def test_missed_slot_notice_is_silent_when_the_slot_was_served():
     now = datetime(2026, 9, 7, 10, 0, tzinfo=ny)
     # Friday 2026-09-04 18:05 ET == 22:05 UTC — after the last passed slot.
     assert diag.missed_slot_notice("2026-09-04T22:05:00+00:00", now, 18, 0) is None
+
+
+def test_the_live_notice_reads_the_latest_scan_and_degrades_quietly(monkeypatch):
+    """The registry's live line: the newest SCAN run against the live slot, and
+    silence rather than an error when either cannot be read."""
+    from services import scan_status
+
+    asked = []
+
+    def latest(kind):
+        asked.append(kind)
+        return None
+
+    monkeypatch.setattr(diag, "scan_slot", lambda: (17, 0))
+    monkeypatch.setattr(scan_status, "latest_run", latest)
+    notice = diag.current_missed_slot_notice()
+    assert notice.startswith("No scan ran for the ") and " 17:00 New York slot" in notice
+    assert asked == ["scan"]
+
+    monkeypatch.setattr(scan_status, "latest_run",
+                        lambda kind: {"started_at": datetime.now(UTC).isoformat()})
+    assert diag.current_missed_slot_notice() is None
+
+    def unreadable(kind):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(scan_status, "latest_run", unreadable)
+    assert diag.current_missed_slot_notice() is None
 
 
 # -------------------------------------------------------- health checks ----
