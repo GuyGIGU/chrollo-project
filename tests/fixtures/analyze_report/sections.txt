@@ -60,6 +60,21 @@ score_box_tightness         30     0.88  beneficial        -  unknown
 -- Subtraction shortlist -----------------------------------------------
   HARMFUL (down-weight / zero): (none)
   INERT   (candidate to trim):  (none)
+#### signal edge on exactly min_n labelled rows
+
+========================================================================
+  6. SIGNAL EDGE & SUBTRACTION CANDIDATES (Stage 1)
+========================================================================
+Each scoring sub-score is meant to REWARD a setup. This ranks them by
+rank-association with realized outcome and flags the ones that don't
+earn their points: HARMFUL (negative) or INERT (near-zero). These are
+subtraction CANDIDATES only — re-weighting is a separate guarded step.
+
+Primary outcome: r_multiple_20d  (n=8, noise floor |r| < 0.45)
+
+!  VERDICTS WITHHELD — the sample can't support harmful/inert calls.
+   Need >= 25 labelled pairs. Have n=8.
+   Re-run once live, mixed-outcome rows (winners AND losers) accrue.
 #### tightness test with one thin feature
 
 ========================================================================

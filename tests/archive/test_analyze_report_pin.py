@@ -320,6 +320,15 @@ def _every_signal_earns_its_points() -> pd.DataFrame:
     })
 
 
+def _exactly_min_n_labelled_rows() -> pd.DataFrame:
+    """8 realized R multiples and nothing else: just enough to pick a primary
+    outcome (min_n is inclusive), far too few for a verdict."""
+    return pd.DataFrame({
+        "r_multiple_20d": [0.5 * i - 1.0 for i in range(8)] + [None, None],
+        "score_box_tightness": [float(i % 4) for i in range(10)],
+    })
+
+
 def _one_thin_tightness_feature() -> pd.DataFrame:
     """box_width has 12 paired rows (tested); atr_ratio has 11 (skipped)."""
     return pd.DataFrame({
@@ -334,6 +343,8 @@ _SECTION_CASES = [
      analyze.section_fingerprint, _seam_without_dates),
     ("signal edge where every sub-score earns its points",
      lambda df: analyze.section_signal_edge(df, True), _every_signal_earns_its_points),
+    ("signal edge on exactly min_n labelled rows",
+     lambda df: analyze.section_signal_edge(df, True), _exactly_min_n_labelled_rows),
     ("tightness test with one thin feature",
      lambda df: analyze.section_tightness(df, True), _one_thin_tightness_feature),
 ]
@@ -426,6 +437,8 @@ def test_a_relative_markdown_path_lands_under_the_project_root(
 
 @pytest.mark.parametrize("argv,name,db", [
     ([], "mixed.txt", "mixed"),
+    # 48 live episodes against a 48-row bar: the bar is met, so no caveat.
+    (["--min-rows", "48"], "mixed.txt", "mixed"),
     (["--no-dedup", "--min-rows", "100"], "mixed_no_dedup.txt", "mixed"),
     (["--source", "seed"], "mixed_seed_only.txt", "mixed"),
     (["--source", "screener"], "winners_screener_only.txt", "winners"),
