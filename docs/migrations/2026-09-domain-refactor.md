@@ -544,7 +544,7 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/marketRegimeFormat.js` | `webapp/frontend/src/features/home/presentation/marketRegimeFormat.js` |
 | `webapp/frontend/src/components/narrativeRead.js` | `webapp/frontend/src/shared/setup/narrativeRead.js` |
 | `webapp/frontend/src/components/narrativeRead.test.js` | `webapp/frontend/src/shared/setup/narrativeRead.test.js` |
-| `webapp/frontend/src/components/portfolioFormat.js` | `webapp/frontend/src/features/portfolio/presentation/portfolioFormat.js` |
+| `webapp/frontend/src/components/portfolioFormat.js` | `webapp/frontend/src/shared/formatting/portfolioFormat.js` |
 | `webapp/frontend/src/components/replayAdapter.js` | `webapp/frontend/src/shared/charts/glance/replayAdapter.js` |
 | `webapp/frontend/src/components/replayAdapter.test.js` | `webapp/frontend/src/shared/charts/glance/replayAdapter.test.js` |
 | `webapp/frontend/src/components/setupStoryRows.js` | `webapp/frontend/src/shared/setup/setupStoryRows.js` |
@@ -579,8 +579,8 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/watchlist/WatchlistPage.jsx` | `webapp/frontend/src/features/watchlist/components/WatchlistPage.jsx` |
 | `webapp/frontend/src/components/wireVocabulary.js` | `webapp/frontend/src/shared/presentation/wireVocabulary.js` |
 | `webapp/frontend/src/components/wireVocabulary.test.js` | `webapp/frontend/src/shared/presentation/wireVocabulary.test.js` |
-| `webapp/frontend/src/hooks/screenerStore.js` | `webapp/frontend/src/features/screener/hooks/screenerStore.js` |
-| `webapp/frontend/src/hooks/screenerStore.test.js` | `webapp/frontend/src/features/screener/hooks/screenerStore.test.js` |
+| `webapp/frontend/src/hooks/screenerStore.js` | `webapp/frontend/src/shared/hooks/screenerStore.js` |
+| `webapp/frontend/src/hooks/screenerStore.test.js` | `webapp/frontend/src/shared/hooks/screenerStore.test.js` |
 | `webapp/frontend/src/hooks/useArchiveAddSetup.js` | `webapp/frontend/src/features/archive/hooks/useArchiveAddSetup.js` |
 | `webapp/frontend/src/hooks/useArchiveChart.js` | `webapp/frontend/src/features/archive/hooks/useArchiveChart.js` |
 | `webapp/frontend/src/hooks/useArchiveData.js` | `webapp/frontend/src/features/archive/hooks/useArchiveData.js` |
@@ -653,8 +653,8 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/utils/inkContrast.test.js` | `webapp/frontend/src/app/appearance/inkContrast.test.js` |
 | `webapp/frontend/src/utils/leaveGuard.js` | `webapp/frontend/src/shared/navigation/leaveGuard.js` |
 | `webapp/frontend/src/utils/leaveGuard.test.js` | `webapp/frontend/src/shared/navigation/leaveGuard.test.js` |
-| `webapp/frontend/src/utils/portfolioPlanUtils.js` | `webapp/frontend/src/features/portfolio/model/portfolioPlanUtils.js` |
-| `webapp/frontend/src/utils/portfolioPlanUtils.test.js` | `webapp/frontend/src/features/portfolio/model/portfolioPlanUtils.test.js` |
+| `webapp/frontend/src/utils/portfolioPlanUtils.js` | `webapp/frontend/src/features/journal/model/portfolioPlanUtils.js` |
+| `webapp/frontend/src/utils/portfolioPlanUtils.test.js` | `webapp/frontend/src/features/journal/model/portfolioPlanUtils.test.js` |
 | `webapp/frontend/src/utils/scanStream.js` | `webapp/frontend/src/features/screener/api/scanStream.js` |
 | `webapp/frontend/src/utils/scanStream.test.js` | `webapp/frontend/src/features/screener/api/scanStream.test.js` |
 | `webapp/frontend/src/utils/scoreFormat.js` | `webapp/frontend/src/shared/formatting/scoreFormat.js` |

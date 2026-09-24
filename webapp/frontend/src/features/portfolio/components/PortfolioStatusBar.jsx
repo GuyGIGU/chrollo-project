@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmtTime } from '../presentation/portfolioFormat';
+import { fmtTime } from '../../../shared/formatting/portfolioFormat';
 import { finiteOrNull, fmtInt } from '../../../shared/formatting/format';
 
 const pillStyle = (background, color, border = color) => ({

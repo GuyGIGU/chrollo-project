@@ -8,7 +8,7 @@ import {
   getScreenerPayload,
   getScreenerStatus,
   subscribeScreenerStore,
-} from './screenerStore';
+} from '../../../shared/hooks/screenerStore';
 
 export { DEFAULT_UNIVERSE };
 

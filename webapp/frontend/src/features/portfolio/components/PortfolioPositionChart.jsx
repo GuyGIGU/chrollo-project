@@ -4,7 +4,7 @@ import Modal from '../../../shared/components/Modal';
 import usePositionChartData from '../../../shared/charts/usePositionChartData';
 import { buildPositiveLevel } from '../../../shared/charts/chartGeometry';
 import { baseChartOptions, CHART_COLORS } from '../../../shared/charts/chartTheme';
-import { fmtMoney, fmtNum, pnlColor } from '../presentation/portfolioFormat';
+import { fmtMoney, fmtNum, pnlColor } from '../../../shared/formatting/portfolioFormat';
 import PortfolioPositionInsights from './PortfolioPositionInsights';
 import { explainTip } from '../../../shared/formatting/tooltipText';
 

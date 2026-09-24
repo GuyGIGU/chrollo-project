@@ -9,7 +9,7 @@ import EdgePulse from './EdgePulse';
 import usePollingInterval from '../../../shared/hooks/usePollingInterval';
 import useScreenerData from '../../screener/hooks/useScreenerData';
 import useLivePrices from '../../watchlist/hooks/useLivePrices';
-import { revalidateScreenerUniverse } from '../../screener/hooks/screenerStore';
+import { revalidateScreenerUniverse } from '../../../shared/hooks/screenerStore';
 
 // The orient surface as one aligned dashboard: a single grid carries every
 // panel so their column edges line up (strip over watch/regime over the

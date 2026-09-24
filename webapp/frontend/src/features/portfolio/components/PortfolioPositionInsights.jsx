@@ -1,5 +1,5 @@
 import React from 'react';
-import { fmtMoney, fmtNum, fmtPct, pnlColor, summaryCurrency, summaryValue } from '../presentation/portfolioFormat';
+import { fmtMoney, fmtNum, fmtPct, pnlColor, summaryCurrency, summaryValue } from '../../../shared/formatting/portfolioFormat';
 import { explainTip } from '../../../shared/formatting/tooltipText';
 import MetricTile from './MetricTile';
 
