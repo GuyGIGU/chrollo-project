@@ -250,7 +250,7 @@ def test_the_scan_hour_in_the_prose_is_the_one_config_actually_holds():
 
 # The ONE filename the operator himself runs. AGENTS.md makes it his gesture
 # ("tell them to run update_dashboard.bat"), and two other surfaces already say
-# it by name (CalibrationTab.jsx, useEngineRead.js) — a different word here
+# it by name (calibrationPaneText.js, useEngineRead.js) — a different word here
 # would only teach him a second name for one shortcut. Everything ELSE that
 # looks like code is a leak.
 OPERATOR_GESTURES = ("update_dashboard.bat",)

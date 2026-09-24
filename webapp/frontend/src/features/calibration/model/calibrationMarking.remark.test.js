@@ -11,7 +11,7 @@ import test from 'node:test';
 import {
   emptyDraft, markingReducer, initialMarkingState, draftComplete, saveNeeds,
   snapTrigger, draftFromMark, markPayloadFromDraft, draftStarted,
-  MARK_EVENT_TYPES,
+  MARK_EVENT_TYPES, lastLpsEndDate, assistedTriggerAction,
 } from './calibrationMarking.js';
 
 const KEYS = Object.keys(emptyDraft());
@@ -219,6 +219,80 @@ test('snapTrigger returns null without an LPS, or with no bar clearing the level
     events: [{ event_type: 'lps', start_date: '2026-04-08', end_date: '2026-04-14' }] };
   const flat = CANDLES.map((b) => (b.time === '2026-04-14' ? { ...b, high: 99 } : b));
   assert.equal(snapTrigger(highLps, flat), null);
+});
+
+test('lastLpsEndDate: the chronologically last LPS end, whatever the list order', () => {
+  assert.equal(lastLpsEndDate(undefined), null);
+  assert.equal(lastLpsEndDate([]), null);
+  const late = { event_type: 'lps', start_date: '2026-04-10', end_date: '2026-04-14' };
+  const early = { event_type: 'lps', start_date: '2026-04-01', end_date: '2026-04-03' };
+  const noise = [
+    { event_type: 'sos', start_date: '2026-04-15', end_date: '2026-04-20' }, // not an LPS
+    { event_type: 'lps', start_date: '2026-04-16', end_date: null },         // unfinished
+  ];
+  assert.equal(lastLpsEndDate([late, early, ...noise]), '2026-04-14');
+  assert.equal(lastLpsEndDate([early, late, ...noise]), '2026-04-14');
+  assert.equal(lastLpsEndDate([...noise, early, late]), '2026-04-14');
+});
+
+test('snapTrigger anchors on the LAST LPS, whichever order the LPS events were drawn in', () => {
+  const early = { event_type: 'lps', start_date: '2026-04-01', end_date: '2026-04-08' };
+  for (const events of [[...lpsDraft().events, early], [early, ...lpsDraft().events]]) {
+    assert.deepEqual(snapTrigger({ ...lpsDraft(), events }, CANDLES), { date: '2026-04-16', price: 10.5 });
+  }
+});
+
+// The assisted-trigger re-derive the page runs when the Trigger tool is armed,
+// the last LPS moves, or the frame changes.
+const triggerState = (tool, draft) => ({ ...initialMarkingState(draft, 'F'), tool });
+const withTrigger = (date, price, source) => ({ ...lpsDraft(),
+  triggerDate: date, triggerPrice: price, triggerSource: source });
+const NO_BREAKOUT = CANDLES.map((b) => (b.time === '2026-04-14' ? { ...b, high: 99 } : b));
+
+test('assistedTriggerAction: arming the tool snaps the buy — the operator asked (auto false)', () => {
+  assert.deepEqual(assistedTriggerAction(triggerState('trigger', lpsDraft()), CANDLES),
+    { type: 'set-trigger', date: '2026-04-16', price: 10.5, source: 'assisted', auto: false });
+  // Arming re-snaps even over a manual buy that sits elsewhere.
+  assert.deepEqual(
+    assistedTriggerAction(triggerState('trigger', withTrigger('2026-04-17', 11, 'manual')), CANDLES),
+    { type: 'set-trigger', date: '2026-04-16', price: 10.5, source: 'assisted', auto: false });
+});
+
+test('assistedTriggerAction: an unarmed re-derive of a stale ASSISTED buy is the app moving (auto true)', () => {
+  assert.deepEqual(
+    assistedTriggerAction(triggerState('idle', withTrigger('2026-04-17', 11, 'assisted')), CANDLES),
+    { type: 'set-trigger', date: '2026-04-16', price: 10.5, source: 'assisted', auto: true });
+  // A price-only drift re-derives too.
+  assert.deepEqual(
+    assistedTriggerAction(triggerState('idle', withTrigger('2026-04-16', 10.4, 'assisted')), CANDLES),
+    { type: 'set-trigger', date: '2026-04-16', price: 10.5, source: 'assisted', auto: true });
+});
+
+test('assistedTriggerAction: nothing moves when the snap already stands, or the buy is manual and unarmed', () => {
+  assert.equal(
+    assistedTriggerAction(triggerState('idle', withTrigger('2026-04-16', 10.5, 'assisted')), CANDLES), null);
+  assert.equal(
+    assistedTriggerAction(triggerState('trigger', withTrigger('2026-04-16', 10.5, 'assisted')), CANDLES), null);
+  assert.equal(
+    assistedTriggerAction(triggerState('idle', withTrigger('2026-04-17', 11, 'manual')), CANDLES), null);
+  assert.equal(assistedTriggerAction(triggerState('idle', lpsDraft()), CANDLES), null);
+  assert.equal(assistedTriggerAction(triggerState('rail-r', lpsDraft()), CANDLES), null);
+});
+
+test('assistedTriggerAction: no breakout — only an ARMED re-derive clears a stale assisted buy', () => {
+  assert.deepEqual(
+    assistedTriggerAction(triggerState('trigger', withTrigger('2026-04-16', 10.5, 'assisted')), NO_BREAKOUT),
+    { type: 'set-trigger', date: null });
+  assert.equal(
+    assistedTriggerAction(triggerState('idle', withTrigger('2026-04-16', 10.5, 'assisted')), NO_BREAKOUT), null);
+  assert.equal(
+    assistedTriggerAction(triggerState('trigger', withTrigger('2026-04-16', 10.5, 'manual')), NO_BREAKOUT), null);
+  assert.equal(assistedTriggerAction(triggerState('trigger', lpsDraft()), NO_BREAKOUT), null);
+});
+
+test('assistedTriggerAction: a negative verdict never gets a trigger', () => {
+  const neg = { ...withTrigger('2026-04-17', 11, 'assisted'), verdict: 'no_structure' };
+  assert.equal(assistedTriggerAction(triggerState('trigger', neg), CANDLES), null);
 });
 
 test('the Trigger tool is inert until an LPS exists, armable once it does', () => {
