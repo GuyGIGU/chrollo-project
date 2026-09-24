@@ -63,7 +63,7 @@ from engine_alpha.structure.metrics.base import (  # noqa: E402
 from engine_alpha.structure.lps.detection import lps_range_threshold, _profile_unit  # noqa: E402
 from engine_alpha.structure.events.market_structure import _pairwise_descent_fraction  # noqa: E402
 from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
-from tools.calibration.replay import (  # noqa: E402
+from core.calibration.replay import (  # noqa: E402
     MARK_ATR_OFFSET,
     enrich_marked_frame,
     session_pos,

@@ -95,7 +95,7 @@ def test_baseline_is_a_complete_ratchet():
     # Digest-graduated setups freeze under their FULL setup key — the lookup
     # takes no bare-ticker fallback for them, so a missing keyed frame is a
     # loud gap here, never a silently borrowed sibling basis.
-    from tools.calibration.replay import fixture_frame
+    from core.calibration.replay import fixture_frame
 
     graduated = [marks_corpus.setup_key(s) for s in setups if s.get("frame_digest")]
     not_keyed = [k for k in graduated if k not in frames]
@@ -153,7 +153,7 @@ def test_fired_policy_is_pinned_to_the_replay_seam():
     constants must equal the live replay seam's, and every graduated setup's
     frozen window span + clamp note must re-derive identically from the
     committed fixture (no evals — pure window arithmetic)."""
-    from tools.calibration import replay
+    from core.calibration import replay
 
     baseline = _load_baseline()
     assert baseline["fired_policy"] == {

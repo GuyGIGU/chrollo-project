@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 from config import settings
 from engine_alpha import stability
 from core.pipeline.screening.screener import _evaluate_ticker
-from tools.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture
+from core.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture
 
 
 def _fire_frame():

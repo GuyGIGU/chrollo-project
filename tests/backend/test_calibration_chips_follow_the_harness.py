@@ -30,7 +30,7 @@ import domains.calibration.agreement as agreement_chip  # noqa: E402
 import domains.calibration.fired as fired_chip  # noqa: E402
 from domains.calibration.router import calibration_engine_read  # noqa: E402
 from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: E402
-from tools.calibration import agreement  # noqa: E402
+from core.calibration import agreement  # noqa: E402
 from tools.calibration import calibration_harness as harness  # noqa: E402
 
 AS_OF = "2026-04-06"

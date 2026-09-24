@@ -100,7 +100,7 @@ from tools.calibration.marks_json import (                               # noqa:
     load_marks_json,
     marks_json_fingerprint,
 )
-from tools.calibration.replay import prepared_frame_with_reason, read_structure_under  # noqa: E402
+from core.calibration.replay import prepared_frame_with_reason, read_structure_under  # noqa: E402
 
 _MARKS_PATH = os.path.join(_ROOT, "docs", "power_play_marks_2026-08.json")
 

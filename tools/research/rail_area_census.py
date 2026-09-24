@@ -97,7 +97,7 @@ from engine_alpha.structure.narrative.bricks import find_spring  # noqa: E402
 from engine_alpha.structure.narrative.reader import read_structure  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
 from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
-from tools.calibration.replay import (  # noqa: E402
+from core.calibration.replay import (  # noqa: E402
     drawn_box_window,
     judged_window,
     prepared_frame,

@@ -48,7 +48,7 @@ _PROJECT_ROOT = configure_path()
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
 from core.pipeline.screening.screener import _evaluate_ticker
-from tools.calibration import replay
+from core.calibration import replay
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
 _FIXTURE_PARQUET = os.path.join(_BASELINE_DIR, "cause_veto_corpus.parquet")

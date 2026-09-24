@@ -21,7 +21,7 @@ from engine_alpha.evaluation import (
     wire_status,
 )
 from engine_alpha.structure.context.power_play import PP_STATES
-from tools.calibration.replay import flag_capture
+from core.calibration.replay import flag_capture
 
 # The census battery's hand-reasoned pole frame (self-contained copy — Beck's
 # readability rule): peak 439 (High 100.5), AR 446 (Low 88.0), shelf from 447,

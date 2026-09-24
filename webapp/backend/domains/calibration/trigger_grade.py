@@ -19,7 +19,7 @@ snapshot may fall in an unwalked gap — locking the snapshot to the buy's eve (
 workbench's default) keeps the walk over the buy neighborhood and the grade sharp.
 
 This is a THIN layer over the existing FIRED replay (``domains.calibration.fired``
--> ``tools.calibration.calibration_harness.fired_one``), NOT a second engine path: ``fire_date``
+-> ``domains.calibration.grading.fired_one``), NOT a second engine path: ``fire_date``
 is the session the engine would have surfaced the pick — computed once inside the
 one replay seam that already enforces no-lookahead per session and matches
 ``--fired`` — and the Trigger adds only a date COMPARISON on top. One replay feeds

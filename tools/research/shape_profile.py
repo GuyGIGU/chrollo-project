@@ -70,7 +70,7 @@ from engine_alpha.structure.metrics.base import (  # noqa: E402
 )
 from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
 from tools.calibration.calibration_stat_card import _num, _round, _safe  # noqa: E402
-from tools.calibration.replay import drawn_box_window  # noqa: E402
+from core.calibration.replay import drawn_box_window  # noqa: E402
 
 
 # --- per-mark shape profile --------------------------------------------------
