@@ -24,11 +24,9 @@ from yfinance import shared as yf_shared
 
 from config import settings
 from core.pipeline.market_data import downloads, market_calendar, rate_limit
+from core.pipeline.market_data import panel_fetch as panel
+from core.pipeline.market_data import yahoo_download as yahoo
 from core.pipeline.market_data.cache import _atomic_write_parquet, _optimize_market_data_for_cache
-
-# Where the code under test lives. Only these handles move when the layer is split.
-yahoo = downloads   # one Yahoo request: retry, backoff, rate limit, the download pool
-panel = downloads   # building and repairing the price panel
 
 MARKET_TZ = market_calendar.MARKET_TZ
 NOW_ET = datetime(2026, 6, 18, 12, 0, tzinfo=MARKET_TZ)
@@ -108,11 +106,13 @@ def _panel(histories, until=EXPECTED):
 class _FakeYahoo:
     """Serves ``histories`` through yfinance's two entry points and records every
     request. A ticker listed in ``failures`` raises its queued errors first; a
-    ticker mapped to ``None`` gets ``None`` back, as yfinance sometimes returns."""
+    ticker mapped to ``None`` gets ``None`` back, as yfinance sometimes returns;
+    a ticker in ``no_full_history`` answers date windows but not a period fetch."""
 
     def __init__(self):
         self.histories: dict[str, pd.DataFrame | None] = {}
         self.failures: dict[str, list[Exception]] = {}
+        self.no_full_history: set[str] = set()
         self.requests: list[tuple] = []
         self.cooldowns: list[float] = []
         self.sleeps: list[float] = []
@@ -132,6 +132,8 @@ class _FakeYahoo:
             dates = frame.index.tz_localize(None)
             keep = (dates >= pd.Timestamp(params["start"])) & (dates < pd.Timestamp(params["end"]))
             return frame.loc[keep].copy()
+        if ticker in self.no_full_history:
+            return pd.DataFrame()
         return frame.copy()
 
     def ticker(self, symbol):
@@ -816,3 +818,45 @@ def test_incremental_fetch_goes_cold_on_broad_split_drift(fake, capsys):
     assert all(request[2][2:] == (("end", "2026-06-18"), ("start", "2026-06-09"), ("timeout", 30))
                for request in fake.requests)
     assert len(fake.requests) == 4                     # the window only; no recovery
+
+
+# Each case trips exactly one leg of one gate (EC-27): the fetched window's gate or
+# the merged panel's, on a missing index close or on thin coverage alone.
+@pytest.mark.parametrize("lost,drifted,min_coverage,expected_line", [
+    ({"SPY"}, None, 0.5,
+     "  Incremental latest-session coverage is 4/5 (80.0%) for 2026-06-17 "
+     "(required >= 50%); falling back to full refetch."),
+    ({"AAA", "BBB"}, None, 0.5,
+     None),                                            # 60% clears 50%: no refusal
+    ({"AAA", "BBB"}, None, 0.95,
+     "  Incremental latest-session coverage is 3/5 (60.0%) for 2026-06-17 "
+     "(required >= 95%); falling back to full refetch."),
+    (set(), "SPY", 0.5,
+     "  Merged cache latest-session coverage is 4/5 (80.0%) for 2026-06-17 "
+     "(required >= 50%); falling back to full refetch."),
+    (set(), "SPL", 0.95,
+     "  Merged cache latest-session coverage is 4/5 (80.0%) for 2026-06-17 "
+     "(required >= 95%); falling back to full refetch."),
+], ids=["window-index-leg", "window-clears", "window-coverage-leg",
+        "merged-index-leg", "merged-coverage-leg"])
+def test_incremental_gates_refuse_on_either_leg(fake, capsys, lost, drifted, min_coverage,
+                                                expected_line):
+    tickers = ["AAA", "BBB", "SPL", "SPY", "QQQ"]
+    for i, ticker in enumerate(tickers):
+        history = _history(10.0 + 10 * i)
+        fake.histories[ticker] = _lost_session(history) if ticker in lost else history
+    cached = dict(fake.histories)
+    if drifted:
+        # A split the full refetch cannot repair: the cache holds 2x, Yahoo has no full history.
+        cached[drifted] = _history(10.0 + 10 * tickers.index(drifted), scale=2.0)
+        fake.no_full_history = {drifted}
+    settings.MARKET_DATA_MIN_LATEST_COVERAGE = min_coverage
+    settings.SPLIT_PROBE_UNIVERSE_DRIFT_PCT = 0.5
+
+    out = panel._incremental_fetch(_panel(cached, until=pd.Timestamp("2026-06-16")), tickers, 1)
+
+    if expected_line is None:
+        assert out is not None
+    else:
+        assert out is None
+        assert _log(capsys)[-1] == expected_line

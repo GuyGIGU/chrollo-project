@@ -16,6 +16,7 @@ import pandas as pd
 
 from config import settings
 from core.pipeline.market_data import downloads as dl
+from core.pipeline.market_data import yahoo_download
 
 
 def test_price_regime_flag_source_and_tags(monkeypatch):
@@ -53,10 +54,10 @@ def test_download_once_uses_flag_and_drops_adj_close(monkeypatch):
         captured.update(params)
         return frame.copy()
 
-    monkeypatch.setattr(dl.yf, "download", fake_download)
+    monkeypatch.setattr(yahoo_download.yf, "download", fake_download)
     monkeypatch.setattr(settings, "DATA_DIVIDEND_ADJUSTED", False, raising=False)
 
-    out = dl._download_once(["AAA", "BBB"], {"period": "5y"})
+    out = yahoo_download._download_once(["AAA", "BBB"], {"period": "5y"})
     assert captured["auto_adjust"] is False
     assert "Adj Close" not in out.columns.get_level_values(1)
     assert set(out.columns.get_level_values(1)) == {"Open", "High", "Low", "Close", "Volume"}
@@ -83,10 +84,10 @@ def test_single_ticker_history_drops_adj_close(monkeypatch):
             captured.update(params)
             return frame.copy()
 
-    monkeypatch.setattr(dl.yf, "Ticker", _FakeTicker)
+    monkeypatch.setattr(yahoo_download.yf, "Ticker", _FakeTicker)
     monkeypatch.setattr(settings, "DATA_DIVIDEND_ADJUSTED", False, raising=False)
 
-    out = dl._single_ticker_history("AAA", {"period": "5y"})
+    out = yahoo_download._single_ticker_history("AAA", {"period": "5y"})
     assert captured["auto_adjust"] is False
     fields = set(out.columns.get_level_values(1))
     assert "Adj Close" not in fields

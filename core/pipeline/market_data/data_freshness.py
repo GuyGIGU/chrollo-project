@@ -97,7 +97,7 @@ def has_all_closes_on(data: pd.DataFrame, symbols: list[str], day: pd.Timestamp)
     ``total > 0`` there and every one of them must still carry a Close.
 
     Judged here and not at the call sites (EC-3, "fold twin code paths"): the
-    same empty set reaches three gates in ``downloads`` plus
+    same empty set reaches three gates in ``downloads`` and ``panel_fetch`` plus
     ``last_complete_reference_date`` below, and a per-site carve-out already
     escaped one sweep (``market_data_health`` was fixed, the downloader was not).
 

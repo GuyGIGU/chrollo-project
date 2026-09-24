@@ -2,7 +2,8 @@
 
 The implementation is split by responsibility:
 - ``universe.tickers`` loads and refreshes the ticker universe.
-- ``market_data.downloads`` owns downloads and parquet cache orchestration.
+- ``market_data.downloads`` owns the parquet cache orchestration (``fetch_data``);
+  ``market_data.panel_fetch`` and ``market_data.yahoo_download`` fetch what it stores.
 - ``context.market_context`` computes SPY/breadth context for scoring.
 
 This module remains as the stable import doorway used by the rest of the app.

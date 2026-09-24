@@ -9,6 +9,8 @@ from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 import core.pipeline.market_data.downloads as downloads_module
+import core.pipeline.market_data.panel_fetch as panel_fetch_module
+import core.pipeline.market_data.yahoo_download as yahoo_download_module
 
 from core.pipeline.market_data.fetch_health import (
     count_quarantined,
@@ -224,20 +226,20 @@ def test_fetch_data_accrues_empty_streak_on_healthy_cold_run(tmp_path, monkeypat
 
 def test_recover_missing_data_does_not_retry_current_short_history(monkeypatch):
     latest = pd.Timestamp("2026-06-25")
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: latest)
-    monkeypatch.setattr(downloads_module.settings, "ADMISSION_MIN_HISTORY_BARS", 200)
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: latest)
+    monkeypatch.setattr(panel_fetch_module.settings, "ADMISSION_MIN_HISTORY_BARS", 200)
 
     panel = pd.concat({
         "YOUNG": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[latest])
     }, axis=1)
     called = []
     monkeypatch.setattr(
-        downloads_module,
+        panel_fetch_module,
         "_download_batch_with_retry",
         lambda batch, period, max_retries=3: called.append(batch) or pd.DataFrame(),
     )
 
-    out = downloads_module._recover_missing_data(panel, ["YOUNG"])
+    out = panel_fetch_module._recover_missing_data(panel, ["YOUNG"])
 
     assert out is panel
     assert called == []
@@ -245,8 +247,8 @@ def test_recover_missing_data_does_not_retry_current_short_history(monkeypatch):
 
 def test_recover_missing_data_can_force_retry_current_short_history(monkeypatch):
     latest = pd.Timestamp("2026-06-25")
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: latest)
-    monkeypatch.setattr(downloads_module.settings, "ADMISSION_MIN_HISTORY_BARS", 200)
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: latest)
+    monkeypatch.setattr(panel_fetch_module.settings, "ADMISSION_MIN_HISTORY_BARS", 200)
 
     panel = pd.concat({
         "YOUNG": pd.DataFrame({"Close": [10.0], "Volume": [1000]}, index=[latest])
@@ -264,13 +266,13 @@ def test_recover_missing_data_can_force_retry_current_short_history(monkeypatch)
         called.append((batch, period, max_retries))
         return recovered_panel
 
-    monkeypatch.setattr(downloads_module, "_download_batch_with_retry", fake_download)
+    monkeypatch.setattr(panel_fetch_module, "_download_batch_with_retry", fake_download)
 
-    out = downloads_module._recover_missing_data(
+    out = panel_fetch_module._recover_missing_data(
         panel, ["YOUNG"], skip_current_short=False, dropout_guard=False
     )
 
-    assert called == [(["YOUNG"], downloads_module.settings.DOWNLOAD_PERIOD, 2)]
+    assert called == [(["YOUNG"], panel_fetch_module.settings.DOWNLOAD_PERIOD, 2)]
     assert out[("YOUNG", "Close")].dropna().tolist() == [8.0, 9.0, 10.0]
 
 
@@ -291,21 +293,21 @@ def test_incremental_fetch_forces_full_recovery_for_new_listings(monkeypatch):
         axis=1,
     )
 
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
-    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(panel_fetch_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(panel_fetch_module, "_repair_latest_session",
                         lambda data, *_args, **_kwargs: data)
-    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, []))
+    monkeypatch.setattr(panel_fetch_module, "_detect_splits", lambda *_args, **_kwargs: (False, []))
     calls = []
 
     def fake_recover(data, tickers, *, skip_current_short=True, dropout_guard=True):
         calls.append((tickers, skip_current_short, dropout_guard))
         return data
 
-    monkeypatch.setattr(downloads_module, "_recover_missing_data", fake_recover)
+    monkeypatch.setattr(panel_fetch_module, "_recover_missing_data", fake_recover)
 
-    out = downloads_module._incremental_fetch(
+    out = panel_fetch_module._incremental_fetch(
         cached_panel, ["AAA", "YOUNG", "SPY", "QQQ"], 1
     )
 
@@ -330,22 +332,22 @@ def test_incremental_fetch_forces_full_recovery_for_split_drift(monkeypatch):
         axis=1,
     )
 
-    monkeypatch.setattr(downloads_module, "latest_completed_session", lambda: dates[-1])
-    monkeypatch.setattr(downloads_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(downloads_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.7)
-    monkeypatch.setattr(downloads_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
-    monkeypatch.setattr(downloads_module, "_repair_latest_session",
+    monkeypatch.setattr(panel_fetch_module, "latest_completed_session", lambda: dates[-1])
+    monkeypatch.setattr(panel_fetch_module.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch_module.settings, "MARKET_DATA_MIN_LATEST_COVERAGE", 0.7)
+    monkeypatch.setattr(panel_fetch_module, "_batched_download", lambda *_args, **_kwargs: fresh_panel)
+    monkeypatch.setattr(panel_fetch_module, "_repair_latest_session",
                         lambda data, *_args, **_kwargs: data)
-    monkeypatch.setattr(downloads_module, "_detect_splits", lambda *_args, **_kwargs: (False, ["SPLT"]))
+    monkeypatch.setattr(panel_fetch_module, "_detect_splits", lambda *_args, **_kwargs: (False, ["SPLT"]))
     calls = []
 
     def fake_recover(data, tickers, *, skip_current_short=True, dropout_guard=True):
         calls.append((tickers, skip_current_short, dropout_guard))
         return data
 
-    monkeypatch.setattr(downloads_module, "_recover_missing_data", fake_recover)
+    monkeypatch.setattr(panel_fetch_module, "_recover_missing_data", fake_recover)
 
-    out = downloads_module._incremental_fetch(
+    out = panel_fetch_module._incremental_fetch(
         cached_panel, ["AAA", "SPLT", "SPY", "QQQ"], 1
     )
 
@@ -369,13 +371,13 @@ def test_rate_limit_error_triggers_shared_backoff(monkeypatch):
             return recovered
 
     noted = []
-    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
-    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
-    monkeypatch.setattr(downloads_module.rate_limit, "note_rate_limit", lambda seconds: noted.append(seconds))
-    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
-    monkeypatch.setattr(downloads_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
+    monkeypatch.setattr(yahoo_download_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_download_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(yahoo_download_module.rate_limit, "note_rate_limit", lambda seconds: noted.append(seconds))
+    monkeypatch.setattr(yahoo_download_module.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(yahoo_download_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
 
-    out = downloads_module._download_batch_with_retry(
+    out = yahoo_download_module._download_batch_with_retry(
         ["AAA"], {"period": "1mo"}, max_retries=2
     )
 
@@ -391,13 +393,13 @@ def test_backoff_jitter_stays_within_bounds(monkeypatch):
     # attempt=2 => base wait 2**2 = 4.0 (no rate-limit boost without exc/text). Exact `==` is valid
     # ONLY because 4.0, 0.5 and 2.0 are exactly representable in binary float; if this is ever
     # re-parametrized with realistic constants (e.g. wait 30, jitter 0.3), switch to pytest.approx.
-    monkeypatch.setattr(downloads_module.settings, "YAHOO_BACKOFF_JITTER", 0.5)
-    monkeypatch.setattr(downloads_module.random, "uniform", lambda a, b: b)   # max draw
-    assert downloads_module._retry_wait_seconds(2) == 4.0
-    monkeypatch.setattr(downloads_module.random, "uniform", lambda a, b: a)   # min draw
-    assert downloads_module._retry_wait_seconds(2) == 2.0
-    monkeypatch.setattr(downloads_module.settings, "YAHOO_BACKOFF_JITTER", 0.0)
-    assert downloads_module._retry_wait_seconds(2) == 4.0                     # off = exact
+    monkeypatch.setattr(yahoo_download_module.settings, "YAHOO_BACKOFF_JITTER", 0.5)
+    monkeypatch.setattr(yahoo_download_module.random, "uniform", lambda a, b: b)   # max draw
+    assert yahoo_download_module._retry_wait_seconds(2) == 4.0
+    monkeypatch.setattr(yahoo_download_module.random, "uniform", lambda a, b: a)   # min draw
+    assert yahoo_download_module._retry_wait_seconds(2) == 2.0
+    monkeypatch.setattr(yahoo_download_module.settings, "YAHOO_BACKOFF_JITTER", 0.0)
+    assert yahoo_download_module._retry_wait_seconds(2) == 4.0                     # off = exact
 
 
 def test_backoff_jitter_preserves_shared_cooldown_value(monkeypatch):
@@ -405,11 +407,11 @@ def test_backoff_jitter_preserves_shared_cooldown_value(monkeypatch):
     global 429 backoff window is the full duration even though each worker's own
     retry sleep is jittered shorter."""
     noted = []
-    monkeypatch.setattr(downloads_module.rate_limit, "note_rate_limit", lambda s: noted.append(s))
-    monkeypatch.setattr(downloads_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
-    monkeypatch.setattr(downloads_module.settings, "YAHOO_BACKOFF_JITTER", 0.5)
-    monkeypatch.setattr(downloads_module.random, "uniform", lambda a, b: a)   # min jitter
-    wait = downloads_module._retry_wait_seconds(1, error_text="Too Many Requests. Rate limited.")
+    monkeypatch.setattr(yahoo_download_module.rate_limit, "note_rate_limit", lambda s: noted.append(s))
+    monkeypatch.setattr(yahoo_download_module.settings, "YAHOO_RATE_LIMIT_BACKOFF_SECONDS", 45.0)
+    monkeypatch.setattr(yahoo_download_module.settings, "YAHOO_BACKOFF_JITTER", 0.5)
+    monkeypatch.setattr(yahoo_download_module.random, "uniform", lambda a, b: a)   # min jitter
+    wait = yahoo_download_module._retry_wait_seconds(1, error_text="Too Many Requests. Rate limited.")
     assert noted == [45.0]        # cooldown = full 45s
     assert wait < 45.0            # this worker's own retry sleep is jittered shorter
 
@@ -434,7 +436,7 @@ def test_cooldown_exit_stagger_only_fires_after_an_actual_wait(monkeypatch):
     and pays no extra sleep — the invariant a future refactor of the `waited` gate
     must not break. (rate_limit reads settings lazily per AP-3, so patch config.settings.)"""
     from config import settings as cfg
-    rl = downloads_module.rate_limit
+    rl = yahoo_download_module.rate_limit
     clock = _FakeClock()
     draws = []
     monkeypatch.setattr(rl.time, "monotonic", clock.monotonic)
@@ -457,7 +459,7 @@ def test_cooldown_exit_rechecks_a_window_rearmed_during_the_stagger(monkeypatch)
     its resume-stagger, _respect_cooldown honours the new window too rather than
     slipping onto Yahoo mid-cooldown — and it staggers at most once (no livelock)."""
     from config import settings as cfg
-    rl = downloads_module.rate_limit
+    rl = yahoo_download_module.rate_limit
     clock = _FakeClock()
     monkeypatch.setattr(rl.time, "monotonic", clock.monotonic)
     monkeypatch.setattr(rl.time, "sleep", clock.sleep)
@@ -493,11 +495,11 @@ def test_no_history_error_does_not_retry(monkeypatch):
             calls.append((self.ticker, kwargs))
             raise RuntimeError("YFPricesMissingError: possibly delisted; no price data found")
 
-    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
-    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
-    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(yahoo_download_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_download_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(yahoo_download_module.time, "sleep", lambda seconds: None)
 
-    out = downloads_module._download_batch_with_retry(
+    out = yahoo_download_module._download_batch_with_retry(
         ["DEAD"], {"period": "1mo"}, max_retries=3
     )
 
@@ -520,11 +522,11 @@ def test_transient_price_error_can_retry(monkeypatch):
                 raise RuntimeError("YFPricesMissingError: (Yahoo status_code = 502)")
             return recovered
 
-    monkeypatch.setattr(downloads_module.yf, "Ticker", FakeTicker)
-    monkeypatch.setattr(downloads_module.rate_limit, "throttle", lambda n=1: None)
-    monkeypatch.setattr(downloads_module.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(yahoo_download_module.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_download_module.rate_limit, "throttle", lambda n=1: None)
+    monkeypatch.setattr(yahoo_download_module.time, "sleep", lambda seconds: None)
 
-    out = downloads_module._download_batch_with_retry(
+    out = yahoo_download_module._download_batch_with_retry(
         ["AAA"], {"period": "1mo"}, max_retries=2
     )
 

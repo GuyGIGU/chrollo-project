@@ -82,6 +82,16 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 
 ### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_data/downloads.py](../core/pipeline/market_data/downloads.py))
 
+`downloads.py` is the cache state machine and its meta, quarantine and admission writes.
+The panels it stores are built and repaired in
+[`panel_fetch.py`](../core/pipeline/market_data/panel_fetch.py) (`_full_refetch`,
+`_incremental_fetch`, `_recover_missing_data`, `_repair_latest_session`, the split probe),
+every Yahoo request goes through
+[`yahoo_download.py`](../core/pipeline/market_data/yahoo_download.py) (retry, backoff, the
+shared rate limit, the download pool), and
+[`price_regime.py`](../core/pipeline/market_data/price_regime.py) holds the as-traded vs
+dividend-adjusted flag. `downloads` still re-exports the names other modules import from it.
+
 - Reads from `market_data_cache_5y.parquet` and applies an **incremental refresh** policy via `cache_meta.json`:
   - `TTL_FRESH_HOURS_MARKET = 1` (RTH) / `TTL_FRESH_HOURS_OFFHOURS = 12` — under TTL the cache is reused as-is.
   - `FULL_REFRESH_INTERVAL_DAYS = 7` — at least once a week, force a cold 5y refetch regardless of TTL.

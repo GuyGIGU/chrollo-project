@@ -24,6 +24,7 @@ from config import settings
 from core.pipeline.market_data import cache as cache_module
 from core.pipeline.market_data import downloads as dl
 from core.pipeline.market_data import fetch_health
+from core.pipeline.market_data import panel_fetch
 from core.pipeline.universe import ticker_admission
 
 
@@ -160,14 +161,14 @@ def test_incremental_fetch_serves_an_index_less_universe(tmp_path, monkeypatch):
     cached = _panel({t: [10.0] for t in ["GLD", "USO"]}, [d0])
     fresh = _panel({t: [11.0] for t in ["GLD", "USO"]}, [expected])
 
-    monkeypatch.setattr(dl, "latest_completed_session", lambda: expected)
-    monkeypatch.setattr(dl.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(dl, "_batched_download", lambda *a, **k: fresh)
-    monkeypatch.setattr(dl, "_repair_latest_session", lambda data, *a, **k: data)
-    monkeypatch.setattr(dl, "_detect_splits", lambda *a, **k: (False, []))
-    monkeypatch.setattr(dl, "_recover_missing_data", lambda data, *a, **k: data)
+    monkeypatch.setattr(panel_fetch, "latest_completed_session", lambda: expected)
+    monkeypatch.setattr(panel_fetch.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch, "_batched_download", lambda *a, **k: fresh)
+    monkeypatch.setattr(panel_fetch, "_repair_latest_session", lambda data, *a, **k: data)
+    monkeypatch.setattr(panel_fetch, "_detect_splits", lambda *a, **k: (False, []))
+    monkeypatch.setattr(panel_fetch, "_recover_missing_data", lambda data, *a, **k: data)
 
-    out = dl._incremental_fetch(cached, ["GLD", "USO"], 1, [])   # <-- no index symbols
+    out = panel_fetch._incremental_fetch(cached, ["GLD", "USO"], 1, [])   # <-- no index symbols
 
     assert out is not None                                  # neither leg bounced it
     assert expected in out.index
@@ -183,19 +184,19 @@ def test_incremental_recovery_never_merges_forming_bars(tmp_path, monkeypatch):
     cached = _panel({t: [10.0] for t in ["AAA", "SPY", "QQQ"]}, [d0])
     fresh = _panel({t: [11.0] for t in ["AAA", "NEW", "SPY", "QQQ"]}, [expected])
 
-    monkeypatch.setattr(dl, "latest_completed_session", lambda: expected)
-    monkeypatch.setattr(dl.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
-    monkeypatch.setattr(dl, "_batched_download", lambda *a, **k: fresh)
-    monkeypatch.setattr(dl, "_repair_latest_session", lambda data, *a, **k: data)
+    monkeypatch.setattr(panel_fetch, "latest_completed_session", lambda: expected)
+    monkeypatch.setattr(panel_fetch.settings, "INCREMENTAL_OVERLAP_BDAYS", 1)
+    monkeypatch.setattr(panel_fetch, "_batched_download", lambda *a, **k: fresh)
+    monkeypatch.setattr(panel_fetch, "_repair_latest_session", lambda data, *a, **k: data)
 
     def fake_recover(data, tickers, **kwargs):
         out = data.reindex(data.index.union([forming])).sort_index()
         out.loc[forming, ("NEW", "Close")] = 99.0  # the leaked partial bar
         return out
 
-    monkeypatch.setattr(dl, "_recover_missing_data", fake_recover)
+    monkeypatch.setattr(panel_fetch, "_recover_missing_data", fake_recover)
 
-    out = dl._incremental_fetch(
+    out = panel_fetch._incremental_fetch(
         cached, ["AAA", "NEW", "SPY", "QQQ"], 1, ["SPY", "QQQ"]
     )
 
@@ -212,9 +213,9 @@ def test_split_probe_is_exhaustive_over_all_cached_tickers(tmp_path, monkeypatch
     clean = {f"T{i:03d}": [10.0, 10.2, 10.1, 10.3, 10.4] for i in range(120)}
     cached = _panel({**clean, "ZSPL": [40.0, 40.4, 40.2, 40.6, 40.8]}, dates)
     fresh = _panel({**clean, "ZSPL": [20.0, 20.2, 20.1, 20.3, 20.4]}, dates)
-    monkeypatch.setattr(dl.settings, "SPLIT_PROBE_UNIVERSE_DRIFT_PCT", 0.5)
+    monkeypatch.setattr(panel_fetch.settings, "SPLIT_PROBE_UNIVERSE_DRIFT_PCT", 0.5)
 
-    force, drifted = dl._detect_splits(
+    force, drifted = panel_fetch._detect_splits(
         cached, fresh, list(cached.columns.get_level_values(0).unique())
     )
 
@@ -239,7 +240,7 @@ def test_split_probe_skips_noise_and_thin_overlaps():
         "THIN": [None, None, None, None, 5.0],    # one shared bar only
     }, dates)
 
-    force, drifted = dl._detect_splits(cached, fresh, ["OKAY", "NOIS", "THIN", "GONE"])
+    force, drifted = panel_fetch._detect_splits(cached, fresh, ["OKAY", "NOIS", "THIN", "GONE"])
 
     assert drifted == []
     assert force is False
@@ -254,7 +255,7 @@ def test_split_probe_forces_cold_path_on_broad_drift():
     fresh_map.update({t: [c / 2 for c in closes] for t in tickers[:3]})  # 3 splits
     fresh = _panel(fresh_map, dates)
 
-    force, drifted = dl._detect_splits(cached, fresh, tickers)
+    force, drifted = panel_fetch._detect_splits(cached, fresh, tickers)
 
     assert sorted(drifted) == ["T0", "T1", "T2"]
     assert force is True  # 30% > SPLIT_PROBE_UNIVERSE_DRIFT_PCT

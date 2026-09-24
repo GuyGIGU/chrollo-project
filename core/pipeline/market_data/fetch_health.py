@@ -3,7 +3,7 @@
 The screener's universe (~6.9k NASDAQ-traded symbols) carries a long tail of
 delisted / halted / invalid tickers that return nothing from Yahoo on every run.
 Re-requesting them daily wastes request budget, drives 429s, and triggers the
-per-ticker recovery storm in ``downloads._recover_missing_data``. This module
+per-ticker recovery storm in ``panel_fetch._recover_missing_data``. This module
 skips symbols that repeatedly come back empty — re-probing them after a cooldown
 so a re-listing recovers — and records a small per-run health summary so fetch
 quality is observable and tunable instead of guessed.

@@ -66,7 +66,7 @@ def test_throttle_is_noop_when_disabled(monkeypatch):
 
 
 def test_batched_download_gates_each_ticker_and_uses_single_history(monkeypatch):
-    from core.pipeline.market_data import downloads
+    from core.pipeline.market_data import yahoo_download
 
     seen = []
     history_calls = []
@@ -84,15 +84,15 @@ def test_batched_download_gates_each_ticker_and_uses_single_history(monkeypatch)
                 {"Open": [1.0, 2.0, 3.0], "High": [1.0, 2.0, 3.0], "Low": [1.0, 2.0, 3.0],
                  "Close": [1.0, 2.0, 3.0], "Volume": [10, 20, 30]},
                 index=idx,
-            )  # single-ticker frame; downloads forces the MultiIndex
+            )  # single-ticker frame; yahoo_download forces the MultiIndex
 
     def fail_download(*_args, **_kwargs):
         raise AssertionError("yf.download should not be used for single-ticker workers")
 
-    monkeypatch.setattr(downloads.yf, "Ticker", FakeTicker)
-    monkeypatch.setattr(downloads.yf, "download", fail_download)
+    monkeypatch.setattr(yahoo_download.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_download.yf, "download", fail_download)
 
-    out = downloads._batched_download(["AAA", "BBB", "CCC"], {"period": "2y"}, "Test")
+    out = yahoo_download._batched_download(["AAA", "BBB", "CCC"], {"period": "2y"}, "Test")
     assert not out.empty
     level0 = set(out.columns.get_level_values(0))
     assert {"AAA", "BBB", "CCC"} <= level0
@@ -102,7 +102,7 @@ def test_batched_download_gates_each_ticker_and_uses_single_history(monkeypatch)
 
 
 def test_batched_download_dedupes_duplicate_ohlcv_columns(monkeypatch):
-    from core.pipeline.market_data import downloads
+    from core.pipeline.market_data import yahoo_download
 
     monkeypatch.setattr(rate_limit, "throttle", lambda n=1: None)
 
@@ -123,9 +123,9 @@ def test_batched_download_dedupes_duplicate_ohlcv_columns(monkeypatch):
                 columns=columns,
             )
 
-    monkeypatch.setattr(downloads.yf, "Ticker", FakeTicker)
+    monkeypatch.setattr(yahoo_download.yf, "Ticker", FakeTicker)
 
-    out = downloads._batched_download(["AAA"], {"period": "2y"}, "Test")
+    out = yahoo_download._batched_download(["AAA"], {"period": "2y"}, "Test")
 
     assert list(out["AAA"].columns) == ["Open", "High", "Low", "Close", "Volume"]
     assert out["AAA"]["Close"].tolist() == [1.6, 1.6, 1.6]
