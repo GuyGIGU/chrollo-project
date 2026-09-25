@@ -11,11 +11,12 @@ AND the root-swing / box election together:
   * the HH/HL vs LH/LL TREND MODEL that EXPLAINS that root swing — trend
     segments with their start / climax(terminal) / CHoCH(end) + the terminal
     impulse leg that is the AR's retrace basis (the not-live substrate),
-  * the raw AR vs the first-reaction (trend-derived) AR — the flag being tuned,
+  * the automatic reaction the engine reads (one AR since the first-reaction
+    flag was deleted 2026-09-08),
   * the spring (Phase C), the LPS + trigger and Phase-D divider (Phase D),
   * the L2 event zones (spring/SOS/upthrust/test/LPS) as low-alpha context,
-  * a text panel: the trend-segment table, the structure summary, the AR off/on
-    tighten, and the one-line election trace.
+  * a text panel: the trend-segment table, the structure summary, and the
+    one-line election trace.
 
 FAITHFULNESS (non-negotiable — see docs/strategy_alpha.md + the sibling tools): it
 reuses ``operator_marks_diff._prep_live`` (baseline filter -> trim to
@@ -29,7 +30,7 @@ AR / spring / LPS) — the struct the pipeline archives — but does NOT re-appl
 post-read live vetoes (crash / extension / base_len, LPS distance-to-trigger,
 descent-tail), so a rendered name may be one the screener later drops: the frame
 and the elected geometry are faithful, the firing decision is not re-run.
-Read-only: reads the parquet cache, restores the AR flag after every capture,
+Read-only: reads the parquet cache, toggles no flag,
 writes PNGs to research/fidelity/full_package/. Nothing live imports it -> shadow
 stays byte-identical.
 
@@ -466,10 +467,11 @@ def _render_one(fig, ax, tax, ticker, df, atr, *, window, show_events, show_macr
     ax.set_xticks(ticks)
     ax.set_xticklabels([str(df.index[base_off + t])[:10] for t in ticks],
                        rotation=35, ha="right", fontsize=7)
-    live = "ON" if settings.AR_FIRST_REACTION_ENABLED else "OFF"
+    # No "AR flag live" status any more: AR_FIRST_REACTION_ENABLED was deleted
+    # 2026-09-08 (always OFF since), so there is one AR and nothing to report.
     ax.set_title(f"{ticker}   root swing cx{cx}->AR{int(s.ar_bar)}   "
-                 f"S={s.S:.2f} R={s.R:.2f}   base_len={s.box.base_len}   "
-                 f"AR flag live: {live}", fontsize=11, fontweight="bold", loc="left")
+                 f"S={s.S:.2f} R={s.R:.2f}   base_len={s.box.base_len}",
+                 fontsize=11, fontweight="bold", loc="left")
 
     # --- legend + text panel --------------------------------------------------
     handles = [
@@ -536,7 +538,7 @@ def render(tickers, *, window, out_dir, show_events, show_macro, cache):
 def main():
     ap = argparse.ArgumentParser(
         description="Render the complete structural read (box + root swing + trend "
-                    "model + raw/first-reaction AR + spring/LPS/Phase-D + L2 events) "
+                    "model + automatic reaction + spring/LPS/Phase-D + L2 events) "
                     "of a ticker on the faithful live 2y frame.")
     ap.add_argument("tickers", nargs="+", help="tickers to render")
     ap.add_argument("--window", type=int, default=280,
