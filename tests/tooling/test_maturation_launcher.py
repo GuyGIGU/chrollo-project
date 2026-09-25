@@ -1,13 +1,14 @@
-"""The scheduled maturation tick keeps the entry point its task runs.
+"""The scheduled maturation tick keeps working until its task is re-pointed.
 
-Windows Task Scheduler's "Chrollo Forward Returns" task runs the forwarder at
-the root of tools/ by its absolute path (it ran through it on 2026-09-24, exit
-0). The task is not being re-registered, so that forwarder is its permanent
-entry point: moving, renaming or deleting it would stop the backend-independent
-maturation tick with nothing in the app to say so until the watchdog saw no
-maturation row. The implementation lives in tools/ops/ (docs/deploy.md,
-"Schedule Forward-Return Maturation"); the forwarder only calls it and passes
-back its exit code.
+Windows Task Scheduler's "Chrollo Forward Returns" task was registered with the
+forwarder at the root of tools/ and still runs it by its absolute path (exit 0
+through it on 2026-09-24 and 2026-09-25). The implementation lives in tools/ops/;
+pointing the task there is one Administrator command, the operator's
+(docs/deploy.md, "Schedule Forward-Return Maturation"). Until the task shows the
+new path, moving, renaming or deleting the forwarder would stop the
+backend-independent maturation tick with nothing in the app to say so until the
+watchdog saw no maturation row. The forwarder only calls the ops script and
+passes back its exit code.
 """
 from _paths import REPO_ROOT
 
@@ -23,7 +24,7 @@ def _commands(path):
 
 
 def test_the_entry_point_only_forwards_to_the_ops_script():
-    assert _ENTRY_POINT.is_file(), "the scheduled task's entry point is gone"
+    assert _ENTRY_POINT.is_file(), "the forwarder the scheduled task still runs is gone"
     assert _commands(_ENTRY_POINT) == [
         'call "%~dp0ops\\run_maturation.bat"',
         "exit /b %ERRORLEVEL%",

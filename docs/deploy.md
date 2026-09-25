@@ -256,17 +256,12 @@ its own `scan_runs` row (`kind='maturation'`) so the health watchdog can see it,
 `-StartWhenAvailable` — **catches up a missed run** at the next boot/logon instead of losing
 the day.
 
-The task's entry point is `tools\run_maturation.bat`, and it is **permanent**: the
-"Chrollo Forward Returns" task runs it by its absolute path and is not being re-registered, so
-never move, rename or delete it. It only forwards to the implementation,
-`tools\ops\run_maturation.bat` (it `cd`s to the repo and runs
-`python -m core.archive.forward_returns`, logging to `output\maturation.log`), and passes back
-its exit code; change what the tick does there. `tests/tooling/test_maturation_launcher.py` pins
-both. The task is already registered. Only a fresh machine needs this, from an Administrator
-PowerShell, and it registers the entry point, not the `tools\ops\` path:
+The repo ships `tools\ops\run_maturation.bat` (it `cd`s to the repo and runs
+`python -m core.archive.forward_returns`, logging to `output\maturation.log`). Register it
+from an Administrator PowerShell:
 
 ```powershell
-$action  = New-ScheduledTaskAction -Execute "C:\Users\User\Documents\Projects\Chrollo Project\tools\run_maturation.bat"
+$action  = New-ScheduledTaskAction -Execute "C:\Users\User\Documents\Projects\Chrollo Project\tools\ops\run_maturation.bat"
 # Evening LOCAL time, after the US EOD data has settled. Adjust if your PC is not on US time.
 $trigger = New-ScheduledTaskTrigger -Daily -At 7:00PM
 # StartWhenAvailable = "run as soon as possible after a scheduled start is missed" (the catch-up).
@@ -276,8 +271,22 @@ Register-ScheduledTask -TaskName "Chrollo Forward Returns" -Action $action -Trig
   -Description "Backend-independent nightly forward-return maturation; catches up a missed run." -Force
 ```
 
-The implementation moved to `tools\ops\` on 2026-09-24; the registration was left where it was,
-and the task ran through the forwarder that day with exit code 0.
+**The task on this PC predates 2026-09-24 and still points at the old path,
+`tools\run_maturation.bat`** (read 2026-09-25: it ran through it that evening with exit code 0).
+That file is a thin forwarder that calls `tools\ops\run_maturation.bat` and passes back its exit
+code, so the old registration keeps working. To point the task at the new path, run this one
+line in an **Administrator** PowerShell (right-click Windows PowerShell, *Run as administrator*).
+It changes only the program the task starts; the schedule, the catch-up and the logon settings
+stay as they are:
+
+```powershell
+Set-ScheduledTask -TaskName "Chrollo Forward Returns" -Action (New-ScheduledTaskAction -Execute "C:\Users\User\Documents\Projects\Chrollo Project\tools\ops\run_maturation.bat")
+```
+
+Check that it took (no elevation needed): `(Get-ScheduledTask -TaskName "Chrollo Forward
+Returns").Actions.Execute` should print the `tools\ops\` path. Keep the forwarder until it does:
+deleting it first would stop the nightly tick, and nothing in the app would say so until the
+watchdog missed a maturation row. `tests/tooling/test_maturation_launcher.py` pins both files.
 
 The updater re-downloads fresh per-ticker data itself, so exact timing is not critical — any
 evening slot after the US close works; the important part is that it runs (and catches up)
