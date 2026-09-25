@@ -466,8 +466,7 @@ terminal shakeout out of the window and judges what remains.
 first fortnight of a ten-week base are clustered, and no arithmetic on a shortened list
 makes them spread. The excised days are simply days the rail was not touched, which is
 true, so the anti-clustering leg cuts its thirds on the real span. Ruled 2026-09-25: this
-reading stands whatever it does to one name (the band framing it refused when it was built,
-LIVN's, reads no structure now); the yardstick is his drawn marks, never a single stock.
+reading stands whatever it does to any one name; the yardstick is his drawn marks.
 
 **The departure run keeps its own jurisdiction.** A lifted-out excursion is not neutral
 time and it is not a return inside: price left the rail, which is *why* it was lifted out —

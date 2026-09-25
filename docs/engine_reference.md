@@ -764,9 +764,11 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
      compaction had spread them across two (`r_touch_thirds` 2 → 1 against the
      floor of 2), so the framing now dies at the anti-clustering leg and LIVN
      reads no structure. The other seven band elections are unchanged.
-     **Ruled 2026-09-25** ([decisions.md](decisions.md)): the fix lands and
-     LIVN's refusal is the correct reading. Re-measured at the merge over the
-     whole cached universe through 2026-09-23 (5,800 frames): fires 109 → 109
+     **Ruled 2026-09-25** ([decisions.md](decisions.md)): the fix lands, and
+     the fixed reading stands whatever it does to LIVN. Re-measured at the
+     merge over the whole cached universe through 2026-09-23 (5,800 frames;
+     LIVN itself reaches no band thirds judgment there, before the fix or
+     after it): fires 109 → 109
      with every result identical, the four band fires (CNR, HPK, KODK, PYPD)
      included; 46 band framings reached the thirds leg, 18 read a different
      count on the real span, and 4 flip pass → fail (MAN, NEM, PNTG, REX),
