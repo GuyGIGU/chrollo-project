@@ -137,11 +137,8 @@ function Close-OnResult([bool]$healthOk) {
     exit 1
 }
 
-# A deploy during a scan costs twice over: the restart kills the scan child
-# mid-run (12-17 minutes of work, and the archive row it never writes), and the
-# backend preflight below imports main against the LIVE database, whose boot
-# reconcile rewrites the still-'running' row to 'failed' — the exact string the
-# operator then finds in his archive. The service is the one process that knows,
+# A deploy during a scan kills the scan child mid-run (12-17 minutes of work,
+# and the archive row it never writes). The service is the one process that knows,
 # so ask it: the scheduler and every manual job live inside it, so a service that
 # does not answer /health cannot be scanning.
 function Assert-NoRunningScan {
@@ -189,16 +186,54 @@ if ($Rollback) {
 
 # --- 1. backend preflight -------------------------------------------------------
 Write-Host "`n[1/4] Backend preflight (compile + boot-import smoke)..." -ForegroundColor Cyan
-& $python -m compileall -q core engine_alpha webapp\backend
+& $python -m compileall -q config core engine_alpha webapp\backend
 if ($LASTEXITCODE -ne 0) {
     Fail "Backend compile FAILED (exit $LASTEXITCODE). Service NOT restarted."
 }
 # Import main exactly the way the service boots (cwd=webapp\backend). Importing
 # does NOT run the lifespan, so nothing starts and nothing touches the broker.
-Push-Location (Join-Path $repo 'webapp\backend')
-& $python -c "import main; n = len(main.app.routes); assert n > 70, 'only %d routes registered' % n"
-$smokeExit = $LASTEXITCODE
-Pop-Location
+# It DOES initialize the database, so keep the smoke off the operator's archive.
+# Recent FastAPI versions keep included routers nested rather than flattening
+# them into app.routes; count the reachable leaf routes as the boot test does.
+# Also load the root settings the way the scheduler does at startup: import main
+# alone never calls that loader, and a broken one crash-looped the service for
+# two days in September 2026 while this smoke still passed.
+$smokeCode = @'
+import main
+from starlette.routing import Mount
+from app.core_settings import load_core_settings
+
+def leaves(routes):
+    out = []
+    for route in routes:
+        original = getattr(route, 'original_router', None)
+        nested = original.routes if original is not None else (route.routes if isinstance(route, Mount) else None)
+        out += leaves(nested) if nested else [getattr(route, 'path', '')]
+    return out
+
+paths = leaves(main.app.routes)
+assert len(paths) > 70, f'only {len(paths)} routes registered'
+for required in ('/calibration/chart', '/calibration/marks'):
+    assert required in paths, f'{required} not registered'
+load_core_settings()
+'@
+$originalDbPath = $env:CHROLLO_DB_PATH
+try {
+    $env:CHROLLO_DB_PATH = Join-Path $env:TEMP ("chrollo-deploy-verify-{0}.db" -f [guid]::NewGuid().ToString('N'))
+    Push-Location (Join-Path $repo 'webapp\backend')
+    try {
+        & $python -c $smokeCode
+        $smokeExit = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+} finally {
+    if ($null -eq $originalDbPath) {
+        Remove-Item Env:CHROLLO_DB_PATH -ErrorAction SilentlyContinue
+    } else {
+        $env:CHROLLO_DB_PATH = $originalDbPath
+    }
+}
 if ($smokeExit -ne 0) {
     Fail "Backend boot-import smoke FAILED (exit $smokeExit). Service NOT restarted."
 }

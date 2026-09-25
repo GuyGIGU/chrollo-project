@@ -79,8 +79,8 @@ Do **not** set `CHROLLO_DB_PATH` on this service either. It overrides the archiv
 (`webapp/backend/database.py`), and unset is the correct production value: the path stays anchored to
 `webapp\backend\trading_journal.db` regardless of the working directory. It exists for **tests and
 by-hand verification only** — `import main` runs the whole migration battery at import scope, so
-`pytest` (via `tests/conftest.py`) and any agent doing the "import main to confirm routes register"
-check point it at a throwaway file instead of the real archive:
+`pytest` (via `tests/conftest.py`), `update_dashboard.ps1`'s boot smoke and any agent doing the
+"import main to confirm routes register" check point it at a throwaway file instead of the real archive:
 
 ```powershell
 $env:CHROLLO_DB_PATH = "$env:TEMP\chrollo-verify.db"   # this shell only — never on the service
@@ -472,13 +472,18 @@ elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the 
 
 1. Self-elevates once via UAC (restarting a Windows service needs admin rights).
 2. Asks the live service whether a scan is running, and **refuses to deploy while one is** — a
-   restart would kill the scan child mid-run, and the import-`main` smoke in step 3 would rewrite
-   its still-`running` row to `failed`. Wait for it, or stop it from the dashboard's scan panel.
-   `-Force` skips this check; a service that does not answer `/health` cannot be scanning, so the
-   deploy continues.
-3. Preflights the backend: `compileall` plus an import-`main` smoke from the service's own
-   working directory (import does **not** run the lifespan — nothing starts, nothing touches
-   the broker). A backend that would die on boot is caught **before** the running service is killed.
+   restart would kill the scan child mid-run (12-17 minutes of work, and the archive row it never
+   writes). Wait for it, or stop it from the dashboard's scan panel. `-Force` skips this check; a
+   service that does not answer `/health` cannot be scanning, so the deploy continues.
+3. Preflights the backend: `compileall` over `config`, `core`, `engine_alpha` and `webapp\backend`,
+   then a boot smoke from the service's own working directory. The smoke points `CHROLLO_DB_PATH`
+   at a throwaway temp file for its own process only (the live archive is never opened, and the
+   service's environment is untouched), imports `main` (import does **not** run the lifespan —
+   nothing starts, nothing touches the broker), requires more than 70 reachable leaf routes
+   including `/calibration/chart` and `/calibration/marks`, and loads the root settings the way the
+   scheduler does at startup (`app.core_settings.load_core_settings`). A backend that would die on
+   boot is caught **before** the running service is killed — including a broken settings loader,
+   which `import main` alone never calls (it crash-looped the service 22–24 Sep 2026).
 4. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
 5. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
 
