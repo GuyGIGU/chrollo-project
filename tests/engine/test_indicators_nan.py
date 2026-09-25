@@ -16,15 +16,14 @@ These guards pin the contract:
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from engine_alpha.structure.indicators import (  # noqa: E402
+from engine_alpha.structure.metrics.indicators import (  # noqa: E402
     _fast_ewm,
     _fast_ewm_valid,
     calculate_adx,

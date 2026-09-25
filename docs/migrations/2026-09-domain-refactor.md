@@ -40,6 +40,10 @@ full gate stack. Not ported: `claude/two-eyes-reader` (in flight), `claude/engin
 (held for a ruling), `claude/indexless-universe-cold-gate` (superseded) and `wip/signal-edge-backtest`
 (superseded by `revive/signal-edge`).
 
+**Ported 2026-09-25**: `claude/engine-time-axis-and-nan-contract`, one merge and one port commit, once the
+operator had ruled on LIVN ([decisions.md](../decisions.md), 2026-09-25). Its two added tests went to
+`tests/engine/`; the full gate stack passed.
+
 What the train taught about porting:
 
 - `research/evidence/**/*.py` is live code to `test_moved_module_paths.py` but a record to the porter,

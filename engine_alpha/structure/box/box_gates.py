@@ -352,7 +352,7 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val):
     **The consecutive-run maxima are counted over the bars HANDED IN, and for
     the band pool that array is excision-compacted on purpose** (council review
     2026-09-07, finding 6 — read this before "fixing" the axis again;
-    ``tests/test_band_time_axis.py`` pins all three readings). The band pool
+    ``tests/engine/test_band_time_axis.py`` pins all three readings). The band pool
     lifts a qualified excursion out of the judged window, and those bars answer
     to the event's own stricter rules (reclaim, hold, bounded depth, at most
     ``BAND_EVENT_MAX_BARS``) instead of to this gate. So the departure defence

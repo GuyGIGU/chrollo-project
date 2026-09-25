@@ -38,18 +38,17 @@ caller stays exactly where it was.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
+from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from config import settings                                       # noqa: E402
-import engine_alpha.structure.box_primitives as bp                # noqa: E402
-from engine_alpha.structure.box_gates import _respect_stats       # noqa: E402
-from engine_alpha.structure.metrics import _rail_touch_thirds     # noqa: E402
+from config import settings                                           # noqa: E402
+import engine_alpha.structure.box.box_primitives as bp                # noqa: E402
+from engine_alpha.structure.box.box_gates import _respect_stats       # noqa: E402
+from engine_alpha.structure.metrics.base import _rail_touch_thirds    # noqa: E402
 
 R_VAL, S_VAL, ATR = 110.0, 100.0, 1.0
 
@@ -250,7 +249,7 @@ def _run_band_pool(df, trace=None):
 def test_the_fixture_really_excises_one_deep_event():
     """Guard the guard: if the qualifier stops excising, the pool tests below
     would pass for the wrong reason."""
-    from engine_alpha.structure.rail_qualification import qualify_pair_events
+    from engine_alpha.structure.box.rail_qualification import qualify_pair_events
     for departure in (True, False):
         read = qualify_pair_events(_band_frame(departure), S_VAL, R_VAL, ATR)
         assert read is not None
@@ -265,7 +264,7 @@ def test_band_pool_refuses_a_framing_whose_departure_exceeds_the_cap():
     df = _band_frame()
     highs = df["High"].to_numpy(dtype=float)
     lows = df["Low"].to_numpy(dtype=float)
-    from engine_alpha.structure.rail_qualification import qualify_pair_events
+    from engine_alpha.structure.box.rail_qualification import qualify_pair_events
     mask = qualify_pair_events(df, S_VAL, R_VAL, ATR)["judged"]
 
     measured = _respect_stats(highs[mask], lows[mask], R_VAL, S_VAL, ATR)
@@ -287,7 +286,7 @@ def test_band_pool_threads_the_excision_mask_into_the_touch_thirds():
     the quiet frame, whose respect leg passes, so the occupancy gate is
     reached at all."""
     seen = []
-    import engine_alpha.structure.box_gates as bg
+    import engine_alpha.structure.box.box_gates as bg
     real_thirds = bg._rail_touch_thirds
 
     def spy_thirds(*a, **kw):
@@ -331,9 +330,9 @@ def _thirds_drift_frame():
 def test_margin_mirror_reads_the_same_legs_as_the_band_gate():
     """``gate_margins`` exists to reproduce the gate's verdict on the same
     window: the same run number, and the same thirds the mask produced."""
-    from engine_alpha.structure.gate_margins import complete_leg_vector
-    from engine_alpha.structure.rail_qualification import qualify_pair_events
-    from engine_alpha.structure.metrics import _rail_touch_thirds as thirds
+    from engine_alpha.structure.box.gate_margins import complete_leg_vector
+    from engine_alpha.structure.box.rail_qualification import qualify_pair_events
+    from engine_alpha.structure.metrics.base import _rail_touch_thirds as thirds
 
     df = _band_frame()
     mask = qualify_pair_events(df, S_VAL, R_VAL, ATR)["judged"]
@@ -367,7 +366,7 @@ def test_margin_mirror_reads_the_same_legs_as_the_band_gate():
 
 
 def test_the_near_miss_completion_threads_the_mask_for_band_refusals():
-    import engine_alpha.structure.near_miss as nm
+    import engine_alpha.structure.box.near_miss as nm
 
     df = _band_frame()
     rec = nm.NearMissRecorder()

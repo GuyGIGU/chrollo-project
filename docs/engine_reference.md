@@ -754,7 +754,7 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
      gate counts the outside days it OWNS, running straight across event time:
      an excursion neither breaks a departure nor charges its days to it, and
      the excursion bars answer to the event rules instead, exactly as this
-     pool's contract says. `tests/test_band_time_axis.py` pins all three
+     pool's contract says. `tests/engine/test_band_time_axis.py` pins all three
      numbers. *Measured over the live 248-setup payload:* 247 setups read
      byte-identically (rail immobility 0 violations, every Reading-Model
      invariant held), the marks ratchet held 28/33 with every expected miss
