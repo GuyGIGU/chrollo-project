@@ -12,10 +12,16 @@ Maintenance rules:
 - **It also declares its OFF-state acceptance in the same change**: a named entry in
   `tests/contracts/test_inert_contract.py`'s `DECLARED_ADDITIVE_FIELDS` — the exact result-row
   keys the lane may ADD, or the EMPTY set when its whole surface is the canonical
-  fields the shadow guard and the ratchet already own. THIS list is the enrollment
-  rule, stated here because the test's own "all declared" assertion compares a dict to
-  a literal set in the same file and so cannot catch a lane that never enrolled
-  (council review 2026-09-01, finding 11b). A dark lane with no declared additive set
+  fields the shadow guard and the ratchet already own. **The test enforces this rule**
+  (since 2026-09-25): it fails when a default-off `*_ENABLED` key in
+  `engine_alpha/freeze/manifest.py`'s `ENGINE_SETTINGS_KEYS` has no entry, and when an entry
+  names anything but a default-off engine flag (a flag enrolled while dark that has since
+  flipped live without dissolving stays enrolled by name, in the test's
+  `ENROLLED_THEN_FLIPPED_LIVE`). It replaced the old "all declared" assertion, which
+  compared the dict to a literal set in the same file and so could not catch a lane that
+  never enrolled (council review 2026-09-01, finding 11b). Measure the set, do not guess
+  it: evaluate the shadow fixture and the sealed marks fixture with the flag off and on,
+  and declare the on-keys minus the off-keys. A dark lane with no declared additive set
   has no inert contract to re-scope at its dissolution.
 - Flips/deletions move the row to *Retired* (keep the evidence trail).
 - Live flags (`TIGHTNESS_ADR_AWARE`, `HTF_CONTEXT_ENABLED`, ...) are
