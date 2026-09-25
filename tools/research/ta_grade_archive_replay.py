@@ -5,7 +5,8 @@ The archive's score_setup_quality column was born 2026-08-08; every earlier
 row carries it NULL while its stored v1 score contains the points. This
 instrument re-reads each archived fire POINT-IN-TIME from the price cache
 (the replay-seam basis: slice to scan_date, run the ONE live eval chain) and
-reports the measured setup quality + the flag-on would-be grade.
+reports the measured setup quality + the grade today's engine gives it (the
+grade has been unconditional since the legacy score path retired 2026-08-23).
 
 Honesty gates, in order:
   * READ-ONLY. Nothing is ever written to the archive — pre-flip rows keep
@@ -131,7 +132,7 @@ def summarize(records: list) -> dict:
 def _render(summary: dict, meta: dict) -> list[str]:
     lines = ["TA-grade archive replay — setup quality measured point-in-time, "
              "would-be grades, READ-ONLY (nothing written to the archive)"]
-    lines.append(f"engine_config_version (flag-on replay): {meta['ecv']}")
+    lines.append(f"engine_config_version (replay): {meta['ecv']}")
     lines.append(f"population: {meta['n_rows']} archived fires "
                  f"({meta['universe']}, source={meta['source']}); "
                  f"fingerprint {meta['fingerprint']}; cache {meta['cache']}")
@@ -178,7 +179,7 @@ def build_records(session, panel, *, source: str, since: str | None,
     from archive_models import SetupArchive
     from core.pipeline.screening.screener import _evaluate_ticker
     from core.pipeline.universe.descriptor import default_universe_type
-    from core.calibration.replay import FROZEN_BREADTH, FROZEN_SPY_6M, flag_capture
+    from core.calibration.replay import FROZEN_BREADTH, FROZEN_SPY_6M
 
     universe = default_universe_type()
     q = (session.query(SetupArchive)
@@ -196,57 +197,56 @@ def build_records(session, panel, *, source: str, since: str | None,
     cached = set(panel.columns.get_level_values(0))
     records: list = []
     t0 = time.perf_counter()
-    with flag_capture(TA_SCORE_V2=True):
-        ecv = manifest_hash()
-        raw = None
-        raw_ticker = None
-        for i, row in enumerate(rows):
-            rec = {"id": row.id, "ticker": row.ticker,
-                   "scan_date": row.scan_date,
-                   "epoch": (row.engine_config_version or "?")[:8],
-                   "old": {"score": row.score, "tier": row.tier},
-                   "setup": None, "ta_grade": None, "ta_grade_raw": None,
-                   "rails": None}
-            if row.ticker not in cached:
-                rec["outcome"] = "cache_missing"
-                records.append(rec)
-                continue
-            if row.ticker != raw_ticker:
-                raw = panel[row.ticker].dropna()
-                raw_ticker = row.ticker
-            sliced = raw.loc[:pd.Timestamp(row.scan_date)]
-            result = _evaluate_ticker(row.ticker, sliced,
-                                      FROZEN_SPY_6M, FROZEN_BREADTH)
-            if result is None:
-                rec["outcome"] = "no_fire"
-            elif result is EVAL_ERROR or not isinstance(result, dict):
-                rec["outcome"] = "eval_error"
-            else:
-                rep_r, rep_s = result.get("_R"), result.get("_S")
-                rec["rails"] = {
-                    "rep_r": rep_r, "rep_s": rep_s,
-                    "arc_r": row.r_level, "arc_s": row.s_level,
-                    "rep_base_len": result.get("Base Len"),
-                    "arc_base_len": row.base_length,
-                }
-                sub = result.get("_sub_scores") or {}
-                rec["setup"] = {
-                    "quality": sub.get("setup_quality"),
-                    "completeness": result.get("_setup_completeness"),
-                    "chronology": result.get("_setup_chronology"),
-                    "upthrust_terminal": result.get("_setup_upthrust_terminal"),
-                }
-                rec["ta_grade"] = result.get("_ta_grade")
-                rec["ta_grade_raw"] = result.get("_ta_grade_raw")
-                rec["outcome"] = ("concordant" if rails_concordant(
-                    rep_r, rep_s, row.r_level, row.s_level) else "discordant")
+    ecv = manifest_hash()
+    raw = None
+    raw_ticker = None
+    for i, row in enumerate(rows):
+        rec = {"id": row.id, "ticker": row.ticker,
+               "scan_date": row.scan_date,
+               "epoch": (row.engine_config_version or "?")[:8],
+               "old": {"score": row.score, "tier": row.tier},
+               "setup": None, "ta_grade": None, "ta_grade_raw": None,
+               "rails": None}
+        if row.ticker not in cached:
+            rec["outcome"] = "cache_missing"
             records.append(rec)
-            done = i + 1
-            if progress_every and done % progress_every == 0:
-                rate = done / (time.perf_counter() - t0)
-                print(f"  ... {done}/{len(rows)} replayed "
-                      f"({rate:.1f} rows/s, ~{(len(rows) - done) / rate:.0f}s "
-                      f"left)", flush=True)
+            continue
+        if row.ticker != raw_ticker:
+            raw = panel[row.ticker].dropna()
+            raw_ticker = row.ticker
+        sliced = raw.loc[:pd.Timestamp(row.scan_date)]
+        result = _evaluate_ticker(row.ticker, sliced,
+                                  FROZEN_SPY_6M, FROZEN_BREADTH)
+        if result is None:
+            rec["outcome"] = "no_fire"
+        elif result is EVAL_ERROR or not isinstance(result, dict):
+            rec["outcome"] = "eval_error"
+        else:
+            rep_r, rep_s = result.get("_R"), result.get("_S")
+            rec["rails"] = {
+                "rep_r": rep_r, "rep_s": rep_s,
+                "arc_r": row.r_level, "arc_s": row.s_level,
+                "rep_base_len": result.get("Base Len"),
+                "arc_base_len": row.base_length,
+            }
+            sub = result.get("_sub_scores") or {}
+            rec["setup"] = {
+                "quality": sub.get("setup_quality"),
+                "completeness": result.get("_setup_completeness"),
+                "chronology": result.get("_setup_chronology"),
+                "upthrust_terminal": result.get("_setup_upthrust_terminal"),
+            }
+            rec["ta_grade"] = result.get("_ta_grade")
+            rec["ta_grade_raw"] = result.get("_ta_grade_raw")
+            rec["outcome"] = ("concordant" if rails_concordant(
+                rep_r, rep_s, row.r_level, row.s_level) else "discordant")
+        records.append(rec)
+        done = i + 1
+        if progress_every and done % progress_every == 0:
+            rate = done / (time.perf_counter() - t0)
+            print(f"  ... {done}/{len(rows)} replayed "
+                  f"({rate:.1f} rows/s, ~{(len(rows) - done) / rate:.0f}s "
+                  f"left)", flush=True)
 
     fingerprint = hashlib.sha256("|".join(
         sorted(f"{r.id}:{r.ticker}" for r in rows)).encode()).hexdigest()[:16]
