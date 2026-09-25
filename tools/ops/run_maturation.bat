@@ -8,9 +8,10 @@ REM the PC was off at the in-process scheduler's 18:00 ET slot. The updater reco
 REM its OWN scan_runs row (kind='maturation'), so a stalled/failed maturation is
 REM visible to the health watchdog instead of vanishing silently.
 REM
-REM Register via Windows Task Scheduler with -StartWhenAvailable (see
-REM docs/deploy.md, "Schedule Forward-Return Maturation") so a missed run catches
-REM up at the next boot/logon rather than being lost.
+REM Windows Task Scheduler runs it with -StartWhenAvailable (see docs/deploy.md,
+REM "Schedule Forward-Return Maturation") so a missed run catches up at the next
+REM boot/logon rather than being lost. The task is registered at
+REM tools\run_maturation.bat, its permanent entry point, which forwards here.
 REM ============================================================================
 cd /d "C:\Users\User\Documents\Projects\Chrollo Project"
 

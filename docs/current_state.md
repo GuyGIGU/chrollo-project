@@ -73,6 +73,8 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
   archive at `webapp/backend/trading_journal.db`. Boot is broker-free (`IBKR_AUTO_CONNECT` false).
 - Scan and forward returns at 17:00 `America/New_York`, Mon–Fri (`config/runtime.py`). Backups and
   a backend-independent forward-return tick are Windows scheduled tasks ([`deploy.md`](deploy.md) §4, §4b).
+  The tick's task runs `tools/run_maturation.bat`, a permanent forwarder to `tools/ops/`: the task
+  stays registered there, so nothing is owed to re-point it.
 - Code goes live only when the operator runs `update_dashboard.bat`.
 
 ## Structural work

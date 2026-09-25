@@ -220,7 +220,7 @@ Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webap
 | `webapp/backend/broker_config.py` | Unchanged: it carries its own manual-connection safety contract | (same file) |
 | `tools/calibration/replay.py` | `tools.calibration.replay`, which engine docstrings cite and branches cut before 2026-09-24 import (the same module object) | `core/calibration/replay.py` |
 | `tools/calibration/agreement.py` | `tools.calibration.agreement`, likewise | `core/calibration/agreement.py` |
-| `tools/run_maturation.bat` | The Task Scheduler entry registered with this absolute path | `tools/ops/run_maturation.bat` |
+| `tools/run_maturation.bat` | The Task Scheduler entry registered with this absolute path; permanent, since the task is not being re-registered (it only forwards) | `tools/ops/run_maturation.bat` |
 | `tools/fidelity/README.md` | Sealed records that cite `tools/fidelity/<name>/` | `research/fidelity/` |
 
 ## Python modules that moved

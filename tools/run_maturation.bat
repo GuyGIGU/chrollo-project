@@ -1,12 +1,14 @@
 @echo off
 REM ============================================================================
-REM Forwarding launcher -- the real script is tools\ops\run_maturation.bat.
+REM Entry point of the "Chrollo Forward Returns" scheduled task -- PERMANENT.
 REM
-REM The "Chrollo Forward Returns" task in Windows Task Scheduler was registered
-REM with THIS file's absolute path (docs/deploy.md, "Schedule Forward-Return
-REM Maturation"). The script moved to tools\ops\ on 2026-09-24; this stub keeps
-REM that registration working without touching the task. It is the only launcher
-REM left at an old path. Remove it once the task points at tools\ops\ directly.
+REM Windows Task Scheduler's "Chrollo Forward Returns" task runs THIS file by its
+REM absolute path (docs/deploy.md, "Schedule Forward-Return Maturation"), and the
+REM task is not being re-registered, so this path is its stable entry point: do
+REM not move, rename or delete it. The implementation lives in
+REM tools\ops\run_maturation.bat (it moved there 2026-09-24); change what the tick
+REM does THERE. This file only forwards to it and passes back its exit code.
+REM tests/tooling/test_maturation_launcher.py pins both halves.
 REM ============================================================================
 call "%~dp0ops\run_maturation.bat"
 exit /b %ERRORLEVEL%
