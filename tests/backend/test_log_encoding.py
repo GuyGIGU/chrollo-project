@@ -20,7 +20,7 @@ from _paths import REPO_ROOT as ROOT
 BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 
-from app.log_encoding import force_utf8  # noqa: E402
+from webapp.backend.app.log_encoding import force_utf8  # noqa: E402
 
 _ARROW = "→"
 _ARROW_UTF8 = _ARROW.encode("utf-8")
