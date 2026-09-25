@@ -349,6 +349,31 @@ def _respect_stats(highs, lows, R_val, S_val, atr_val):
     measured statistic; margin telemetry reads it from here instead of a
     second O(n) pass).
 
+    **The consecutive-run maxima are counted over the bars HANDED IN, and for
+    the band pool that array is excision-compacted on purpose** (council review
+    2026-09-07, finding 6 — read this before "fixing" the axis again;
+    ``tests/test_band_time_axis.py`` pins all three readings). The band pool
+    lifts a qualified excursion out of the judged window, and those bars answer
+    to the event's own stricter rules (reclaim, hold, bounded depth, at most
+    ``BAND_EVENT_MAX_BARS``) instead of to this gate. So the departure defence
+    counts the outside days IT owns, running straight across event time:
+    a run is not broken by an excursion — price did not come back inside, it
+    went further out — and the event's own days are not charged to a cap that
+    is half their legal length. The two rejected alternatives, both measured
+    2026-09-07 on the same fixture (17 real outside days, cap 10):
+
+    * scatter the judged verdicts back and fill the excised positions False
+      ("price returned inside") — reads **7** and ADMITS the framing. The
+      permissive error the finding was raised to prevent; shipped in ceb0a27,
+      removed the same day.
+    * classify the ORIGINAL window bar by bar so the event's days count —
+      reads **17** and refuses, but a qualified event may legally run 20 bars
+      against a cap of 10, so it deletes the class: BODI's operator-ruled
+      framing (12.33/10.18, 76 bars, 30 excised) goes from a run of 2 to a run
+      of **19** and stops firing, dropping the sealed marks ratchet to 27/33.
+
+    The read kept here gives **13** on that fixture — refused — and 2 on BODI.
+
     Returns:
         (respected, r_broken, s_broken, total_outside_days, respect_share,
          max_consec, r_consec_max, s_consec_max)
@@ -452,7 +477,8 @@ def _worked_window_end(highs, lows, R_val, S_val, atr_val):
     return n
 
 
-def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
+def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None,
+                             judged_mask=None):
     """Legacy close-residence occupancy for box-of-record selection.
 
     Public ``measure_dwell_balance`` now reports High/Low range occupancy for
@@ -464,6 +490,12 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
     ``_rail_touch_thirds`` result for this exact (window, rails, ATR) — the
     measurement-side caller (``measure_gate_margins``) shares it with its
     sibling reads; every election-side caller leaves it None.
+
+    ``judged_mask`` is the band pool's real time axis, forwarded to
+    ``_rail_touch_thirds`` so the touch-THIRDS (an adjacency statistic) are cut
+    on the original window rather than the compacted one — see that function.
+    The dwell trio and the coverage read are set statistics over the judged
+    bars and are unaffected either way.
     """
     empty = {
         "r_touches": 0, "s_touches": 0,
@@ -485,7 +517,8 @@ def _measure_close_residence(eq_df, R_val, S_val, atr_val, rail_touches=None):
     n = len(closes)
 
     if rail_touches is None:
-        rail_touches = _rail_touch_thirds(highs, lows, R_val, S_val, atr_val)
+        rail_touches = _rail_touch_thirds(highs, lows, R_val, S_val, atr_val,
+                                          judged_mask=judged_mask)
     r_mask, s_mask, r_touch_thirds, s_touch_thirds = rail_touches
 
     # Counts are the ground truth; the judged fractions derive from them
@@ -570,7 +603,8 @@ def _width_refuses(box_width, cap):
     return box_width > cap and not settings.BOX_WIDTH_CAPS_GRADED_ENABLED
 
 
-def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
+def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None,
+                           judged_mask=None):
     """
     Worked-equilibrium validity: a candidate Resistance/Support-anchor pair is a
     REAL trading range only if price respects, touches, and zigzags through BOTH
@@ -592,6 +626,10 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
     widest BC->AR framing win (a wide box mechanically racks up crosses while a
     one-time AR low leaves dead space beneath the real range).
 
+    ``judged_mask`` is the band pool's real time axis, forwarded to the
+    close-residence read so the touch-THIRDS leg is cut on the original window
+    (see ``_rail_touch_thirds``); every other leg here is a set statistic.
+
     Returns:
         (r_touches, s_touches, eq, is_valid)  where eq is the close-residence
         dict (None when rejected on width/crash before measuring).
@@ -610,7 +648,8 @@ def _validate_base_quality(eq_df, R_val, S_val, atr_val, max_width=None):
             and not settings.DEPTH_CAPS_GRADED_ENABLED:
         return 0, 0, None, False
 
-    eq = _measure_close_residence(eq_df, R_val, S_val, atr_val)
+    eq = _measure_close_residence(eq_df, R_val, S_val, atr_val,
+                                  judged_mask=judged_mask)
     r_touches, s_touches = eq["r_touches"], eq["s_touches"]
 
     # R13 (final method step 2, dark): the whole occupancy exam is graded,

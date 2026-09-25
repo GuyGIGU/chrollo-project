@@ -406,18 +406,36 @@ def measure_support_slope(base_df, atr_val, order=None, skeleton=None):
 # Measurement: Volume signature at the R/S touch bars
 # ---------------------------------------------------------------------------
 
-def _rail_touch_thirds(highs, lows, R, S, atr_val):
+def _rail_touch_thirds(highs, lows, R, S, atr_val, judged_mask=None):
     """Rail-touch masks (|price − rail| within TOUCH_TOLERANCE_ATR × ATR) plus
     how many time-thirds each rail's touches span — THE touch predicate, shared
     by the touch-volume read, the equilibrium read, and the election-side close
     residence. Deliberately guard-free: callers own ATR/window validity, and the
-    unguarded sites rely on NaN comparisons routing to False."""
+    unguarded sites rely on NaN comparisons routing to False.
+
+    ``judged_mask`` carries the band pool's real TIME AXIS: a boolean mask over
+    the candidate's ORIGINAL window whose True positions are, in order, the rows
+    of the excision-compacted ``highs``/``lows`` handed in. The thirds count is
+    an ADJACENCY statistic — "touches spread across the window, not clustered" —
+    so its thirds must be cut on the original window, never on a compacted axis
+    with the excursion gaps removed (council review 2026-09-07, finding 6). The
+    returned touch masks stay compacted on purpose: the touch COUNTS are set
+    statistics and must not move. Left None — every non-band caller — the axis
+    is the array itself, byte-identical to the pre-2026-09-07 read.
+    """
     tb = settings.TOUCH_TOLERANCE_ATR * atr_val
     r_mask = np.abs(highs - R) <= tb
     s_mask = np.abs(lows - S) <= tb
-    thirds = np.array_split(np.arange(len(highs)), 3)
-    r_touch_thirds = sum(1 for t in thirds if len(t) and r_mask[t].any())
-    s_touch_thirds = sum(1 for t in thirds if len(t) and s_mask[t].any())
+    if judged_mask is None:
+        axis_r, axis_s = r_mask, s_mask
+    else:
+        axis_r = np.zeros(len(judged_mask), dtype=bool)
+        axis_s = np.zeros(len(judged_mask), dtype=bool)
+        axis_r[judged_mask] = r_mask
+        axis_s[judged_mask] = s_mask
+    thirds = np.array_split(np.arange(len(axis_r)), 3)
+    r_touch_thirds = sum(1 for t in thirds if len(t) and axis_r[t].any())
+    s_touch_thirds = sum(1 for t in thirds if len(t) and axis_s[t].any())
     return r_mask, s_mask, r_touch_thirds, s_touch_thirds
 
 

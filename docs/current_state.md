@@ -18,6 +18,11 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   ruling (point 25) the Power Play species lane is DELETED, so its live preset `POWER_PLAY_PRESET_ENABLED`
   and four more keys leave the manifest and the lane's `pp_*` archive columns stay NULL from here on.
   The names the lane fired still fire: it never touched the paying read.
+  Merging `claude/engine-time-axis-and-nan-contract` (2026-09-25, on the operator's LIVN ruling in
+  [`decisions.md`](decisions.md)) left the hash at `ef5de2f0…`: it adds no setting. Two live reading
+  fixes land with it: the band pool cuts its touch-thirds on the window's real trading days, and one
+  unreadable price cell no longer blanks the ATR for the rest of the chart. Measured over the cached
+  universe, no fire moved.
 - **New measure-only columns** (never scored, never gated; the additive migrator adds them at the
   next boot, and older rows stay NULL): `sentence_*` (PR #11) and ten `eq_*` outside-bar descriptors
   (engine-eyes Task 1, no flag). The reader-pin readings also gained one additive key,
@@ -98,8 +103,9 @@ Engine files wait until `claude/two-eyes-reader` lands, and change only through 
 `claude/eager-chatelet-65e8d4` (PR #11), `claude/method-steps-7-12` (with `claude/sos-session` and
 `claude/clever-napier-08f25d`). Each was ported, gated and checked by two independent reviews; the
 checkpoints are in [`migrations/2026-09-domain-refactor.md`](migrations/2026-09-domain-refactor.md).
-Four branches remain unmerged: `claude/two-eyes-reader` (its council build is in flight; port it when
-it finishes), `claude/engine-time-axis-and-nan-contract` (held for the LIVN ruling),
+On 2026-09-25 `claude/engine-time-axis-and-nan-contract` followed, no longer held: the operator ruled
+that LIVN may drop out ([`decisions.md`](decisions.md)). Three branches remain unmerged:
+`claude/two-eyes-reader` (its council build is in flight; port it when it finishes),
 `claude/indexless-universe-cold-gate` (superseded by `937ecd4`) and `wip/signal-edge-backtest`
 (an older copy of `revive/signal-edge`). After any merge run pytest;
 `tests/integration/test_moved_module_paths.py` catches old names.

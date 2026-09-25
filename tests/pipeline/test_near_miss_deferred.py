@@ -131,7 +131,8 @@ def test_kill_leg_screen_is_a_necessary_condition_of_the_ruling():
             completion_kw = {
                 "width_max": settings.BAND_MAX_BOX_WIDTH,
                 "traversal_df": frame.iloc[
-                    r.cand_start:r.cand_start + r.judged_len]}
+                    r.cand_start:r.cand_start + r.judged_len],
+                "judged_mask": read["judged"]}
         else:
             window = frame.iloc[r.cand_start:r.cand_start + r.judged_len]
         if window is None or len(window) < 2:

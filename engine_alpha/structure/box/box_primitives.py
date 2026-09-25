@@ -298,7 +298,7 @@ def _pack_candidate(box_width, r_touches, s_touches, coverage, total_outside,
 def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                      r_anchor_bar, s_anchor_bar, cand_start, atr_val,
                      trace=None, rescued=False, max_width=None, pool="strict",
-                     recorder=None, occupancy_judgment=None):
+                     recorder=None, occupancy_judgment=None, judged_mask=None):
     """Respect + occupancy over one window; return the candidate tuple or None.
 
     ``highs``/``lows``/``sub_df`` describe the window the framing is JUDGED on
@@ -325,6 +325,16 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
     UN-recorded, exactly as the story pool always refused them (the strict
     pass narrated the identical windows; policy stages are never gate legs to
     the recorder). Any other pool handing in a judgment narrates normally.
+
+    ``judged_mask`` is supplied ONLY by the band pool, whose judged window is
+    COMPACTED (qualified excursion bars excised): the boolean mask over the
+    original window that produced these arrays. It puts the touch THIRDS — an
+    ADJACENCY statistic, "touches spread across the window, not clustered" —
+    back on the original span, where an excised bar is simply no touch
+    (council review 2026-09-07, finding 6). The departure RUN deliberately
+    does NOT take it: see ``_respect_stats`` for the two readings that were
+    measured and rejected. Strict, rescued and story windows are contiguous
+    slices and leave it None.
     """
     stats = _respect_stats(highs, lows, R_val, S_val, atr_val)
     respected, _r_broken, _s_broken, total_outside, share = stats[:5]
@@ -380,6 +390,7 @@ def _build_candidate(highs, lows, sub_df, R_val, S_val, box_width,
                                admission.profile)
     r_touches, s_touches, eq, is_valid = _validate_base_quality(
         sub_df, R_val, S_val, atr_val, max_width=max_width,
+        judged_mask=judged_mask,
     )
     if not is_valid:
         if recorder is not None:
@@ -662,7 +673,8 @@ def collect_zigzag_candidates(eq_df, atr_val, min_candidate_days=0,
     # that reverses CMPR's operator-accepted band election.)
     # Rails at the max-dwell close band;
     # qualified excursions (reclaim/fail-back + hold) are excised from the
-    # judged window; every gate below runs UNCHANGED on the judged bars.
+    # judged window; every gate below runs UNCHANGED on the judged bars — with
+    # the touch thirds cut on the ORIGINAL span, never the compacted array's.
     if not pool and enforce_traversal and settings.BAND_RAILS_ENABLED:
         pool = _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val,
                                      trace=trace, recorder=recorder)
@@ -710,6 +722,16 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
     measurement convention — except that a pair carrying a qualified deep
     event may measure up to ``BAND_MAX_BOX_WIDTH`` wick-to-wick (the class
     allowance; it exists only when the event does).
+
+    The excision mask rides along as ``judged_mask`` so the touch THIRDS — an
+    ADJACENCY statistic — are cut on the ORIGINAL span rather than on the
+    compacted array, where bars weeks apart had become neighbours (council
+    review 2026-09-07, finding 6). The departure RUN stays on the compacted
+    array on purpose: the excised bars are the EVENT's business, judged by its
+    stricter rules, and charging them to a cap half their legal length deletes
+    the class (``_respect_stats`` carries the measurement). Every set statistic
+    (respect share, touch counts, dwell, coverage, crash, width) reads the
+    judged bars exactly as before.
     """
     from engine_alpha.structure.box.rail_qualification import qualify_pair_events
 
@@ -729,7 +751,7 @@ def _band_rail_candidates(eq_df, eq_highs, eq_lows, zigzag, atr_val, trace=None,
             eq_df.iloc[cand_start:][mask], R_val, S_val, box_width,
             r_anchor_bar, s_anchor_bar, cand_start, atr_val,
             trace=trace, rescued=True, max_width=settings.BAND_MAX_BOX_WIDTH,
-            pool="band", recorder=recorder,
+            pool="band", recorder=recorder, judged_mask=mask,
         )
         if tup is None:
             continue

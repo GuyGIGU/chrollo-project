@@ -93,7 +93,7 @@ def _leg_row(leg, measured, threshold, margin, passed):
 
 
 def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None,
-                        width_max=None, traversal_df=None):
+                        width_max=None, traversal_df=None, judged_mask=None):
     """The complete signed-margin vector over ONE judged window, through the
     gates' own helpers. Returns ``{leg: row}`` with every consulted leg's
     measured statistic, threshold, native-quantum margin, and pass verdict —
@@ -110,8 +110,13 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None,
     legally measure up to BAND_MAX_BOX_WIDTH — judging them by the strict
     law manufactures a phantom failing leg), and ``traversal_df`` overrides
     the traversal pair's window (the live band gate judges traversal on the
-    CONTIGUOUS slice, not the masked build window). Defaults reproduce the
-    strict law on ``judged_df`` byte-identically.
+    CONTIGUOUS slice, not the masked build window). ``judged_mask`` carries the
+    band pool's excision mask so the touch-THIRDS leg is cut on the original
+    span, mirroring the gate's own read of it rather than the compacted
+    array's (council review 2026-09-07, finding 6); the respect-run leg needs
+    no mask because the gate itself counts that run on the compacted array
+    (``box_gates._respect_stats`` carries the reasoning and the measurement).
+    Defaults reproduce the strict law on ``judged_df`` byte-identically.
     """
     if (judged_df is None or len(judged_df) == 0 or R is None or S is None
             or R <= S or S <= 0 or atr_val is None or atr_val <= 0
@@ -166,7 +171,8 @@ def complete_leg_vector(judged_df, R, S, atr_val, *, min_candidate_days=None,
                              not (min_low < S * crash_mult))
 
     # occupancy family — integer numerators from the gate's own read.
-    eq = _measure_close_residence(judged_df, R, S, atr_val)
+    eq = _measure_close_residence(judged_df, R, S, atr_val,
+                                  judged_mask=judged_mask)
     touches_min = leg_threshold("r_touches")
     thirds_min = leg_threshold("r_touch_thirds")
     for leg, count in (("r_touches", eq["r_touches"]),

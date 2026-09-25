@@ -222,6 +222,9 @@ def deferred_rows(recorder: NearMissRecorder, *, fired: bool,
             # against the band class cap, and the traversal pair judges the
             # CONTIGUOUS cand_start..+judged_len slice — exactly the windows
             # the live cascade consulted (box_gates._apply_traversal_gate).
+            # The excision mask threads in too, so the touch-thirds leg is cut
+            # on the original span exactly as the gate cut it (council review
+            # 2026-09-07, finding 6).
             from engine_alpha.structure.box.rail_qualification import qualify_pair_events
             read = qualify_pair_events(frame.iloc[rec.cand_start:], rec.S,
                                        rec.R, atr)
@@ -236,6 +239,7 @@ def deferred_rows(recorder: NearMissRecorder, *, fired: bool,
                 "width_max": settings.BAND_MAX_BOX_WIDTH,
                 "traversal_df": frame.iloc[
                     rec.cand_start:rec.cand_start + rec.judged_len],
+                "judged_mask": None if read is None else read["judged"],
             }
         else:
             window = frame.iloc[rec.cand_start:rec.cand_start + rec.judged_len]
