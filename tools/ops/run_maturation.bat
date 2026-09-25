@@ -10,8 +10,8 @@ REM visible to the health watchdog instead of vanishing silently.
 REM
 REM Windows Task Scheduler runs it with -StartWhenAvailable (see docs/deploy.md,
 REM "Schedule Forward-Return Maturation") so a missed run catches up at the next
-REM boot/logon rather than being lost. A task still registered at the old path,
-REM tools\run_maturation.bat, reaches this file through that forwarder.
+REM boot/logon rather than being lost. The task is registered at
+REM tools\run_maturation.bat, its permanent entry point, which forwards here.
 REM ============================================================================
 cd /d "C:\Users\User\Documents\Projects\Chrollo Project"
 
