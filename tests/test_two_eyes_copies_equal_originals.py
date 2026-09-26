@@ -132,3 +132,69 @@ def test_the_daily_range_copy_is_bit_identical_on_every_fixture_frame():
             old = old_indicators.calculate_atr(raw, period).to_numpy()
             new = c.daily_range.calculate_atr(raw, period).to_numpy()
             assert np.array_equal(old, new, equal_nan=True), f"{key}: ATR_{period} differs"
+
+
+def test_the_swing_line_copy_draws_the_same_line_on_every_fixture_frame():
+    c = _copies()
+    for key, raw in _all_fixture_frames().items():
+        df = _with_atr(raw, old_indicators.calculate_atr)
+        unit = _unit(df)
+        assert _line(old_pivots, df, unit) == _line(c.swing_line, df, unit), f"{key}: the line differs"
+        # and with the scalar unit alone, as the unit tests' bare frames run it
+        bare = raw[["Open", "High", "Low", "Close"]]
+        assert _line(old_pivots, bare, unit) == _line(c.swing_line, bare, unit), f"{key}: bare line differs"
+
+
+def test_the_swing_line_labels_are_the_same_on_every_fixture_frame():
+    c = _copies()
+    for key, raw in _all_fixture_frames().items():
+        df = _with_atr(raw, old_indicators.calculate_atr)
+        zigzag = [(b, k, p) for (b, k, p, _) in _line(old_pivots, df, _unit(df))]
+        assert old_market_structure.label_market_structure(zigzag) == \
+            c.swing_line.label_market_structure(zigzag), f"{key}: the labels differ"
+
+
+def test_turns_at_his_rails_are_counted_the_same():
+    c = _copies()
+    counted = 0
+    for ticker, df, box, _ in _his_drawings():
+        df = _with_atr(df, old_indicators.calculate_atr)
+        unit = _unit(df)
+        line = _line(old_pivots, df, unit)
+        area = 0.5 * unit
+        old = old_pivots.turns_at_rails(line, box.start_bar, box.R, box.S, area)
+        assert old == c.swing_line.turns_at_rails(line, box.start_bar, box.R, box.S, area), ticker
+        counted += any(old)
+    assert counted > 0, "no drawing counted a turn at a rail; the pin would be vacuous"
+
+
+def test_the_copies_numbers_start_at_the_values_the_originals_read():
+    """Pinned once, like the pieces: each number the copies read from `method_numbers` starts at the value its
+    original reads from the shared settings. The copied pure tests bracket some of them only loosely (the
+    upthrust's poke could drift from 1.25 to 1.27 and pass them all); this fails on any drift. The task that
+    first moves a number on purpose takes its name out of `pinned` in the same commit."""
+    from config import settings
+    from engine_alpha.two_eyes import method_numbers
+
+    pinned = ("BOX_END_BREAKOUT_ATR", "LINE_WORD_AREA_ATR", "LINE_WORD_SOS_MIN_GROUND_ATR",
+              "LINE_WORD_SUPPER_DIG_ATR", "LINE_WORD_SUPPER_MAX_DAYS", "LINE_WORD_UPTHRUST_MIN_POKE_ATR",
+              "TURN_LINE_FLOOR_ATR")
+    assert set(pinned) <= {n for n in vars(method_numbers) if n.isupper()}
+    for name in pinned:
+        assert getattr(method_numbers, name) == getattr(settings, name), f"{name} left its original's value"
+
+def test_a_changed_number_moves_the_version_stamp(monkeypatch):
+    """The copies read their numbers from `method_numbers`, not from settings, and the version stamp hashed
+    settings only: a tuned number would have changed the reading and kept the stamp, so the archived rows
+    before and after could not be told apart. Each number, moved alone, must move the stamp."""
+    from engine_alpha.freeze import manifest
+    from engine_alpha.two_eyes import method_numbers
+
+    names = sorted(n for n in vars(method_numbers) if n.isupper())
+    assert len(names) == 7, names
+    before = manifest.manifest_hash()
+    for name in names:
+        monkeypatch.setattr(method_numbers, name, getattr(method_numbers, name) + 1)
+        assert manifest.manifest_hash() != before, f"moving {name} left the version stamp where it was"
+        monkeypatch.undo()
+    assert manifest.manifest_hash() == before

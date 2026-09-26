@@ -1321,7 +1321,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.settings_reference --write`;
 `tests/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `34251d0ea593e46073ca6c3dce92fd5e64d41ac6c449c90c92830c35cc5c56c5`_
+_engine_config_version: `6933e408c97846a9bed1e281b3ed6d7f75a605530851b0a1f3a9e098b98b6aae`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False

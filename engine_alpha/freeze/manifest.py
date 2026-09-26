@@ -7,10 +7,11 @@ detector decision (which setups fire, how they score/rank, where the phase
 boundaries land), gathered into a sorted dict whose sha256 is the engine config
 version. An archived signal stamped with that hash can later be traced to the
 exact config that produced it, and a freeze + backtest can assert the config
-hasn't silently drifted. One non-settings block rides along: the TA-grade
+hasn't silently drifted. Two non-settings blocks ride along: the TA-grade
 story-chapter taxonomy (term→chapter membership + order, derived from the
 scoring registry) — re-chaptering changes what the grade's breakdown means, so
-it rotates the version like any weight.
+it rotates the version like any weight — and the new reader's own numbers,
+which its copied pieces read instead of settings.
 
 Design rules (deliberate, audited):
 
@@ -484,7 +485,7 @@ def collect_manifest() -> Dict[str, Any]:
     # to which chapter (and the ruled left→right order) changes what the grade's
     # breakdown MEANS, so a re-chaptering must rotate engine_config_version like
     # any weight. Derived lazily FROM the one registry (never a second map) —
-    # the only non-settings block in the manifest, on the same lazy-import rule.
+    # a non-settings block, on the same lazy-import rule.
     from engine_alpha.scoring import taxonomy
 
     manifest["TA_GRADE_CHAPTER_ORDER"] = list(taxonomy.CHAPTER_ORDER)
@@ -494,6 +495,16 @@ def collect_manifest() -> Dict[str, Any]:
     # The tag fire-rules are judgments (which chips fire): a rule change must
     # rotate the version exactly like a weight change (task 10).
     manifest["TA_GRADE_TAG_RULES"] = taxonomy.tag_rules_manifest()
+
+    # The new reader's own numbers (two-eyes-reader task 7). Its copied pieces
+    # read them from method_numbers, not settings — a shared key would move the
+    # frozen original with them — so without this block a tuned number would
+    # change the reading and keep the version.
+    from engine_alpha.two_eyes import method_numbers
+
+    manifest["TWO_EYES_METHOD_NUMBERS"] = {
+        name: _canonical(value)
+        for name, value in vars(method_numbers).items() if name.isupper()}
     return manifest
 
 

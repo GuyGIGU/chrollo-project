@@ -1,0 +1,37 @@
+"""The numbers the new reader's copied pieces read — its OWN, not the old engine's shared settings.
+
+Task 7 of the two-eyes-reader build. The pieces copied from the old engine read these values from
+`config.settings` at call time. The copies may not: those keys are SHARED with the frozen originals, so tuning
+one for the new reader would silently move the old engine too, and a guard that freezes the old engine's FILES
+cannot see a settings value change. So each number is copied here, once, with the value it held at the freeze
+base (cd87fcc) and the words that placed it, and the copies read `method_numbers.NAME` where the originals read
+`settings.NAME` — the one change a copy makes.
+
+The names are kept as they were, so an original and its copy can be read side by side. Changing a number here
+is a change to the new reader's reading, and the version stamp moves with it: `engine_alpha/freeze/manifest.py`
+hashes every number in this module. A change to the copies' CODE still needs a `TWO_EYES_RULESET` bump: the
+stamp hashes numbers, not reader code.
+"""
+
+#: Placed by the sweep on his 186 turns (his Q1 asked for a search): a turn commits when price backs off the
+#: running extreme by this many of the bar's own daily range.
+TURN_LINE_FLOOR_ATR = 0.75
+
+#: The ruled rail area, in daily ranges ("rail area is about half a daily range").
+LINE_WORD_AREA_ATR = 0.5
+
+#: An upthrust climbs this far over R: between the breach he crossed out (his UNF, 0.94) and his smallest (his
+#: VIK note, 1.55).
+LINE_WORD_UPTHRUST_MIN_POKE_ATR = 1.25
+
+#: His smallest SOS, launch low to top, on his own spans.
+LINE_WORD_SOS_MIN_GROUND_ATR = 1.70
+
+#: A last supper digs this far (his ten: 1.75 to 3.76); a pause this deep ends a thrust.
+LINE_WORD_SUPPER_DIG_ATR = 1.5
+
+#: His longest last supper, in trading days.
+LINE_WORD_SUPPER_MAX_DAYS = 4
+
+#: R15: the breakout day closes this far over R, in daily ranges (his placed margin).
+BOX_END_BREAKOUT_ATR = 0.10
