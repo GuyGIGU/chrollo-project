@@ -193,6 +193,72 @@ def test_the_box_end_copy_reads_the_same_end_on_his_drawings():
     assert len(outcomes) > 1, "every drawing ended the same way; the pin cannot tell rules apart"
 
 
+def test_the_word_rules_copy_reads_the_same_words_on_his_drawings():
+    c = _copies()
+    named = minis = 0
+    for ticker, df, box, lps in _his_drawings():
+        df = _with_atr(df, old_indicators.calculate_atr)
+        unit = _unit(df)
+        # The mini rule reads only when handed an inner box, which his drawings do not carry: both sides get
+        # the old engine's own, the one input the copy is not compared on.
+        whole = SimpleNamespace(**vars(box), base_len=len(df) - box.start_bar, box_width=(box.R - box.S) / box.S)
+        for inner in (None, old_bricks.find_inner_box(df, whole, unit)):
+            old = old_words.read_line_words(df, box, unit, lps=lps, inner=inner)
+            new = c.line_words.read_line_words(df, box, unit, lps=lps, inner=inner)
+            assert old == new, f"{ticker}: the words differ"
+            minis += old["mini"] is not None
+        named += old["the_sos"] is not None
+    assert named >= 20, f"THE SOS was named on only {named} drawings; the pin would be too thin"
+    assert minis >= 1, "no drawing read a mini; the mini rule was never compared"
+
+
+# --------------------------------------------------------------------------- #
+# The chains, whole                                                           #
+# --------------------------------------------------------------------------- #
+def test_each_chain_whole_reads_the_same_on_his_drawings():
+    """Each side stamps its OWN daily range, draws its OWN line and reads its OWN words and box end. The
+    piece-by-piece pins hand both sides one column; only this one exercises the daily-range copy as the
+    input the rest actually consume."""
+    c = _copies()
+    for ticker, raw_df, box, lps in _his_drawings():
+        old_df = _with_atr(raw_df, old_indicators.calculate_atr)
+        new_df = _with_atr(raw_df, c.daily_range.calculate_atr)
+        old_unit, new_unit = _unit(old_df), _unit(new_df)
+        assert old_unit == new_unit, ticker
+        old_line, new_line = _line(old_pivots, old_df, old_unit), _line(c.swing_line, new_df, new_unit)
+        assert old_line == new_line, ticker
+        assert old_climax.runs_on_the_line(old_line) == c.runs.runs_on_the_line(new_line), ticker
+        assert old_bricks.read_box_end(old_df, box, old_unit) == \
+            c.box_end.read_box_end(new_df, box, new_unit), ticker
+        assert old_words.read_line_words(old_df, box, old_unit, lps=lps) == \
+            c.line_words.read_line_words(new_df, box, new_unit, lps=lps), ticker
+
+
+def test_word_recall_measures_the_copies_and_reaches_the_old_engine_only_through_the_door():
+    """The instrument that reports his words (THE SOS 23 of 25, Phase C 10 of 10 on his rails, measured on
+    Mon 21/09/2026: identical to the original, all 130 of its rows) reads the new reader's copies from task 7
+    on, so it is the one that will say when they first read differently. The block that measures the OLD
+    engine's election asks the door. No piece of the old chart reader is imported directly."""
+    import ast
+    import os
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "tools", "word_recall.py"), encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    named = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom) and n.module:
+            named += [n.module] + [f"{n.module}.{a.name}" for a in n.names]
+        elif isinstance(n, ast.Import):
+            named += [a.name for a in n.names]
+    old = [m for m in named if m.startswith(("engine_alpha.structure", "engine_alpha.evaluation",
+                                             "engine_alpha.scoring"))
+           or m == "engine_alpha.structure"]
+    assert not old, f"word_recall imports the old chart reader: {old}"
+    assert "engine_alpha.two_eyes.line_words" in named or "engine_alpha.two_eyes" in named
+
+
+
 def test_the_copies_numbers_start_at_the_values_the_originals_read():
     """Pinned once, like the pieces: each number the copies read from `method_numbers` starts at the value its
     original reads from the shared settings. The copied pure tests bracket some of them only loosely (the
@@ -223,3 +289,24 @@ def test_a_changed_number_moves_the_version_stamp(monkeypatch):
         assert manifest.manifest_hash() != before, f"moving {name} left the version stamp where it was"
         monkeypatch.undo()
     assert manifest.manifest_hash() == before
+
+
+def test_word_recall_feeds_the_old_election_the_old_engines_own_daily_range(monkeypatch):
+    """Word recall's engine basis measures the OLD engine's election, so it is fed the daily range the old
+    engine reads in the scan (the original's); his-rails basis reads the copies, so it is fed the copy's.
+    Today the two ranges are bit-identical (pinned above). The day the copy changes on purpose, an engine
+    basis fed the copy would report a different old engine with nobody having changed it."""
+    from engine_alpha.two_eyes import daily_range
+    from tools import word_recall
+    from tools.replay import load_sealed_fixture
+
+    frames, _ = load_sealed_fixture()
+    raw = next(iter(frames.values()))
+    # Every bar's range is 1.0 in the COPY alone, wherever the copy's function has been imported to; the
+    # original is untouched, so each basis shows which one it was fed.
+    monkeypatch.setattr(daily_range, "_true_range", lambda df: np.ones(len(df)))
+    his, old = word_recall._frames(raw)
+    assert (his["ATR_10"] == 1.0).all(), "his-rails basis must read the copy's daily range"
+    for period in (10, 50):
+        pd.testing.assert_series_equal(old[f"ATR_{period}"], old_indicators.calculate_atr(raw, period),
+                                       check_names=False)
