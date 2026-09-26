@@ -47,8 +47,8 @@ from engine_alpha.two_eyes.daily_range import calculate_atr
 OHLC = ("Open", "High", "Low", "Close")
 
 #: The column that carries each day's range once a frame is prepared. The name is the one the copied
-#: pieces read (box_end, the word rules, the swing line's floors), so it stays ATR_10 although the
-#: reader calls it the daily range.
+#: pieces read (the word rules, the swing line's floors), so it stays ATR_10 although the reader calls
+#: it the daily range.
 DAILY_RANGE = "ATR_10"
 
 

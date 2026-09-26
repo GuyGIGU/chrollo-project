@@ -33,8 +33,8 @@ LINE_WORD_SUPPER_DIG_ATR = 1.5
 #: His longest last supper, in trading days.
 LINE_WORD_SUPPER_MAX_DAYS = 4
 
-#: R15: the breakout day closes this far over R, in daily ranges (his placed margin).
-BOX_END_BREAKOUT_ATR = 0.10
+# R15's breakout margin (BOX_END_BREAKOUT_ATR, 0.10 ranges over R by the close) left with the copied box-end
+# reader at task 11: the new reader's box ends by swings alone, and reads no close anywhere.
 
 # --- Stage 1 (task 8): the numbers the frame preparation and the line read -------------------------
 

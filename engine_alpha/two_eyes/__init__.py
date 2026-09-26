@@ -53,8 +53,9 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
     """Read one chart. The ONE public way in.
 
     Refuse a frame that is not a chart; else build the line (stage 1), walk
-    from every end of a trend to the box (stages 2 and 3, `walk`) and fill the
-    record: the box, the trail to it, the state word. A crashed read comes
+    from every end of a trend to the box and follow the box's life (stages 2
+    to 4, `walk`) and fill the record: the box, every box it took over from,
+    the trail to it, the state word. A crashed read comes
     back as a counted failure with its reason — never as the words "no
     lines", which is what the screen says when a chart genuinely has no lines
     and must not be what it says when the engine fell over. `keep_listing`
@@ -78,9 +79,11 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         # rebuilt it could read a different line from the same bars.
         prepared = prepare(df)
         line = build_line(prepared)
-        # Stages 2 and 3 (task 10): every end of a trend the far view shows,
-        # its pair on the line, the two-legs walk and the election, on the
-        # committed turns only — the forming turn at the edge decides nothing.
+        # Stages 2 to 4 (tasks 10 and 11): every end of a trend the far view
+        # shows, its pair on the line, the two-legs walk and the election, and
+        # the box's life — a newer box takes over only beyond the shown one,
+        # once the price left and did not come back — on the committed turns
+        # only: the forming turn at the edge decides nothing.
         far = line.far(M.FAR_VIEW_FLOOR_RANGES)
         found = walk.elect(line.committed, [t for t in far if t.committed],
                            prepared[DAILY_RANGE].to_numpy(dtype=float),
@@ -91,8 +94,8 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
     except Exception as exc:                      # a broken frame, not a chart
         return crashed(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
-    # Stages 4 to 7 fill in the rest (the box's life, the story, the LPS, the
-    # grade). Empty is the honest answer until they do. The close is a fact of
+    # Stages 5 to 7 fill in the rest (the story, the LPS, the grade). Empty is
+    # the honest answer until they do. The close is a fact of
     # the read day, not of a stage: the frame contract has just proved the
     # last bar is whole.
     return Read(ticker=ticker, as_of=as_of, boxes=boxes, lps=None, trail=trail,

@@ -170,19 +170,6 @@ def test_the_run_reader_copy_finds_the_same_runs_on_every_fixture_frame():
     assert runs_seen > 0, "no fixture frame produced a run; the pin would be vacuous"
 
 
-def test_the_box_end_copy_reads_the_same_end_on_his_drawings():
-    c = _copies()
-    outcomes = set()
-    for ticker, df, box, _ in _his_drawings():
-        df = _with_atr(df, old_indicators.calculate_atr)
-        atr = _unit(df)
-        old = old_bricks.read_box_end(df, box, atr)
-        new = c.box_end.read_box_end(df, box, atr)
-        assert old == new, f"{ticker}: the box end differs"
-        outcomes.add(None if old[0] is None else old[0]["kind"])
-    assert len(outcomes) > 1, "every drawing ended the same way; the pin cannot tell rules apart"
-
-
 def test_the_word_rules_copy_reads_the_same_words_on_his_drawings():
     c = _copies()
     named = minis = 0
@@ -206,9 +193,8 @@ def test_the_word_rules_copy_reads_the_same_words_on_his_drawings():
 # The chains, whole                                                           #
 # --------------------------------------------------------------------------- #
 def test_each_chain_whole_reads_the_same_on_his_drawings():
-    """Each side stamps its OWN daily range and reads its OWN words and box end on it. The
-    piece-by-piece pins hand both sides one column; only this one exercises the daily-range copy as the
-    input the rest actually consume."""
+    """Each side stamps its OWN daily range and reads its OWN words on it. The piece-by-piece pins hand both
+    sides one column; only this one exercises the daily-range copy as the input the rest actually consume."""
     c = _copies()
     for ticker, raw_df, box, lps in _his_drawings():
         old_df = _with_atr(raw_df, old_indicators.calculate_atr)
@@ -217,9 +203,9 @@ def test_each_chain_whole_reads_the_same_on_his_drawings():
         assert old_unit == new_unit, ticker
         # The line itself is no longer pinned here: the copy changed on purpose at task 8 (the new leg's
         # extreme, the wide first bar), and tests/engine/test_two_eyes_line.py guards it now. The run
-        # reader is pinned on the old line in its own test above.
-        assert old_bricks.read_box_end(old_df, box, old_unit) == \
-            c.box_end.read_box_end(new_df, box, new_unit), ticker
+        # reader is pinned on the old line in its own test above. The box-end copy was RETIRED at task 11:
+        # the box's life is read from the walk's own pairs (engine_alpha/two_eyes/walk.py, stage 4), with no
+        # close anywhere, so there is no copy left to compare.
         assert old_words.read_line_words(old_df, box, old_unit, lps=lps) == \
             c.line_words.read_line_words(new_df, box, new_unit, lps=lps), ticker
 
@@ -239,7 +225,7 @@ def test_the_copies_import_nothing_from_the_old_engine_when_they_run():
         import sys
         sys.path.insert(0, {str(root)!r})
         import numpy as np, pandas as pd
-        from engine_alpha.two_eyes import box_end, daily_range, line_words, runs, swing_line
+        from engine_alpha.two_eyes import daily_range, line_words, runs, swing_line
         from types import SimpleNamespace as NS
         n = 60
         rng = np.random.default_rng(7)
@@ -253,7 +239,6 @@ def test_the_copies_import_nothing_from_the_old_engine_when_they_run():
         runs.runs_on_the_line(line)
         swing_line.label_market_structure([(b, k, p) for (b, k, p, _) in line])
         box = NS(start_bar=5, R=float(df["High"].max()), S=float(df["Low"].min()), r_anchor_bar=6, s_anchor_bar=5)
-        box_end.read_box_end(df, box, unit)
         line_words.read_line_words(df, box, unit)
         old = sorted(m for m in sys.modules if m.split(".")[:2] in (
             ["engine_alpha", "structure"], ["engine_alpha", "evaluation"], ["engine_alpha", "scoring"],
@@ -292,7 +277,7 @@ def test_the_copies_read_no_shared_setting():
     root = str(REPO_ROOT)
     package = os.path.join(root, "engine_alpha", "two_eyes")
     names = sorted(f[:-3] for f in os.listdir(package) if f.endswith(".py"))
-    assert {"daily_range", "swing_line", "runs", "box_end", "line_words", "method_numbers"} <= set(names)
+    assert {"daily_range", "swing_line", "runs", "line_words", "method_numbers"} <= set(names)
     for name in names:
         path = os.path.join(package, f"{name}.py")
         with open(path, encoding="utf-8") as f:
@@ -338,7 +323,7 @@ def test_the_copies_numbers_start_at_the_values_the_originals_read():
     from config import settings
     from engine_alpha.two_eyes import method_numbers
 
-    pinned = ("BOX_END_BREAKOUT_ATR", "LINE_WORD_AREA_ATR", "LINE_WORD_SOS_MIN_GROUND_ATR",
+    pinned = ("LINE_WORD_AREA_ATR", "LINE_WORD_SOS_MIN_GROUND_ATR",
               "LINE_WORD_SUPPER_DIG_ATR", "LINE_WORD_SUPPER_MAX_DAYS", "LINE_WORD_UPTHRUST_MIN_POKE_ATR",
               "TURN_LINE_FLOOR_ATR")
     assert set(pinned) <= {n for n in vars(method_numbers) if n.isupper()}
@@ -353,7 +338,7 @@ def test_a_changed_number_moves_the_version_stamp(monkeypatch):
     from engine_alpha.two_eyes import method_numbers
 
     names = sorted(n for n in vars(method_numbers) if n.isupper())
-    assert len(names) == 12, names           # seven from the copies (task 7), two from stage 1 (task 8), three from stages 2 and 3 (task 10)
+    assert len(names) == 11, names           # six from the copies (task 7; R15's margin left with the box-end copy at task 11), two from stage 1 (task 8), three from stages 2 and 3 (task 10)
     before = manifest.manifest_hash()
     for name in names:
         value = getattr(method_numbers, name)

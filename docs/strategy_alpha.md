@@ -158,21 +158,37 @@ default as ours.
    earlier, wider box is acceptable when his LPS reads against it: *"so nothing really
    disqualifies them (not until I've seen it ofc)"* (Sun 13/09/2026); the yardstick is
    concordance, never line replication.
-4. **The box's life.** A box ends only by swings: *"if the price continues to Rise/Fall
-   with out recovering we can deduce that either that the consolidating structure we
-   measured ended"*, and *"its tricky to define it with Close value we need to deduce it
-   Swings as well"* (Sat 12/09/2026). The come-back is looked for up to the read day before
-   any end stands. A new consolidation beyond a line takes over only when it is itself a
-   box by his rules (both its lines answered, and fifteen days): *"the child box inherit
-   the parent as its cause"* — read today, before the come-back is checked, as: a newer
-   trend end whose climax left the shown box's lines takes over when one of its pairs is a
-   box, and a trend end whose climax lies inside the box is the box's own leg (ours,
-   provisional; the walk's task, Sat 26/09/2026). Until then the parent keeps its lines, and a pullback resting
-   above resistance is the parent's own LPS. A range price left long ago is no candidate.
-   The mini consolidation is a box inside the parent's right side with its own two lines,
-   and it never replaces the parent: *"both boxes live, they are a part of the same setup"*
-   (Sun 20/09/2026). What tells a mini from a new box is ours: a band whose bottom dips
-   back under the parent's resistance area is a mini; one that holds above it is a new box.
+4. **The box's life.** A box ends only by swings, and only into a new box: *"if the price
+   continues to Rise/Fall with out recovering we can deduce that either that the
+   consolidating structure we measured ended and the price began to trend"*, *"its tricky
+   to define it with Close value we need to deduce it Swings as well"* (Sat 12/09/2026), and
+   *"the child box inherit the parent as its cause"*. A newer trend end takes over the shown
+   box only when one of its pairs became a box by his rules (both lines answered, fifteen
+   days) BEYOND the shown box's lines — its support in or above the shown resistance's area,
+   or its resistance in or below the shown support's area — and the price, having left the
+   shown box on that side, did not come back into it before that box was born: no swing
+   turned back under the resistance's area (over the support's, for a decline) between the
+   leaving and the birth. A dip or a thrust that comes back is the box's own event, a spring
+   or an upthrust, never an end; a pair inside or overlapping the shown box is its own leg,
+   or a mini, never a new box. The box handed over ends at its last turn inside its lines
+   before the price left, and stays in the record. Ours, built Sun 27/09/2026: the come-back
+   is judged on the swings known by the new box's birth, so a line once shown never moves
+   back; the leaving is looked for from the newer trend end's climax, on the side the new
+   box sits; and an older trend end's pair born later never takes over. Measured on his 35
+   against the walk's first reading of this stage (a newer trend end's climax beyond the
+   shown box, no come-back asked): that reading ended fifteen of his own boxes before his
+   buy day, this one ends none, and it reads his box to the cent on nine for its five. No
+   close is read anywhere: a close-dated hand-over is Tested-DEAD. Until a new box is born
+   the parent keeps its lines, and a pullback resting above resistance is the parent's own
+   LPS. A range price left long ago is no candidate because the hand-over follows the price
+   to the box where it trades (his dead-space drawings, BMRN and OHI, Sat 19/09/2026); where
+   the price has run on and no new box has been born yet, the old box is still the box shown,
+   and it is the LPS's own refusals and the state word that keep it from firing. The mini
+   consolidation is a box inside the parent's right side with its own two lines, and it never
+   replaces the parent: *"both boxes live, they are a part of the same setup"* (Sun
+   20/09/2026). What tells a mini from a new box is ours, and it is the same line as above: a
+   band whose bottom dips back under the parent's resistance area is a mini; one that holds
+   in or above it is a new box.
 5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
    beyond the support area is a Phase C candidate until the swing after its tip recovers it
    (a high back in the area, then a higher low) or fails it (a lower low first); one Phase

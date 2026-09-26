@@ -1,5 +1,6 @@
-"""The walk's board (task 10 of the two-eyes-reader build): on his 35 drawings, does the two-legs walk elect
-his pair on his last receding day — from the reader as it stands, and from the one trend end into his box alone.
+"""The walk's board (tasks 10 and 11 of the two-eyes-reader build): on his 35 drawings, does the two-legs walk
+elect his pair on his last receding day — from the reader as it stands, and from the one trend end into his box
+alone — and does the box's life keep it to his buy day.
 
 Per drawing, on the reader's own line built on the frame cut at his day:
 
@@ -9,9 +10,15 @@ Per drawing, on the reader's own line built on the frame cut at his day:
   the transition into his box, one inside his box, or an earlier one;
 * the same from the ONE trend end alone — the latest run end at or before his first anchor — which isolates
   stage 3 (the walk and the answering) from stage 4's question of which trend end is current;
+* the box's life (task 11): the box shown on his BUY day, how many boxes the reader handed over before his day
+  (kept in the record as earlier boxes), and whether his own box, by the reader's rules, would have been taken
+  over by any box born by his buy day (it must not be);
 * whether the walk LISTED his pair at all, after how many moves, and whether his pair is answered his way by
   the reader's rules (both lines by a swing within the area), and on which day it became a box;
 * pairs tried, the walk's and the whole read's time against the plan's 0.2-second budget, the record's size.
+
+And on the 16 junk charts: the box the reader shows on the frame's last day, and whether the price trades in it
+— his dead-space rule (a box the price left and never came back to is no candidate; BMRN, OHI).
 
 Offline, read-only, sidecars only: it reads the frozen as-drawn frames and writes to a directory you name.
 
@@ -45,11 +52,12 @@ from engine_alpha.two_eyes import method_numbers as M  # noqa: E402
 from engine_alpha.two_eyes import walk  # noqa: E402
 from tools.calibration.listing_gate import anchor_turns  # noqa: E402
 from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
+from tools.regression import negative_corpus  # noqa: E402
 from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
 from core.calibration.replay import fixture_frame, load_sealed_fixture  # noqa: E402
 
-#: The plan's named charts for task 10.
-NAMED = ("VIK", "SYRE", "BMRN", "ALB", "FOSL", "MSGS", "ROIV")
+#: The plan's named charts for tasks 10 and 11 (BMRN and OHI are junk charts: see the junk board).
+NAMED = ("VIK", "SYRE", "ALB", "FOSL", "MSGS", "ROIV", "EWTX", "NGL", "VLO", "ST", "NOK")
 BUDGET_SECONDS = 0.2
 VERDICTS = ("HIS", "CLOSE", "OTHER", "NONE")
 
@@ -124,6 +132,10 @@ def score_setup(setup: dict, raw) -> dict:
         joined = max(int(turns[r_i].knowable_bar), int(turns[s_i].knowable_bar))
         his_pair = walk.measure(known, ranges, r_i, s_i, joined, 0, "BC", None, "his pair", last_bar)
     _, trail, _ = walk.record(result)
+    # The box's life (task 11): the read on his buy day, and whether any box born by then takes his over.
+    buy_bar = min(days.index(_date(setup["trigger"])) if setup.get("trigger") else last_bar, len(days) - 1)
+    on_buy = walk.elect(walk.known_by(turns, buy_bar), walk.known_by(far, buy_bar), ranges, days=days,
+                        read_bar=buy_bar)
     return {
         "key": setup_key(setup), "ticker": setup["ticker"], "as_of": as_of, "days": days, "prepared": prepared,
         "turns": turns, "known": known, "ranges": ranges, "unit": unit, "rails": rails,
@@ -132,9 +144,32 @@ def score_setup(setup: dict, raw) -> dict:
         "from": where_from(result.winner, result.ends, first_bar),
         "one": one, "one_verdict": verdict(one, rails, unit), "one_pairs": len(one_pairs),
         "listed": listed, "his_pair": his_pair,
+        "buy_bar": buy_bar, "on_buy": on_buy, "buy_verdict": verdict(on_buy.winner, rails, unit),
+        "hand_overs": max(0, len(result.lives) - 1),
+        "his_ends": his_box_ends(his, turns, ranges, on_buy, first_bar, buy_bar),
         "pairs": len(result.pairs), "walk_seconds": walk_seconds, "read_seconds": read_seconds,
         "bytes": len(repr(trail)), "read": read,
     }
+
+
+def his_box_ends(his: dict, turns, ranges, on_buy, first_bar: int, buy_bar: int):
+    """His own pair, measured by the reader's rules on his buy day, against every box born by then: the first
+    that takes it over (``(the day's bar, the box)``), or None — the plan's stop for stage 4 is that there is
+    none on any of his 35."""
+    if his["R"] is None or his["S"] is None:
+        return None
+    known = walk.known_by(turns, buy_bar)
+    joined = max(int(turns[his["R"]].knowable_bar), int(turns[his["S"]].knowable_bar))
+    mine = walk.measure(known, ranges, his["R"], his["S"], joined, 0, "BC", None, "his pair", buy_bar)
+    by_end = {}
+    for pair in on_buy.pairs.values():
+        by_end.setdefault((pair.end_kind, pair.end_climax_bar), []).append(pair)
+    taken = []
+    for end in on_buy.ends:
+        box = walk.box_of(by_end.get((end["kind"], end["climax_bar"]), ()))
+        if box is not None and box.feet != mine.feet and walk.takes_over(box, end, mine, {"climax_bar": first_bar}, known):
+            taken.append((box.birth_bar, box))
+    return min(taken) if taken else None
 
 
 def run_board(setups: list, frames: dict) -> list:
@@ -190,6 +225,12 @@ def format_board(rows: list) -> str:
     boxes = [r for r in rows if r["box"] is not None]
     out.append("  the reader's box walked from: " + " · ".join(
         f"{w} {sum(1 for r in boxes if r['from'] == w)}" for w in ("the transition", "inside his box", "an earlier end")))
+    buy = {v: sum(1 for r in rows if r["buy_verdict"] == v) for v in VERDICTS}
+    ended = sorted(r["key"] for r in rows if r["his_ends"] is not None)
+    out.append("  THE BOX'S LIFE — on his BUY day: " + " · ".join(f"{v} {buy[v]}" for v in VERDICTS)
+               + f" · his own box taken over before his buy: {len(ended)} of {len(rows)}"
+               + (f" ({', '.join(ended)})" if ended else "")
+               + f" · boxes handed over before his day: {_med_worst([r['hand_overs'] for r in rows])}")
     out.append(f"  his pair LISTED by the walk: {sum(1 for r in rows if r['listed'] is not None)} of {len(rows)}"
                f" · his pair a box by the reader's rules by his day: "
                f"{sum(1 for r in rows if r['his_pair'] is not None and r['his_pair'].birth_bar is not None)} of {len(rows)}")
@@ -202,14 +243,58 @@ def format_board(rows: list) -> str:
     named = [f"{t} {next((r['verdict'] for r in rows if r['ticker'] == t), '?')}" for t in NAMED]
     out.append("  named charts: " + " · ".join(named))
     out.append("")
-    out.append(f"  {'drawing':<16}{'his anchors':<14}{'box':<7}{'one end':<9}{'listed':<9}{'his pair':<24}{'pairs':>6}"
-               f"{'read s':>8}  where the box differs")
+    out.append(f"  {'drawing':<16}{'his anchors':<14}{'box':<7}{'buy day':<9}{'one end':<9}{'earlier':>8}  "
+               f"{'listed':<9}{'his pair':<24}{'pairs':>6}{'read s':>8}  where the box differs")
     for row in misses_first(rows):
         his = row["his"]
         anchors = f"{his['r_match'] or '-'}/{his['s_match'] or '-'}"
         listed = "-" if row["listed"] is None else f"{row['listed'].position} move(s)"
-        out.append(f"  {row['key']:<16}{anchors:<14}{row['verdict']:<7}{row['one_verdict']:<9}{listed:<9}"
-                   f"{_his_pair_words(row):<24}{row['pairs']:>6}{row['read_seconds']:>8.3f}  {_difference(row)}")
+        ends = "" if row["his_ends"] is None else f" HIS BOX ENDS {row['days'][row['his_ends'][0]]:%d/%m}"
+        out.append(f"  {row['key']:<16}{anchors:<14}{row['verdict']:<7}{row['buy_verdict']:<9}{row['one_verdict']:<9}"
+                   f"{row['hand_overs']:>8}  {listed:<9}{_his_pair_words(row):<24}{row['pairs']:>6}"
+                   f"{row['read_seconds']:>8.3f}  {_difference(row)}{ends}")
+    return "\n".join(out)
+
+
+# --------------------------------------------------------------------------- #
+# The junk: a box the price left and never came back to is no candidate       #
+# --------------------------------------------------------------------------- #
+def junk_rows() -> list:
+    """The 16 junk charts read on the fixture's last day: the box shown, where the last bar sits against its
+    lines (inside their areas, or how many of the box's daily ranges beyond), the boxes handed over."""
+    frames, _ = negative_corpus._load_fixture()
+    rows = []
+    for key, raw in frames.items():
+        read = two_eyes.read(key, raw)
+        box = read.parent
+        high, low = float(raw["High"].iloc[-1]), float(raw["Low"].iloc[-1])
+        if box is None:
+            rows.append({"key": key, "box": None, "beyond": None, "earlier": 0, "read": read})
+            continue
+        area = M.LINE_WORD_AREA_ATR * box.daily_range
+        beyond = 0.0
+        if low > box.resistance.price + area:
+            beyond = (low - box.resistance.price) / box.daily_range
+        elif high < box.support.price - area:
+            beyond = -(box.support.price - high) / box.daily_range
+        rows.append({"key": key, "box": box, "beyond": beyond,
+                     "earlier": sum(1 for b in read.boxes if b.role == two_eyes.ROLE_EARLIER), "read": read})
+    return rows
+
+
+def format_junk(rows: list) -> str:
+    inside = [r for r in rows if r["box"] is not None and r["beyond"] == 0.0]
+    out = [f"  THE JUNK, on the fixture's last day: the price trades in the box shown on {len(inside)} of {len(rows)}"
+           f" · no box {sum(1 for r in rows if r['box'] is None)}"]
+    for r in sorted(rows, key=lambda r: (r["box"] is not None, -abs(r["beyond"] or 0), r["key"])):
+        box = r["box"]
+        if box is None:
+            out.append(f"    {r['key']:<16}no box")
+            continue
+        where = ("in the box" if r["beyond"] == 0.0 else
+                 f"{abs(r['beyond']):.1f} ranges {'above' if r['beyond'] > 0 else 'under'} it")
+        out.append(f"    {r['key']:<16}{box.resistance.price:.2f}/{box.support.price:.2f} opened "
+                   f"{box.opened_day:%d/%m/%y}: {where}; {r['earlier']} earlier box(es) in the record")
     return "\n".join(out)
 
 
@@ -224,6 +309,7 @@ def misses_first(rows: list) -> list:
 _HIS = "#d62728"        # his lines, red
 _ENGINE = "#1f77b4"     # the reader's box, blue
 _ONE = "#2e8b57"        # the box from the one trend end alone, when it differs
+_EARLIER = "#9ec5e6"    # the boxes the reader handed over before his day
 _LINE = "#8a8a8a"
 _END = "#1f4e9c"
 _LEAD_IN = 45
@@ -274,6 +360,18 @@ def _render_one(plt, draw_bars, row: dict, setup: dict, path: str):
     if fine:
         ax.plot([x(t.bar) for t in fine], [t.price for t in fine], color=_LINE, lw=.8, alpha=.7, zorder=2)
 
+    # The boxes the reader handed over before his day (task 11): faint, from their anchors to the turn they
+    # ended on.
+    for life in row["result"].lives[:-1]:
+        p = life.pair
+        end_bar = p.second_bar if life.ended is None else life.ended.bar
+        if end_bar < lo:
+            continue
+        for price, bar in ((p.R, p.r_bar), (p.S, p.s_bar)):
+            ax.plot([x(max(bar, lo)), x(end_bar)], [price, price], color=_EARLIER, lw=1.3, zorder=3)
+        ax.annotate(f"earlier box, ended {days[end_bar]:%d/%m}", (x(end_bar), p.R), xytext=(4, 4),
+                    textcoords="offset points", color=_EARLIER, fontsize=7.5, zorder=5)
+
     if box is not None:
         for price, bar, name in ((box.R, box.r_bar, "R"), (box.S, box.s_bar, "S")):
             ax.plot([x(bar), x(hi - 1)], [price, price], color=_ENGINE, lw=1.6, ls="--", zorder=4)
@@ -321,6 +419,12 @@ def _words(row: dict) -> str:
     box = row["box"]
     if box is not None:
         parts.append("The trail: " + " → ".join(s.saying for s in row["read"].trail if s.stage != "trend end") + ".")
+    if row["buy_verdict"] != row["verdict"]:
+        parts.append(f"On his buy day the box is {row['buy_verdict']}.")
+    if row["his_ends"] is not None:
+        _, taken = row["his_ends"]
+        parts.append(f"HIS BOX WOULD END on {row['days'][row['his_ends'][0]]:%d/%m}, taken over by "
+                     f"{taken.R:.2f} / {taken.S:.2f}.")
     parts.append(f"{row['pairs']} pairs tried; the whole read took {row['read_seconds']:.3f}s.")
     return "  ".join(parts)
 
@@ -344,8 +448,8 @@ def write_contact_sheet(rows: list, pages: list, out_dir: str) -> str:
 <p>OHLC bars. Red: his two lines, their areas, his anchors (circles), his box (shaded), his last receding days
  (brown). Grey: the reader's line as of his last receding day. Blue dashed: the reader's box, from its anchors
  (circles) to the right; blue dotted: the day it became a box; the blue wedge is the trend end it walked from.
- Green dash-dot: the box the walk from the one trend end into his box alone would show, when it differs. Misses
- first.</p>
+ Pale blue: the boxes the reader showed before it and handed over, each to the turn it ended on. Green dash-dot:
+ the box the walk from the one trend end into his box alone would show, when it differs. Misses first.</p>
 <div class="grid">{''.join(cells)}</div>
 """
     path = os.path.join(out_dir, "index.html")
@@ -364,6 +468,8 @@ def main() -> int:
     rows = run_board(setups, frames)
     print(format_board(rows))
     print(f"  {len(rows)} drawings read in {time.perf_counter() - started:.1f}s")
+    print()
+    print(format_junk(junk_rows()))
     if args.pages:
         pages = render_pages(rows, {setup_key(s): s for s in setups}, args.pages)
         print(f"  {len(pages)} pages · contact sheet {write_contact_sheet(rows, pages, args.pages)}")

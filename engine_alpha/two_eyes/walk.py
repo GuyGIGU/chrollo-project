@@ -1,10 +1,11 @@
-"""Stages 2 and 3 of the two-eyes reader: the end of the trend, the two-legs walk, answered his way, and the
-election of the box.
+"""Stages 2, 3 and 4 of the two-eyes reader: the end of the trend, the two-legs walk, answered his way, the
+election of the box, and the box's life.
 
-Task 10 of the two-eyes-reader build. Pure functions of the line (stage 1) and each day's range: they read no
-bars, apply no setting but the four numbers in ``method_numbers``, gate nothing and grade nothing. Everything is
-computed from the turns known on the read day, so a reader with no memory gives the same answer as one that
-watched every day (``tests/engine/test_two_eyes_walk.py`` proves it on his 35 and on a hand-built line).
+Tasks 10 and 11 of the two-eyes-reader build. Pure functions of the line (stage 1) and each day's range: they
+read no bars, apply no setting but the four numbers in ``method_numbers``, gate nothing and grade nothing.
+Everything is computed from the turns known on the read day, so a reader with no memory gives the same answer
+as one that watched every day (``tests/engine/test_two_eyes_walk.py`` proves it on his 35, on the 88 fixture
+charts and on hand-built lines).
 
 His words that place the rules, and where they came from:
 
@@ -35,11 +36,24 @@ His words that place the rules, and where they came from:
   first, then the earlier opening, then the walk's order (fewer moves), then the tighter pair; the order of
   the tie-breaks is OURS (placed at the listing gate, task 9). A shown line never moves: every pair is listed
   no earlier than the day the reader could see it, so nothing born later can be born earlier.
+* **The box's life.** *"if the price continues to Rise/Fall with out recovering we can deduce that either that
+  the consolidating structure we measured ended and the price began to trend"* (Q6, Sat 12/09/2026); *"the
+  child box inherit the parent as its cause + its tricky to define it with Close value we need to deduce it
+  Swings as well"* (Sat 13/09/2026); point 26: *"the first swing whose valley holds in or above the parent's R
+  area is the child's root candidate"*. A box ends only into a new box: a newer trend end takes over when one
+  of its pairs became a box by his rules beyond the shown box's lines — its support in or above the shown
+  resistance's area, or its resistance in or below the shown support's area — and the price, having left the
+  shown box on that side, did not come back into it before that birth. A dip or a thrust that came back is
+  the box's own event (a spring, an upthrust); a pair inside or overlapping the box is its own leg, or a mini.
+  The box handed over stays in the record, ended at its last turn inside its lines before the price left. No
+  close is read anywhere: a close-dated hand-over is Tested-DEAD (his 35 kept ten boxes as one through closes
+  a full range over resistance).
 
-Ours, recorded as ours in the decisions record (task 10, Sat 26/09/2026): the far floor (1.5 daily ranges),
-the tall floor (a pair under one of its own daily ranges is listed and never a box), the two step triggers
-(short of the area while unanswered; beyond the area before birth), and each pair's unit — the range of its
-second anchor's day, never the read day's.
+Ours, recorded as ours in the decisions record (tasks 10 and 11, Sat 26/09/2026 and Sun 27/09/2026): the far
+floor (1.5 daily ranges), the tall floor (a pair under one of its own daily ranges is listed and never a box),
+the two step triggers (short of the area while unanswered; beyond the area before birth), each pair's unit — the
+range of its second anchor's day, never the read day's — and the come-back judged on the swings known by the
+new box's birth, so a line once shown never moves back.
 """
 from __future__ import annotations
 
@@ -49,11 +63,12 @@ from itertools import count
 from typing import Optional
 
 from engine_alpha.two_eyes import method_numbers as M
-from engine_alpha.two_eyes.record import NO_LINES, ROLE_PARENT, Box, Line, Step
+from engine_alpha.two_eyes.record import NO_LINES, ROLE_EARLIER, ROLE_PARENT, Box, Line, Step
 from engine_alpha.two_eyes.runs import _cmp
 
-__all__ = ["Pair", "Walk", "bar_respects", "beyond", "box_of", "elect", "end_pair", "known_by", "left_the_box",
-           "measure", "record", "respects", "trend_ends", "winner", "LINES_NO_LPS"]
+__all__ = ["Life", "Pair", "Walk", "bar_respects", "box_of", "came_back", "departure", "elect", "end_pair",
+           "known_by", "lives", "measure", "record", "respects", "side_of", "takes_over", "trend_ends", "winner",
+           "LINES_NO_LPS"]
 
 #: The screen's word for a chart with a box and no LPS yet (his ten-word table; the LPS is stage 6).
 LINES_NO_LPS = "lines, no LPS yet"
@@ -298,14 +313,6 @@ def _key(pair: Pair) -> tuple:
     return (pair.birth_bar, pair.opening_bar, pair.position, pair.height, pair.r_index, pair.s_index)
 
 
-def beyond(new: Pair, shown: Pair) -> bool:
-    """A box beyond the shown box's lines: its support at or above the shown resistance's area, or its
-    resistance at or below the shown support's area — a new consolidation at a new level, never one inside
-    or overlapping the shown one (the box's own legs, or a mini)."""
-    area = float(M.LINE_WORD_AREA_ATR) * shown.unit
-    return new.S >= shown.R - area or new.R <= shown.S + area
-
-
 def box_of(pairs) -> Optional[Pair]:
     """One trend end's box: the first of its pairs that became a box, by the election key — *"were looking for
     the first instance that a consolidation is respected!"* A pair born later inside or overlapping it never
@@ -316,22 +323,89 @@ def box_of(pairs) -> Optional[Pair]:
     return min(born, key=_key) if born else None
 
 
-def left_the_box(climax_price: float, shown: Pair) -> bool:
-    """A trend end's climax beyond the shown box's lines: the trend left the box before it ended."""
+# --------------------------------------------------------------------------- #
+# Stage 4: the box's life — the hand-over to a new box, and never back        #
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class Life:
+    """One box in the read's history: the pair, its trend end, and — once a newer box took over — the turn it
+    ended on (its last turn inside its lines before the price left) and the side the price left on."""
+    pair: Pair
+    end: dict
+    ended: Optional[object] = None      # a Turn, or None while the box stands
+    left: Optional[str] = None          # "above" | "below"
+
+
+def side_of(new: Pair, shown: Pair) -> Optional[str]:
+    """Where a later box sits against the shown one: ``"above"`` when its support holds in or above the shown
+    resistance's area, ``"below"`` when its resistance holds in or below the shown support's area — his point
+    26 (*"the first swing whose valley holds in or above the parent's R area is the child's root candidate"*)
+    and its mirror under support. None for a pair inside or overlapping the shown box: the box's own leg, or
+    a mini, never a new box."""
     area = float(M.LINE_WORD_AREA_ATR) * shown.unit
-    return float(climax_price) > shown.R + area or float(climax_price) < shown.S - area
+    if new.S >= shown.R - area:
+        return "above"
+    if new.R <= shown.S + area:
+        return "below"
+    return None
 
 
-def winner(pairs, ends) -> Optional[Pair]:
-    """The box the read shows. Each trend end has its own box (``box_of``). Taken in the order the boxes were
-    born, the first stands, and a trend end's box born later takes over only when that trend's climax LEFT
-    the shown box's lines — the plan's stage-4 rule for the box's life (*"a newer trend end takes over only
-    when one of ITS pairs is a box by your rules"*, and the theory's *"A new consolidation beyond a line
-    takes over only when it is itself a box by his rules"*). A trend end whose climax lies inside the shown
-    box is the box's own leg: it never moves the box. Read day by day, the shown box therefore changes only
-    to a box born later, never back. This is the provisional stage-4 seam, OURS (measured against three
-    other readings on his 35, Sat 26/09/2026): the ends by swings, the come-back checked to the read day and
-    the earlier box kept in the record are task 11's. None while no pair is a box."""
+def departure(turns, shown: Pair, side: str, from_bar: int, by_bar: int) -> Optional[int]:
+    """The bar the price left the shown box on ``side``: the first committed turn known by ``by_bar``, at or
+    after ``from_bar``, beyond that line's area. None while it has not left on that side."""
+    area = float(M.LINE_WORD_AREA_ATR) * shown.unit
+    for t in turns:
+        if t.knowable_bar is None or t.knowable_bar > by_bar or t.bar < from_bar:
+            continue
+        if (t.price > shown.R + area) if side == "above" else (t.price < shown.S - area):
+            return int(t.bar)
+    return None
+
+
+def came_back(turns, shown: Pair, side: str, after_bar: int, by_bar: int):
+    """The come-back: a committed turn after ``after_bar``, known by ``by_bar``, back inside the shown box
+    beyond the near line's area — a valley under the resistance's area when the price left above, a peak over
+    the support's area when it left below. His Q6 read on the line: the structure ended only *"if the price
+    continues to Rise/Fall with out recovering"*. Returns that turn, or None."""
+    area = float(M.LINE_WORD_AREA_ATR) * shown.unit
+    kind = "valley" if side == "above" else "peak"
+    for t in turns:
+        if t.knowable_bar is None or t.knowable_bar > by_bar or t.bar <= after_bar or t.kind != kind:
+            continue
+        if (t.price < shown.R - area) if side == "above" else (t.price > shown.S + area):
+            return t
+    return None
+
+
+def takes_over(new: Pair, end: dict, shown: Pair, shown_end: dict, turns) -> bool:
+    """Does a later box take over the shown one? Only when its trend end is newer (its climax after the shown
+    box's trend end's climax), it sits beyond the shown box (``side_of``), and the price, having left the
+    shown box on that side at or after that climax, did not come back before the new box was born — judged on
+    the swings known by its birth, so a line once shown never moves back. A dip or a thrust that came back is
+    the box's own event (a spring, an upthrust); a pair inside or overlapping the box is its own leg, or a
+    mini."""
+    side = side_of(new, shown)
+    if side is None or int(end["climax_bar"]) <= int(shown_end["climax_bar"]):
+        return False
+    left = departure(turns, shown, side, int(end["climax_bar"]), int(new.birth_bar))
+    return left is not None and came_back(turns, shown, side, left, int(new.birth_bar)) is None
+
+
+def _last_turn_inside(turns, shown: Pair, before_bar: int):
+    """The shown box's last committed turn before ``before_bar`` within its lines' areas — where its lines
+    stop once it is handed over (*"the parent freezes at its last turn before price left"*). Failing one, the
+    last committed turn before that bar."""
+    area = float(M.LINE_WORD_AREA_ATR) * shown.unit
+    before = [t for t in turns if t.knowable_bar is not None and t.bar < before_bar]
+    inside = [t for t in before if shown.S - area <= t.price <= shown.R + area]
+    return (inside or before or [None])[-1]
+
+
+def lives(pairs, ends, turns) -> tuple:
+    """The box's life across every trend end: each end's box (``box_of``), taken in the order they were born;
+    the first stands, and each later one takes over only by ``takes_over`` — *"the child box inherit the
+    parent as its cause"*. Every box that was handed over stays, with the turn it ended on and the side the
+    price left on; the last one stands. Empty while no pair is a box."""
     by_end = {}
     for pair in pairs:
         by_end.setdefault((pair.end_kind, pair.end_climax_bar), []).append(pair)
@@ -340,22 +414,37 @@ def winner(pairs, ends) -> Optional[Pair]:
         box = box_of(by_end.get((end["kind"], end["climax_bar"]), ()))
         if box is not None:
             boxes.append((box, end))
-    shown = None
+    out = []
     for box, end in sorted(boxes, key=lambda be: _key(be[0])):
-        if shown is None or left_the_box(end["climax_price"], shown):
-            shown = box
-    return shown
+        if not out:
+            out.append(Life(box, end))
+            continue
+        shown = out[-1]
+        if takes_over(box, end, shown.pair, shown.end, turns):
+            side = side_of(box, shown.pair)
+            left = departure(turns, shown.pair, side, int(end["climax_bar"]), int(box.birth_bar))
+            out[-1] = Life(shown.pair, shown.end, ended=_last_turn_inside(turns, shown.pair, left), left=side)
+            out.append(Life(box, end))
+    return tuple(out)
+
+
+def winner(pairs, ends, turns) -> Optional[Pair]:
+    """The box the read shows: the last of ``lives``, or None while no pair is a box."""
+    history = lives(pairs, ends, turns)
+    return history[-1].pair if history else None
 
 
 @dataclass(frozen=True)
 class Walk:
     """What the walk found on one read: the trend ends, every pair it listed (in the order it listed them,
-    keyed by feet), and the box, or None."""
+    keyed by feet), the box shown or None, the turns, and the box's life — every box shown so far, the
+    earlier ones ended (``lives``)."""
     ends: tuple
     pairs: dict
     winner: Optional[Pair]
     turns: tuple
     days: Optional[tuple] = None
+    lives: tuple = ()
 
 
 def _climax_index(turns, end: dict) -> Optional[int]:
@@ -416,8 +505,9 @@ def elect(turns, far_turns, ranges, days=None, read_bar: Optional[int] = None) -
             if have is None or (pair.joined_bar, pair.position) < (have.joined_bar, have.position):
                 pairs[pair.feet] = pair
     pairs = dict(sorted(pairs.items(), key=lambda kv: (kv[1].joined_bar, kv[1].position, kv[0])))
-    return Walk(ends=tuple(ends), pairs=pairs, winner=winner(pairs.values(), ends), turns=tuple(turns),
-                days=None if days is None else tuple(days))
+    history = lives(pairs.values(), ends, turns)
+    return Walk(ends=tuple(ends), pairs=pairs, winner=history[-1].pair if history else None, turns=tuple(turns),
+                days=None if days is None else tuple(days), lives=history)
 
 
 # --------------------------------------------------------------------------- #
@@ -455,10 +545,24 @@ def _pair_words(walk: Walk, pair: Pair) -> str:
                     else f"; not a box yet: its fifteenth day is {_when(walk, pair.fifteenth)}")
 
 
+def _hand_over_words(walk: Walk, life: Life, new: Life) -> str:
+    ended = "" if life.ended is None else f" {life.ended.day:%a %d/%m/%Y}"
+    return (f"the box {life.pair.R:.2f} / {life.pair.S:.2f} ended{ended}: the price left it {life.left} and did not "
+            f"come back, and {new.pair.R:.2f} / {new.pair.S:.2f} became a box on {_when(walk, new.pair.birth_bar)}")
+
+
+def _box_record(walk: Walk, pair: Pair, role: str, end_day=None) -> Box:
+    r, s = walk.turns[pair.r_index], walk.turns[pair.s_index]
+    return Box(resistance=Line(pair.R, r.day), support=Line(pair.S, s.day), opened_day=min(r.day, s.day),
+               end_day=end_day, role=role, daily_range=pair.unit)
+
+
 def record(walk: Walk, keep_listing: bool = False) -> tuple:
-    """The read's record from the walk: ``(boxes, trail, state)``. The trail runs from the winner's trend end
+    """The read's record from the walk: ``(boxes, trail, state)``. The boxes are every box the read handed
+    over, in order, each ended on the day its lines stop (``ROLE_EARLIER``), then the box shown
+    (``ROLE_PARENT``). The trail opens with each hand-over in words, then runs from the shown box's trend end
     through each pair the legs stood on to the box; with ``keep_listing`` every other pair the walk listed
-    follows, in the order it was listed — words only, the box and the state identical."""
+    follows, in the order it was listed — words only, the boxes and the state identical."""
     if not walk.ends:
         return (), (), NO_LINES
     won = walk.winner
@@ -474,8 +578,8 @@ def record(walk: Walk, keep_listing: bool = False) -> tuple:
         ancestry.append(walk.pairs[feet])
         feet = walk.pairs[feet].parent
     ancestry.reverse()
-    end = next(e for e in walk.ends if e["kind"] == won.end_kind and e["climax_bar"] == won.end_climax_bar)
-    steps = [Step("trend end", _end_words(walk, end))]
+    steps = [Step("hand-over", _hand_over_words(walk, life, new)) for life, new in zip(walk.lives, walk.lives[1:])]
+    steps.append(Step("trend end", _end_words(walk, walk.lives[-1].end)))
     for pair, child in zip(ancestry[:-1], ancestry[1:]):
         steps.append(Step("pair", _pair_words(walk, pair)))
         steps.append(Step("step", child.reason))
@@ -483,7 +587,7 @@ def record(walk: Walk, keep_listing: bool = False) -> tuple:
     if keep_listing:
         listed = {p.feet for p in ancestry}
         steps.extend(Step("listed", _pair_words(walk, p)) for p in walk.pairs.values() if p.feet not in listed)
-    r, s = walk.turns[won.r_index], walk.turns[won.s_index]
-    box = Box(resistance=Line(won.R, r.day), support=Line(won.S, s.day),
-              opened_day=min(r.day, s.day), end_day=None, role=ROLE_PARENT, daily_range=won.unit)
-    return (box,), tuple(steps), LINES_NO_LPS
+    boxes = [_box_record(walk, life.pair, ROLE_EARLIER, None if life.ended is None else life.ended.day)
+             for life in walk.lives[:-1]]
+    boxes.append(_box_record(walk, won, ROLE_PARENT))
+    return tuple(boxes), tuple(steps), LINES_NO_LPS
