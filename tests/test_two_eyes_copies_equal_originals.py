@@ -180,6 +180,19 @@ def test_the_run_reader_copy_finds_the_same_runs_on_every_fixture_frame():
     assert runs_seen > 0, "no fixture frame produced a run; the pin would be vacuous"
 
 
+def test_the_box_end_copy_reads_the_same_end_on_his_drawings():
+    c = _copies()
+    outcomes = set()
+    for ticker, df, box, _ in _his_drawings():
+        df = _with_atr(df, old_indicators.calculate_atr)
+        atr = _unit(df)
+        old = old_bricks.read_box_end(df, box, atr)
+        new = c.box_end.read_box_end(df, box, atr)
+        assert old == new, f"{ticker}: the box end differs"
+        outcomes.add(None if old[0] is None else old[0]["kind"])
+    assert len(outcomes) > 1, "every drawing ended the same way; the pin cannot tell rules apart"
+
+
 def test_the_copies_numbers_start_at_the_values_the_originals_read():
     """Pinned once, like the pieces: each number the copies read from `method_numbers` starts at the value its
     original reads from the shared settings. The copied pure tests bracket some of them only loosely (the
