@@ -36,9 +36,11 @@ Nine branches were cut before the refactor and edit files it moved. On 2026-09-2
 one merge and one port commit each: `revive/signal-edge` (`c35f924`), then
 `claude/eager-chatelet-65e8d4` (`7c8f547`, docs fix `1119c8b`), then `claude/method-steps-7-12`, which
 carries `claude/sos-session` and `claude/clever-napier-08f25d` (`0a96e39`). Each checkpoint passed the
-full gate stack. Not ported: `claude/two-eyes-reader` (in flight), `claude/engine-time-axis-and-nan-contract`
-(held for a ruling), `claude/indexless-universe-cold-gate` (superseded) and `wip/signal-edge-backtest`
-(superseded by `revive/signal-edge`).
+full gate stack. On 2026-09-25 `claude/engine-time-axis-and-nan-contract` followed on the operator's LIVN
+ruling (`e520972`, fix `663c7a1`). Not ported: `claude/two-eyes-reader` (in flight). Retired as tags on
+2026-09-26 instead of ported: `claude/indexless-universe-cold-gate` (superseded;
+`retired/indexless-universe-cold-gate-2026-09`) and `wip/signal-edge-backtest` (superseded by
+`revive/signal-edge`; `retired/signal-edge-backtest-2026-07`).
 
 **Ported 2026-09-25**: `claude/engine-time-axis-and-nan-contract`, one merge and one port commit, once the
 operator had ruled on LIVN ([decisions.md](../decisions.md), 2026-09-25). Its two added tests went to

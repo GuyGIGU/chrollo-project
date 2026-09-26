@@ -1,6 +1,6 @@
 # Current state
 
-Snapshot of 2026-09-25, branch `claude/integration-2026-09` (the domain refactor, its follow-ups and
+Snapshot of 2026-09-26, branch `main` (deployed 2026-09-25: the domain refactor, its follow-ups and
 the merge train below). Update it when a flag flips, a
 priority lands or a branch merges. Layout: [`architecture.md`](architecture.md). Every
 `python` here means the repo venv, `.\.venv\Scripts\python.exe` (bare `python` is a trap, `AGENTS.md`).
@@ -106,8 +106,10 @@ Engine files wait until `claude/two-eyes-reader` lands, and change only through 
 `claude/clever-napier-08f25d`). Each was ported, gated and checked by two independent reviews; the
 checkpoints are in [`migrations/2026-09-domain-refactor.md`](migrations/2026-09-domain-refactor.md).
 On 2026-09-25 `claude/engine-time-axis-and-nan-contract` followed, no longer held: the operator ruled
-that LIVN may drop out ([`decisions.md`](decisions.md)). Three branches remain unmerged:
-`claude/two-eyes-reader` (its council build is in flight; port it when it finishes),
-`claude/indexless-universe-cold-gate` (superseded by `937ecd4`) and `wip/signal-edge-backtest`
-(an older copy of `revive/signal-edge`). After any merge run pytest;
+that LIVN may drop out ([`decisions.md`](decisions.md)). One branch remains unmerged:
+`claude/two-eyes-reader` (its council build is in flight; port it when it finishes). On 2026-09-26 the
+two superseded branches were retired as tags, `retired/indexless-universe-cold-gate-2026-09` (superseded
+by `937ecd4`) and `retired/signal-edge-backtest-2026-07` (an older copy of `revive/signal-edge`); every
+merged branch and leftover worktree was removed, and their uncommitted leftovers were saved to
+`%USERPROFILE%\ChrolloBackups\worktree-sweep-2026-09-26\`. After any merge run pytest;
 `tests/integration/test_moved_module_paths.py` catches old names.
