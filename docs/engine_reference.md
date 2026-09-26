@@ -908,6 +908,19 @@ the new reader or dropped with its subject, and the fate table in
 [flag_ledger.md](flag_ledger.md) says which. The entries below stay as the record of what
 was built and measured, and as the source the copies are taken from.
 
+## The two-eyes reader — the rewrite, built dark beside this one (from Sun 20/09/2026)
+
+The new reader lives in `engine_alpha/two_eyes/` (a leaf: it imports nothing from the old
+chart reader), behind the one door `engine_alpha/reader.py` and the switch
+`TWO_EYES_READER_ENABLED` (off; the flip is his, at the approval sitting). Its numbers are its
+own (`method_numbers.py`, hashed into the version stamp); its proven pieces arrived by copy
+(task 7) and the old reader is frozen (`tests/engine/test_old_engine_frozen.py`). Stage by stage,
+in his order; a stage's rules are in the theory, its mechanics here.
+
+| Stage | Landed | What it does, and what proves it |
+|---|---|---|
+| 1 · the line and the far view | 2026-09-26 (task 8) | `frame.prepare`: the contract, each day's range (`calculate_atr`, `DAILY_RANGE_DAYS` = 10) on the LONG frame, then the cut to `READ_WINDOW` (the old `_trim_to_period`, copied) with the ranges carried. `line.build`: the fine line once per read (`swing_line.turn_line`, floor `TURN_LINE_FLOOR_ATR` of each bar's own range), every turn a `Turn` with its day, its knowable day (the confirming close) and its size (the leg into it, in its own day's range). `SwingLine.far(floor)`: the far view, a fold of the fine line — its extremes are the fine line's committed turns, the back-off tested on the bars in the fine line's order (`_far_on_bars`) — built once per floor. The copied line was corrected three times (a leg's extreme is the true extreme since the turn, the turn bar's other end included when read after it; a wide first bar is read once; the opening turn is knowable when its kind is, never on bar 0) and its copy pins retired. Proved on the 88 fixture charts by `tests/engine/test_two_eyes_line.py`: nested (0 far turns outside the fine line at 1.5, 2.5 and 3.0 ranges), causal (cutting on the right changes only the forming turn), the left edge forgotten within 40 bars (measured 28; the far views within 80, measured 69 at 3.0), a missing number refused by day; nine deliberate breaks each seen red (`handoff/mutate8.py` in the council run). Word recall on his rails is unchanged by the corrections (THE SOS 23 of 25, Phase C 10 of 10). |
+
 
 ## Phase 3 — LPS Detection
 
@@ -1625,7 +1638,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `6f18266ce7e188fac4fdf82af5da7ffc0db902f360ee6f66ddf9575a0c7df728`_
+_engine_config_version: `eab97c65c83b9f6589df68f39439ed255465779566dc8483711b502c175ec706`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1726,7 +1739,7 @@ LPS_BUY_DAY_READS_HIGH_ENABLED = False
 LPS_REFUSALS_TO_GRADES_ENABLED = False
 LPS_SELLERS_RISING_FATAL_ENABLED = False
 TWO_EYES_READER_ENABLED = False
-TWO_EYES_RULESET = 'two-eyes-0.1.0-skeleton'
+TWO_EYES_RULESET = 'two-eyes-0.2.0-line'
 TURN_LINE_ENABLED = False
 TURN_LINE_TREND_ENABLED = False
 TURN_LINE_FLOOR_ATR = 0.75

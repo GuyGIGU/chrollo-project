@@ -24,7 +24,8 @@ built against; `frame.py` is what a chart must be before it is read.
 """
 from __future__ import annotations
 
-from engine_alpha.two_eyes.frame import FrameRefused, check as check_frame
+from engine_alpha.two_eyes.frame import FrameRefused, check as check_frame, prepare
+from engine_alpha.two_eyes.line import SwingLine, Turn, build as build_line
 from engine_alpha.two_eyes.record import _as_day
 from engine_alpha.two_eyes.record import (
     NO_LINES,
@@ -41,7 +42,8 @@ from engine_alpha.two_eyes.record import (
 )
 
 __all__ = ["read", "Read", "Box", "Line", "Lps", "Step", "crashed",
-           "FrameRefused", "check_frame", "NO_LINES", "READ_FAILED",
+           "FrameRefused", "check_frame", "prepare", "build_line", "SwingLine", "Turn",
+           "NO_LINES", "READ_FAILED",
            "ROLE_PARENT", "ROLE_MINI", "ROLE_EARLIER"]
 
 
@@ -65,14 +67,20 @@ def read(ticker: str, df, *, as_of=None) -> Read:
         # guard: the record cuts every day on the way in and raises on
         # anything else, and that raise must arrive as a counted failure.
         as_of = _as_day(as_of)
-        check_frame(df)
+        # Stage 1 (task 8): the contract, each day's range on the long frame,
+        # the cut to the reading window, and the ONE line every later stage
+        # reads. Built here, once per read, and handed down; a stage that
+        # rebuilt it could read a different line from the same bars.
+        prepared = prepare(df)
+        line = build_line(prepared)
     except FrameRefused as refusal:
         return crashed(ticker, as_of, str(refusal))
     except Exception as exc:                      # a broken frame, not a chart
         return crashed(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
-    # Stages 1 to 7 fill this in. Empty is the honest answer until they do.
-    # The close is a fact of the read day, not of a stage: the frame contract
-    # has just proved the last bar is whole.
+    # Stages 2 to 7 fill this in from `line`. Empty is the honest answer until
+    # they do. The close is a fact of the read day, not of a stage: the frame
+    # contract has just proved the last bar is whole.
+    del line
     return Read(ticker=ticker, as_of=as_of, boxes=(), lps=None, trail=(),
-                state=NO_LINES, close=float(df["Close"].iloc[-1]))
+                state=NO_LINES, close=float(prepared["Close"].iloc[-1]))

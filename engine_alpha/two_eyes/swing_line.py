@@ -1,10 +1,15 @@
 """COPIED from engine_alpha/structure/metrics/pivots.py and engine_alpha/structure/events/market_structure.py at cd87fcc (two-eyes-reader task 7): the ONE turn line and its labels — `turn_line_floors`, `_opening_direction`, `turn_line`, `turns_at_rails` from pivots.py, and `_empty`, `label_market_structure` from market_structure.py.
 
-Verbatim, function for function, but for this: the one number the line reads (TURN_LINE_FLOOR_ATR) comes from the new reader's own
-`method_numbers` instead of the SHARED settings, with the same value. The original stays in the old
-engine, frozen, and the old engine keeps reading it; this copy is the new reader's, and changes on
-purpose from here. tests/engine/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
-fixtures; the task that first changes this copy deletes that pin in the same commit.
+Copied verbatim but for the one number it reads (TURN_LINE_FLOOR_ATR, from the new reader's own `method_numbers`
+instead of the SHARED settings, same value), then CHANGED ON PURPOSE at task 8 (Sat 26/09/2026), the line's own
+task, in three places the original still has: (1) after a turn commits, the new leg's extreme is the true extreme
+since that turn over every bar to the confirming one, where the original starts the new leg at the confirming
+bar and skips a lower low (higher high) printed in between (UNF, 08/01/2025); (2) a first bar wide enough to
+open the line on its own is read once, where the original read it again and carried its valley twice (six of
+the 88 fixture frames); (3) the opening turn is knowable on the bar its first leg covered the floor, even on the
+chart's first bar, and a chart that never covers the floor has no committed turn at all (the original stamped
+bar 0 in both cases). The original stays in the old engine, frozen; the pins that held this copy equal to it
+were deleted in the same commit, as the plan says; `tests/engine/test_two_eyes_line.py` is its guard now.
 
 The original's own documentation, unchanged:
 
@@ -69,6 +74,19 @@ def _opening_direction(highs, lows, floors):
     return None
 
 
+def _extreme_since(values, turn_bar: int, confirming_bar: int, *, lowest: bool, turn_read_first: bool) -> int:
+    """The bar of the most extreme value from the turn to the confirming bar — the new leg's extreme so far,
+    read on the day the old leg's turn was confirmed. The turn bar's own other end counts only when the turn
+    was that bar's FIRST-read end (the bar was entered in the old leg's direction, so its other end came
+    after the turn and belongs to the new leg); read before the turn, it belongs to the leg before and was
+    that leg's business. Ties go to the earlier bar, as the running extreme always did."""
+    start = turn_bar if turn_read_first else turn_bar + 1
+    if start > confirming_bar:
+        return confirming_bar
+    window = np.asarray(values[start:confirming_bar + 1], dtype=float)
+    return start + int(np.argmin(window) if lowest else np.argmax(window))
+
+
 def turn_line(highs, lows, floors):
     """THE turn line (operator ruling, final method point 1): one line over the whole chart, one floor, wick to
     wick, no retracement ratio.
@@ -100,39 +118,59 @@ def turn_line(highs, lows, floors):
         # The chart never covers the floor: the opening turn and one forming extreme, no committed leg.
         i_hi, i_lo = int(np.argmax(highs)), int(np.argmin(lows))
         rose_first = i_hi >= i_lo
-        out = [(0, "valley" if rose_first else "peak", float(lows[0] if rose_first else highs[0]), 0)]
+        # Nothing is knowable yet, not even which kind the first bar is: both turns ride as forming (task 8;
+        # the original stamped the opening on bar 0).
+        out = [(0, "valley" if rose_first else "peak", float(lows[0] if rose_first else highs[0]), None)]
         tail = ((i_hi, "peak", float(highs[i_hi])) if rose_first else (i_lo, "valley", float(lows[i_lo])))
         if (tail[0], tail[1]) != (out[0][0], out[0][1]):
             out.append((tail[0], tail[1], tail[2], None))
         return out
 
     # The opening turn is the older running extreme (bar 0 when bar 0 is it, a turn by its shape); the first leg's
-    # own extreme so far is the other one. Nothing commits before the bar on which that leg covered its floor.
+    # own extreme so far is the other one. Nothing commits before the bar on which that leg covered its floor —
+    # and that bar is the opening turn's knowable day too, even on bar 0: the bar is a turn by its shape, but
+    # WHICH kind is known only when the first leg has covered its floor (task 8; the original stamped 0).
     up, first, i_lo, i_hi = opening
     if up:
-        turns = [(i_lo, "valley", float(lows[i_lo]), 0 if i_lo == 0 else first)]
+        turns = [(i_lo, "valley", float(lows[i_lo]), first)]
         ext_i, ext_p = i_hi, float(highs[i_hi])
     else:
-        turns = [(i_hi, "peak", float(highs[i_hi]), 0 if i_hi == 0 else first)]
+        turns = [(i_hi, "peak", float(highs[i_hi]), first)]
         ext_i, ext_p = i_lo, float(lows[i_lo])
-    for i in range(first, n):
+    # Whether the running extreme was its bar's FIRST-read end. The one rule inside a bar: a bar is read in
+    # the direction the line came into it, that end first. An extreme set while the line was already
+    # running its way was read first and its bar's other end came after it; an extreme found on the
+    # confirming bar of the turn before (or on the opening's tie bar) was read second. The opening's
+    # extreme on a bar of its own is taken as read first (two-eyes-reader task 8).
+    ext_first = i_hi != i_lo
+    # A bar wide enough to open the line on its own (both running extremes on the deciding bar, the tie that
+    # opens upward) has been read once already; reading it again would carry its low a second time as a
+    # back-off from its own high (two-eyes-reader task 8).
+    start = first + 1 if i_lo == i_hi == first else first
+    for i in range(start, n):
         f = float(floors[i])
         readable = bool(np.isfinite(f)) and f > 0
         # The extreme tracks every bar; only the COMMIT test needs a readable floor.
         if up:
             if float(highs[i]) > ext_p:
-                ext_p, ext_i = float(highs[i]), i
+                ext_p, ext_i, ext_first = float(highs[i]), i, True
             if readable and ext_p - float(lows[i]) >= f:
                 turns.append((ext_i, "peak", ext_p, i))
                 up = False
-                ext_p, ext_i = float(lows[i]), i
+                # The new leg's extreme is the lowest low since the peak, over every bar from the peak's
+                # to this one — not this bar's alone, which skipped a lower low printed in between when
+                # the confirmation took more than one bar (two-eyes-reader task 8). Every bar in that
+                # stretch was entered rising, so its low is its second-read end: read after the peak.
+                ext_i = _extreme_since(lows, ext_i, i, lowest=True, turn_read_first=ext_first)
+                ext_p, ext_first = float(lows[ext_i]), False
         else:
             if float(lows[i]) < ext_p:
-                ext_p, ext_i = float(lows[i]), i
+                ext_p, ext_i, ext_first = float(lows[i]), i, True
             if readable and float(highs[i]) - ext_p >= f:
                 turns.append((ext_i, "valley", ext_p, i))
                 up = True
-                ext_p, ext_i = float(highs[i]), i
+                ext_i = _extreme_since(highs, ext_i, i, lowest=False, turn_read_first=ext_first)
+                ext_p, ext_first = float(highs[ext_i]), False
     kind = "peak" if up else "valley"
     if (turns[-1][0], turns[-1][1]) != (ext_i, kind):
         turns.append((ext_i, kind, ext_p, None))

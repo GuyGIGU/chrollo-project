@@ -135,17 +135,6 @@ def test_the_daily_range_copy_is_bit_identical_on_every_fixture_frame():
             assert np.array_equal(old, new, equal_nan=True), f"{key}: ATR_{period} differs"
 
 
-def test_the_swing_line_copy_draws_the_same_line_on_every_fixture_frame():
-    c = _copies()
-    for key, raw in _all_fixture_frames().items():
-        df = _with_atr(raw, old_indicators.calculate_atr)
-        unit = _unit(df)
-        assert _line(old_pivots, df, unit) == _line(c.swing_line, df, unit), f"{key}: the line differs"
-        # and with the scalar unit alone, as the unit tests' bare frames run it
-        bare = raw[["Open", "High", "Low", "Close"]]
-        assert _line(old_pivots, bare, unit) == _line(c.swing_line, bare, unit), f"{key}: bare line differs"
-
-
 def test_the_swing_line_labels_are_the_same_on_every_fixture_frame():
     c = _copies()
     for key, raw in _all_fixture_frames().items():
@@ -217,7 +206,7 @@ def test_the_word_rules_copy_reads_the_same_words_on_his_drawings():
 # The chains, whole                                                           #
 # --------------------------------------------------------------------------- #
 def test_each_chain_whole_reads_the_same_on_his_drawings():
-    """Each side stamps its OWN daily range, draws its OWN line and reads its OWN words and box end. The
+    """Each side stamps its OWN daily range and reads its OWN words and box end on it. The
     piece-by-piece pins hand both sides one column; only this one exercises the daily-range copy as the
     input the rest actually consume."""
     c = _copies()
@@ -226,9 +215,9 @@ def test_each_chain_whole_reads_the_same_on_his_drawings():
         new_df = _with_atr(raw_df, c.daily_range.calculate_atr)
         old_unit, new_unit = _unit(old_df), _unit(new_df)
         assert old_unit == new_unit, ticker
-        old_line, new_line = _line(old_pivots, old_df, old_unit), _line(c.swing_line, new_df, new_unit)
-        assert old_line == new_line, ticker
-        assert old_climax.runs_on_the_line(old_line) == c.runs.runs_on_the_line(new_line), ticker
+        # The line itself is no longer pinned here: the copy changed on purpose at task 8 (the new leg's
+        # extreme, the wide first bar), and tests/engine/test_two_eyes_line.py guards it now. The run
+        # reader is pinned on the old line in its own test above.
         assert old_bricks.read_box_end(old_df, box, old_unit) == \
             c.box_end.read_box_end(new_df, box, new_unit), ticker
         assert old_words.read_line_words(old_df, box, old_unit, lps=lps) == \
@@ -275,6 +264,22 @@ def test_the_copies_import_nothing_from_the_old_engine_when_they_run():
     assert "OLD:" in done.stdout, done.stderr[-1500:]
     loaded = done.stdout.split("OLD:")[1].strip()
     assert loaded == "", f"running the copies loaded the old chart reader: {loaded}"
+
+
+def test_the_window_rule_copy_cuts_the_same_frame_on_every_fixture_frame():
+    """Stage 1 (task 8) copied the old engine's window rule so the two readers see the same two years;
+    pinned once, like the pieces, on the 88 frames at the window the reader uses."""
+    from engine_alpha import frames as old_frames
+    from engine_alpha.two_eyes import frame as new_frame
+    from engine_alpha.two_eyes import method_numbers
+
+    cut = 0
+    for name, raw in _all_fixture_frames().items():
+        old = old_frames._trim_to_period(raw, method_numbers.READ_WINDOW)
+        new = new_frame._trim_to_period(raw, method_numbers.READ_WINDOW)
+        pd.testing.assert_frame_equal(old, new, obj=name)
+        cut += len(new) < len(raw)
+    assert cut > 0, "no fixture frame was longer than the window; the pin never cut anything"
 
 
 def test_the_copies_read_no_shared_setting():
@@ -348,10 +353,12 @@ def test_a_changed_number_moves_the_version_stamp(monkeypatch):
     from engine_alpha.two_eyes import method_numbers
 
     names = sorted(n for n in vars(method_numbers) if n.isupper())
-    assert len(names) == 7, names
+    assert len(names) == 9, names            # seven from the copies (task 7), two from stage 1 (task 8)
     before = manifest.manifest_hash()
     for name in names:
-        monkeypatch.setattr(method_numbers, name, getattr(method_numbers, name) + 1)
+        value = getattr(method_numbers, name)
+        moved = value + "x" if isinstance(value, str) else value + 1
+        monkeypatch.setattr(method_numbers, name, moved)
         assert manifest.manifest_hash() != before, f"moving {name} left the version stamp where it was"
         monkeypatch.undo()
     assert manifest.manifest_hash() == before

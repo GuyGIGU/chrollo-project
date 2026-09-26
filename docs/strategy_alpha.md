@@ -89,11 +89,23 @@ default as ours.
    (Thu 10/09/2026). A turn is confirmed when price backs off its running extreme by
    0.75 of the stock's daily range, high to low. The first bar and the last bar are turns by their shape: *"even with out
    "Future" Information we can deduct them as turns by their current state swing shape"*
-   (Sat 12/09/2026). One bar may carry both a peak and a valley. A turn, once confirmed,
-   never moves; the last one is marked as still forming. Every turn knows its size in daily
-   ranges and the day it became knowable. Seen from further back the same line shows the
-   trends: the far view is this line with its small swings folded away, never a second line
-   (ours).
+   (Sat 12/09/2026). One bar may carry both a peak and a valley, and one rule says in which
+   order: the bar is read in the direction the line came into it, that end first, so a bar
+   entered rising carries its peak and then its valley, and a bar commits at most one turn of
+   the line, on its close; the far view, which folds the line at a bigger floor, may make two of
+   its turns on one bar wide enough to cover that floor twice over (ours). A leg's turn is the most extreme price since the turn before it, over
+   every bar to the day the reversal was confirmed, the turn bar's own other end included when
+   it was read after the turn (ours). A turn, once confirmed, never moves; the last one is
+   marked as still forming. Every turn knows its size in daily ranges — the leg into it, in
+   the range of the day it printed (ours) — and the day it became knowable, the close that
+   confirmed it; the first bar's kind is known when the first leg has covered its floor. The
+   daily range is built on the whole history before the chart is cut to the two years the
+   reader looks at, so the first days inside the window carry a warm unit and the cut moves
+   no range; the line's first turns depend on where that edge falls, for a few weeks at most,
+   and are the same turns after (ours). Seen from further back the same line shows the trends:
+   the far view is this line with its small swings folded away, never a second line — its
+   turns are turns of the line, and a far turn is made when a day backs off it by the far
+   floor in that day's own range (ours); how far back is placed at the listing gate.
 2. **The end of the trend, then the two lines.** A run of higher highs and higher lows is a
    trend; its highest turn is the climax and the low that ends the first reaction after it
    is the automatic reaction. They are decided first: *"the swings for BC and AR are needed

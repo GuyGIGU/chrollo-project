@@ -41,8 +41,15 @@ import pandas as pd
 # engine is a leaf that may not import `core`; the pipeline's calendar
 # re-exports it under the name its callers have always used.
 from engine_alpha.market_sessions import session_gap
+from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha.two_eyes.daily_range import calculate_atr
 
 OHLC = ("Open", "High", "Low", "Close")
+
+#: The column that carries each day's range once a frame is prepared. The name is the one the copied
+#: pieces read (box_end, the word rules, the swing line's floors), so it stays ATR_10 although the
+#: reader calls it the daily range.
+DAILY_RANGE = "ATR_10"
 
 
 class FrameRefused(ValueError):
@@ -110,3 +117,37 @@ def check(df: pd.DataFrame) -> None:
         _refuse("a bar with a missing number",
                 f"{holed.index[0].date()} — this is dropped upstream today, so "
                 "its arrival here means the prep was bypassed")
+
+# COPIED from engine_alpha/frames.py at 61c88cc (two-eyes-reader task 8), token for token: the old engine's
+# window rule, so the two readers see the same two years. tests/engine/test_two_eyes_copies_equal_originals.py
+# pins the copy equal to its original on the fixtures.
+def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
+    """Trim DataFrame index to the trailing period window (e.g., '2y')."""
+    if data.empty:
+        return data
+    if period.endswith('y'):
+        years = int(period[:-1])
+        cutoff = data.index.max() - pd.Timedelta(days=365 * years + 5)
+    elif period.endswith('mo'):
+        months = int(period[:-2])
+        cutoff = data.index.max() - pd.Timedelta(days=30 * months + 2)
+    else:
+        return data
+    return data.loc[data.index >= cutoff]
+
+
+def prepare(df: pd.DataFrame) -> pd.DataFrame:
+    """A chart made ready to read, in this order: the contract (``check``), each day's range on the LONG
+    frame, then the cut to the reading window with the ranges carried.
+
+    Stage 1 of the two-eyes reader (task 8). The order is the point. The old engine cuts first and computes
+    its range inside the window, so its first weeks read a cold average; here the unit warms up on the bars
+    before the window and every bar inside it has its range. Sliding the window's left edge by a day then
+    changes no range; the line's first turns depend on where that edge falls for a few weeks at most and
+    are the same turns after (its own tests measure and pin it). Returns a copy; the frame handed in is
+    never written to.
+    """
+    check(df)
+    out = df.copy()
+    out[DAILY_RANGE] = calculate_atr(out, M.DAILY_RANGE_DAYS)
+    return _trim_to_period(out, M.READ_WINDOW)

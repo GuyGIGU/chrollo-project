@@ -35,3 +35,15 @@ LINE_WORD_SUPPER_MAX_DAYS = 4
 
 #: R15: the breakout day closes this far over R, in daily ranges (his placed margin).
 BOX_END_BREAKOUT_ATR = 0.10
+
+# --- Stage 1 (task 8): the numbers the frame preparation and the line read -------------------------
+
+#: The daily range is the true range smoothed by Wilder's rule over this many trading days: the old
+#: engine's ATR_10, the unit every number above is placed in (a literal 10 in the old engine, never a
+#: setting). It is built on the LONG frame, before the cut to the reading window.
+DAILY_RANGE_DAYS = 10
+
+#: What the reader sees: the trailing window the old engine has always read (its DAILY_STRUCTURE_PERIOD),
+#: so the yardstick compares like with like. Only the frame is cut; the daily range is not recomputed
+#: inside it.
+READ_WINDOW = "2y"
