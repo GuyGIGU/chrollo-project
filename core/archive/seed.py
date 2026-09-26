@@ -204,8 +204,13 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
 def _election_key(result: dict) -> tuple:
     """The scan-back election's ordering: the live ranking basis (ta_grade)
     first, the raw sum as tiebreak - ONE basis with the screener ranking
-    (re-keyed at the 2026-08-22 legacy-retirement seam, council ruling)."""
-    return (float(result.get("_ta_grade") or 0.0), float(result.get("score") or 0.0))
+    (re-keyed at the 2026-08-22 legacy-retirement seam, council ruling).
+
+    Reads the SEED key names: every caller passes a row that has already been
+    through ``seed_row_from_result``, whose strip pass renames the canonical
+    ``_ta_grade`` to ``ta_grade``. Reading the canonical name here misses on
+    every row and silently degrades the election to raw score alone."""
+    return (float(result.get("ta_grade") or 0.0), float(result.get("score") or 0.0))
 
 def seed_archive(
     setups: list[tuple[str, str]] | None = None,

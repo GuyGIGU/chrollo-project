@@ -9,6 +9,9 @@ to the unprefixed key shape the seed archive writer consumes. These tests pin:
    seed twin `_evaluate_at_date` produce the same values for every key the writer reads.
    This is also the pre-check for the A3 "_run_eval_chain" extraction: if live(breadth=None)
    already equals seed today, collapsing them onto one chain is provably lossless.
+3. The seam's ONE consumer that reads adapter output by name: the seed scan-back election
+   (`core.archive.seed._election_key`). A rename on either side must fail loudly here
+   rather than silently degrade the election.
 """
 import math
 
@@ -117,3 +120,39 @@ def test_live_breadth_none_equals_seed_on_fixture():
         compared += 1
 
     assert compared > 0, "fixture produced no comparable firing setups"
+
+
+def test_election_elects_higher_grade_over_higher_score():
+    """The scan-back election ranks on the grade first; a lower raw score cannot
+    outrank a higher grade.
+
+    Pins the defect fixed 2026-09-01: `_election_key` read the CANONICAL `_ta_grade`
+    while every caller passes an adapter-stripped row, so the lookup missed on every
+    candidate, defaulted to 0.0, and the election silently degraded to raw score alone.
+    """
+    from core.archive.seed import _election_key
+
+    high_grade_low_score = seed_row_from_result({"_ta_grade": 61.2, "Score": 80.0})
+    low_grade_high_score = seed_row_from_result({"_ta_grade": 55.0, "Score": 95.0})
+
+    # The grade must actually resolve — under the defect both read 0.0.
+    assert _election_key(high_grade_low_score)[0] == 61.2
+    assert _election_key(high_grade_low_score) > _election_key(low_grade_high_score)
+
+
+def test_election_falls_back_to_score_within_equal_grade():
+    """Equal grades: the raw sum breaks the tie."""
+    from core.archive.seed import _election_key
+
+    richer = seed_row_from_result({"_ta_grade": 61.2, "Score": 95.0})
+    leaner = seed_row_from_result({"_ta_grade": 61.2, "Score": 80.0})
+
+    assert _election_key(richer) > _election_key(leaner)
+
+
+def test_election_survives_an_ungraded_candidate():
+    """A row the grader left ungraded elects at 0.0 rather than raising."""
+    from core.archive.seed import _election_key
+
+    assert _election_key(seed_row_from_result({"Score": 80.0})) == (0.0, 80.0)
+    assert _election_key(seed_row_from_result({"_ta_grade": None, "Score": 80.0})) == (0.0, 80.0)
