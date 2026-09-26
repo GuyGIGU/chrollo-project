@@ -4,8 +4,12 @@ would his pair WIN — measured on the new reader's own line BEFORE the election
 Task 9 of the two-eyes-reader build. Every later stage inherits its start from the end of the trend, so this
 measures, per drawing and at three far-view floors (1.5, 2.5 and 3.0 daily ranges):
 
-* the trend ends the far view reports, and which of them fall INSIDE his drawn box (a far floor too fine reads
-  the box's own legs as trends, and a latest-first rule would start walking past his pair);
+* THE trend end — one mark per base, the transition from the trend into the consolidation ("a single mark
+  before the beginning of the consolidation's base ... the goal is not absolute accuracy but pretty close", his
+  ruling on this gate's first pictures, Sat 26/09/2026) — read as the latest run the far view reports at or
+  before his first anchor; and the other runs the far view reports, which of them end INSIDE his drawn box (a
+  far floor too fine reads the box's own legs as runs — never trend ends — and a latest-first rule would start
+  walking past his pair);
 * whether the trend before his box is reported as a run at all, and how far before his first anchor it ended;
 * whether his two anchors are turns of the fine line, to the cent, and which trend end's walk LISTS his pair
   after how many moves of the two legs ("I move one pair right until I find it, not only a single time. -> one
@@ -594,12 +598,12 @@ def format_board(rows: list, floors=FAR_FLOORS) -> str:
         out.append(f"{label:<50}" + "".join(f"{value(f):>14}" for f in floors))
 
     F = lambda r, f: r["floors"][f]
-    per_floor("THE TREND BEFORE HIS BOX reported as a run", lambda f: _n(rows, lambda r: F(r, f)["trend_before"] is not None))
+    per_floor("THE TREND END (the one transition into his box) reported as a run", lambda f: _n(rows, lambda r: F(r, f)["trend_before"] is not None))
     per_floor("  …ending AT his first anchor", lambda f: _n(rows, lambda r: (F(r, f)["trend_before"] or {}).get("distance") == 0))
     per_floor(f"  …ending within {NEAR_TREND_DAYS} trading days before it", lambda f: _n(rows, lambda r: 0 < ((F(r, f)["trend_before"] or {}).get("distance") or -1) <= NEAR_TREND_DAYS))
     per_floor("  …ending further back", lambda f: _n(rows, lambda r: ((F(r, f)["trend_before"] or {}).get("distance") or -1) > NEAR_TREND_DAYS))
     per_floor("  …its reaction low falls INSIDE his box", lambda f: _n(rows, lambda r: bool((F(r, f)["trend_before"] or {}).get("ar_inside"))))
-    per_floor("TREND ENDS INSIDE HIS BOX (drawings with any)", lambda f: _n(rows, lambda r: F(r, f)["split"]["inside"] > 0))
+    per_floor("FAR-VIEW RUNS ENDING INSIDE HIS BOX (his box's own legs, never trend ends; drawings with any)", lambda f: _n(rows, lambda r: F(r, f)["split"]["inside"] > 0))
     per_floor("  …how many, over all drawings", lambda f: f"{sum(F(r, f)['split']['inside'] for r in rows):>2}")
     E = lambda r, f: F(r, f)["end_pair"]
     per_floor("HIS FIRST ANCHOR IS A FOOT of that trend end (its climax or its reaction)", lambda f: _n(rows, lambda r: E(r, f)["foot"]))
@@ -659,7 +663,8 @@ def format_board(rows: list, floors=FAR_FLOORS) -> str:
     out += ["", "  legend: end = the latest trend end at or before his first anchor, days before it (* its reaction low"
             " is inside his box); F = his first anchor is one of its feet; = / ~ = the pair it makes on the line is"
             " his to the cent / within half a range, a = his to the cent once the climax bar's own end is left out"
-            " and undercuts inside the area are the same low; in = trend ends inside his box; moves = the two legs'"
+            " and undercuts inside the area are the same low; in = far-view runs ending inside his box (the box's own"
+            " legs, not trend ends); moves = the two legs'"
             " moves from the trend end that lists his pair (e: not the latest); then, per pool (a = every pair,"
             " t = tall, e = tall and extremes), the three orders (became / opening / walk): ✓ his pair won on his"
             " last receding day, ~ the winner within half a range of his, ✗ another pair; -n = boxes born before his",
@@ -743,20 +748,31 @@ def _render_one(plt, draw_bars, row: dict, setup: dict, floor: float, path: str)
         ax.plot([x(t.bar) for t in far], [t.price for t in far], color=_FAR, lw=1.7, alpha=.9, zorder=3,
                 marker="o", ms=3.5)
 
-    # The trend ends: the climax (a wedge) and its reaction (a dot); the one the walk starts from is named.
+    # THE trend end — one mark, the transition from the trend into his base (his ruling, Sat 26/09/2026: "a
+    # single mark before the beginning of the consolidation's base") — is the latest run end at or before his
+    # first anchor: a big wedge (the climax) and a dot (its reaction), named. Every other run end the far view
+    # reports at this floor is a small unnamed wedge: grey before or after his box, orange inside it, where it
+    # is the box's own leg and never a trend end; they show what the floor does, nothing more.
     by = at["listed"]["by"]
+    before = [e for e in at["ends"] if e["climax_bar"] <= row["first_bar"]]
+    transition = before[-1] if before else None
     for end in at["ends"]:
         if end["climax_bar"] < lo:
             continue
         inside = row["first_bar"] < end["climax_bar"] <= row["last_bar"]
+        named = end is transition or (by is not None and end is by)
         color = _INSIDE if inside else _FAR
         mark = "v" if end["kind"] == "BC" else "^"
-        ax.plot([x(end["climax_bar"])], [end["climax_price"]], marker=mark, ms=12, color=color, zorder=7,
-                mec="white", mew=.8)
-        ax.plot([x(end["ar_bar"])], [end["ar_price"]], marker="o", ms=7, color=color, zorder=7, mec="white")
-        label = "trend end" + (" INSIDE his box" if inside else "")
+        ax.plot([x(end["climax_bar"])], [end["climax_price"]], marker=mark, ms=13 if named else 7,
+                color=color if named else ("#c9c9c9" if not inside else _INSIDE), zorder=7, mec="white", mew=.8,
+                alpha=1 if named else .8)
+        ax.plot([x(end["ar_bar"])], [end["ar_price"]], marker="o", ms=7 if named else 4,
+                color=color if named else "#c9c9c9", zorder=7, mec="white")
+        if not named:
+            continue
+        label = "trend end — the transition into his box" if end is transition else "an earlier trend end"
         if by is not None and end is by:
-            label = f"trend end — the walk starts here ({at['listed']['steps']} moves to his pair)"
+            label += f"; the walk starts here ({at['listed']['steps']} moves to his pair)"
         ax.annotate(label, (x(end["climax_bar"]), end["climax_price"]), xytext=(0, 14 if mark == "v" else -18),
                     textcoords="offset points", color=color, fontsize=8, ha="center", zorder=8)
 
@@ -827,8 +843,8 @@ def _words(row: dict, floor: float) -> str:
                      f"{tb['distance']} trading days before his first anchor"
                      + ("; its reaction low falls inside his box." if tb["ar_inside"] else "."))
     if at["split"]["inside"]:
-        parts.append(f"{at['split']['inside']} trend end(s) inside his box: "
-                     + ", ".join(d.strftime("%d/%m") for d in at["inside_days"]) + ".")
+        parts.append(f"{at['split']['inside']} run(s) of the far view end inside his box (the box's own legs, "
+                     "not trend ends): " + ", ".join(d.strftime("%d/%m") for d in at["inside_days"]) + ".")
     ep = at["end_pair"]
     if ep["pair"] is not None:
         turns = row["turns"]
@@ -875,10 +891,13 @@ def write_contact_sheet(rows: list, pages: list, out_dir: str, floor: float) -> 
 </style>
 <h1>The listing gate — far floor {floor} daily ranges</h1>
 <p>OHLC bars. Red: his two lines, their areas, his anchors (circles), his box (shaded), his last receding days
- (brown) and his buy (triangle). Grey: the reader's line as of his last receding day. Blue: the far view, its
- trend ends (wedge = the climax, dot = the reaction low); orange: a trend end inside his box. Green squares: the
- swings that answered his lines; green dotted line: the day his pair became a box. Dashed blue: the pair that
- would have won on his day, when it is not his. The unlisted come first.</p>
+ (brown) and his buy (triangle). Grey line: the reader's line as of his last receding day. Blue line: the far
+ view. The one big named wedge is THE trend end, the transition from the trend into his box (a single mark, his
+ ruling of Sat 26/09/2026), with a dot on its reaction low; the small unnamed wedges are the other run ends the
+ far view reports at this floor — grey outside his box, orange inside it, where they are the box's own legs and
+ never trend ends. Hollow diamonds: the trend end's pair read on the line. Green squares: the swings that
+ answered his lines; green dotted line: the day his pair became a box. Dashed blue: the pair that would have
+ won on his day, when it is not his. The unlisted come first.</p>
 <div class="grid">{''.join(cells)}</div>
 """
     path = os.path.join(out_dir, "index.html")
