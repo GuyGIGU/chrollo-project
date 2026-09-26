@@ -168,6 +168,18 @@ def test_turns_at_his_rails_are_counted_the_same():
     assert counted > 0, "no drawing counted a turn at a rail; the pin would be vacuous"
 
 
+def test_the_run_reader_copy_finds_the_same_runs_on_every_fixture_frame():
+    c = _copies()
+    runs_seen = 0
+    for key, raw in _all_fixture_frames().items():
+        df = _with_atr(raw, old_indicators.calculate_atr)
+        line = _line(old_pivots, df, _unit(df))
+        old = old_climax.runs_on_the_line(line)
+        assert old == c.runs.runs_on_the_line(line), f"{key}: the runs differ"
+        runs_seen += len(old)
+    assert runs_seen > 0, "no fixture frame produced a run; the pin would be vacuous"
+
+
 def test_the_copies_numbers_start_at_the_values_the_originals_read():
     """Pinned once, like the pieces: each number the copies read from `method_numbers` starts at the value its
     original reads from the shared settings. The copied pure tests bracket some of them only loosely (the
