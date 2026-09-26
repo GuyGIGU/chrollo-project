@@ -105,7 +105,10 @@ default as ours.
    and are the same turns after (ours). Seen from further back the same line shows the trends:
    the far view is this line with its small swings folded away, never a second line — its
    turns are turns of the line, and a far turn is made when a day backs off it by the far
-   floor in that day's own range (ours); how far back is placed at the listing gate.
+   floor in that day's own range (ours); how far back was placed at the listing gate (Sat
+   26/09/2026): one and a half daily ranges, ours and provisional, the one distance at which the
+   trend into his box is seen at all — and the reaction after the climax is read on the line
+   itself, not on the far view, whose folded swings overshoot his support; his sitting settles both.
 2. **The end of the trend, then the two lines.** A run of higher highs and higher lows is a
    trend; its highest turn is the climax and the low that ends the first reaction after it
    is the automatic reaction. They are decided first: *"the swings for BC and AR are needed

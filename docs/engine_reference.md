@@ -922,6 +922,17 @@ in his order; a stage's rules are in the theory, its mechanics here.
 | 1 · the line and the far view | 2026-09-26 (task 8) | `frame.prepare`: the contract, each day's range (`calculate_atr`, `DAILY_RANGE_DAYS` = 10) on the LONG frame, then the cut to `READ_WINDOW` (the old `_trim_to_period`, copied) with the ranges carried. `line.build`: the fine line once per read (`swing_line.turn_line`, floor `TURN_LINE_FLOOR_ATR` of each bar's own range), every turn a `Turn` with its day, its knowable day (the confirming close) and its size (the leg into it, in its own day's range). `SwingLine.far(floor)`: the far view, a fold of the fine line — its extremes are the fine line's committed turns, the back-off tested on the bars in the fine line's order (`_far_on_bars`) — built once per floor. The copied line was corrected three times (a leg's extreme is the true extreme since the turn, the turn bar's other end included when read after it; a wide first bar is read once; the opening turn is knowable when its kind is, never on bar 0) and its copy pins retired. Proved on the 88 fixture charts by `tests/engine/test_two_eyes_line.py`: nested (0 far turns outside the fine line at 1.5, 2.5 and 3.0 ranges), causal (cutting on the right changes only the forming turn), the left edge forgotten within 40 bars (measured 28; the far views within 80, measured 69 at 3.0), a missing number refused by day; nine deliberate breaks each seen red (`handoff/mutate8.py` in the council run). Word recall on his rails is unchanged by the corrections (THE SOS 23 of 25, Phase C 10 of 10). |
 
 
+**The listing gate (task 9, Sat 26/09/2026): measured, and the plan's STOP rule fired.**
+`tools/calibration/listing_gate.py` (`python -m tools.calibration.listing_gate --pages OUT --floor 1.5`)
+reads his 35 drawings on the reader's line at far floors 1.5, 2.5 and 3.0: the trend ends and which of
+them fall inside his box, the trend before his box, his two anchors on the line, the two-legs walk that
+lists his pair and its moves, the day his pair became a box his way, and a day-by-day election under
+three orders and three candidate pools — each rule a pure function pinned in
+`tests/tooling/test_listing_gate.py` (22 tests, ten deliberate breaks each seen red). Its findings and
+the provisional placements (the far floor 1.5, the reaction read on the line, the walk's order before
+the tighter) are in the decisions record (2026-09-26); no engine rule was coded, and the pair rule
+goes to his sitting with the pictures.
+
 ## Phase 3 — LPS Detection
 
 `detect_lps()` ([engine_alpha/structure/lps/detection.py](../engine_alpha/structure/lps/detection.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow above-R shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
