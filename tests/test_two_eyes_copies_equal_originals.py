@@ -234,6 +234,71 @@ def test_each_chain_whole_reads_the_same_on_his_drawings():
             c.line_words.read_line_words(new_df, box, new_unit, lps=lps), ticker
 
 
+def test_the_copies_import_nothing_from_the_old_engine_when_they_run():
+    """A runtime check beside the static one: the leaf guard reads import statements, and an import it
+    does not recognise — a relative one, a `from engine_alpha import structure`, one made through another
+    module — would slip past it. Here the copies run, in a fresh interpreter, and then no module of the
+    old chart reader may be loaded at all."""
+    import subprocess
+    import sys
+    import textwrap
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    probe = textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {str(root)!r})
+        import numpy as np, pandas as pd
+        from engine_alpha.two_eyes import box_end, daily_range, line_words, runs, swing_line
+        from types import SimpleNamespace as NS
+        n = 60
+        rng = np.random.default_rng(7)
+        close = 100 + np.cumsum(rng.normal(0, 1, n))
+        df = pd.DataFrame({{"Open": close, "High": close + 1, "Low": close - 1, "Close": close}},
+                          index=pd.bdate_range("2026-01-05", periods=n))
+        df["ATR_10"] = daily_range.calculate_atr(df, 10)
+        unit = float(df["ATR_10"].iloc[-6])
+        line = swing_line.turn_line(df["High"].to_numpy(), df["Low"].to_numpy(),
+                                    swing_line.turn_line_floors(df, unit))
+        runs.runs_on_the_line(line)
+        swing_line.label_market_structure([(b, k, p) for (b, k, p, _) in line])
+        box = NS(start_bar=5, R=float(df["High"].max()), S=float(df["Low"].min()), r_anchor_bar=6, s_anchor_bar=5)
+        box_end.read_box_end(df, box, unit)
+        line_words.read_line_words(df, box, unit)
+        old = sorted(m for m in sys.modules if m.split(".")[:2] in (
+            ["engine_alpha", "structure"], ["engine_alpha", "evaluation"], ["engine_alpha", "scoring"],
+            ["engine_alpha", "freeze"], ["engine_alpha", "stability"]))
+        print("OLD:" + ",".join(old))
+    """)
+    done = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=180)
+    assert "OLD:" in done.stdout, done.stderr[-1500:]
+    loaded = done.stdout.split("OLD:")[1].strip()
+    assert loaded == "", f"running the copies loaded the old chart reader: {loaded}"
+
+
+def test_the_copies_read_no_shared_setting():
+    """The copies' numbers are their own (engine_alpha/two_eyes/method_numbers.py). Were a copy to read
+    `config.settings`, tuning a shared knob for the new reader would move the frozen original with it — and
+    the freeze guard, which watches FILES, could not see a settings value change."""
+    import ast
+    import os
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    package = os.path.join(root, "engine_alpha", "two_eyes")
+    names = sorted(f[:-3] for f in os.listdir(package) if f.endswith(".py"))
+    assert {"daily_range", "swing_line", "runs", "box_end", "line_words", "method_numbers"} <= set(names)
+    for name in names:
+        path = os.path.join(package, f"{name}.py")
+        with open(path, encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
+        named = [a.name for n in imports if isinstance(n, ast.Import) for a in n.names] + \
+                [n.module or "" for n in imports if isinstance(n, ast.ImportFrom)]
+        assert not any(m == "config" or m.startswith("config.") for m in named), f"{name} imports config"
+        assert not any(isinstance(n, ast.Name) and n.id == "settings" for n in ast.walk(tree)), \
+            f"{name} reads `settings`"
+
+
 def test_word_recall_measures_the_copies_and_reaches_the_old_engine_only_through_the_door():
     """The instrument that reports his words (THE SOS 23 of 25, Phase C 10 of 10 on his rails, measured on
     Mon 21/09/2026: identical to the original, all 130 of its rows) reads the new reader's copies from task 7

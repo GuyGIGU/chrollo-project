@@ -19,9 +19,19 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PACKAGE = os.path.join(_ROOT, "engine_alpha", "two_eyes")
 
 #: The old chart reader, by module prefix. The new package may not import any
-#: of it — the proven pieces arrive by COPY at task 7, with their own tests.
+#: of it — the proven pieces arrived by COPY at task 7, with their own tests.
+#: The frozen set (tests/test_old_engine_frozen.py) whole, plus the two modules
+#: outside the leaf that LOAD the old engine: the door, which routes to it, and
+#: the adapter, which speaks its vocabulary. Importing either would pull the old
+#: chart reader in through the side.
 _OLD_ENGINE = ("engine_alpha.evaluation", "engine_alpha.structure",
-               "engine_alpha.scoring", "engine_alpha.freeze")
+               "engine_alpha.scoring", "engine_alpha.freeze",
+               "engine_alpha.stability", "engine_alpha.frames",
+               "engine_alpha.election_identity", "engine_alpha.reader",
+               "engine_alpha.two_eyes_adapter")
+
+#: The package a file in the leaf sits in, for resolving its relative imports.
+_LEAF_PACKAGE = "engine_alpha.two_eyes"
 
 
 def _frame(days=("2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05",
@@ -36,7 +46,7 @@ def _frame(days=("2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05",
 # --------------------------------------------------------------------------- #
 # It is a leaf                                                                #
 # --------------------------------------------------------------------------- #
-def _modules_named(tree) -> list:
+def _modules_named(tree, package: str = _LEAF_PACKAGE) -> list:
     """Every module this source names — the ONE reading of an import.
 
     The guard and the guard's own proof both call this, so the proof cannot
@@ -46,8 +56,18 @@ def _modules_named(tree) -> list:
     for node in ast.walk(tree):
         # EVERY name on the line, not just the first: `import os,
         # engine_alpha.structure` hides the offence behind a decoy.
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.append(node.module)
+        if isinstance(node, ast.ImportFrom):
+            # A relative import is resolved against the file's package:
+            # `from ..structure import pivots` inside the leaf IS
+            # engine_alpha.structure, and reading only `structure` missed it.
+            base = node.module or ""
+            if node.level:
+                parts = package.split(".")[: len(package.split(".")) - (node.level - 1)]
+                base = ".".join(parts + ([node.module] if node.module else []))
+            modules.append(base)
+            # `from engine_alpha import evaluation` names a MODULE in the
+            # import list: the module part alone is just `engine_alpha`.
+            modules.extend(f"{base}.{a.name}" for a in node.names if a.name != "*")
         elif isinstance(node, ast.Import):
             modules.extend(a.name for a in node.names)
         # A DYNAMIC import makes no import node at all, so an AST walk that
@@ -65,8 +85,8 @@ def _modules_named(tree) -> list:
     return modules
 
 
-def _reaches_the_old_engine(tree) -> list:
-    return [m for m in _modules_named(tree)
+def _reaches_the_old_engine(tree, package: str = _LEAF_PACKAGE) -> list:
+    return [m for m in _modules_named(tree, package)
             if any(m == old or m.startswith(old + ".") for old in _OLD_ENGINE)]
 
 
@@ -80,9 +100,11 @@ def test_the_new_package_imports_nothing_from_the_old_engine():
         for name in sorted(f for f in files if f.endswith(".py")):
             path = os.path.join(folder, name)
             shown = os.path.relpath(path, _PACKAGE)
+            package = ".".join([_LEAF_PACKAGE] + [
+                p for p in os.path.relpath(folder, _PACKAGE).split(os.sep) if p != "."])
             with open(path, encoding="utf-8") as f:
                 tree = ast.parse(f.read(), filename=path)
-            offences += [f"{shown} imports {m}" for m in _reaches_the_old_engine(tree)]
+            offences += [f"{shown} imports {m}" for m in _reaches_the_old_engine(tree, package)]
     assert not offences, (
         "the two-eyes package is a LEAF and must import nothing from the old "
         f"chart reader: {offences}. The proven pieces arrive by copy at task 7.")
@@ -97,7 +119,16 @@ def test_the_new_package_imports_nothing_from_the_old_engine():
     ("importlib.import_module('engine_alpha.structure.narrative')", True),
     ("__import__('engine_alpha.evaluation')", True),
     ("importlib.import_module('pandas')", False),
-    ("from engine_alpha import reader", False),     # the door is not the old engine
+    # The five shapes a blind survey found the first version missing (task 7):
+    ("from engine_alpha import evaluation", True),
+    ("from engine_alpha import structure", True),
+    ("from ..structure import pivots", True),         # relative, from inside the leaf
+    ("from engine_alpha import stability", True),
+    ("from engine_alpha.reader import read_box", True),  # the door loads the old engine
+    ("from engine_alpha import reader", True),
+    ("from . import record", False),                  # the leaf's own modules
+    ("from engine_alpha.two_eyes import method_numbers as M", False),
+    ("from engine_alpha import two_eyes_roles", False),
     ("import pandas as pd", False),
 ])
 def test_the_leaf_guard_sees_every_way_the_old_engine_can_be_imported(line, hidden):
