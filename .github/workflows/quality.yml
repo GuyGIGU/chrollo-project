@@ -18,9 +18,11 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # A normal run is ~25-35 min (the hermetic seed-recall replay dominates); this only
-    # force-cancels a genuinely hung job, well below GitHub's 6h default.
-    timeout-minutes: 60
+    # A normal run is ~60 min since the final method landed (2026-09-26: pytest ~30 min,
+    # the hermetic seed-recall replay ~15, the fired-window guards ~7). The 60-min cap it
+    # replaced cancelled that run in its last, advisory step. This only force-cancels a
+    # genuinely hung job, well below GitHub's 6h default.
+    timeout-minutes: 90
 
     steps:
       - name: Check out repository
@@ -142,6 +144,17 @@ jobs:
         continue-on-error: true
         run: python -m core.archive.seed_recall --check
 
+  # The frontend gate is its own job, beside the Python one. On 2026-09-26 the Python job
+  # hit its time cap before it reached these steps, so that push went out with the frontend
+  # ungated. As a separate job it reports in a few minutes, whatever the Python job does.
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
@@ -179,8 +192,9 @@ jobs:
     runs-on: [self-hosted, chrollo-win]
     # Cap a hung step: a single shared self-hosted runner (also carrying the always-on
     # ChrolloDashboard service) must not be pinned for GitHub's 6h default. `concurrency`
-    # only cancels superseded runs, never a lone stuck one.
-    timeout-minutes: 30
+    # only cancels superseded runs, never a lone stuck one. The 2026-09-26 run took 29m44s,
+    # 16 seconds inside the old 30-min cap, once the final method's tests landed.
+    timeout-minutes: 45
     # Uses a machine-wide Python 3.14 installed on the runner box (on the system PATH), NOT
     # actions/setup-python — setup-python's per-run installer fails under the runner's NETWORK
     # SERVICE account, and the operator's own 3.14 is a per-user install under %LOCALAPPDATA%
