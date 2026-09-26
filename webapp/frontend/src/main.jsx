@@ -1,8 +1,8 @@
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
-import App from './App.jsx'
-import ErrorBoundary from './components/ErrorBoundary'
+import App from './app/App.jsx'
+import ErrorBoundary from './shared/components/ErrorBoundary'
 
 // Note: StrictMode intentionally removed.
 // lightweight-charts creates canvas elements that cannot survive

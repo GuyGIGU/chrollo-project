@@ -292,7 +292,7 @@ def compute_metrics(
     as-is (latest data, no filing-lag gate) — the legacy behavior.
     """
     if provider is None:
-        from core.pipeline.providers import get_provider
+        from core.pipeline.market_data.providers import get_provider
 
         provider = get_provider()
     if earnings_limit is None:

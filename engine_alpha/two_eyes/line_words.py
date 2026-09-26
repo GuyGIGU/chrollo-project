@@ -1,10 +1,10 @@
-"""COPIED from engine_alpha/structure/line_words.py at cd87fcc (two-eyes-reader task 7): the word rules — THE SOS, the upthrust, the last supper, Phase C and its spring test, Phase D, the mini, and the reader `read_line_words`; NOT the old engine's flag plumbing (`_WORDS_BY_FLAG`, `any_word_enabled`, `emitted`), which is how the old engine emitted words, not a rule for reading one.
+"""COPIED from engine_alpha/structure/events/line_words.py at cd87fcc (two-eyes-reader task 7): the word rules — THE SOS, the upthrust, the last supper, Phase C and its spring test, Phase D, the mini, and the reader `read_line_words`; NOT the old engine's flag plumbing (`_WORDS_BY_FLAG`, `any_word_enabled`, `emitted`), which is how the old engine emitted words, not a rule for reading one.
 
 Verbatim, function for function, but for this: every number it reads (the LINE_WORD_* values) comes from the new reader's own
 `method_numbers` instead of the SHARED settings, with the same values; and the line is the
 copied swing line in this package. The original stays in the old
 engine, frozen, and the old engine keeps reading it; this copy is the new reader's, and changes on
-purpose from here. tests/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
+purpose from here. tests/engine/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
 fixtures; the task that first changes this copy deletes that pin in the same commit.
 
 The original's own documentation, unchanged:

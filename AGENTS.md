@@ -2,7 +2,9 @@
 
 Operating manual for AI coding agents working in Chrollo. Read this first, then
 [`README.md`](README.md). For algorithm questions the single source of truth is
-[`docs/strategy_alpha.md`](docs/strategy_alpha.md); for the engine layout see [`core/MAP.md`](core/MAP.md).
+[`docs/strategy_alpha.md`](docs/strategy_alpha.md); for the engine layout see [`core/MAP.md`](core/MAP.md);
+for the whole repo's layout and import rules see [`docs/architecture.md`](docs/architecture.md); for
+what is live, dark and next see [`docs/current_state.md`](docs/current_state.md).
 
 ## What this project is
 Chrollo is a **Wyckoff / VCP / LPS stock screener** in a local web app, with an optional, manual,
@@ -26,7 +28,8 @@ books — it never places trades.**
 
 ## 🧮 Engine rules (the screener's prime directive)
 - **Read [`docs/strategy_alpha.md`](docs/strategy_alpha.md) BEFORE touching any chart-reading algorithm code**
-  (`engine_alpha/structure/`, `engine_alpha/scoring/`, or their detection/scoring knobs in `config/settings.py`) — its
+  (`engine_alpha/structure/`, `engine_alpha/scoring/`, or their knobs: detection in `config/engine.py`,
+  scoring in `config/scoring.py`) — its
   Reading Model section is the source of truth for *how Chrollo understands a chart*, not just a mirror
   of the code. **Update it in the same change** when behavior moves; doc/engine drift is a defect.
 - The engine docs are split by lifecycle, and each has one job:
@@ -50,8 +53,11 @@ books — it never places trades.**
   justification is "canon has this and we don't."**
 - **structure measures, scoring judges, pipeline coordinates.** `engine_alpha/structure/` reports facts and never
   assigns points. `engine_alpha/scoring/` turns facts into points and never reads a chart.
-- **To change a factor's *weight*, edit `config/settings.py`** (`SCORE_*` / `TIER_*`) — never the
-  measurement code.
+- **To change a factor's *weight*, edit `config/scoring.py`** (`SCORE_*` / `TIER_*`) — never the
+  measurement code. Runtime reads and scoped overrides stay on `config.settings`
+  (`from config import settings`): it re-exports every default by name and is the one namespace
+  overrides patch, so never import `config.engine` / `config.scoring` directly. A new setting goes
+  in its domain file **and** in `config/settings.py`'s import list.
 - **Do not change scoring weights or tier thresholds without being asked.** New signals are added
   **measure-first**: as never-gated, never-penalizing bonus sub-scores, with the raw value archived;
   thresholds are only recalibrated later against the live archive — not at add time.
@@ -66,33 +72,43 @@ books — it never places trades.**
 
 ## Setup, run, verify (exact commands)
 Interpreter: the repo venv, `.\.venv\Scripts\python.exe` — this machine's bare `python` is a
-documented trap (two colliding 3.14 installs; `docs/deploy.md` §2).
+documented trap (two colliding 3.14 installs; `docs/deploy.md` §2). A linked worktree has no `.venv`
+of its own; use the main checkout's: `& "$(git rev-parse --git-common-dir)\..\.venv\Scripts\python.exe"`.
 ```powershell
 .\setup.bat                                                  # one-time: install deps + build frontend
 .\.venv\Scripts\python.exe run_screener.py                   # one CLI scan → output/screener_data.json → archive
 .\.venv\Scripts\python.exe -m core.archive.forward_returns   # backfill outcomes (--min-age N, --force)
 .\.venv\Scripts\python.exe -m core.archive.analyze           # winner-fingerprint report card
-npm --prefix webapp\frontend run build                       # build the React app
+npm --prefix webapp\frontend run build                       # build the React app (a worktree only; see below)
 npm --prefix webapp\frontend run lint                        # eslint
-.\.venv\Scripts\python.exe -m tools.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
-.\.venv\Scripts\python.exe -m tools.marks_corpus --check      # the sealed must-fire ratchet (~1.5 min; also prints the graduation-drift advisory)
-.\.venv\Scripts\python.exe -m tools.negative_corpus --check   # labeled junk must NOT fire on any day of the 10-day fired window (~1.5 min: 16 cases x 10 days)
-.\.venv\Scripts\python.exe -m tools.shadow_diff --check       # fleet canonical output + first/last fire day on the same window (~2.5 min: 37 tickers x 10 days)
-.\.venv\Scripts\python.exe -m tools.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
-.\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC)
+.\.venv\Scripts\python.exe -m tools.audits.pointer_audit --report   # evidence pointers still resolve (--report adds the advisory)
+.\.venv\Scripts\python.exe -m tools.regression.marks_corpus --check      # the operator-marks ratchet (~2 min): fails on a lost pinned hit, and as STALE once the operator redraws (refresh: tools.calibration.guided_list_export, then --build-fixture)
+.\.venv\Scripts\python.exe -m tools.regression.negative_corpus --check   # labeled junk must NOT fire on any day of the 10-day fired window (~1.5 min: 16 cases x 10 days)
+.\.venv\Scripts\python.exe -m tools.regression.shadow_diff --check       # fleet canonical output + first/last fire day on the same window (~2.5 min: 37 tickers x 10 days)
+.\.venv\Scripts\python.exe -m tools.regression.reader_pin --check        # per-event reader-vocabulary pin (~5s; zero-diff is the fold acceptance)
+.\.venv\Scripts\python.exe -m tools.audits.doctrine_audit --check    # Reading-Model invariants vs the live payload (~2min; needs output/screener_data.json + the cache)
+.\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC; refuses while a scan is running)
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
-  backend files; `npm --prefix webapp\frontend run build`; importing `main` in a subprocess to
-  confirm routes register — **but point the DB somewhere throwaway first**:
+  backend files; `npm --prefix webapp\frontend run build` **in a worktree only**. The live service
+  serves `webapp\frontend\dist` from the main checkout, and a bare build there swaps its bundle with
+  no rollback copy (`update_dashboard.bat` keeps one). To build from the main checkout, use Git Bash:
+  `npm --prefix webapp/frontend run build -- --outDir "$TEMP/chrollo-build" --emptyOutDir`. Also
+  importing `main` in a subprocess to confirm routes register — **but point the DB somewhere throwaway first**:
   ```powershell
   $env:CHROLLO_DB_PATH = "$env:TEMP\chrollo-verify.db"   # then import main
   ```
-  `import main` runs `initialize_database()` at *import* scope: `create_all`, the ALTER list, three
+  `import main` runs `initialize_database()` at *import* scope: `create_all`, the ALTER list, four
   rebuild migrations that copy a 44 MB backup, and `_reconcile_orphaned_runs`, which rewrites any
   `scan_runs` row still `running` to `failed` — that string is in the operator's archive because a
   bare `pytest` used to do exactly this (council review 2026-09-07). `pytest` now sets the same
   variable for itself in `tests/conftest.py`; the **service must never set it** (`docs/deploy.md` §2).
-- **After MOVING, ARCHIVING or DELETING any file, run `tools.pointer_audit --check`.** A citation
+- **`tools.audits.doctrine_audit` is a MANDATORY manual run-slot after any change touching engine
+  signatures or election paths** (consolidation-method Task 13). It is deliberately NOT in pytest
+  (needs the live payload), which is exactly how it once went silently dark — the hermetic leg
+  `tests/tooling/test_doctrine_audit_plumbing.py` guards its plumbing on every default run, but only the
+  manual run proves the READING against the live payload.
+- **After MOVING, ARCHIVING or DELETING any file, run `tools.audits.pointer_audit --check`.** A citation
   rots when some *other* file moves, so the commit that breaks it never touches the file that
   carries it — no diff review can catch this. It is also in pytest, so a normal run covers it; the
   explicit call is for when you are mid-sweep and want the answer before committing.
@@ -100,13 +116,39 @@ npm --prefix webapp\frontend run lint                        # eslint
   service yourself.
 
 ## Repository layout
-- `engine_alpha/structure/` — geometry: box/LPS detection, contractions, ADR (no opinion).
-- `engine_alpha/scoring/` — `score_setup`, `calculate_tier` (opinion; weights live in `config/settings.py`).
-- `core/pipeline/` — conductor: `data.py`, `screener.py`, `scan_job.py`.
-- `core/archive/` — `writer.py`, `forward_returns.py`, `analyze.py`, `seed.py`, `purge.py`.
-- `webapp/backend/` — `main.py`, `routers/`, `services/` (`scan_runner`, `scheduler`, `scan_status`,
-  `scan_watchdog`, `health`), `ibkr/`, `broker_config.py`, `database.py`.
-- `webapp/frontend/src/` — `components/`, `hooks/`, `api.js`, `App.jsx`.
+Full map, import direction and compatibility paths: [`docs/architecture.md`](docs/architecture.md).
+- `engine_alpha/` — the reading engine, a leaf (never imports `core.pipeline`, `core.archive`,
+  `webapp` or `tools`). `structure/{box,phases,lps,events,narrative,metrics,context}/` measure (no
+  opinion); `scoring/` judges (`scoring.py`: `score_setup`, `compose_ta_grade`,
+  `calculate_structure_tier`; `taxonomy.py`; `tags.py` chip verdicts); `evaluation.py` is the one
+  per-ticker chain; `freeze/manifest.py` is the engine config hash.
+- `core/pipeline/` — conductor: `data.py` (public data door), `market_data/`, `universe/`, `context/`,
+  `screening/` (`screener.py` `run_screener`, `scan_job.py` the nightly job, `dashboard.py` +
+  `terminal.py` payload writers), `telemetry/`.
+- `core/archive/` — `writer.py`, `forward_returns.py`, `analyze.py` (+ `analyze_features.py`, `analyze_stats.py`,
+  `analyze_report.py`), `seed.py`, `purge.py`, `episodes.py`, `outcomes.py`, `db_path.py`.
+  `core/calibration/` replays the engine on frozen calibration frames (the workbench chips and the calibration
+  tools share it). `core/backtest/` is production (the edge tile imports it);
+  `core/regime/` and `core/fundamentals/` are dark lanes.
+- `config/` — defaults by domain (`engine.py`, `scoring.py`, `enrichment.py`, `archive.py`,
+  `market_data.py`, `market_context.py`, `runtime.py`); `settings.py` is the one namespace.
+- `webapp/backend/` — `main.py`; `domains/{archive,calibration,ibkr,market_data,portfolio,screener,
+  trading,watchlist}/`; `app/` (startup, lifespan, migrations); `services/` (the scan lifecycle);
+  `middleware/`; `database.py`; `broker_config.py`.
+- `webapp/frontend/src/` — `app/` (routes, shell, appearance), `features/<feature>/`, `shared/`,
+  `api/base.js`.
+- `tools/{regression,audits,calibration,research,maintenance,ops}/` (`python -m tools.<category>.<name>`),
+  `tests/<category>/`, `research/` (evidence, no importable code), `output/` (runtime files only).
+
+## Before creating a file
+Answer these, then use the "Where do I put this?" table in
+[`docs/architecture.md`](docs/architecture.md#11-where-new-code-belongs):
+1. What domain owns it?
+2. Is it production, research, test, or maintenance code?
+3. Does an existing module already own the responsibility?
+4. Is it genuinely reusable?
+5. Does its name describe its responsibility?
+6. Will another developer know where to find related code?
 
 ## Coding style
 - Prefer the simplest working solution. Minimal, explicit, readable, maintainable code.
@@ -124,10 +166,15 @@ npm --prefix webapp\frontend run lint                        # eslint
 - Clean up only the imports/variables your own change orphaned.
 
 ## Backend rules
-- Layered structure: `routers/` (HTTP) → `services/` (logic) → models/db. Keep routers thin.
+- Layered structure: `domains/<domain>/router.py` (HTTP, thin) → the domain's own modules (logic,
+  models, schemas) → `database.py`. `app/` owns startup, the lifespan and migrations
+  (`app/migrations/`, called from `app/startup.initialize_database`); `services/` owns the scan
+  lifecycle that crosses domains (`scan_runner`, `scheduler`, `scan_status`, `scan_watchdog`,
+  `health`, `scan_diagnosis`, `interruption_cause`).
 - Route handlers are sync `def` and run in FastAPI's threadpool — **this is intentional**; do not
   "fix" them to `async`. Do not block on long work in a request; offload heavy jobs to a subprocess
   or background thread under `SCAN_LOCK` (see `services/scan_runner.py`).
+- The boot path stays engine-free: import `engine_alpha` only inside the function that needs it.
 - The scan runs as a UTF-8-forced subprocess (`PYTHONUTF8`/`PYTHONIOENCODING`) — keep that.
 - The scheduler timezone is **`America/New_York`** by design (scan after the US close); never change it to
   local time.
@@ -135,17 +182,20 @@ npm --prefix webapp\frontend run lint                        # eslint
 
 ## Frontend rules
 - One main component per file; keep components focused. Split large UI into smaller pieces.
+- A screen's code lives in its `features/<feature>/` folder (`components/`, `hooks/`, `model/`,
+  `presentation/`). `shared/` holds only code that unrelated features use; move something there
+  when the second feature needs it, not before.
 - **Null-safety is mandatory** for any rendered number — never call `.toFixed()` on possibly-null data.
-  Reuse the established guard: `import { fx } from 'utils/format.js'` — the app's ONE null guard
+  Reuse the established guard: `fx` from `src/shared/formatting/format.js` — the app's ONE null guard
   (null/NaN → em-dash). Never re-declare it inline; the old inline one-liner this rule used to quote
   minted drifting copies (council review 2026-08-17).
-- Every `EventSource`/SSE stream must be stored in a ref and `close()`d on unmount (see `hooks/useSSE.js`).
+- Every `EventSource`/SSE stream must be stored in a ref and `close()`d on unmount (see `features/portfolio/hooks/useSSE.js`).
 - Every `fetch` needs a `.catch` / try-catch so a backend hiccup logs instead of hanging the UI.
 - **The wire carries verdicts, never rules (conventions.md EC-28):** no scoring cap, threshold,
   fire-rule, or chapter-membership may be re-declared in frontend JS — every judgment crosses the
   wire already resolved by the engine; the frontend keeps only presentational lookups (labels,
   tones, ordering, copy). The legacy score path RETIRED 2026-08-23 (`setupScoreMath.js` and the
-  client-side fire rules are gone); `components/tagCatalog.js` carries the presentational chip
+  client-side fire rules are gone); `shared/setup/tagCatalog.js` carries the presentational chip
   catalog — labels/groups/tones only, never a threshold.
 
 ## Libraries
@@ -157,4 +207,6 @@ npm --prefix webapp\frontend run lint                        # eslint
 - State the plan briefly before larger changes. Flag anything that feels overcomplicated and offer the
   simpler option.
 - **Commit/push only when asked.** If on the default branch, create a feature branch first.
-- End commit messages with `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
+- End commit messages with a `Co-Authored-By:` line naming the **latest Claude Opus release**:
+  `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` as of 2026-09. When a newer Opus ships, use
+  its name; never pin an older version.

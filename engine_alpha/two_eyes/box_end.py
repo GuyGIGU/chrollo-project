@@ -1,11 +1,11 @@
-"""COPIED from engine_alpha/structure/box_end.py and engine_alpha/structure/bricks.py at cd87fcc (two-eyes-reader task 7): the box-end reader — `_committed`, `election_bar`, `_leave_bar`, `_child_end`, `box_end` (the whole module), and its frame-level wrapper `read_box_end` with `_finite` from bricks.py.
+"""COPIED from engine_alpha/structure/box/box_end.py and engine_alpha/structure/narrative/bricks.py at cd87fcc (two-eyes-reader task 7): the box-end reader — `_committed`, `election_bar`, `_leave_bar`, `_child_end`, `box_end` (the whole module), and its frame-level wrapper `read_box_end` with `_finite` from bricks.py.
 
 Verbatim, function for function, but for this: the two numbers it reads (LINE_WORD_AREA_ATR, BOX_END_BREAKOUT_ATR) come from the new
 reader's own `method_numbers` instead of the SHARED settings, with the same values; and
 `read_box_end` finds `box_end`, `election_bar` and the line in THIS package rather than importing
 them from the old one inside the function. The original stays in the old
 engine, frozen, and the old engine keeps reading it; this copy is the new reader's, and changes on
-purpose from here. tests/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
+purpose from here. tests/engine/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
 fixtures; the task that first changes this copy deletes that pin in the same commit.
 
 The original's own documentation, unchanged:

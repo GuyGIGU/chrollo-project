@@ -34,8 +34,8 @@ Task 8 lands:
 | Surface | Proposal | Alternates / notes |
 |---|---|---|
 | Today's read (type key) | `classic_base` — "Classic Base" | renders NO lane token in the grid (the quiet default) |
-| Chain A type key | `base_on_base` — "Base on Base" | his words verbatim |
-| Chain B type key | `shakeout_recovery` — "Shakeout Recovery" | alt `after_shakeout`; the tactical long is NOT a type — it is Chain B's position attribute |
+| Chain A type key | **`base_on_base` — "Base on Base" — SIGNED 2026-09-01** | his words verbatim; chosen over "Base Above Base" |
+| Chain B type key | **`shakeout_recovery` — "Shakeout Recovery" — SIGNED 2026-09-01** | chosen over `after_shakeout` and `recovery_base`: it names the recovery that adjudicates, not the shakeout. The tactical long is NOT a type — it is Chain B's position attribute |
 | Recovery character | `one_swing` / `staircase` / `new_base` / `none` | from "Sharply in one swing?, Stair case like…, a new base all together?" |
 | Destination | `back_inside` / `sitting_below` / `at_the_bottom` | from "did it return…, is it sitting a little below or stayed at the bottom?" |
 | Mini-consolidation position | `at_ceiling` / `mid_range` / `on_support` | top = slightly higher quality (ruled) |

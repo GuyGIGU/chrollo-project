@@ -1,0 +1,32 @@
+# research/ — evidence, not code
+
+What the engine's claims rest on: the raw outputs of studies and the renders the operator
+judged, kept so any ruling in `docs/decisions.md` or a dated study in `docs/` can be
+re-read against the data that produced it. Nothing in production imports from here.
+
+| Folder | What it holds |
+|---|---|
+| `evidence/` | Raw JSON sidecars of dated censuses (`bar_state_census_*`, `miss_lane_census_*`, `rail_area_census_*`, `shape_profile_*`, `trend_terminal_ab_*`). Each is cited by the study in `docs/` of the same name. `signal_edge_2026-09-03/` holds the signal-edge verdict run (the harness's `report.txt` and `report.json`, and the null-model universe build log) behind `docs/backtest_results_2026-09-03.md`. `consolidation_evidence_2026-08-31/`, `-09-01/` and `-09-02/` hold the consolidation-method program's evidence cited by `docs/consolidation_method_2026-09.md` (which names them by their old `output/` paths): census and reachability JSON, battery and census logs, the WTS/SILC render, and each folder's `probes/`, the scripts that produced them. The probes were ported to the current layout when the branch merged (2026-09-24): their imports, the paths they name and compute (including the repo-root depth), and one non-import change — the reachability probe's pin roster dropped `AR_FIRST_REACTION_ENABLED`, because main deleted that flag on 2026-09-08. The sidecars and logs are as they were written. So the probe's own witness test (`consolidation_evidence_2026-09-01/probes/test_bar_posture_reachability.py`, outside pytest's `testpaths`) is historical and fails 2 of 16 when run by name: `test_the_shipped_sidecar_carries_the_witness`, because the sidecar pins 29 flags and the engine now has 27 (it was already red at the branch tip, where the trend-terminal gate was retired after the sidecar was written); and `test_run_on_a_moved_machine_still_measures_at_the_pin`, because it asserts the counts measured at the 2026-08-31 cache edge, which move with the cache. |
+| `fidelity/` | Chart renders, logs and loss sheets from fidelity A/Bs. Most generators have since been deleted, so these cannot be regenerated. Keep them. |
+
+## Where the rest of the research loop lives
+
+The lifecycle is **scan → detection → archive → outcome maturation → analysis → evidence**:
+
+| Stage | Home | Notes |
+|---|---|---|
+| Scan | `core/pipeline/screening/` | One scan: fetch, evaluate every ticker, write the payload, hand the result to the archive. |
+| Detection | `engine_alpha/structure/` + `engine_alpha/scoring/` | Measures the chart, then judges it. |
+| Archive | `core/archive/writer.py` | One row per ticker per scan day: a **daily observation**. |
+| Maturation | `core/archive/forward_returns.py` | Fills forward returns, MFE/MAE and the trigger once a row is old enough. |
+| Analysis | `core/archive/analyze.py`, `core/backtest/` | Reads **episodes**. `core/archive/episodes.py` collapses a base re-flagged day after day into one episode, so it counts once in any win rate. `core/backtest/` is production code (the backend's edge tile imports it); it is not a scratch area. |
+| Instruments | `tools/research/` | The census and study scripts that produce the files here. |
+| Reports | `docs/*_2026-*.md` | The dated write-ups; `docs/decisions.md` holds the rulings they led to. |
+
+Daily observations are the raw archive rows; episodes are the unit every statistic should
+count. Do not redesign that split for tidiness: episode aggregation is where the
+repeated-setup dedup lives.
+
+Sealed ground truth is **not** here: the operator's marks corpus lives in `docs/marks/` and
+the regression baselines in `tests/baselines/`, and both are write-protected by
+`tools/_bootstrap.py`.

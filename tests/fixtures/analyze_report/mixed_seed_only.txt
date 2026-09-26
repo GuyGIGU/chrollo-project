@@ -1,0 +1,310 @@
+
+========================================================================
+  CHROLLO ARCHIVE ANALYSIS
+========================================================================
+DB: <DB>
+Filtered to source = 'seed'
+Episode dedup: 6 raw rows -> 6 episodes (0 continuation re-flags collapsed to the first-seen anchor).
+All sections below run on EPISODES (one row per logical setup) via the same
+first-seen grouping the archive episode table + /calibration use — raw
+continuation re-flags would inflate n and bias every correlation / edge verdict.
+
+========================================================================
+  1. SAMPLE COMPOSITION & BIAS DETECTION
+========================================================================
+Total setups (episodes): 6
+By source:     {'seed': 6}
+By tier:       {'A': 6}
+By engine epoch: {'?': 6}
+By setup_type: {'LPS': 6}
+Date range:    2025-11-03 -> 2025-11-24
+With fwd_return_20d: 6 / 6
+
+-- Validity verdict ----------------------------------------------------
+!  Trigger rate ~= 100% - this archive is a WINNERS-ONLY gallery
+   (seed/manual setups are selected because they worked). Win-rate,
+   trigger-rate and expectancy numbers are NOT discriminative yet.
+   -> Section 2 (winner fingerprint) IS valid.
+   -> Sections 3-5 (outcome perf, correlations, tightness test) need
+     LIVE non-winner rows (source='screener') before they mean anything.
+!  Only 0 live (source='screener') rows - below the 30-row
+   bar for stable correlations / segment stats. Treat 3-5 as directional.
+
+-- Data-quality flags --------------------------------------------------
+!  vol_contraction: 1 rows (17%) exactly == 0.5 -> looks like BREAKOUT placeholder defaults, not measured values.
+   These contaminate the fingerprint/correlations. Consider --source screener or excluding setup_type=BREAKOUT.
+
+========================================================================
+  2. WINNER STRUCTURAL FINGERPRINT
+========================================================================
+The structural profile of setups in the archive. On seed/winners data this
+is the 'what a clean tight setup looks like' template to bias toward.
+
+-- All setups ----------------------------------------------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              6      0.15      0.11      0.17      0.06      0.20
+base_length            6     76.50     58.25     94.75     24.00    120.00
+touches                6      4.50      2.50      6.50      0.00      9.00
+r_touches              6      6.50      4.50      7.75      1.00     10.00
+s_touches              6      3.50      1.50      5.50      0.00      9.00
+atr_ratio              6      0.57      0.39      0.75      0.05      1.00
+lps_length             6      5.00      2.00      7.25      1.00      8.00
+breach_days            6      4.00      1.50      6.50      0.00      9.00
+vol_contraction        6      0.59      0.40      0.78      0.23      0.95
+tightness_ratio        6      0.55      0.28      0.81      0.23      0.86
+lps_descent_frac       6      0.50      0.24      0.76      0.18      0.82
+r_touch_vol_z          6      0.45      0.26      0.65      0.09      0.82
+s_touch_vol_z          6      0.61      0.36      0.86      0.09      0.95
+dist_52w_high_pct      6      0.52      0.30      0.78      0.18      0.91
+excess_return_6m       6      0.48      0.30      0.66      0.05      1.00
+rs_vs_sector_pct       6      0.66      0.47      0.85      0.14      0.95
+breadth_pct            6     45.91     30.91     60.91     25.45     77.27
+bars_since_bc          6      5.00      2.50      6.75      0.00      9.00
+descent_length         6      6.00      4.25      7.75      3.00     10.00
+inner_reaction_pct     6      0.27      0.16      0.76      0.05      1.00
+inner_reaction_bars    6      5.00      5.00      5.75      4.00      6.00
+contraction_count      6      7.50      2.50      8.75      0.00     10.00
+contraction_quality    6      0.39      0.22      0.56      0.05      0.73
+final_contraction_depth   6      0.50      0.31      0.73      0.09      0.95
+contraction_vol_trend   6      0.70      0.47      0.84      0.18      1.00
+base_median_spread_atr   6      0.39      0.19      0.58      0.09      0.91
+base_p80_spread_atr    6      0.57      0.39      0.75      0.05      1.00
+base_median_spread_pct_box   6      0.52      0.26      0.75      0.14      0.86
+base_tight_bar_pct     6      0.43      0.18      0.68      0.09      0.95
+support_slope_atr      6      0.59      0.40      0.78      0.23      0.95
+ascending_support_quality   6      0.55      0.28      0.81      0.23      0.86
+eq_r_touches           6      4.50      2.00      7.00      1.00      8.00
+eq_s_touches           6      4.00      2.25      5.75      0.00      8.00
+eq_r_touch_thirds      6      6.00      3.50      8.50      0.00      9.00
+eq_s_touch_thirds      6      5.00      2.75      7.25      1.00      9.00
+eq_lower_dwell         6      0.48      0.30      0.66      0.05      1.00
+eq_mid_dwell           6      0.66      0.47      0.85      0.14      0.95
+eq_upper_dwell         6      0.34      0.20      0.58      0.05      0.86
+eq_coverage            6      0.55      0.32      0.74      0.09      0.95
+trav_n_full_traversals   6      6.00      4.25      7.75      3.00     10.00
+trav_n_swings          6      2.50      1.25      7.50      0.00     10.00
+trav_top_dead_space    6      0.57      0.51      0.63      0.45      0.68
+trav_bottom_dead_space   6      0.77      0.28      0.89      0.05      1.00
+trav_rail_reaches_high   6      3.50      1.50      4.75      0.00      7.00
+trav_rail_reaches_low   6      4.50      2.50      6.50      0.00      9.00
+trav_max_swing_frac    6      0.70      0.47      0.84      0.18      1.00
+trav_last_support_frac   6      0.39      0.19      0.58      0.09      0.91
+trav_coil_floor_pos    6      0.57      0.39      0.75      0.05      1.00
+adr_pct                6      0.52      0.26      0.75      0.14      0.86
+bin_a_bars             6      4.00      1.50      6.50      0.00      9.00
+bin_a_range_pct        6      0.59      0.40      0.78      0.23      0.95
+bin_a_volume_ratio     6      0.55      0.28      0.81      0.23      0.86
+bin_b_range_pct        6      0.50      0.24      0.76      0.18      0.82
+bin_b_volume_ratio     6      0.45      0.26      0.65      0.09      0.82
+bin_b_cog_end          6      0.61      0.36      0.86      0.09      0.95
+bin_b_cog_crossings    6      5.00      2.75      7.25      1.00      9.00
+bin_b_cog_rng          6      0.48      0.30      0.66      0.05      1.00
+bin_b_cog_corr         6      0.66      0.47      0.85      0.14      0.95
+bin_c_present          6      3.00      1.25      5.50      0.00      8.00
+bin_c_undercut_atr     6      0.55      0.32      0.74      0.09      0.95
+bin_c_recovery_bars    6      6.00      4.25      7.75      3.00     10.00
+bin_c_time_loc         6      0.27      0.16      0.76      0.05      1.00
+bin_c_spring_vol_z     6      0.57      0.51      0.63      0.45      0.68
+bin_d_bars             6      7.50      2.50      8.75      0.00     10.00
+bin_d_range_pct        6      0.39      0.22      0.56      0.05      0.73
+bin_d_volume_ratio     6      0.50      0.31      0.73      0.09      0.95
+bin_d_support_slope_atr   6      0.70      0.47      0.84      0.18      1.00
+bin_d_higher_low_frac   6      0.39      0.19      0.58      0.09      0.91
+bin_d_ascending_support_quality   6      0.57      0.39      0.75      0.05      1.00
+bin_lps_bars           6      5.00      2.00      7.25      1.00      8.00
+lps_position_in_box    6      0.43      0.18      0.68      0.09      0.95
+bin_d_vs_b_range_ratio   6      0.59      0.40      0.78      0.23      0.95
+bin_d_vs_b_volume_ratio   6      0.55      0.28      0.81      0.23      0.86
+bin_d_vs_b_support_quality_delta   6      0.50      0.24      0.76      0.18      0.82
+lps_stretch_atr        6      0.45      0.26      0.65      0.09      0.82
+lps_stretch_box        6      0.61      0.36      0.86      0.09      0.95
+lps_anchor_bar         6      5.00      2.75      7.25      1.00      9.00
+lps_low_bar            6      4.00      2.25      5.75      0.00     10.00
+lps_swing_depth_pct    6      0.66      0.47      0.85      0.14      0.95
+lps_swing_depth_atr    6      0.34      0.20      0.58      0.05      0.86
+lps_swing_depth_box    6      0.55      0.32      0.74      0.09      0.95
+last_supper_pullback_from_extension_pct   6      0.66      0.49      0.83      0.32      1.00
+last_supper_source_box_age   6      2.50      1.25      7.50      0.00     10.00
+last_supper_reclaim_quality   6      0.57      0.51      0.63      0.45      0.68
+stage2_ma_stack_pass   6      7.50      2.50      8.75      0.00     10.00
+stage2_ma200_slope_1m_pct   6      0.39      0.22      0.56      0.05      0.73
+stage2_52w_low_pct     6      0.50      0.31      0.73      0.09      0.95
+stage2_trend_pass_count   6      6.50      4.50      7.75      1.00     10.00
+stage2_trend_pass      6      3.50      1.50      5.50      0.00      9.00
+htf_w_stage2           6      5.00      3.25      6.75      0.00     10.00
+htf_w_in_consol        6      5.00      2.00      7.25      1.00      8.00
+htf_w_reaccum          6      4.00      1.50      6.50      0.00      9.00
+htf_w_daily_nested     6      5.50      3.50      7.50      2.00      9.00
+htf_w_box_width        6      0.55      0.28      0.81      0.23      0.86
+htf_m_stage2           6      4.50      2.00      7.00      1.00      8.00
+htf_m_in_consol        6      4.00      2.25      5.75      0.00      8.00
+htf_m_reaccum          6      6.00      3.50      8.50      0.00      9.00
+htf_m_daily_nested     6      5.00      2.75      7.25      1.00      9.00
+htf_m_box_width        6      0.48      0.30      0.66      0.05      1.00
+
+-- Horizontal axis - time structure (duration, rail tests, traversal) --
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+base_length            6     76.50     58.25     94.75     24.00    120.00
+r_touches              6      6.50      4.50      7.75      1.00     10.00
+s_touches              6      3.50      1.50      5.50      0.00      9.00
+eq_r_touches           6      4.50      2.00      7.00      1.00      8.00
+eq_s_touches           6      4.00      2.25      5.75      0.00      8.00
+eq_r_touch_thirds      6      6.00      3.50      8.50      0.00      9.00
+eq_s_touch_thirds      6      5.00      2.75      7.25      1.00      9.00
+breach_days            6      4.00      1.50      6.50      0.00      9.00
+lps_length             6      5.00      2.00      7.25      1.00      8.00
+bin_lps_bars           6      5.00      2.00      7.25      1.00      8.00
+lps_position_in_box    6      0.43      0.18      0.68      0.09      0.95
+lps_anchor_bar         6      5.00      2.75      7.25      1.00      9.00
+lps_low_bar            6      4.00      2.25      5.75      0.00     10.00
+last_supper_source_box_age   6      2.50      1.25      7.50      0.00     10.00
+trav_n_full_traversals   6      6.00      4.25      7.75      3.00     10.00
+trav_n_swings          6      2.50      1.25      7.50      0.00     10.00
+trav_rail_reaches_high   6      3.50      1.50      4.75      0.00      7.00
+trav_rail_reaches_low   6      4.50      2.50      6.50      0.00      9.00
+trav_last_support_frac   6      0.39      0.19      0.58      0.09      0.91
+bin_c_time_loc         6      0.27      0.16      0.76      0.05      1.00
+bin_d_bars             6      7.50      2.50      8.75      0.00     10.00
+
+-- Vertical axis - price magnitude (rails/height, undercut, thrust) ----
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              6      0.15      0.11      0.17      0.06      0.20
+tightness_ratio        6      0.55      0.28      0.81      0.23      0.86
+atr_ratio              6      0.57      0.39      0.75      0.05      1.00
+lps_descent_frac       6      0.50      0.24      0.76      0.18      0.82
+bin_c_undercut_atr     6      0.55      0.32      0.74      0.09      0.95
+lps_stretch_atr        6      0.45      0.26      0.65      0.09      0.82
+lps_stretch_box        6      0.61      0.36      0.86      0.09      0.95
+lps_swing_depth_pct    6      0.66      0.47      0.85      0.14      0.95
+lps_swing_depth_atr    6      0.34      0.20      0.58      0.05      0.86
+lps_swing_depth_box    6      0.55      0.32      0.74      0.09      0.95
+last_supper_pullback_from_extension_pct   6      0.66      0.49      0.83      0.32      1.00
+last_supper_reclaim_quality   6      0.57      0.51      0.63      0.45      0.68
+trav_top_dead_space    6      0.57      0.51      0.63      0.45      0.68
+trav_bottom_dead_space   6      0.77      0.28      0.89      0.05      1.00
+trav_max_swing_frac    6      0.70      0.47      0.84      0.18      1.00
+trav_coil_floor_pos    6      0.57      0.39      0.75      0.05      1.00
+final_contraction_depth   6      0.50      0.31      0.73      0.09      0.95
+bin_d_vs_b_range_ratio   6      0.59      0.40      0.78      0.23      0.95
+
+-- setup_type = LPS  (n=6) ---------------------------------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              6      0.15      0.11      0.17      0.06      0.20
+atr_ratio              6      0.57      0.39      0.75      0.05      1.00
+tightness_ratio        6      0.55      0.28      0.81      0.23      0.86
+lps_descent_frac       6      0.50      0.24      0.76      0.18      0.82
+contraction_quality    6      0.39      0.22      0.56      0.05      0.73
+base_median_spread_atr   6      0.39      0.19      0.58      0.09      0.91
+base_tight_bar_pct     6      0.43      0.18      0.68      0.09      0.95
+bin_d_vs_b_range_ratio   6      0.59      0.40      0.78      0.23      0.95
+bin_d_ascending_support_quality   6      0.57      0.39      0.75      0.05      1.00
+trav_n_full_traversals   6      6.00      4.25      7.75      3.00     10.00
+trav_top_dead_space    6      0.57      0.51      0.63      0.45      0.68
+base_length            6     76.50     58.25     94.75     24.00    120.00
+touches                6      4.50      2.50      6.50      0.00      9.00
+vol_contraction        6      0.59      0.40      0.78      0.23      0.95
+dist_52w_high_pct      6      0.52      0.30      0.78      0.18      0.91
+
+-- tier = A  (n=6) -----------------------------------------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              6      0.15      0.11      0.17      0.06      0.20
+atr_ratio              6      0.57      0.39      0.75      0.05      1.00
+tightness_ratio        6      0.55      0.28      0.81      0.23      0.86
+lps_descent_frac       6      0.50      0.24      0.76      0.18      0.82
+contraction_quality    6      0.39      0.22      0.56      0.05      0.73
+base_median_spread_atr   6      0.39      0.19      0.58      0.09      0.91
+base_tight_bar_pct     6      0.43      0.18      0.68      0.09      0.95
+bin_d_vs_b_range_ratio   6      0.59      0.40      0.78      0.23      0.95
+bin_d_ascending_support_quality   6      0.57      0.39      0.75      0.05      1.00
+trav_n_full_traversals   6      6.00      4.25      7.75      3.00     10.00
+trav_top_dead_space    6      0.57      0.51      0.63      0.45      0.68
+base_length            6     76.50     58.25     94.75     24.00    120.00
+touches                6      4.50      2.50      6.50      0.00      9.00
+score                  6     70.00     70.00     70.00     70.00     70.00
+
+========================================================================
+  3. SEGMENTED PERFORMANCE
+========================================================================
+!  Outcome metrics below are computed on winners-biased data -
+   read the SHAPE (relative differences between segments), not the
+   absolute win/trigger rates. They become trustworthy with live data.
+
+-- By tier -------------------------------------------------------------
+tier               n   med20d   avg20d   med60d   win%  trig%   avgR   expR
+----------------------------------------------------------------------------
+A                  6   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+
+-- By setup_type -------------------------------------------------------
+setup_type         n   med20d   avg20d   med60d   win%  trig%   avgR   expR
+----------------------------------------------------------------------------
+LPS                6   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+
+-- By box_width --------------------------------------------------------
+box_width          n   med20d   avg20d   med60d   win%  trig%   avgR   expR
+----------------------------------------------------------------------------
+low                2   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+mid                2   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+high               2   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+
+-- By breadth ----------------------------------------------------------
+breadth            n   med20d   avg20d   med60d   win%  trig%   avgR   expR
+----------------------------------------------------------------------------
+low                2   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+mid                2   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+high               2   +20.0%   +20.0%   +35.0%+100.0%+100.0%   3.00   3.00
+
+========================================================================
+  4. PREDICTOR CORRELATIONS vs FORWARD OUTCOMES
+========================================================================
+!  Correlations need outcome VARIANCE to mean anything. On winners-only
+   data every setup 'worked', so correlations here are near-noise.
+   Shown for plumbing-verification; revisit once live losers accrue.
+
+========================================================================
+  5. PRIME-DIRECTIVE TEST - IS TIGHTNESS PREDICTIVE?
+========================================================================
+The engine's core thesis: tighter, cleaner structure -> better outcomes.
+This isolates the tightness features and tests that claim directly.
+
+!  Cannot test the claim yet - needs live winners AND losers so there
+   is outcome variance to separate tight-good from loose-bad.
+   Until then, here is the tightness-feature distribution among the
+   archived (mostly winning) setups - i.e. the values that tend to win:
+
+-- Tightness-feature distribution (archived setups) --------------------
+feature                n    median       q25       q75       min       max
+--------------------------------------------------------------------------
+box_width              6      0.15      0.11      0.17      0.06      0.20
+atr_ratio              6      0.57      0.39      0.75      0.05      1.00
+tightness_ratio        6      0.55      0.28      0.81      0.23      0.86
+lps_descent_frac       6      0.50      0.24      0.76      0.18      0.82
+contraction_quality    6      0.39      0.22      0.56      0.05      0.73
+base_median_spread_atr   6      0.39      0.19      0.58      0.09      0.91
+base_tight_bar_pct     6      0.43      0.18      0.68      0.09      0.95
+bin_d_vs_b_range_ratio   6      0.59      0.40      0.78      0.23      0.95
+bin_d_ascending_support_quality   6      0.57      0.39      0.75      0.05      1.00
+trav_n_full_traversals   6      6.00      4.25      7.75      3.00     10.00
+trav_top_dead_space    6      0.57      0.51      0.63      0.45      0.68
+
+========================================================================
+  6. SIGNAL EDGE & SUBTRACTION CANDIDATES (Stage 1)
+========================================================================
+Each scoring sub-score is meant to REWARD a setup. This ranks them by
+rank-association with realized outcome and flags the ones that don't
+earn their points: HARMFUL (negative) or INERT (near-zero). These are
+subtraction CANDIDATES only — re-weighting is a separate guarded step.
+
+-- Win quality (durable vs cash-grab) ----------------------------------
+  durable wins: 6   cash-grab wins: 0 (round-trip to stop within 5 bars of target)
+
+!  No outcome column has enough labelled rows yet (need durable_win /
+   barrier_win / r_multiple_20d / fwd_return_20d). Backfill, then re-run.
+
+========================================================================
+  END OF REPORT
+========================================================================

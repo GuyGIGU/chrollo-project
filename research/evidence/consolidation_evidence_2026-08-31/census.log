@@ -1,0 +1,44 @@
+  ... 500/5532 (191s) {'tickers': 499, 'universe_refused': 358, 'eval_error': 0, 'fires_off': 30, 'no_fire_off': 111, 'new_fires': 1, 'lost_fires': 0, 'changed_fires': 0}
+  ... 1000/5532 (378s) {'tickers': 999, 'universe_refused': 714, 'eval_error': 0, 'fires_off': 64, 'no_fire_off': 221, 'new_fires': 5, 'lost_fires': 0, 'changed_fires': 0}
+  ... 1500/5532 (625s) {'tickers': 1499, 'universe_refused': 1054, 'eval_error': 0, 'fires_off': 98, 'no_fire_off': 347, 'new_fires': 5, 'lost_fires': 0, 'changed_fires': 0}
+  ... 2000/5532 (821s) {'tickers': 1999, 'universe_refused': 1413, 'eval_error': 0, 'fires_off': 121, 'no_fire_off': 465, 'new_fires': 5, 'lost_fires': 0, 'changed_fires': 0}
+  ... 2500/5532 (1017s) {'tickers': 2499, 'universe_refused': 1772, 'eval_error': 0, 'fires_off': 150, 'no_fire_off': 577, 'new_fires': 7, 'lost_fires': 0, 'changed_fires': 0}
+  ... 3000/5532 (1209s) {'tickers': 2999, 'universe_refused': 2149, 'eval_error': 0, 'fires_off': 175, 'no_fire_off': 675, 'new_fires': 8, 'lost_fires': 0, 'changed_fires': 0}
+  ... 3500/5532 (1387s) {'tickers': 3499, 'universe_refused': 2518, 'eval_error': 0, 'fires_off': 201, 'no_fire_off': 780, 'new_fires': 9, 'lost_fires': 0, 'changed_fires': 0}
+  ... 4000/5532 (1590s) {'tickers': 3999, 'universe_refused': 2881, 'eval_error': 0, 'fires_off': 230, 'no_fire_off': 888, 'new_fires': 9, 'lost_fires': 0, 'changed_fires': 0}
+  ... 4500/5532 (1803s) {'tickers': 4499, 'universe_refused': 3238, 'eval_error': 0, 'fires_off': 249, 'no_fire_off': 1012, 'new_fires': 10, 'lost_fires': 1, 'changed_fires': 0}
+  ... 5000/5532 (2003s) {'tickers': 4999, 'universe_refused': 3589, 'eval_error': 0, 'fires_off': 277, 'no_fire_off': 1133, 'new_fires': 10, 'lost_fires': 1, 'changed_fires': 0}
+  ... 5500/5532 (2184s) {'tickers': 5499, 'universe_refused': 3957, 'eval_error': 0, 'fires_off': 308, 'no_fire_off': 1234, 'new_fires': 12, 'lost_fires': 1, 'changed_fires': 0}
+
+session 2026-08-27  (2196s)
+{
+  "tickers": 5532,
+  "universe_refused": 3982,
+  "eval_error": 0,
+  "fires_off": 309,
+  "no_fire_off": 1241,
+  "new_fires": 12,
+  "lost_fires": 1,
+  "changed_fires": 0
+}
+
+NEW FIRES (12):
+  KFY    tier S  score  119.9  pool story  R None  S None  | R+ S+ S+ R^
+  BIIB   tier S  score  118.2  pool story  R None  S None  | S+ R+ S+ R+ R^
+  VTR    tier S  score  117.9  pool story  R None  S None  | S+ R+ S+ R^
+  RCUS   tier S  score  115.9  pool story  R None  S None  | R+ S+ R+ S+ R^
+  ICLR   tier S  score  111.1  pool story  R None  S None  | R+ S+ R+ S+ R^
+  GEO    tier A  score  108.9  pool story  R None  S None  | R+ S+ S+ R+ S+ R^
+  VRTS   tier A  score  107.5  pool story  R None  S None  | R+ S+ R+ S+ R^
+  CCEP   tier A  score  104.7  pool story  R None  S None  | S+ S+ R^
+  BMY    tier A  score  103.7  pool story  R None  S None  | S+ R+ S+ R^
+  MSGS   tier A  score  102.9  pool story  R None  S None  | R+ S+ R+ R+ S+ S+ R^
+  CARS   tier A  score  101.3  pool story  R None  S None  | S+ R+ S+ R^
+  AMCR   tier B  score   86.2  pool story  R None  S None  | S+ R+ S+ R^
+
+LOST FIRES (1):
+  QTTB   tier S  {'ticker': 'QTTB', 'tier': 'S', 'score': 121.1, 'pool': 'strict', 'profile': None, 'R': None, 'S': None, 'trigger': 16.520000457763672}
+
+CHANGED FIRES (0):
+
+wrote C:/Users/User/AppData/Local/Temp/claude/C--Users-User-Documents-Projects-Chrollo-Project--claude-worktrees-zen-satoshi-d1122d/0caae484-4c40-4c55-9148-63920311f8fa/scratchpad/bar_posture_census.json

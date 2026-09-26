@@ -42,7 +42,7 @@ just disciplined reading, followed to the letter.
 ## The two reading axes — horizontal & vertical
 
 Every base is read along **two axes at once**, and the engine records both on the
-single `Structure` reading object (`core.structure`):
+single `Structure` reading object (`engine_alpha.structure`):
 
 | Axis | Reads along the… | Question | Fields (`Structure.horizontal` / `.vertical`) |
 |---|---|---|---|
@@ -235,7 +235,7 @@ it ever influences ranking.
 > **Shipped (Stage 2A).** The stretch is now a raw archived measure:
 > `_lps_stretch_atr` and `_lps_stretch_box` — the LPS foot's distance above the
 > box ceiling R, in ATR and in box-heights — from
-> [phase_features.py](../engine_alpha/structure/phase_features.py). Component **b**
+> [phase_features.py](../engine_alpha/structure/phases/phase_features.py). Component **b**
 > ("distance from the last consolidation") is the box-relative form; the
 > innermost range *is* the operative box the detector returned. Measure-first:
 > archived, never yet scored.
@@ -368,7 +368,7 @@ never thrown away:
   tests stay in the LPS/support-test layer. It remains descriptive, never a gate.
 
 **Inner-climax selection — best-of-both (measure-first verdict, 2026-06-06).**
-`_detect_inner_phase_b_start` (engine_alpha/structure/inner_box.py, formerly in `box_primitives.py`) finds the
+`_detect_inner_phase_b_start` (engine_alpha/structure/box/inner_box.py, formerly in `box_primitives.py`) finds the
 most-recent qualifying inner climax — a ≥ `AR_MIN_DROP_PCT` reaction leaving
 ≥ `INNER_MIN_DAYS` bars. But on the 197-ticker fixture a *pure* climax anchor
 regressed inner detections 32 → 12 (it grabs late minor peaks on long bases). So

@@ -30,7 +30,7 @@ from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, Read
 #: Keys downstream reads with square brackets — a missing one is a KeyError in
 #: the middle of a night's write, not a None in a column. A fire row is whole
 #: in these or it is not a row. Surveyed, not guessed: the display names are
-#: indexed by `output/terminal.py` and `output/dashboard.py`, the underscored
+#: indexed by `core/pipeline/screening/terminal.py` and `core/pipeline/screening/dashboard.py`, the underscored
 #: ones by the dashboard payload, the harness and the yardstick, and the seed
 #: path re-keys `_base_len`, `_lps_len`, `_r_anchor_bar` and `_s_anchor_bar`
 #: into the archive's own column names.

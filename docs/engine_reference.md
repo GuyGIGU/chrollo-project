@@ -39,12 +39,12 @@ Companions: [`strategy_alpha.md`](strategy_alpha.md) (theory) ·
 
 ```
 Phase 0  Universe & data acquisition          core.pipeline.data public API
-Phase 1  Baseline universe filter              core.pipeline.evaluation (apply_baseline_filters)
-Phase 2  Chronological structure read          core.structure           (read_structure -> bricks -> Structure)
-Phase 2b Crash / extension filters             core.pipeline.evaluation (_evaluate_ticker)
-Phase 3  Active LPS/Test election              core.structure           (detect_lps; latest actionable setup LPS)
-Phase 3b Phase scoping + bin evidence          core.structure           (phase_d / scope_consolidation / measure_phases)
-Phase 4  Scoring, grade & tier assignment      core.scoring             (score_setup, compose_ta_grade, calculate_structure_tier)
+Phase 1  Baseline universe filter              engine_alpha.evaluation  (apply_baseline_filters)
+Phase 2  Chronological structure read          engine_alpha.structure   (read_structure -> bricks -> Structure)
+Phase 2b Crash / extension filters             engine_alpha.evaluation  (_evaluate_ticker)
+Phase 3  Active LPS/Test election              engine_alpha.structure   (detect_lps; latest actionable setup LPS)
+Phase 3b Phase scoping + bin evidence          engine_alpha.structure   (phase_d / scope_consolidation / measure_phases)
+Phase 4  Scoring, grade & tier assignment      engine_alpha.scoring     (score_setup, compose_ta_grade, calculate_structure_tier)
 Archive  Persist + forward-return backfill     core.archive             (writer / forward_returns / seed)
 ```
 
@@ -53,14 +53,14 @@ The code is organized as two engines plus a conductor (see [core/MAP.md](../core
 **`engine_alpha/scoring/`** = the Scoring Engine (the tunable opinion layer),
 **`core/pipeline/`** = the conductor that wires them together, with **`core/archive/`** as the
 measuring-stick tooling. Orchestrated by `run_screener()` in
-[core/pipeline/screener.py](../core/pipeline/screener.py), running per-ticker evaluation from
+[core/pipeline/screening/screener.py](../core/pipeline/screening/screener.py), running per-ticker evaluation from
 [engine_alpha/evaluation.py](../engine_alpha/evaluation.py) in a `ProcessPoolExecutor`.
 
 ---
 
 ## Phase 0 — Universe & Data
 
-### Ticker universe — `get_tickers()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/tickers.py](../core/pipeline/tickers.py))
+### Ticker universe — `get_tickers()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/universe/tickers.py](../core/pipeline/universe/tickers.py))
 
 1. Read from cached `config/tickers.csv` if it exists and is younger than `TICKER_CACHE_MAX_AGE_DAYS` (1 day).
 2. Otherwise download `ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqtraded.txt`, filter rows where `Test Issue == 'N'` and `ETF == 'N'`.
@@ -80,7 +80,17 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 6. Dedupe (preserving order) and write back to the CSV cache.
 7. Hard fallback to a 15-stock sample if FTP fails.
 
-### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/downloads.py](../core/pipeline/downloads.py))
+### Market data — `fetch_data()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_data/downloads.py](../core/pipeline/market_data/downloads.py))
+
+`downloads.py` is the cache state machine and its meta, quarantine and admission writes.
+The panels it stores are built and repaired in
+[`panel_fetch.py`](../core/pipeline/market_data/panel_fetch.py) (`_full_refetch`,
+`_incremental_fetch`, `_recover_missing_data`, `_repair_latest_session`, the split probe),
+every Yahoo request goes through
+[`yahoo_download.py`](../core/pipeline/market_data/yahoo_download.py) (retry, backoff, the
+shared rate limit, the download pool), and
+[`price_regime.py`](../core/pipeline/market_data/price_regime.py) holds the as-traded vs
+dividend-adjusted flag. `downloads` still re-exports the names other modules import from it.
 
 - Reads from `market_data_cache_5y.parquet` and applies an **incremental refresh** policy via `cache_meta.json`:
   - `TTL_FRESH_HOURS_MARKET = 1` (RTH) / `TTL_FRESH_HOURS_OFFHOURS = 12` — under TTL the cache is reused as-is.
@@ -185,7 +195,7 @@ settled close). Only what happens *after* the gate fails was touched.
 Every freshness gate above asks two questions: *did enough of the universe close*, and
 *did the market-regime reference symbols close*. The second half is
 `has_all_closes_on(panel, index_symbols, session)` in
-[core/pipeline/data_freshness.py](../core/pipeline/data_freshness.py) — the check that
+[core/pipeline/market_data/data_freshness.py](../core/pipeline/market_data/data_freshness.py) — the check that
 stops a cold write whose SPY/QQQ bar is missing. It is applied at three places (the
 cold-fetch success gate and both `_incremental_fetch` legs) and a fourth transitively,
 since `last_complete_reference_date` is a loop over it.
@@ -218,7 +228,7 @@ FALSE. An index-less universe is now anchored on its own last complete session. 
 supplies a reference date when the helper returns `None` for a non-MultiIndex panel. An
 empty *panel* is a different question and still answers `None`.
 
-#### Cache health — `compute_market_data_health()` ([core/pipeline/market_data_health.py](../core/pipeline/market_data_health.py))
+#### Cache health — `compute_market_data_health()` ([core/pipeline/market_data/market_data_health.py](../core/pipeline/market_data/market_data_health.py))
 
 `_classify()` returns `can_evaluate` / `can_archive` / `can_download` for the cached panel.
 Alongside the existing states it distinguishes:
@@ -316,9 +326,11 @@ is refused at the sma200 leg. Built for MDT (fires 2026-07-14 tier S at his
 drawn R 82.83); evidence in [miss_program_2026-08.md](miss_program_2026-08.md).
 Flag off = byte-identical.
 
-`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
+`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/metrics/indicators.py](../engine_alpha/structure/metrics/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
 
-### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/market_context.py](../core/pipeline/market_context.py))
+**The smoothing's NaN contract (council review 2026-09-07, finding 14).** `_fast_ewm` masks *every* NaN sample — leading pad or interior hole — out of the recursive filter, runs it over the valid subsequence, and scatters the results back: an unreadable bar yields an unreadable ATR at that bar and nothing more. Until 2026-09-07 only a LEADING run was masked (the `shift(1)`/`diff()` pad the docstring named); one interior NaN entered `lfilter`'s state and propagated to every later sample, so a single bad OHLC cell anywhere in a two-year frame silently deleted that ticker's whole chart read from that bar onward — every brick's `_finite(atr)` guard refused, with no counted refusal reason and a docstring that made the failure look impossible. Masking is a strict superset of the old handling (no NaN, or a leading run only, reads byte-identically), and the live pipeline's `dropna` means it moved nothing on the 248-setup payload at the fix. Known bounded residual, deliberately left: `calculate_adx`'s `np.insert(..., np.nan)` pad makes an unreadable bar's directional movement compare False and land on `0.0` — Wilder's correct convention for bar 0, a mild fabrication for an interior hole; re-typing it would move ADX on every ticker for a case the pipeline already drops.
+
+### Market-context broadcast — `get_market_context()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/context/market_context.py](../core/pipeline/context/market_context.py))
 
 Before per-ticker workers fan out, the orchestrator computes two scalars once and pickles them into every worker:
 
@@ -331,7 +343,7 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 
 ## Phase 2 — Consolidation Detection
 
-`read_structure()` ([engine_alpha/structure/narrative.py](../engine_alpha/structure/narrative.py)) is the live entry point. It assembles one Wyckoff story through pure brick validators in [engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py):
+`read_structure()` ([engine_alpha/structure/narrative/reader.py](../engine_alpha/structure/narrative/reader.py)) is the live entry point. It assembles one Wyckoff story through pure brick validators in [engine_alpha/structure/narrative/bricks.py](../engine_alpha/structure/narrative/bricks.py):
 
 1. `find_root_swing()` — next calibrated climax -> automatic-reaction anchor, oldest-first.
 2. `validate_equilibrium()` — a real worked Phase-B box, using the existing zigzag candidate and traversal gates.
@@ -342,19 +354,84 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 
 If any required brick fails, the reader advances to the next root swing and tries again. If no complete A -> B -> (C?) -> D/LPS narrative holds, the ticker has no setup.
 
+**The armed-form roster (consolidation-method Task 4, 2026-09-01).** WHICH
+named ruled admission forms the story pool may admit through is an **explicit
+walk argument**, never a settings mutation read back layers down: the roster
+vocabulary lives beside the judgments it names (`event_map.ADMISSION_FORMS` —
+**three** tokens in declaration order: `s_test`, `resistance_contraction`,
+`s_test_bar_posture`; EC-33), and the ONE derivation
+`event_map.baseline_admission_roster()` reads the flags lazily at call time
+(so a scoped `htf.window_override` arming `POWER_PLAY_STORY_FORM_ENABLED`
+around one election, AP-10 — the species lane's declared preset until that lane
+was deleted at build step 12 of the final method — and the instruments'
+`flag_capture` keep arming forms exactly as before). A `forms=None`
+call anywhere down the chain (`read_structure` → `validate_equilibrium` →
+`collect_zigzag_candidates` → the story pool) means the baseline roster; any
+OTHER roster must be handed down explicitly — there is no remaining way to arm
+a form for the walk except the argument. **The roster tuple and the baseline
+roster are different sets, and conflating them is the easy error:**
+`s_test_bar_posture` (consolidation-method Task 7) is a declared form that the
+baseline NEVER arms — only the full-refusal escalation reaches it. The escalation
+policy is written sequentially at the top of `read_structure`: baseline walk
+first; a cause-before-effect abstention is final; contraction-armed roster only
+after a full refusal.
+
+**Where the roster is validated (EC-55), and why the placement moved twice before
+it was unconditional.** `event_map.assert_admission_roster` runs at the roster's
+ENTRY INTO THE WALK — the top of `narrative._walk_structure`, guarded only by
+`forms is not None` and placed above the lazy `bricks` import and above
+the root loop. It therefore runs exactly ONCE
+per read that carries a roster, before the first frame is touched, and its verdict
+cannot depend on the shape of the chart. Both earlier homes made it DATA-dependent,
+which is the whole point of the move: inside the story pool (the first build)
+`_story_pool_candidates` is the LAST-RESORT rung, reached only when the strict,
+rescued and band pools all come back empty; at the box election (the second)
+`bricks.validate_equilibrium` runs once per ROOT — and not at all on a chart that
+seeds no root swing, where `find_root_swing` returns None on the first ask and the
+walk returns in silence. The same typo raised on some tickers and passed on others:
+a programmer error wearing the costume of a flaky engine.
+`bricks.validate_equilibrium` KEEPS its own call deliberately, as the guard for
+callers entering BELOW the walk — it is public API and is used that way — so on the
+walk's own path the roster has already been asserted at the top. The coverage
+boundary, stated rather than implied: a caller entering further down still
+(`box_primitives.collect_zigzag_candidates(forms=…)`, or the story pool directly)
+sits below both call sites and is NOT validated; no engine code does that, and the
+engine's only roster hand-off is `read_structure`'s escalated re-walk. A roster-less
+call (the ordinary walk, and every live read today) carries nothing to assert and
+pays nothing — and the baseline is still resolved by the ONE derivation at call
+time, never hoisted to the walk entry, so a scoped flag override keeps arming forms
+(AP-3/AP-10). Three things now raise that used to pass in silence: a roster that is
+not a concrete collection, or is a bare `str` (which answers `in` by SUBSTRING, so
+one string would silently arm two forms); an EMPTY roster, ruled ILLEGAL rather
+than a quiet no-op because it arms nothing and its silence is indistinguishable
+from an honest refusal — no legal caller can build one, since the baseline always
+carries `s_test` and the escalation only ever ADDS; and an unknown token.
+
+**The bar-posture rescue (`BAR_POSTURE_RESCUE_ENABLED`, dark — consolidation-method
+Task 7).** The second full-refusal escalation lane: the S-test form's ceiling leg in the
+operator's unit — `event_map.story_admission_bar_posture` reads `terminal_r_engagement`
+(the bar's HIGH engages the rail zone) instead of `terminal_r_posture` (the close-basis
+leg) — a VERSIONED sibling judgment, never an in-place edit of `frame_terminal_posture`
+(the ONE close-basis predicate the S-test prefilter and the episode reader both resolve
+through; promotion counts pinned). Its O(1) prefilter leg is the shared `frame_r_engaged`.
+Both escalation lanes arm into ONE re-walk; a bar-posture-only escalation stamps its trace
+pass `bar_posture_rescue`. Registering the flag rotated the engine epoch (the declared
+vocabulary seam). Evidence + flip asks: the flag-ledger row and
+[consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Task 7.
+
 **The contraction rescue (`CONTRACTION_RESCUE_ENABLED`, dark — miss program
 2026-08-28).** On a FULL refusal — every root refused; never after a
 cause-before-effect abstention, which is doctrinal and final —
-`read_structure` re-walks once under the one scoped override with
-`POWER_PLAY_STORY_FORM_ENABLED` armed, so the story pool may also admit
+`read_structure` re-walks once handing down an escalated armed-form roster
+(baseline + `resistance_contraction`), so the story pool may also admit
 through the resistance-contraction form (`event_map.resistance_contraction_admission`).
 Scoped to full refusals by construction, the rescue can never displace an
 existing election (the WCC wider-box re-election that refused the global form
-flip is unreachable), and it skips itself when the form is already armed (the
-species lane's scoped read). A rescued fire elects `elected_pool='story'` with
-the self-naming contraction profile. Trace records of the second pass carry
-`pass="contraction_rescue"`. Evidence (EGBN 01-07 tier A on his rails, PKE
-02-18 tier B; junk corpus clean) + flip asks in
+flip is unreachable), and it skips itself when the baseline roster already
+arms the form (a scoped read that arms it, as the deleted species lane's did). A rescued fire elects
+`elected_pool='story'` with the self-naming contraction profile. Trace records
+of the second pass carry `pass="contraction_rescue"`. Evidence (EGBN 01-07
+tier A on his rails, PKE 02-18 tier B; junk corpus clean) + flip asks in
 [miss_program_2026-08.md](miss_program_2026-08.md). Flag off = one walk,
 byte-identical.
 
@@ -385,7 +462,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 ### Phase A — Locality Resolution
 
-`resolve_phase_a()` ([engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py)) repackages `segment_swings()` ([engine_alpha/structure/segmentation.py](../engine_alpha/structure/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands within `_SEG_AR_TOL` (10) bars **at or before** `box.start_bar` (never after — Phase A ends where Phase B opens, the `ar_bar <= phase_b_start_bar` invariant); if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
+`resolve_phase_a()` ([engine_alpha/structure/narrative/bricks.py](../engine_alpha/structure/narrative/bricks.py)) repackages `segment_swings()` ([engine_alpha/structure/phases/segmentation.py](../engine_alpha/structure/phases/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands within `_SEG_AR_TOL` (10) bars **at or before** `box.start_bar` (never after — Phase A ends where Phase B opens, the `ar_bar <= phase_b_start_bar` invariant); if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/audits/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
 
 **Climax terminality (2026-07-19).** Locality alone was not enough: a seed within the
 `_SEG_LEAD_IN` window could still be a *mid-trend* pause — FLXS's 04-28 seed sat 41 bars
@@ -452,17 +529,17 @@ climax is reconstructed backward over a FIXED 60-day window, so box placement de
 anchor error entirely. Fixing that is the work; this flag was never going to.
 
 **What survived:** `market_structure.elected_trend_leg_base` (the full-leg base), because
-[`tools/full_package_render.py`](../tools/full_package_render.py) draws it and the
+[`tools/research/full_package_render.py`](../tools/research/full_package_render.py) draws it and the
 climax-anchor program it serves is open; and the anchor half of
-[`tools/operator_marks_diff.py`](../tools/operator_marks_diff.py), whose flip half retired
+[`tools/research/operator_marks_diff.py`](../tools/research/operator_marks_diff.py), whose flip half retired
 with the flag. **What went with it:** `bricks._first_impulse_ar_end`,
 `market_structure.first_reaction_after`, the flag plus its four `AR_*` tuning constants,
 their five manifest rows, and `tools/ar_first_reaction_diff.py`.
 
 ### Phase A — Macro bridge read (live; folded 2026-07-18)
 
-`macro_bridge_zigzag()` ([engine_alpha/structure/phase_a.py](../engine_alpha/structure/phase_a.py), formerly `pip.py`), wired
-unconditionally through `segment_swings()` ([engine_alpha/structure/segmentation.py](../engine_alpha/structure/segmentation.py))
+`macro_bridge_zigzag()` ([engine_alpha/structure/phases/phase_a.py](../engine_alpha/structure/phases/phase_a.py), formerly `pip.py`), wired
+unconditionally through `segment_swings()` ([engine_alpha/structure/phases/segmentation.py](../engine_alpha/structure/phases/segmentation.py))
 (folded 2026-07-18; formerly flag `PIP_MACRO_PHASE_A_ENABLED`, live 2026-07-04). A multi-resolution PIP (Perceptually Important Points)
 skeleton is ranked **once** (`pip_indices` — the ranking is strictly nested, so top-K is an
 exact prefix of top-K+1), then walked coarse→fine from `K=4` up to `PIP_MACRO_K_MAX` (24):
@@ -492,7 +569,7 @@ price must reach the box level ± touch tolerance) so a macro story can never fl
 the elected box or paint Phase A inside it. Affects the **Phase-A overlay and the
 cause-before-effect veto** — `bricks.cause_maturity` reads the macro bridge inside the LIVE
 election veto (flipped 2026-07-20), so a guard change here can move elections; R/S selection,
-LPS, scoring, tiering read nothing else from this wire. Eyeball evidence: `tools/fidelity/pip_phase_a/`; scan tool:
+LPS, scoring, tiering read nothing else from this wire. Eyeball evidence: `research/fidelity/pip_phase_a/`; scan tool:
 `python -m tools.phase_a_pip_diff --jobs N`.
 
 ### Phase B — trend-terminal box gate — RETIRED 2026-09-08
@@ -527,7 +604,7 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
 
 ### Phase B — Zigzag S/R Anchoring
 
-`phase_b_zigzag()` ([engine_alpha/structure/box_primitives.py](../engine_alpha/structure/box_primitives.py)).
+`phase_b_zigzag()` ([engine_alpha/structure/box/box_primitives.py](../engine_alpha/structure/box/box_primitives.py)).
 
 1. **Pivots** — `_find_pivots()` (vectorized; asymmetric `>=` left, `>` right so flat tops/bottoms still pivot at the rightmost — the structurally meaningful "last touch"):
    - `ORDER = PIVOT_ORDER_LONG (2)` if window ≥ `PIVOT_ORDER_THRESHOLD (40)` bars, else `PIVOT_ORDER_SHORT (1)`.
@@ -556,7 +633,7 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
        arithmetic is `_run_spans`, shared with the gate's own run maximum.
        `metrics.measure_gate_margins` derives the archived `eq_*` descriptors
        (`OUTSIDE_BAR_MEASURES` + `eq_traversals_per_20d`) once on the elected
-       box; `tools.calibration_stat_card` prints the same columns and the
+       box; `tools.calibration.calibration_stat_card` prints the same columns and the
        census totals on the drawn windows. No gate consults any of it — the
        forms-as-admission re-count is Tested-DEAD (2026-09-04 bench).
    - **Worked-equilibrium occupancy** — `_validate_base_quality()`:
@@ -609,7 +686,7 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
      never move. It re-judges the SAME chronological zigzag pairs (the
      operator's rail rule: anchor R/S from the swings in chronological order,
      wick to wick) with band-leaving excursions typed as EVENTS
-     (`engine_alpha/structure/rail_qualification.py`, formerly `band_rails.py`):
+     (`engine_alpha/structure/box/rail_qualification.py`, formerly `band_rails.py`):
      a below-rail episode —
      same-side spans merged across short inside-runs, spring-then-test is
      ONE event — must penetrate, RECLAIM, and HOLD; an above-rail poke must
@@ -651,7 +728,53 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
      qualified DEEP below-rail event (multi-bar, beyond S − 2×buffer) may
      measure up to `BAND_MAX_BOX_WIDTH = 0.23` wick-to-wick — the allowance
      exists only with the event, so it can never act as a general width
-     loosening. The respect gate is untouched. The qualified deep event also
+     loosening. **The touch THIRDS are cut on the window's REAL span (council
+     review 2026-09-07, finding 6).** The excision mask rides into
+     `_build_candidate` as `judged_mask` and on into `_rail_touch_thirds`,
+     because that leg is an ADJACENCY statistic rather than a set statistic
+     ("touches spread across the window, not clustered"): on the compacted
+     array the boundaries stop falling on the window's own calendar thirds, so
+     touches confined to the real first third can read as two. An excised bar
+     is simply no touch, so the mask scatters the touch masks back with those
+     positions empty. Every SET statistic (respect share, touch counts, dwell,
+     coverage, crash, width) still reads the judged bars exactly as before, and
+     every contiguous-window pool (strict / rescued / story) passes no mask and
+     is byte-identical. The near-miss margin mirror
+     (`gate_margins.complete_leg_vector`) threads the same mask so it cannot
+     report a leg the gate never measured. **The respect RUN cap is
+     deliberately NOT put on that axis** — the two alternatives were built and
+     measured on 2026-09-07 and both are recorded Tested-DEAD: filling the
+     excised positions "inside" severs a real departure (a 17-day stay below
+     support reads 7 and the junk framing is ADMITTED — shipped in `ceb0a27`,
+     removed the same day), and classifying the original window bar by bar
+     charges the event's own days to a cap half their legal length, which
+     deletes the class (BODI's operator-ruled framing 12.33/10.18 — 76 bars,
+     30 excised — goes from a run of 2 to 19 and stops firing, dropping the
+     sealed marks ratchet to 27/33 and reddening two committed guards). The
+     gate counts the outside days it OWNS, running straight across event time:
+     an excursion neither breaks a departure nor charges its days to it, and
+     the excursion bars answer to the event rules instead, exactly as this
+     pool's contract says. `tests/engine/test_band_time_axis.py` pins all three
+     numbers. *Measured over the live 248-setup payload:* 247 setups read
+     byte-identically (rail immobility 0 violations, every Reading-Model
+     invariant held), the marks ratchet held 28/33 with every expected miss
+     still missing, and the reader pin was zero-diff. ONE election moved —
+     **LIVN** (band framing 83.98/77.71, a 50-bar window with 4 bars excised):
+     its R-rail touches all sit inside the window's real FIRST third, and only
+     compaction had spread them across two (`r_touch_thirds` 2 → 1 against the
+     floor of 2), so the framing now dies at the anti-clustering leg and LIVN
+     reads no structure. The other seven band elections are unchanged.
+     **Ruled 2026-09-25** ([decisions.md](decisions.md)): the fix lands, and
+     the fixed reading stands whatever it does to LIVN. Re-measured at the
+     merge over the whole cached universe through 2026-09-23 (5,800 frames;
+     LIVN itself reaches no band thirds judgment there, before the fix or
+     after it): fires 109 → 109
+     with every result identical, the four band fires (CNR, HPK, KODK, PYPD)
+     included; 46 band framings reached the thirds leg, 18 read a different
+     count on the real span, and 4 flip pass → fail (MAN, NEM, PNTG, REX),
+     none of them electing a fire; the near-miss lane loses PNTG's one row
+     (its band framing now fails two legs, so it is no longer a one-leg
+     miss). The respect gate is untouched. The qualified deep event also
      feeds Phase C as `bin_c_type = TERMINAL_SHAKEOUT` when the calibrated
      spring detector finds nothing (see the Phase C bin note). Harness proof
      at the marks (2026-07-16, flag-on variant): BODI fires tier A at the
@@ -733,7 +856,7 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 
 The LPS *is* that turn — the last support after the reaction. The engine leans this way structurally: the active setup LPS is terminal-bar based and must sit below its trigger (Phase 3, gate 14), so a qualifying setup is biased toward the up-leg rather than a knife still falling.
 
-**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is resolved by `resolve_phase_d_boundary()` ([engine_alpha/structure/phase_d.py](../engine_alpha/structure/phase_d.py)) and surfaced through the narrative reader, `measure_phases()`, and `scope_consolidation()` ([engine_alpha/structure/scope.py](../engine_alpha/structure/scope.py)). It is strictly **measurement/evidence**, never a gate: it cannot drop a ticker, change R/S, or directly alter score/tier. The mandatory gate remains the active LPS itself.
+**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is resolved by `resolve_phase_d_boundary()` ([engine_alpha/structure/phases/phase_d.py](../engine_alpha/structure/phases/phase_d.py)) and surfaced through the narrative reader, `measure_phases()`, and `scope_consolidation()` ([engine_alpha/structure/context/scope.py](../engine_alpha/structure/context/scope.py)). It is strictly **measurement/evidence**, never a gate: it cannot drop a ticker, change R/S, or directly alter score/tier. The mandatory gate remains the active LPS itself.
 
 The scoping layer emits best-effort chart anchors:
 
@@ -788,19 +911,19 @@ was built and measured, and as the source the copies are taken from.
 
 ## Phase 3 — LPS Detection
 
-`detect_lps()` ([engine_alpha/structure/lps.py](../engine_alpha/structure/lps.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow above-R shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
+`detect_lps()` ([engine_alpha/structure/lps/detection.py](../engine_alpha/structure/lps/detection.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow above-R shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
 **The holding-shelf completion form (`LPS_HOLDING_SHELF_ENABLED`, LIVE since 2026-07-16).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean). The shelf-length floor STAYS at 3: the 3→2 move was attempted 2026-07-17 and reverted at its flip battery — KWR + FLG (labeled dead-space) both fired via 2-bar shelves; at n=2 the monotone axis is one comparison and does not discriminate.
 
-**The final method, build step 2 (Sun 13/09/2026): the ruled stack behind flags, DARK.** Eight default-off flags carry the operator's rulings R1 and R7 to R18 exactly as they were measured in process (rulings ledger, `rulings_ab2` to `ab8`), one flag per ruling site so each can be measured alone (six of them flip only together with the stack and step 12); every name rides the engine manifest. Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards prove it); flag-on mechanics are pinned on fakes in `tests/test_final_method_step2.py`. Inside this detector: `LPS_RANGES_YARDSTICK_ENABLED` (R8 + R12) reads the window height (`LPS_WINDOW_SPAN_ATR_MAX` 2.5), the launch above R (`LPS_LAUNCH_ABOVE_R_ATR_MAX` 2.5) and the resistance shelf's lift (`LPS_SHELF_ABOVE_R_ATR_MAX` 1.5) in daily ranges instead of box heights, and lifts the zone's R-side ceiling to `LPS_ZONE_CEILING_ATR` 1.35 ranges; `LPS_GRADED_TRAITS_ENABLED` (R9/R9b + R15) turns the terminal-low guard, the markup-leg test, the depth minimum, both spread caps and every volume ask into measured facts (quality becomes volume-free), while the story position stays a refusal (the window's high before its low, a dig of at least `LPS_CORRECTION_DIG_MIN_ATR` 0.70 ranges, the last high at most `LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR` 0.25 ranges over the first); `LPS_WINDOW_RECEDING_ENABLED` (R18 + the sixteenth sitting) replaces the 2..7 length enumeration with ONE window per read day, the last run of receding days (a lower high or a lower low than the day before) with the day before the run as its top, ending ON the frame's last receding day, and refuses a window that ends on a breakout day (a close over the prior high by more than `LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR` 0.10 ranges); `LPS_BUY_DAY_READS_HIGH_ENABLED` makes the election's "still live" test read the HIGH: a candidate whose trigger a later day's high crossed was bought and shows nothing (the measure-only staircase keeps every window: since the review of Mon 14/09/2026 the one-window rule is an election rule too, and `detect_lps_tests` enumerates with `staircase=True`, so the Phase D evidence that needs two right-half support tests survives the flip). Outside this detector: `RESPECT_WHOLE_BAR_ENABLED` (R1) counts a bar as outside the box only when the WHOLE bar sits beyond the rail area (`box_gates._respect_stats`); `DWELL_GRADED_ENABLED` (R13) stops the whole occupancy exam from refusing, both end-third dwells, the mid churn and the coverage (`box_gates._validate_base_quality`; the touch legs still refuse; alone it regresses MATX, so it goes live only with the stack); `BOX_HANDOVER_RANGES_ENABLED` (R11) keeps a rescued box only while the last close sits within `BOX_HANDOVER_MAX_ABOVE_R_ATR` 1.5 ranges above its R instead of 15 percent of price (`box_primitives._still_backing_up`); `SPRING_BOUNDS_LIFTED_ENABLED` (R17) lets a spring sit anywhere in the box with its depth bounded by the ATR cap alone (`phase_features._phase_c_candidate`). The measured scoreboard of each flag and of the whole stack is in the decisions record (2026-09-13, build step 2).
+**The final method, build step 2 (Sun 13/09/2026): the ruled stack behind flags, DARK.** Eight default-off flags carry the operator's rulings R1 and R7 to R18 exactly as they were measured in process (rulings ledger, `rulings_ab2` to `ab8`), one flag per ruling site so each can be measured alone (six of them flip only together with the stack and step 12); every name rides the engine manifest. Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards prove it); flag-on mechanics are pinned on fakes in `tests/engine/test_final_method_step2.py`. Inside this detector: `LPS_RANGES_YARDSTICK_ENABLED` (R8 + R12) reads the window height (`LPS_WINDOW_SPAN_ATR_MAX` 2.5), the launch above R (`LPS_LAUNCH_ABOVE_R_ATR_MAX` 2.5) and the resistance shelf's lift (`LPS_SHELF_ABOVE_R_ATR_MAX` 1.5) in daily ranges instead of box heights, and lifts the zone's R-side ceiling to `LPS_ZONE_CEILING_ATR` 1.35 ranges; `LPS_GRADED_TRAITS_ENABLED` (R9/R9b + R15) turns the terminal-low guard, the markup-leg test, the depth minimum, both spread caps and every volume ask into measured facts (quality becomes volume-free), while the story position stays a refusal (the window's high before its low, a dig of at least `LPS_CORRECTION_DIG_MIN_ATR` 0.70 ranges, the last high at most `LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR` 0.25 ranges over the first); `LPS_WINDOW_RECEDING_ENABLED` (R18 + the sixteenth sitting) replaces the 2..7 length enumeration with ONE window per read day, the last run of receding days (a lower high or a lower low than the day before) with the day before the run as its top, ending ON the frame's last receding day, and refuses a window that ends on a breakout day (a close over the prior high by more than `LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR` 0.10 ranges); `LPS_BUY_DAY_READS_HIGH_ENABLED` makes the election's "still live" test read the HIGH: a candidate whose trigger a later day's high crossed was bought and shows nothing (the measure-only staircase keeps every window: since the review of Mon 14/09/2026 the one-window rule is an election rule too, and `detect_lps_tests` enumerates with `staircase=True`, so the Phase D evidence that needs two right-half support tests survives the flip). Outside this detector: `RESPECT_WHOLE_BAR_ENABLED` (R1) counts a bar as outside the box only when the WHOLE bar sits beyond the rail area (`box_gates._respect_stats`); `DWELL_GRADED_ENABLED` (R13) stops the whole occupancy exam from refusing, both end-third dwells, the mid churn and the coverage (`box_gates._validate_base_quality`; the touch legs still refuse; alone it regresses MATX, so it goes live only with the stack); `BOX_HANDOVER_RANGES_ENABLED` (R11) keeps a rescued box only while the last close sits within `BOX_HANDOVER_MAX_ABOVE_R_ATR` 1.5 ranges above its R instead of 15 percent of price (`box_primitives._still_backing_up`); `SPRING_BOUNDS_LIFTED_ENABLED` (R17) lets a spring sit anywhere in the box with its depth bounded by the ATR cap alone (`phase_features._phase_c_candidate`). The measured scoreboard of each flag and of the whole stack is in the decisions record (2026-09-13, build step 2).
 
-**The final method, build step 3 (Sun 13/09/2026): LPS refusals to grades, DARK.** One default-off flag, `LPS_REFUSALS_TO_GRADES_ENABLED` (on the engine manifest), carries his points 18, 19 and 20 of the final method inside `detect_lps_candidates`. 18: the support side of the zone gate is read on WHOLE BARS (his Q18, "not below the support area", and his JAZZ answer, on support "since most of the move is above it"): `_share_below` measures the share of the window's high-to-low travel under a level, more than half under the support area refuses and more than half under S types UNDERCUT_S (an LPS on a spring candidate), so a poke never refuses; the ceiling above R stays (R12). The first build typed the zone by the lowest close and had no floor; the review of Mon 14/09/2026 restored both his words. The tight-box widening leaves only the R-side ceiling, and only together with `LPS_RANGES_YARDSTICK_ENABLED`; `_zone_tolerance` is unchanged (alone, step 3 keeps today's ceiling, which is what admits MRK's above-R LPS). 19: the three post-window checks go (the latest close under `LPS_HOLD_TOLERANCE` of the LPS low, the post-window low test, the post-window spread test; under one window per read day there is no post-window day to check), and `_depth_in_base_envelope` drops the `LPS_PULLBACK_PROFILE_MAX` cap (with `LPS_RANGES_YARDSTICK_ENABLED` the window height in ranges is the one "too deep" refusal left, without it the 0.85 box-height cap still refuses; a NaN dig still refuses). 20: volume never refuses (the `volume baseline invalid`, `volume not drying up` and `pullback volume above baseline` refusals stop) and never elects (quality is volume-free; `vol_contraction` stays a fact on the card). Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards PASS unchanged); flag-on mechanics are pinned on fakes in `tests/test_final_method_step3.py`, every branch mutation-proved. The scoreboard (alone, with the step-2 stack, with everything) is in the decisions record (2026-09-13, build step 3).
+**The final method, build step 3 (Sun 13/09/2026): LPS refusals to grades, DARK.** One default-off flag, `LPS_REFUSALS_TO_GRADES_ENABLED` (on the engine manifest), carries his points 18, 19 and 20 of the final method inside `detect_lps_candidates`. 18: the support side of the zone gate is read on WHOLE BARS (his Q18, "not below the support area", and his JAZZ answer, on support "since most of the move is above it"): `_share_below` measures the share of the window's high-to-low travel under a level, more than half under the support area refuses and more than half under S types UNDERCUT_S (an LPS on a spring candidate), so a poke never refuses; the ceiling above R stays (R12). The first build typed the zone by the lowest close and had no floor; the review of Mon 14/09/2026 restored both his words. The tight-box widening leaves only the R-side ceiling, and only together with `LPS_RANGES_YARDSTICK_ENABLED`; `_zone_tolerance` is unchanged (alone, step 3 keeps today's ceiling, which is what admits MRK's above-R LPS). 19: the three post-window checks go (the latest close under `LPS_HOLD_TOLERANCE` of the LPS low, the post-window low test, the post-window spread test; under one window per read day there is no post-window day to check), and `_depth_in_base_envelope` drops the `LPS_PULLBACK_PROFILE_MAX` cap (with `LPS_RANGES_YARDSTICK_ENABLED` the window height in ranges is the one "too deep" refusal left, without it the 0.85 box-height cap still refuses; a NaN dig still refuses). 20: volume never refuses (the `volume baseline invalid`, `volume not drying up` and `pullback volume above baseline` refusals stop) and never elects (quality is volume-free; `vol_contraction` stays a fact on the card). Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards PASS unchanged); flag-on mechanics are pinned on fakes in `tests/engine/test_final_method_step3.py`, every branch mutation-proved. The scoreboard (alone, with the step-2 stack, with everything) is in the decisions record (2026-09-13, build step 3).
 
 **Point 19, his AEF answer (Mon 14/09/2026): the pullback increasing with sellers is fatal, DARK.** `LPS_SELLERS_RISING_FATAL_ENABLED` refuses a window in `detect_lps_candidates` (after the breakout-day check, before the descent checks; the election only, never `staircase=True`) when its last three days are each wider than the day before and each fall further (the mean of the high's and the low's drop against the day before), and the last fall exceeds the whole range of the day before. It reads the day before the last three, which on a three-day window sits outside the window and still before the read day. The scoreboard is in the decisions record (2026-09-14, the fatal character change).
 
-**The final method, build step 4 (Sun 13/09/2026): the ONE turn line, DARK.** `engine_alpha/structure/pivots.py` grows the operator's line as a pure primitive: `turn_line(highs, lows, floors)` walks the whole frame and commits a turn on the bar where price backs off the running extreme by that bar's floor, wick to wick, with no retracement ratio; the confirming bar carries the next leg's extreme, so a bar whose own range covers the floor holds both a peak and a valley; bar 0 is a turn by its shape and the terminal running extreme rides as a FORMING turn, so the line has neither the order-1 walk's edge mask nor the five-day right-edge reserve. Each turn carries its own `knowable_bar` — the causality contract's commit stamp, which the line knows by construction rather than reconstructing. `turn_line_floors(df, atr_val)` builds the per-bar floor: `TURN_LINE_FLOOR_ATR` (0.75) of each bar's OWN `ATR_10`, falling back to the caller's one scalar range where the frame carries no range column; the per-bar unit is what lands the line on all 186 of his named turns (one range from the read day lands 183). `turn_line_views(turns, start)` splits the line at the box-start seam and is the ONLY way it reaches the staircase: rebuilding it through `_build_zigzag` inverts a bar that carries both turns and the same-type merge then eats its neighbours, so `box_events._staircase_from_pivots` grew one `swings=` keyword that LABELS a finished alternating list instead (every other caller passes nothing and is byte-identical). Two default-off flags carry it, one per site: `TURN_LINE_ENABLED` under `event_map.read_swing_map`, `TURN_LINE_TREND_ENABLED` under `market_structure.read_market_structure`. Both readers take a `line=` pin (None follows the flag): since the review of Mon 14/09/2026 the live cause veto's Operand B (`bricks.cause_maturity`) and the Phase A climax repair (`trend_terminal_floor`) pass False and keep today's skeleton until build step 10, and the line opens on the older running extreme when its first leg covers the floor (bar 0 only when bar 0 is that extreme). The recall of his 186 turns is density more than agreement (his day moved three trading days still lands 173 of 186), so the floor stays his measured number, not a proven optimum. The box election is deliberately NOT a site — it stays on today's skeleton until build step 10. Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards PASS unchanged, and the event map's own byte-identity battery is untouched); flag-on, the measured result is that no fire moves anywhere and the reader pin's only drift is the commit stamps. The scoreboard is in the decisions record (2026-09-14, build step 4).
+**The final method, build step 4 (Sun 13/09/2026): the ONE turn line, DARK.** `engine_alpha/structure/metrics/pivots.py` grows the operator's line as a pure primitive: `turn_line(highs, lows, floors)` walks the whole frame and commits a turn on the bar where price backs off the running extreme by that bar's floor, wick to wick, with no retracement ratio; the confirming bar carries the next leg's extreme, so a bar whose own range covers the floor holds both a peak and a valley; bar 0 is a turn by its shape and the terminal running extreme rides as a FORMING turn, so the line has neither the order-1 walk's edge mask nor the five-day right-edge reserve. Each turn carries its own `knowable_bar` — the causality contract's commit stamp, which the line knows by construction rather than reconstructing. `turn_line_floors(df, atr_val)` builds the per-bar floor: `TURN_LINE_FLOOR_ATR` (0.75) of each bar's OWN `ATR_10`, falling back to the caller's one scalar range where the frame carries no range column; the per-bar unit is what lands the line on all 186 of his named turns (one range from the read day lands 183). `turn_line_views(turns, start)` splits the line at the box-start seam and is the ONLY way it reaches the staircase: rebuilding it through `_build_zigzag` inverts a bar that carries both turns and the same-type merge then eats its neighbours, so `box_events._staircase_from_pivots` grew one `swings=` keyword that LABELS a finished alternating list instead (every other caller passes nothing and is byte-identical). Two default-off flags carry it, one per site: `TURN_LINE_ENABLED` under `event_map.read_swing_map`, `TURN_LINE_TREND_ENABLED` under `market_structure.read_market_structure`. Both readers take a `line=` pin (None follows the flag): since the review of Mon 14/09/2026 the live cause veto's Operand B (`bricks.cause_maturity`) and the Phase A climax repair (`trend_terminal_floor`) pass False and keep today's skeleton until build step 10, and the line opens on the older running extreme when its first leg covers the floor (bar 0 only when bar 0 is that extreme). The recall of his 186 turns is density more than agreement (his day moved three trading days still lands 173 of 186), so the floor stays his measured number, not a proven optimum. The box election is deliberately NOT a site — it stays on today's skeleton until build step 10. Flag-off every path is byte-identical (the fleet, junk, marks and reader-pin guards PASS unchanged, and the event map's own byte-identity battery is untouched); flag-on, the measured result is that no fire moves anywhere and the reader pin's only drift is the commit stamps. The scoreboard is in the decisions record (2026-09-14, build step 4).
 
-**The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK.** `engine_alpha/structure/line_words.py` is a measure-only reader over the step-4 line. `read_line_words(df, box, unit, lps=, inner=)` builds the line over the whole frame (whatever `TURN_LINE_ENABLED` says) and returns every word as a pure function of it: `thrusts` (a clean up-leg walked back through pauses smaller than a last supper's dig, `LINE_WORD_SUPPER_DIG_ATR` 1.5 ranges; ground at least `LINE_WORD_SOS_MIN_GROUND_ATR` 1.70; its top in the R area, `LINE_WORD_AREA_ATR` 0.5, or over the swing high before the push began; `swing_bar`, its last swing, starts at the line valley right before the top), `pick_the_sos` (on his SOS answers, Tue 15/09/2026, the defaults mine: of the thrusts launched at or after the Phase C tip and topping at or before the LPS low, the last one topping after the middle of the box whose top clears, by more than the rail area, every high since the Phase C tip printed before the push began and every earlier push's top, a first push launched on the tip day itself reading the line peak the dip fell from (`_peak_before`: a push with nothing printed before it no longer clears by default); with none clearing, the last push after the middle, none when no push tops after the middle; the one SOS a setup carries), `the_upthrust` (his "reverse spring", Tue 15/09/2026, tweaked Wed 16/09/2026, behind its own flag `LINE_WORD_UPTHRUST_ENABLED`: ONE per box, the thrust topping in Phase B - before the Phase C tip, else at or before the middle of the box - that climbs furthest over the resistance, whose top clears it by more than `LINE_WORD_UPTHRUST_MIN_POKE_ATR` 1.25 ranges ("not every small false breach of Resistance is one": a floor of mine placed between the 0.94-range breach he crossed out and the 1.55 he named) and whose next line valley crashes back under the resistance area; marked from the line valley right before its top, the swing that breached, never the run up from support with its dips, which stays in the record as `launch_bar` beside a `candidates` count, data and never the mark), `last_suppers` (hindsight, his BMRN reading "a deep correction after the breach of resistance in phase D": off a thrust whose top pokes over the resistance, any poke (his Sat 19/09/2026), after the Phase C tip and after the middle of the box, the deepest low within `LINE_WORD_SUPPER_MAX_DAYS` 4 trading days, sought only before the LPS window opens), `dips` and `phase_c` (every valley beyond the support area read forward swing by swing: recovered once a peak reaches the support area and the next valley commits higher than the tip, recovering while that valley forms, failed on an equal or lower low; the Phase C is the deepest recovered after which the range did not run on, back to the R area and under the support area again, or an upthrust in the first half of the box (his VIK, Sat 19/09/2026), before the right side opened after the middle: his context going forward, Mon 14/09/2026), `spring_tests` (the first valley back inside the support area after it), `phase_d` (the earliest of the round trip, the staircase after the Phase C, THE SOS's last swing (its `swing_bar`, since Tue 15/09/2026: its launch could sit on the spring's own low, against his SYRE "after the spring and after the price recovers"), the LPS window's first day, counting only an opening after the middle of the box: a must, his ruling Mon 14/09/2026; an earlier one is listed in `before_middle` and opens nothing) and `mini` (today's elected inner box). Six default-off flags, one per word (the upthrust's since Tue 15/09/2026), only choose what `emitted` lets out: the evaluation's score context reads the words only when a flag is on and spreads ONE key, `_line_words_json` (a compact JSON string), onto the result; no archive writer, wire key, tag or grade reads it, and with every flag off the hook reads six settings and computes nothing. `tools/word_recall.py` is the committed measuring stick (read-only on the marks DB; his rails fed his drawn LPS windows, and the engine's own election on his fire day; the exact day, one trading day and a shifted-day chance beside every rate; the upthrust is listed, never scored, because the app cannot record one). The scoreboard is in the decisions record (2026-09-14, build step 5).
+**The final method, build step 5 (Mon 14/09/2026): the words on the line, DARK.** `engine_alpha/structure/events/line_words.py` is a measure-only reader over the step-4 line. `read_line_words(df, box, unit, lps=, inner=)` builds the line over the whole frame (whatever `TURN_LINE_ENABLED` says) and returns every word as a pure function of it: `thrusts` (a clean up-leg walked back through pauses smaller than a last supper's dig, `LINE_WORD_SUPPER_DIG_ATR` 1.5 ranges; ground at least `LINE_WORD_SOS_MIN_GROUND_ATR` 1.70; its top in the R area, `LINE_WORD_AREA_ATR` 0.5, or over the swing high before the push began; `swing_bar`, its last swing, starts at the line valley right before the top), `pick_the_sos` (on his SOS answers, Tue 15/09/2026, the defaults mine: of the thrusts launched at or after the Phase C tip and topping at or before the LPS low, the last one topping after the middle of the box whose top clears, by more than the rail area, every high since the Phase C tip printed before the push began and every earlier push's top, a first push launched on the tip day itself reading the line peak the dip fell from (`_peak_before`: a push with nothing printed before it no longer clears by default); with none clearing, the last push after the middle, none when no push tops after the middle; the one SOS a setup carries), `the_upthrust` (his "reverse spring", Tue 15/09/2026, tweaked Wed 16/09/2026, behind its own flag `LINE_WORD_UPTHRUST_ENABLED`: ONE per box, the thrust topping in Phase B - before the Phase C tip, else at or before the middle of the box - that climbs furthest over the resistance, whose top clears it by more than `LINE_WORD_UPTHRUST_MIN_POKE_ATR` 1.25 ranges ("not every small false breach of Resistance is one": a floor of mine placed between the 0.94-range breach he crossed out and the 1.55 he named) and whose next line valley crashes back under the resistance area; marked from the line valley right before its top, the swing that breached, never the run up from support with its dips, which stays in the record as `launch_bar` beside a `candidates` count, data and never the mark), `last_suppers` (hindsight, his BMRN reading "a deep correction after the breach of resistance in phase D": off a thrust whose top pokes over the resistance, any poke (his Sat 19/09/2026), after the Phase C tip and after the middle of the box, the deepest low within `LINE_WORD_SUPPER_MAX_DAYS` 4 trading days, sought only before the LPS window opens), `dips` and `phase_c` (every valley beyond the support area read forward swing by swing: recovered once a peak reaches the support area and the next valley commits higher than the tip, recovering while that valley forms, failed on an equal or lower low; the Phase C is the deepest recovered after which the range did not run on, back to the R area and under the support area again, or an upthrust in the first half of the box (his VIK, Sat 19/09/2026), before the right side opened after the middle: his context going forward, Mon 14/09/2026), `spring_tests` (the first valley back inside the support area after it), `phase_d` (the earliest of the round trip, the staircase after the Phase C, THE SOS's last swing (its `swing_bar`, since Tue 15/09/2026: its launch could sit on the spring's own low, against his SYRE "after the spring and after the price recovers"), the LPS window's first day, counting only an opening after the middle of the box: a must, his ruling Mon 14/09/2026; an earlier one is listed in `before_middle` and opens nothing) and `mini` (today's elected inner box). Six default-off flags, one per word (the upthrust's since Tue 15/09/2026), only choose what `emitted` lets out: the evaluation's score context reads the words only when a flag is on and spreads ONE key, `_line_words_json` (a compact JSON string), onto the result; no archive writer, wire key, tag or grade reads it, and with every flag off the hook reads six settings and computes nothing. `tools/calibration/word_recall.py` is the committed measuring stick (read-only on the marks DB; his rails fed his drawn LPS windows, and the engine's own election on his fire day; the exact day, one trading day and a shifted-day chance beside every rate; the upthrust is listed, never scored, because the app cannot record one). The scoreboard is in the decisions record (2026-09-14, build step 5).
 
 **The final method, build step 6 (Mon 14/09/2026): the 15-day floor from the first anchor, DARK.** One default-off switch, `BASE_AGE_FROM_ANCHOR_ENABLED` (+ `BASE_AGE_MIN_DAYS` 15): his "15 for a base minimum", counted as the box's AGE from its first rail anchor (the anchor bar is day 1) instead of the seed clock, which counts `MIN_BASE_DAYS` from the root's reaction bar on `df[:-5]`. `bricks._seed_clock()` is the one clock both seed sites read (`find_root_swing`'s `collect_root_anchors` and `validate_equilibrium`'s window check): `MIN_BASE_DAYS` flag-off; flag-on `min(MIN_BASE_DAYS, BASE_AGE_MIN_DAYS - STRUCTURE_EDGE_SKIP_BARS)`, so a box whose first anchor is 15 days old can be seeded and the window presets (weekly 6, monthly 4, Power Play 8) keep their own. The floor sits in `narrative._walk_structure` right after the box is recorded: `len(df) - min(r_anchor_bar, s_anchor_bar)` under 15 refuses the root (trace outcome `forming` with `{"age", "of"}`), keyed on the parent box, never the mini; a later root only finds a younger box. The Power Play species read pins the switch off in its own override. A fire carries `_base_age_from_anchor` only with the switch on; nothing reads it. The scoreboard is in the decisions record (2026-09-14, build step 6).
 
@@ -810,15 +933,15 @@ was built and measured, and as the source the copies are taken from.
 
 **The final method, build step 9 (Sat 19/09/2026): the box opens on the anchors, DARK.** One default-off switch, `BOX_OPENS_ON_ANCHORS_ENABLED`, on the manifest. `box_primitives.backext_shared_rail` (the shared-rail back-extension of an elected framing's start, unconditional since the 2026-07-18 fold: it walked the start left to the earliest rail-touching pivot with every intervening bar inside the buffered band) returns `cand_start`, the anchor pair's own start, under the switch; `bricks.validate_equilibrium` (the live walk) and `phase_b_zigzag` (the diagnostic mirror) both call that one function, so `box.start_bar` becomes `root.ar_bar + min(r_anchor, s_anchor)` and the trace's `backext_bars` never appears. Rails, anchors and the election are untouched; every read anchored to the start re-measures on the shorter base (base age, traversal, dwell, the descent tail, the spring, inner-box and LPS windows). Measured alone, the start moves later on 15 of his 35 marks and the descent-tail gate refuses MATX and VIK on the shorter base; that gate becomes a comment at step 12. The scoreboard is in the decisions record (2026-09-19, build step 9).
 
-**The final method, build step 10 (Sat 19/09/2026): the climax first, on the line, and the walk from it, DARK.** One default-off switch, `CLIMAX_FIRST_WALK_ENABLED`, on the manifest. `engine_alpha/structure/climax.py` (`runs_on_the_line`) is a pure function of the turn line: every run (two peaks and two valleys rising, or the mirror), ended by the first swing that fails to continue it; its climax (the run's extreme), its launch, and its reaction by the reaction-low rule (the lowest low before the first committed higher low; a forming turn decides nothing). `bricks.find_root_swing` returns those runs as `RootSwing`s oldest first under the switch (`_root_from_the_line`: `collect_root_anchors` and its percent recipe, 200-day gate and reaction-age wall are not consulted; the run rides as `RootSwing.run`). `bricks.validate_equilibrium` opens the window at `root.climax_bar` (`win0`, the reaction bar flag-off), rebases every anchor and trace to it, and passes `_line_window_kwargs` to `collect_zigzag_candidates`: `zigzag` = this run's committed turns (from the climax up to and including the first turn at or after the next run's climax, so each run owns its pairs), `extra_pairs` = the climax and its reaction when they are not consecutive limbs, `answer_line` = the whole window's committed turns, `answer_area` = `LINE_WORD_AREA_ATR` times the zone ATR. `box_primitives.collect_zigzag_candidates` takes those four kwargs (None = today's skeleton, byte-identical): the pairs are the extra pairs then `_oriented_pairs(zigzag)`, and the answering stage (`_answered` on the answer line: a later committed turn inside each rail's area) refuses in the strict pool at stage "answering", trace only; the band and story pools read the same zigzag. `narrative._walk_structure` visits every run under the switch (the loop bound is the frame's length, the 64-root cap stays the percent seed's), skips the cause veto and carries the run as `Structure.trend`; `resolve_phase_a` returns the root's own pair; `evaluation._trend_run_fields` puts `_trend_run_ranges` / `_trend_run_days` on the fire row, inert. The two RF-4 sites (`cause_maturity`'s `read_swing_map` and `trend_terminal_floor`'s `read_market_structure`) pass `line=None` under the switch. The scoreboard is in the decisions record (2026-09-19, build step 10).
+**The final method, build step 10 (Sat 19/09/2026): the climax first, on the line, and the walk from it, DARK.** One default-off switch, `CLIMAX_FIRST_WALK_ENABLED`, on the manifest. `engine_alpha/structure/phases/climax.py` (`runs_on_the_line`) is a pure function of the turn line: every run (two peaks and two valleys rising, or the mirror), ended by the first swing that fails to continue it; its climax (the run's extreme), its launch, and its reaction by the reaction-low rule (the lowest low before the first committed higher low; a forming turn decides nothing). `bricks.find_root_swing` returns those runs as `RootSwing`s oldest first under the switch (`_root_from_the_line`: `collect_root_anchors` and its percent recipe, 200-day gate and reaction-age wall are not consulted; the run rides as `RootSwing.run`). `bricks.validate_equilibrium` opens the window at `root.climax_bar` (`win0`, the reaction bar flag-off), rebases every anchor and trace to it, and passes `_line_window_kwargs` to `collect_zigzag_candidates`: `zigzag` = this run's committed turns (from the climax up to and including the first turn at or after the next run's climax, so each run owns its pairs), `extra_pairs` = the climax and its reaction when they are not consecutive limbs, `answer_line` = the whole window's committed turns, `answer_area` = `LINE_WORD_AREA_ATR` times the zone ATR. `box_primitives.collect_zigzag_candidates` takes those four kwargs (None = today's skeleton, byte-identical): the pairs are the extra pairs then `_oriented_pairs(zigzag)`, and the answering stage (`_answered` on the answer line: a later committed turn inside each rail's area) refuses in the strict pool at stage "answering", trace only; the band and story pools read the same zigzag. `narrative._walk_structure` visits every run under the switch (the loop bound is the frame's length, the 64-root cap stays the percent seed's), skips the cause veto and carries the run as `Structure.trend`; `resolve_phase_a` returns the root's own pair; `evaluation._trend_run_fields` puts `_trend_run_ranges` / `_trend_run_days` on the fire row, inert. The two RF-4 sites (`cause_maturity`'s `read_swing_map` and `trend_terminal_floor`'s `read_market_structure`) pass `line=None` under the switch. The scoreboard is in the decisions record (2026-09-19, build step 10).
 
-**The final method, build step 11 (Sat 19/09/2026): the box's end and the hand-over by swings, DARK.** One default-off switch, `BOX_END_ENABLED`, and R15's margin `BOX_END_BREAKOUT_ATR` (0.10), both on the manifest. `engine_alpha/structure/box_end.py` is pure over the line, the closes and the elected box: `election_bar` (the later of the first committed turns inside R's and S's areas after the pair's second anchor), `_leave_bar` (the first close more than the margin over R, or under S, after the second anchor), `_child_end` (one read both ways: after the leaving day every committed swing whose near anchor holds in or beyond the parent's rail area is a child candidate, the swing off the run's extreme; the child is confirmed, and the parent ended, when a later committed turn sits inside the area of EACH of its anchors, dated on the later of the two, known on its commit; a near anchor back inside the box before that means the run came back and a later leaving is read afresh), `box_end` (the earliest known end, its `end_bar` moved to the parent's last turn before price left, plus the first unconfirmed candidate above). `bricks.read_box_end` builds the line on the walk's frame, freezes the unit at the election day's `ATR_10` (the walk's ATR when the frame carries none or the pair is unanswered) and calls it. `narrative._walk_structure` reads the end right after the election under the switch (`getattr(bricks, "read_box_end", None)`: injected fakes without it keep working): an ended box records outcome `ended` with the end and the walk continues with the next run; a live box carries `child` and `unit` on the `Structure`. `evaluation._chart_state` reads `root candidate, unconfirmed` off `structure.child` before the right edge; `_walk_refused_state` reads `broke down` when the last box-bearing record ended by a breakdown and `no lines` with `why="handed over"` after a hand-over with no child box yet. Retired under the switch: `_resolve_structure_context`'s extension veto, `box_primitives._still_backing_up` (returns True) and the dethrone pass (`_dethrone_armed`), and `bricks.find_inner_box` drops a mini whose S sits at or above the parent's R minus the area. The scoreboard is in the decisions record (2026-09-19, build step 11).
+**The final method, build step 11 (Sat 19/09/2026): the box's end and the hand-over by swings, DARK.** One default-off switch, `BOX_END_ENABLED`, and R15's margin `BOX_END_BREAKOUT_ATR` (0.10), both on the manifest. `engine_alpha/structure/box/box_end.py` is pure over the line, the closes and the elected box: `election_bar` (the later of the first committed turns inside R's and S's areas after the pair's second anchor), `_leave_bar` (the first close more than the margin over R, or under S, after the second anchor), `_child_end` (one read both ways: after the leaving day every committed swing whose near anchor holds in or beyond the parent's rail area is a child candidate, the swing off the run's extreme; the child is confirmed, and the parent ended, when a later committed turn sits inside the area of EACH of its anchors, dated on the later of the two, known on its commit; a near anchor back inside the box before that means the run came back and a later leaving is read afresh), `box_end` (the earliest known end, its `end_bar` moved to the parent's last turn before price left, plus the first unconfirmed candidate above). `bricks.read_box_end` builds the line on the walk's frame, freezes the unit at the election day's `ATR_10` (the walk's ATR when the frame carries none or the pair is unanswered) and calls it. `narrative._walk_structure` reads the end right after the election under the switch (`getattr(bricks, "read_box_end", None)`: injected fakes without it keep working): an ended box records outcome `ended` with the end and the walk continues with the next run; a live box carries `child` and `unit` on the `Structure`. `evaluation._chart_state` reads `root candidate, unconfirmed` off `structure.child` before the right edge; `_walk_refused_state` reads `broke down` when the last box-bearing record ended by a breakdown and `no lines` with `why="handed over"` after a hand-over with no child box yet. Retired under the switch: `_resolve_structure_context`'s extension veto, `box_primitives._still_backing_up` (returns True) and the dethrone pass (`_dethrone_armed`), and `bricks.find_inner_box` drops a mini whose S sits at or above the parent's R minus the area. The scoreboard is in the decisions record (2026-09-19, build step 11).
 
-**The final method, build step 12, part one (Sat 19/09/2026): the Power Play species lane DELETED (point 25).** No switch: a deletion. `engine_alpha/structure/power_play.py` (the `pp_*` archive family's producer `power_play_archive_values`, `first_legal_look`, `ticker_episodes`, `power_play_fields`), the lane's twin in `evaluation.py` (`evaluate_ticker_with_power_play`, `species_watch`, `wire_status`, `PP_WIRE_STATUS`), the screener's `power_play_sink` and `market_context["power_play"]`, `ScanExportResult.power_play_counts` and the `power_play` key of `SCAN_RESULT_JSON`, the three writers' family splat, the settings block (`POWER_PLAY_PRESET_ENABLED`, `POWER_PLAY_WINDOWS`, `POWER_PLAY_POLE_MIN_GAIN`, `POWER_PLAY_POLE_WINDOW_BARS`, `POWER_PLAY_BREAKOUT_DEPARTURE_ATR`; five manifest keys, one epoch rotation), `tools/power_play_census.py`, `tools/power_play_fixture.py`, `tools/power_play_sheets.py` (`tools/story_chain_candidates.py` keeps its own `load_panel`), seven test files and `tests/baselines/power_play_*`, and the frontend's `POWER_PLAY_STATUS_LABELS`. Kept: `POWER_PLAY_STORY_FORM_ENABLED` (the resistance-contraction form; its remaining consumer is the dark contraction rescue in `narrative.read_structure`), the `pp_*` columns on the archive model (NULL from here on; the seed mapper's auto-map of them is on the parity guard's allowlist), the `PHASE_A_ANCHOR_FEATURES` partition of `pp_clock` / `pp_pole_gain` in `core/archive/analyze.py` for the rows that carry them, and his two sealed corpora under `docs/`. The worker ladder in `screener._evaluate_frames` is back to two rungs (the near-miss twin or the plain eval), with the watch lane's `partial` wrapping either.
+**The final method, build step 12, part one (Sat 19/09/2026): the Power Play species lane DELETED (point 25).** No switch: a deletion. `engine_alpha/structure/context/power_play.py` (the `pp_*` archive family's producer `power_play_archive_values`, `first_legal_look`, `ticker_episodes`, `power_play_fields`), the lane's twin in `evaluation.py` (`evaluate_ticker_with_power_play`, `species_watch`, `wire_status`, `PP_WIRE_STATUS`), the screener's `power_play_sink` and `market_context["power_play"]`, `ScanExportResult.power_play_counts` and the `power_play` key of `SCAN_RESULT_JSON`, the three writers' family splat, the settings block (`POWER_PLAY_PRESET_ENABLED`, `POWER_PLAY_WINDOWS`, `POWER_PLAY_POLE_MIN_GAIN`, `POWER_PLAY_POLE_WINDOW_BARS`, `POWER_PLAY_BREAKOUT_DEPARTURE_ATR`; five manifest keys, one epoch rotation), `tools/research/power_play_census.py`, `tools/regression/power_play_fixture.py`, `tools/research/power_play_sheets.py` (`tools/research/story_chain_candidates.py` keeps its own `load_panel`), seven test files and `tests/baselines/power_play_*`, and the frontend's `POWER_PLAY_STATUS_LABELS`. Kept: `POWER_PLAY_STORY_FORM_ENABLED` (the resistance-contraction form; its remaining consumer is the dark contraction rescue in `narrative.read_structure`), the `pp_*` columns on the archive model (NULL from here on; the seed mapper's auto-map of them is on the parity guard's allowlist), the `PHASE_A_ANCHOR_FEATURES` partition of `pp_clock` / `pp_pole_gain` in `core/archive/analyze_features.py` for the rows that carry them, and his two sealed corpora under `docs/`. The worker ladder in `screener._evaluate_frames` is back to two rungs (the near-miss twin or the plain eval), with the watch lane's `partial` wrapping either and, outermost, the rescue lanes' cost twin `evaluate_ticker_with_rescue_stats` (consolidation-method Task 10, merged 2026-09-24): it composed over the species twin and now takes the rung below it as `inner` through the same `functools.partial` binding, so the conductor unwraps rescue, then watch, then near-miss.
 
 **The final method, build step 12, part two (Sat 19/09/2026): the grade ledger, DARK.** One default-off switch, `GRADE_LEDGER_ENABLED`, its caps dict `GRADE_LEDGER_CAPS` and six placed numbers, all on the manifest. `taxonomy.cap_of(name)` is the ONE cap resolver (the ledger's value under the switch when the name is in the dict, else the setting); `TermSpec.cap()` and every `SCORE_*` read in `scoring.py` go through it, so the scorer, `structural_cap_sum()` and the chapter fractions move together. `score_setup` takes four optional reads, consulted only under the switch: `height_ranges` (the tightness term: `(BOX_HEIGHT_ZERO_RANGES - h) / (ZERO - FULL)` times the readability multiplier), `turns` (the touch term: `(at_r + at_s) * TURNS_POINT_RATE` up to the base points, the bonus reading the same counts), `window_spread_ranges` (the LPS term: `(LPS_SPREAD_ZERO_RANGES - w) / (ZERO - FULL)` times the cap) and `largest_limb_named` (the overshoot dock is zero when True, else `max(0, max_swing_frac - 1)` with no spring or width exemption). `_apply_tier_ladder` takes `height_ranges`: under the switch tier S needs `height_ranges <= TIER_S_MAX_HEIGHT_RANGES` and the percent cap is not consulted; `compose_ta_grade` and `calculate_structure_tier` carry it, and `calculate_structure_tier` reads the letter's cuts from `GRADE_LEDGER_TIER_CUTS` under the switch. `evaluation._ledger_reads(df, structure_ctx, words)` computes the four reads once in the shared chain on the ONE turn line (`turn_line` over the eval frame with the box's frozen unit, else `atr_for_zone`): `turns_at_rails` from the box start, the LPS window's mean `(High - Low) / unit` over `[start_bar, end_bar)`, `_largest_limb` (the largest swing between consecutive committed turns from the box start, as a fraction of R - S, which also replaces `max_swing_frac`) and `_named_legs(words)` (the spring's `start_bar..reach_bar`, the upthrust's `swing_bar..back_bar`, THE SOS's `launch_bar..top_bar`, each supper's `top_bar..low_bar`); the line-words block moved above the scorer, unchanged, so the pardon can read it. Flag-off `ledger_kw` is `{}` and every cap reads its setting: byte-identical. The ledger itself is `docs/grade_ledger_2026-09.md`.
 
-**The final method, build step 12, part three (Sun 20/09/2026): the display states.** No new switch. `webapp/backend/services/chart_state.read_chart_state(ticker)` runs `evaluation._run_eval_chain` with a watch recorder on the ticker's cached frame (the watchlist candles' `_serving_universe_and_frame`) and returns the ONE state word (`evaluation.watch_verdict`) with its facts: for "not scanned" the door's leg in his words (`DOOR_WORDS`) and `_door_distance` (the close under the 50- or 200-day average in ATR_10 ranges); for a chart with lines the lane row's facts through `evaluation._lane_row(..., floor=0)` (the new `floor` argument overrides `WATCH_LANE_MIN_TURNS_PER_RAIL`; the lane keeps its floor). Served by `GET /screener-data/state/{ticker}` (`routers/screener.py`, one symbol per call). The frontend: `components/WatchLanePanel.jsx` lays out `market_context.watch` under the screener grid (absent flag-off); `hooks/useChartState.js` feeds the watchlist's off-scan card its state line; `ScreenerStockLens` prints "fired ..., crossed ..." from `/archive/setups?ticker=` (the `ticker` filter on `_apply_setup_filters`, point 23); `utils/format.fmtDay` is the operator's date. **The descent tail** (`descent_tail_drops`) refuses flag-off as before; under `LPS_LEAVES_ELECTION_ENABLED` the chain keeps the fire and puts `_descent_tail` (True/False) on the row; the score never reads it. **`tools.event_map_census --check`** and its pins are deleted; the report, `--json` and `--ticker` modes stay.
+**The final method, build step 12, part three (Sun 20/09/2026): the display states.** No new switch. `webapp/backend/domains/screener/chart_state.read_chart_state(ticker)` runs `evaluation._run_eval_chain` with a watch recorder on the ticker's cached frame (the watchlist candles' `_serving_universe_and_frame`) and returns the ONE state word (`evaluation.watch_verdict`) with its facts: for "not scanned" the door's leg in his words (`DOOR_WORDS`) and `_door_distance` (the close under the 50- or 200-day average in ATR_10 ranges); for a chart with lines the lane row's facts through `evaluation._lane_row(..., floor=0)` (the new `floor` argument overrides `WATCH_LANE_MIN_TURNS_PER_RAIL`; the lane keeps its floor). Served by `GET /screener-data/state/{ticker}` (`domains/screener/router.py`, one symbol per call). The frontend: `components/WatchLanePanel.jsx` lays out `market_context.watch` under the screener grid (absent flag-off); `hooks/useChartState.js` feeds the watchlist's off-scan card its state line; `ScreenerStockLens` prints "fired ..., crossed ..." from `/archive/setups?ticker=` (the `ticker` filter on `_apply_setup_filters`, point 23); `utils/format.fmtDay` is the operator's date. **The descent tail** (`descent_tail_drops`) refuses flag-off as before; under `LPS_LEAVES_ELECTION_ENABLED` the chain keeps the fire and puts `_descent_tail` (True/False) on the row; the score never reads it. **`tools.research.event_map_census --check`** and its pins are deleted; the report, `--json` and `--ticker` modes stay.
 
 `offset` = bars between the LPS evaluation bar and "today" (`offset = 0` means the LPS ends today). `length` = number of bars in the LPS sequence.
 
@@ -861,7 +984,7 @@ was built and measured, and as the source the copies are taken from.
 > **The chapters are three since the 2026-08-12 re-partition: Consolidation → Phase D → Trend** (`taxonomy.CHAPTER_ORDER`). `cause` and `phase_b` were fused into `consolidation` — they graded one object from two sides — and `phase_c` was retired as a chapter on the operator's ruling that a spring is *marked, not graded*. Two mechanical consequences worth knowing at the point of use:
 >
 > - **`ascending_support` moved to `consolidation`, it was not demoted.** It grades the whole base's valley lows stair-stepping up (`measure_support_slope` over the box), never the shakeout; it sat under `phase_c` only because that chapter's blurb mentioned "the rising support", and it was the *only* reason a Phase C column ever showed points. Its 8-point cap is untouched.
-> - **`spring` left the `ta` layer for a third layer, `marker`.** A marker term is measured, archived (`score_spring`) and drawn, and is excluded from `ta_layer_terms()` — so it cannot reach a chapter, the divisor, or the tier even if its cap were raised. This is the ruling encoded as arithmetic rather than as a comment; `tests/test_score_taxonomy.py::test_a_marker_event_is_found_and_never_graded` is the gate.
+> - **`spring` left the `ta` layer for a third layer, `marker`.** A marker term is measured, archived (`score_spring`) and drawn, and is excluded from `ta_layer_terms()` — so it cannot reach a chapter, the divisor, or the tier even if its cap were raised. This is the ruling encoded as arithmetic rather than as a comment; `tests/scoring/test_score_taxonomy.py::test_a_marker_event_is_found_and_never_graded` is the gate.
 >
 > **The grade itself did not move**: same terms, same caps, same fixed divisor of 171 (spring's cap was already 0). Only the partition changed — plus `engine_config_version`, which rotates because chapter membership is hashed engine identity.
 
@@ -903,7 +1026,7 @@ Operator-chosen from the A/B on the 2026-08-09 scan (256 fires, grades 35.5–76
 
 ## VCP Progressive-Contraction Footprint
 
-`measure_contractions()` ([engine_alpha/structure/metrics.py](../engine_alpha/structure/metrics.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
+`measure_contractions()` ([engine_alpha/structure/metrics/base.py](../engine_alpha/structure/metrics/base.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
 
 It reuses the Phase B zigzag machinery over the base window: each peak→valley downswing is one contraction, `depth = (peak − valley) / peak`. The initial BC→AR descent into the base is excluded by design (it's the entry into the base, the early-chop the `cand_start` trim already removes).
 
@@ -920,7 +1043,7 @@ Persisted to the archive as `contraction_count`, `contraction_quality`, `final_c
 
 ## Base Bar Compression Footprint
 
-`measure_bar_compression()` ([engine_alpha/structure/metrics.py](../engine_alpha/structure/metrics.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
+`measure_bar_compression()` ([engine_alpha/structure/metrics/base.py](../engine_alpha/structure/metrics/base.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
 
 It reports four raw diagnostics, all persisted to the archive and not scored:
 
@@ -937,7 +1060,7 @@ This is **measure-first / never-gated / never-penalizing**. It gives the archive
 
 ## Ascending Support / Higher-Lows Footprint
 
-`measure_support_slope()` ([engine_alpha/structure/metrics.py](../engine_alpha/structure/metrics.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
+`measure_support_slope()` ([engine_alpha/structure/metrics/base.py](../engine_alpha/structure/metrics/base.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
 
 It reuses the same Phase B zigzag as the contraction metric, but reads the **valley** sequence. It fits a least-squares line through the `(bar_index, valley_low)` points and ATR-normalizes the slope so it's comparable across price levels and tickers.
 
@@ -951,7 +1074,7 @@ Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as 
 
 ## ADR% Absolute Volatility
 
-`adr_pct()` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py)) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
+`adr_pct()` ([engine_alpha/structure/metrics/indicators.py](../engine_alpha/structure/metrics/indicators.py)) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
 
 ```
 ADR%(20) = 100 × (mean(High / Low over the last 20 bars) - 1)
@@ -973,7 +1096,7 @@ r_touch_vol_z = (mean_vol_at_R_touches − mean_base_vol) / std_base_vol
 s_touch_vol_z = (mean_vol_at_S_touches − mean_base_vol) / std_base_vol
 ```
 
-These don't gate anything — they're persisted to the archive (`r_touch_vol_z`, `s_touch_vol_z`) and surface as Wyckoff-classic interpretation tags on the frontend card. Those chip thresholds live in `webapp/frontend/src/components/setupTagsData.js`, not Python settings:
+These don't gate anything — they're persisted to the archive (`r_touch_vol_z`, `s_touch_vol_z`) and surface as Wyckoff-classic interpretation tags on the frontend card. Those chip thresholds are the `TOUCH_VOL_Z_*` settings in `config/scoring.py`, and the chips are decided engine-side from the tag registry in `engine_alpha/scoring/taxonomy.py`; the frontend only shows the verdict:
 
 | z-score signature | Tag chip | Meaning |
 |---|---|---|
@@ -997,7 +1120,7 @@ thresholds are **unchanged**.
 
 ### Bin features — "where am I in the base?"
 
-`measure_phases()` ([engine_alpha/structure/phase_features.py](../engine_alpha/structure/phase_features.py))
+`measure_phases()` ([engine_alpha/structure/phases/phase_features.py](../engine_alpha/structure/phases/phase_features.py))
 slices an already-detected base into its named regions and reports raw size,
 price-range, and volume character per region. It detects nothing new — it
 consumes anchors the detector + LPS finder already produced.
@@ -1079,7 +1202,7 @@ one is the trap.
 ≤ 0 means the LPS formed in or below the box (no stretch); a large positive value
 flags a stretched, Last-Supper-risk LPS far from its energy source.
 
-*Event geometry* (`engine_alpha/structure/phase_features.py` →
+*Event geometry* (`engine_alpha/structure/phases/phase_features.py` →
 `_last_supper_measurements`) — the run-up-and-flush around the LPS:
 
 - `_last_supper_pullback_from_extension_pct` = `(anchor_high − lps_low) /
@@ -1137,7 +1260,7 @@ heuristic boxes before any later scoring or anchoring change is considered.
 
 ### Minervini Stage-2 trend template
 
-`trend_template()` ([engine_alpha/structure/indicators.py](../engine_alpha/structure/indicators.py))
+`trend_template()` ([engine_alpha/structure/metrics/indicators.py](../engine_alpha/structure/metrics/indicators.py))
 records the classic price/MA leadership template as raw context, computed
 self-contained from the daily frame:
 
@@ -1180,7 +1303,7 @@ nothing changes. It was built as the precondition for flipping
 `AR_FIRST_REACTION_ENABLED`, which never happened — but it STANDS on its own: the
 climax-terminality re-key is itself an AR-mode seam, and without the partition a
 blend across it reads as a signal.
-Gate: `tests/test_analyze_anchor_seam.py`.
+Gate: `tests/archive/test_analyze_anchor_seam.py`.
 
 ---
 
@@ -1248,7 +1371,7 @@ what the frontend narrative surface renders and the operator grades concordance 
 - **The election trace** (`election_trace`, flag `ELECTION_TRACE_EXPORT_ENABLED`, dark):
   `read_structure`'s own narration captured during the SAME election that fired (evaluation
   passes `trace=[]` under the flag — never a re-run, which could elect a different box) and
-  summarized by the ONE owner of the outbound shape, `structure/trace_export.py`: per-root
+  summarized by the ONE owner of the outbound shape, `structure/box/trace_export.py`: per-root
   climax/AR **dates** + outcome + per-stage refusal counts + how far the best candidate got
   (`terminal_verdict` — the one summarizer; the census tools' three independent copies are its
   migration backlog) + the elected framing's provenance (start date, rails, candidate/valid
@@ -1263,7 +1386,7 @@ what the frontend narrative surface renders and the operator grades concordance 
 - **The strategy read** (`strategy_correction_depth_pct` / `strategy_floor_above_ar`, flag
   `STRATEGY_READ_ENABLED`, dark): the held-through-correction campaign context, measure-first —
   how deep the base floor cut below the resolved climax high, and whether it held at/above the
-  automatic reaction's low. Raw values only (`structure/strategy_read.py`); a ruled judgment over
+  automatic reaction's low. Raw values only (`structure/context/strategy_read.py`); a ruled judgment over
   them is a later archive calibration, never an add-time threshold.
 
 The block is display/record data only: no score, tier, gate, or election reads it, and the
@@ -1275,9 +1398,181 @@ Every scan also writes timing telemetry:
 - `output/scan_metrics.jsonl` — append-only history, one JSON record per scan.
 - `market_context["_scan_metrics"]` — included in `output/screener_data.json`.
 
-The phase timings are `ticker_universe`, `market_data_fetch`, `frame_prep`,
-`market_context`, `evaluation`, and `result_assembly`; counts include the loaded
-universe size, evaluated ticker-frame count, and setup count.
+The persisted key is **`phases_s`** (`ScanTimer.finish` emits `"phases_s": dict(self.phases)`;
+`format_scan_metrics` reads it back), and the phase timings are `ticker_universe`,
+`market_data_fetch`, `frame_prep`, `market_context`, `evaluation`, and `result_assembly`;
+counts include the loaded universe size, evaluated ticker-frame count, and setup count.
+
+Two entries in that dict are **pseudo-phases, not phases**, written directly by the conductor
+rather than by a `timer.phase(...)` block: `power_play_lane_worker_s` (the species lane; gone
+with the lane at build step 12 of the final method, so only the history file carries it) and
+`rescue_lane_worker_s` (the full-refusal rescue lanes, present ONLY on nights a lane ran, so a
+dark scan's persisted metrics stay byte-identical). Each is **summed in-worker seconds
+aggregated across the process pool, never wall clock** — on the live 2026-08-31 US-Stocks scan
+`power_play_lane_worker_s` read 231.72 inside an `evaluation` phase of 145.93 s, so a lane
+number larger than the phase containing it is the instrument working as designed. They are the
+cost instruments the dark lanes' flip rows gate their bounds on; the read is spelled out in
+[consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Task 14, "The trial scan"
+(EC-49). One trap worth knowing before reading the history file: `output/scan_metrics.jsonl` is
+a MIXED-UNIVERSE append log and its records carry no universe field, so on a full nightly run
+the last line is the ETF scan and the US-Stocks record is third from the end — pick it by
+`counts.universe_tickers`. `market_context["_scan_metrics"]` and `cache_meta.json` have no such
+ambiguity: each belongs to one universe by construction.
+
+### The sentence family (the ONE shared language, archived)
+
+`SENTENCE_ARCHIVE_ENABLED` (dark) — the consolidation-method program's foundation stone
+(depth: [consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Tasks 8/9). Per
+elected box, the readers' own outputs fold through the operator-signed closed vocabulary
+(`structure/event_vocabulary.py`: `unify_events`, then `serialize_sentence`, which passes every
+token through the EC-55 write-time `assert_token` at the mint — an unsigned word fails in the
+frame that invented it, never at a column CHECK) into three model-only archive columns declared
+in that same module (`SENTENCE_COLUMN_SQL`): `sentence_tokens` (the folded token tape, compact
+JSON, DATE-anchored), `sentence_n_tokens`, and `sentence_nan_bars` (the readability companion).
+The extraction `sentence_archive_values` is splatted by ALL THREE writers — live, seed, and the
+manual archive route — per EC-30. Archive-only by design: no payload projection, no wire field.
+
+The family's three-state law is the event-map family's, verbatim: **NULL = not measured or
+refused** (flag off, or a read the engine refused whole — the family NULLs together), **explicit
+zero = measured-empty evidence** beside its `sentence_nan_bars` companion, and an unreadable
+verdict bar rides the record itself. The measurement runs in the ONE shared eval chain
+(`evaluation._score_eval_context`) once per elected box, so live, seed, and manual rows carry
+identical sentences by construction and replay-at-T equals live-at-T; the sentence's one ruler is
+the elected window (bar 0 = the box start), and **both** df-absolute inputs — the label layer's
+knowable stamps and the inner-box channel's detection bars, which `inner_box_at` stamps as
+`n - effective base length` against the whole prepared frame — are rebased onto it by that caller,
+because the naming layer converts nothing. Only the label layer was rebased in the first build, so
+on a box starting at a nonzero bar the mini consolidation landed off the ruler and serialized
+`"span": null`; declaring the real offset instead is not available, because the mint refuses a
+box-origin record with a nonzero `box_start_in_window` (the tape sorts on RAW spans, so an
+unrebased record also lands in the wrong place in the sentence, not merely without dates). A
+box-origin record must now declare an **EXPLICIT** offset of 0: an absent declaration used to
+pass and then serialize its dates as null — the same shuffle as a wrong offset, with nothing
+left to detect it by — so nonzero AND absent both refuse, and only an explicit zero is legal.
+The refusal raises inside the fold's own containment guard, which degrades the family to its
+declared NULL state with a counted drop, so a tightening here can never subtract a fire.
+**A span that still cannot reach the ruler is archived as an honest null — but no longer
+silently:** `serialize_sentence` names the channel on a WARNING line (logger
+`chrollo.engine.event_vocabulary`, carrying the word, the raw span, the origin and the window
+length in trading days) before nulling it. The archive contract does not widen — the family's
+three states and its three columns are unchanged — but the absence is now observable, because
+every downstream assertion tolerates a null by construction, which is exactly how the
+half-applied rebase above survived a whole council review. The reading is stated on the log
+line itself: one record off the ruler is a read at the edge, a whole channel off it is a broken
+ruler. The battery's generic span test was strengthened to match — each specimen DECLARES its
+channel roster and every declared channel must be present and on the ruler — and it runs over
+two corpus specimens deliberately, because the first fire elects no inner box at all and a
+one-specimen test could not have expressed this regression.
+Measure-only: nothing here reaches score, tier,
+election, or any sort key, and flag-off spreads `{}` at every surface. The family raises by design
+(the mint assert, the fold's vocabulary-miss refusal), so the measurement sits in its own guard:
+an error degrades to the same `{}` — never a fourth state — plus a counted, stderr-announced drop
+(`evaluation.SENTENCE_DROPS`, per worker process). An additive family may never subtract the row.
+
+Rows written under different reader vocabularies are different epochs, and are never backfilled —
+so the signed sets are part of the frozen identity, not just the flag: the freeze manifest carries
+`SENTENCE_VOCABULARY`, derived lazily from the one declaration
+(`event_vocabulary.vocabulary_manifest()`, EC-33) and hashed beside the TA-grade chapter taxonomy,
+the in-house precedent for a non-settings identity block. A signed re-wording therefore rotates
+`engine_config_version` by construction.
+
+**What that projection covers, precisely, and how it is kept complete.** Eight keys, not two:
+the value sets (`words`, `verdicts`), the mapping — `puzzle_type_words`,
+`in_progress_rail_words`, `episode_rail_words`, `episode_outcome_verdicts`,
+`mini_consolidation_word` — and `channel_basis`, the per-channel basis block that declares which
+substrate each channel's words stand on and the `span_origin` every archived date is measured
+from. The sets alone were not enough and the gap was demonstrated rather than argued:
+re-assigning `spring` from *held* to *breached*, swapping a word between two puzzle types, and
+swapping the two rail words each left the manifest hash exactly where it was, because all three
+stay strictly inside the closed sets. The basis block was the same class one level up — declared,
+riding verbatim in every archived token's `basis` cell, and rotating nothing when re-declared —
+which is why the projection is no longer typed out in the function body at all: it is DERIVED
+from a declaration registry (`_MANIFEST_SOURCES`, manifest key → module-level declaration), and
+`_assert_declarations_are_registered` runs first inside `vocabulary_manifest()` to pin that
+registry against the module's OWN declarations. Every declaration must be projected into the
+identity or excluded from it on the record with its reason (`SENTENCE_COLUMN_SQL` is the one
+deliberate exclusion: column names say WHERE a measured cell lands, never what a sentence SAYS —
+the event-map family's column table sits outside the identity on the same ground), and a registry
+row naming a declaration that no longer exists refuses too, mirroring `collect_manifest`'s posture
+for a vanished settings key. Adding a table without a row therefore refuses LOUDLY at the manifest
+— which is where the epoch is decided — instead of minting rows under a stale stamp. The guard's
+own boundary is declared at [pattern_register.md](pattern_register.md) row 16: it recognises a
+declaration by shape (upper-case module-level name bound to plain data), so a lower-case or
+object-bound future declaration would still slip it. Row ORDER inside those tables is deliberately NOT
+identity — they are lookups nothing reads positionally, `manifest_json`'s `sort_keys` canonicalises
+them anyway, and a spurious epoch permanently splits a cohort that could have been pooled. That is
+the same split the taxonomy block already makes between `TA_GRADE_CHAPTER_ORDER` (a list — chapter
+order IS ruled meaning) and `chapter_map()` (a dict — registry order is not). Both directions are
+pinned in `tests/engine/test_event_vocabulary.py`: a re-ruling rotates, a pure reorder does not.
+
+### The served refusal read (the operator's tuning loop)
+
+`metrics.mark_refusal_read(win, R, S, atr)` judges the operator's OWN drawn rails through the
+actual gate helpers off `box_gates.GATE_LEGS` — all 15 legs in ladder order, each a structured
+record (leg id, measured, threshold, ok) from the same predicates and lazily-read settings the
+election consults (EC-18/EC-43). The crash leg is the one statistic the registry does not hand
+back, so it decides with the gate's own arithmetic (pandas' NaN-skipping `.min()` against
+`S × CRASH_FILTER_MULT`, the multiplication form, never the division form) and keeps its ratio as
+a display number only — a re-typed twin named crash as THE blocking leg on damaged-data windows
+the real ladder passes. It is the ONE place where a comparison exists twice in this read, which
+is why the claim is "consumes the gates' own helpers, with one named exception" rather than "no
+duplication anywhere"; the fold that would delete the reproduction — hand the statistic back
+through the leg registry — is parked with a kill-by at [pattern_register.md](pattern_register.md)
+row 11 (EC-50), and three of the eleven pins in `tests/engine/test_mark_refusal_read.py` hold the
+reproduction to the gate meanwhile (a NaN low, a real crash, the razor edge). The read returns THE
+single blocking leg (first refusal in ladder order) rendered through the one operator-language
+vocabulary (`trace_export.leg_sentence`), `refused_legs` (all of them), the raw episode profile
+tape for machine consumers, and `episode_summary` — the same counts in plain trading words, and
+the ONLY episode rendering an operator surface may serve (the hover, and as of 2026-09-01
+`tools/calibration/knob_pair_table.py`'s own printed output, which used to print the raw tape where the
+summary sat one key away on the same dict). NULL whole on unreadable geometry
+(degenerate rails/ATR/empty window): a refused read is NULL, never fabricated zeros.
+
+**The rendered unit is the operator's own word, and the rule's SCOPE is the rendered phrase.**
+`trace_export._LEG_PHRASES` is the one table of fifteen operator-language sentences, one per
+gate leg; the unit beside a number in it is "trading days", never "bars" and never "sessions".
+That is now true of all fifteen — the last offender, `respect_share`'s "share of bars respecting
+the rails", was corrected 2026-09-01, and the table was then swept phrase by phrase for
+whole-word `bar`/`bars`/`session`/`sessions`, constant names and retired jargon: zero hits.
+Pinned two ways in `tests/engine/test_trace_export.py`, because either alone is escapable — a
+whole-table banned-word sweep (which a benign re-wording slips past) AND exact literals for the
+three legs that carry a unit word. **The rule governs the phrases, not the wire keys:**
+`box_gates.GATE_LEGS` still declares the `window` and `respect_run` quantum as `"bars"`
+(`box_gates.py:67` and `:71`), consumed as an integer-formatting selector at
+`trace_export.py:84`/`:102` and never displayed. Renaming that key is a re-measurement seam,
+not a wording fix — say "the rendered phrase" wherever this absolute is restated, or the next
+sweep will read it as licence.
+
+**The knob table's printing rule (`tools/calibration/knob_pair_table.py`, 2026-09-01).** The pair
+formatter this vocabulary exposes compares ONE mark against ONE floor, which is the right shape
+for a sentence and the wrong shape for a printed block: three distinct marks that differ from
+the floor but not from each other all rendered as the same number, and a mark widened against a
+proposed floor could sit under a header floor formatted alone at fewer decimals — a line
+arithmetically impossible on its face. The tool therefore renders each printed BLOCK — a floor
+and the marks listed under it — at ONE shared precision (`fmt_block`), widened exactly as the
+pair formatter widens a pair until no two DISTINCT numbers in the block collide, with count
+quanta staying counts; one helper serves both printed blocks (the leg table and the what-if flip
+list). It is a rendering rule in the tool, not a second vocabulary: every count still formats
+through `trace_export`'s own formatter, and the sentences below the table are unchanged. Two
+known residuals on that surface are parked with an owner at
+[pattern_register.md](pattern_register.md) row 15 — the leg HEADER drops the unit word on the
+two counted legs (the header truncates the shared phrase at the number placeholder, and
+"trading days" sits after it), and the flip lines print Python list repr.
+
+It serves where he already looks — the calibration workbench's `/calibration/engine-read`, whose
+existing hover renders `reason` unchanged (EC-28: the frontend re-derives no judgment). On a
+non-election with a drawn box mark that `reason` becomes "at your rails: \<blocking leg
+sentence\>", plus " — and N more legs short" when others are also short, closing with the episode
+summary; when every leg passes it says so plainly — the miss is upstream of the gate ladder.
+The structured block rides as `drawn_mark_refusal` for any later surface, and the window derives
+through the ONE shared derivation (`replay.drawn_box_window`, EC-13). Three declared rules: the
+diagnosis is attached **fresh per request** — marks are editable ground truth (EC-9), so it may
+never be baked into the engine-read cache; when a session holds several box marks (he draws an
+inner and an outer) it targets the **most recently edited** one, ties broken by highest id; and
+the whole attach is a read-only diagnostic **passenger** on an already-computed response — every
+failure degrades to the raw reason with one logged line, because a locked SQLite on a scan evening
+may not 500 a read that already exists. Depth:
+[consolidation_method_2026-09.md](consolidation_method_2026-09.md) §Task 15.
 
 ---
 
@@ -1314,14 +1609,23 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 
 ## Settings Quick-Reference
 
+Each knob's default lives in one domain file under `config/`: detection knobs in `config/engine.py`,
+scoring knobs (the `SCORE_*` weights, the `TIER_*` cuts and the grading scales) in `config/scoring.py`,
+and the rest in `config/enrichment.py`, `config/archive.py`, `config/market_data.py`,
+`config/market_context.py` and `config/runtime.py`. Code reads every knob through `config.settings`,
+which re-exports those defaults and is the one namespace that scoped overrides and tests patch. So
+edit a default in its domain file, and read it as `settings.NAME`. A new knob goes in its domain
+file and in `config/settings.py`'s import list. The block below lists the engine-identity subset
+(`ENGINE_SETTINGS_KEYS`) with the values `config.settings` serves, whichever file owns them.
+
 <!-- BEGIN GENERATED: settings-quick-reference -->
 _Generated from the frozen engine-identity allow-list
 (`engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS`) — every constant that can move a
 detector decision, in manifest order, with its live `config/settings.py` value.
-Regenerate with `python -m tools.settings_reference --write`;
-`tests/test_docs_sync.py` fails the suite when this block drifts._
+Regenerate with `python -m tools.maintenance.settings_reference --write`;
+`tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `6933e408c97846a9bed1e281b3ed6d7f75a605530851b0a1f3a9e098b98b6aae`_
+_engine_config_version: `6f18266ce7e188fac4fdf82af5da7ffc0db902f360ee6f66ddf9575a0c7df728`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1465,6 +1769,8 @@ BAND_EVENT_MAX_DEPTH_ATR = 5.0
 BAND_EVENT_MAX_BARS = 20
 STORY_POOL_ENABLED = True
 CONTRACTION_RESCUE_ENABLED = False
+BAR_POSTURE_RESCUE_ENABLED = False
+SENTENCE_ARCHIVE_ENABLED = True
 NEAR_MISS_MAX_QUANTA = 1
 NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
 NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
@@ -1633,13 +1939,13 @@ bugs to fix.
 
 ## Parent + Inner — Nested Phase D Range (live)
 
-The live reader calls `find_inner_box()` ([engine_alpha/structure/bricks.py](../engine_alpha/structure/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([engine_alpha/structure/consolidation.py](../engine_alpha/structure/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
+The live reader calls `find_inner_box()` ([engine_alpha/structure/narrative/bricks.py](../engine_alpha/structure/narrative/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([engine_alpha/structure/box/consolidation.py](../engine_alpha/structure/box/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
 
 `detect_boxes()` remains available for diagnostics and tools. It is no longer the live screener entry point.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless. **Operator ruling (2026-07-20):** "nested" means found in the *vicinity* of the parent at a more advanced point of the accumulation, never bounded by the parent's original rails — the range's contraction naturally forms a new mini process with its **own** R and S, and a mini-consolidation forming ON the parent's Resistance, treating it as its new Support, is a common variation (8/17 live inners sit partly above parent R — measured 2026-07-19, all sanctioned).
 
-**Position attribute (2026-08-23 unification ruling; re-ruled 2026-08-29/30, the rails-are-areas + touching-both signings).** The elected inner box is stamped with its rail-proximity band against the parent's rails — `mini_consolidation_position()` in [engine_alpha/structure/inner_box.py](../engine_alpha/structure/inner_box.py): the ruled FOUR-value closed set `at_ceiling` / `mid_range` / `on_support` / `touching_both` (the ONE declaration is `RULED_POSITION_VALUES` beside the producer), tolerance `MINI_POSITION_TOL_ATR` (0.5 — the ruled ±0.5-ATR rail area, promoted to `config/settings.py` + the frozen manifest at the Task-12 seam) in candidate-ATRs, inclusive band edges. A structure engaging BOTH bands reads `touching_both` — the 2026-08-30 honesty valve that replaced the ceiling-first tiebreak: a base about one bar tall carries no separating position information and must never fabricate an at-resistance read. Stamped ONCE inside `select_inner_box` (with an EC-19 write-time assertion against the closed set, and the raw signed ATR distances riding beside the band) — the live reader and the diagnostic mirror band identically because the tolerance ATR derives from the parent window via the election's own `_candidate_atr`, never a caller-supplied ATR. This executes the operator's ruling that the ceiling shelf and the inner mini-consolidation are ONE event ("no need to give it a new name just acknowledge its position"); the species lane's `resistance_contraction_admission` stays a ruled JUDGMENT over episode facts above this event and never elects geometry. Serialized since the ONE-Event-Map Task-10 seam: the `inner_position` (+ raw distances) archive family, the position TOKEN on the dashboard wire, and four engine-resolved position chips under the operator-signed labels (decisions.md 2026-08-30; `wireVocabulary.js POSITION_LABELS`). Two sibling instruments read this event: the dark `event_vocabulary.py` projection folds it as the `mini_consolidation` tape record, and `tools/reader_pin.py` pins the band's literal grid in its committed 88-chart baseline.
+**Position attribute (2026-08-23 unification ruling; re-ruled 2026-08-29/30, the rails-are-areas + touching-both signings).** The elected inner box is stamped with its rail-proximity band against the parent's rails — `mini_consolidation_position()` in [engine_alpha/structure/box/inner_box.py](../engine_alpha/structure/box/inner_box.py): the ruled FOUR-value closed set `at_ceiling` / `mid_range` / `on_support` / `touching_both` (the ONE declaration is `RULED_POSITION_VALUES` beside the producer), tolerance `MINI_POSITION_TOL_ATR` (0.5 — the ruled ±0.5-ATR rail area, promoted to `config/scoring.py` + the frozen manifest at the Task-12 seam) in candidate-ATRs, inclusive band edges. A structure engaging BOTH bands reads `touching_both` — the 2026-08-30 honesty valve that replaced the ceiling-first tiebreak: a base about one bar tall carries no separating position information and must never fabricate an at-resistance read. Stamped ONCE inside `select_inner_box` (with an EC-19 write-time assertion against the closed set, and the raw signed ATR distances riding beside the band) — the live reader and the diagnostic mirror band identically because the tolerance ATR derives from the parent window via the election's own `_candidate_atr`, never a caller-supplied ATR. This executes the operator's ruling that the ceiling shelf and the inner mini-consolidation are ONE event ("no need to give it a new name just acknowledge its position"); the species lane's `resistance_contraction_admission` stays a ruled JUDGMENT over episode facts above this event and never elects geometry. Serialized since the ONE-Event-Map Task-10 seam: the `inner_position` (+ raw distances) archive family, the position TOKEN on the dashboard wire, and four engine-resolved position chips under the operator-signed labels (decisions.md 2026-08-30; `wireVocabulary.js POSITION_LABELS`). Two sibling instruments read this event: the dark `event_vocabulary.py` projection folds it as the `mini_consolidation` tape record, and `tools/regression/reader_pin.py` pins the band's literal grid in its committed baseline (90 charts as of 2026-09-24).
 
 The key difference between `inner_zigzag` and `phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 

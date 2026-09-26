@@ -1,0 +1,307 @@
+
+========================================================================
+  CHROLLO STANDALONE-EDGE BACKTEST HARNESS  (PRELIMINARY)
+========================================================================
+DB: C:\Users\User\Documents\Projects\Chrollo Project\.claude\worktrees\eager-chatelet-65e8d4\webapp\backend\trading_journal.db  (read-only)
+
+========================================================================
+  1. SAMPLE COMPOSITION & MATURITY CAVEAT
+========================================================================
+Episodes (de-duplicated, one row per logical setup): 4078
+By source:     {'screener': 4038, 'seed': 39, 'manual': 1}
+By tier:       {'A': 1657, 'S': 1594, 'B': 756, 'C': 71}
+By setup_type: {'LPS': 3649, 'REBOUND': 429}
+Date range:    2026-01-16 -> 2026-09-02
+
+Resolved barrier_label: 1982
+mfe_to_date present: 3908  (elapsed-window headline; always-on)
+mfe_20d present: 2616   mfe_60d present: 513  (fixed, maturing)
+fwd_return_20d present: 2616   fwd_return_60d present: 513
+
+-- Maturity verdict ----------------------------------------------------
+!  ELAPSED-WINDOW READ (window-agnostic; always-on).
+   The headline is the favorable excursion over WHATEVER forward window has
+   elapsed so far (capped at 60 bars), recomputed every run as the window
+   grows. It is a real edge TODAY; the fixed 20d/60d MFE are SECONDARY and
+   shown as they mature. Read it as DIRECTIONAL on a thin sample, sharper
+   as the archive ages.
+   !! 40 of 3908 mfe_to_date rows are SEED/MANUAL (a hand-picked winners gallery) — EXCLUDED from the
+      headline by construction (it is computed on source='screener' only).
+   Composition above spans ALL sources; the HEADLINE edge is computed
+   on the unbiased source='screener' subset only.
+
+========================================================================
+  2. SCREENER-SIDE EDGE  (elapsed-window MFE = headline; realized R omitted)
+========================================================================
+MFE = max favorable excursion: what the setup made available. The HEADLINE
+is the elapsed-window mfe_to_date on the unbiased source='screener' subset
+(always-on, never gated on a full 20/60 window). Realized R is omitted on
+purpose — the operator exits discretionarily, so realized R would conflate
+the screener with the human exit.
+
+-- Headline edge (BIAS-SAFE) -------------------------------------------
+  basis: source='screener'  unbiased=True  n_unbiased=4038 of n_input=4078
+  !! input contained SEED/MANUAL rows — EXCLUDED from this headline by
+     construction (contaminated_input=True). They never enter THE edge.
+  HEADLINE mfe_to_date median: +6.4%  (n=3868)  (avg 30 forward bars elapsed)
+  abnormal (excess vs SPY, same window) median: -1.3% (n=3868)
+  secondary (fixed windows, shown as they mature):
+    mfe_20d: median +7.4%  n=2576
+    mfe_60d: median +16.9%  n=475
+
+-- Overall (descriptive — over the loaded frame, NOT the edge) ---------
+  n=4078   headline mfe_to_date median: +6.5% (n=3908)
+    mfe_to_date: median +6.5%  IQR [+2.6%, +13.7%]  max +145.0%  n=3908
+    mfe_20d: median +7.5%  IQR [+3.8%, +13.2%]  max +121.8%  n=2616
+    mfe_60d: median +17.5%  IQR [+11.4%, +27.4%]  max +140.6%  n=513
+    mae_to_date: median -5.4%  worst -82.1%  n=3908
+    mae_20d: median -4.8%  worst -81.3%  n=2616
+    mae_60d: median -5.3%  worst -48.8%  n=513
+    barrier: win +40.7% / loss +54.9% / timeout +4.4%  (n=1982)
+
+-- By tier -------------------------------------------------------------
+  tier S:
+    n=1594   headline mfe_to_date median: +8.2% (n=1558)
+      mfe_to_date: median +8.2%  IQR [+3.2%, +17.2%]  max +140.6%  n=1558
+      mfe_20d: median +8.2%  IQR [+4.0%, +14.5%]  max +121.8%  n=1187
+      mfe_60d: median +17.8%  IQR [+11.1%, +28.0%]  max +140.6%  n=432
+      mae_to_date: median -5.5%  worst -82.1%  n=1558
+      mae_20d: median -4.7%  worst -81.3%  n=1187
+      mae_60d: median -5.1%  worst -44.2%  n=432
+      barrier: win +42.2% / loss +50.6% / timeout +7.2%  (n=997)
+  tier A:
+    n=1657   headline mfe_to_date median: +5.9% (n=1583)
+      mfe_to_date: median +5.9%  IQR [+2.4%, +12.6%]  max +145.0%  n=1583
+      mfe_20d: median +7.3%  IQR [+3.8%, +12.6%]  max +105.3%  n=934
+      mfe_60d: median +16.2%  IQR [+12.0%, +25.7%]  max +97.0%  n=72
+      mae_to_date: median -5.5%  worst -68.3%  n=1583
+      mae_20d: median -5.1%  worst -51.2%  n=934
+      mae_60d: median -5.5%  worst -48.8%  n=72
+      barrier: win +38.2% / loss +60.0% / timeout +1.8%  (n=722)
+  tier B:
+    n=756   headline mfe_to_date median: +5.4% (n=705)
+      mfe_to_date: median +5.4%  IQR [+2.3%, +10.9%]  max +63.2%  n=705
+      mfe_20d: median +6.7%  IQR [+3.3%, +11.4%]  max +62.1%  n=461
+      mfe_60d: median +14.7%  IQR [+12.9%, +24.3%]  max +38.8%  n=9
+      mae_to_date: median -5.2%  worst -46.0%  n=705
+      mae_20d: median -4.8%  worst -46.0%  n=461
+      mae_60d: median -6.4%  worst -21.3%  n=9
+      barrier: win +41.1% / loss +58.1% / timeout +0.8%  (n=253)
+  tier C:
+    n=71   headline mfe_to_date median: +3.3% (n=62)
+      mfe_to_date: median +3.3%  IQR [+1.6%, +6.7%]  max +42.2%  n=62
+      mfe_20d: median +5.8%  IQR [+3.0%, +10.0%]  max +39.6%  n=34
+      mae_to_date: median -4.0%  worst -21.7%  n=62
+      mae_20d: median -4.0%  worst -21.7%  n=34
+      barrier: win +50.0% / loss +50.0% / timeout +0.0%  (n=10)
+
+-- By setup_type -------------------------------------------------------
+  LPS:
+    n=3649   headline mfe_to_date median: +6.5% (n=3518)
+      mfe_to_date: median +6.5%  IQR [+2.7%, +13.5%]  max +145.0%  n=3518
+      mfe_20d: median +7.4%  IQR [+3.7%, +12.9%]  max +121.8%  n=2369
+      mfe_60d: median +17.5%  IQR [+11.5%, +26.9%]  max +140.6%  n=477
+      mae_to_date: median -5.4%  worst -82.1%  n=3518
+      mae_20d: median -4.7%  worst -81.3%  n=2369
+      mae_60d: median -5.1%  worst -48.8%  n=477
+      barrier: win +42.9% / loss +52.0% / timeout +5.1%  (n=1680)
+  REBOUND:
+    n=429   headline mfe_to_date median: +6.6% (n=390)
+      mfe_to_date: median +6.6%  IQR [+2.2%, +16.9%]  max +68.6%  n=390
+      mfe_20d: median +8.4%  IQR [+4.4%, +17.5%]  max +67.3%  n=247
+      mfe_60d: median +19.6%  IQR [+11.0%, +28.8%]  max +68.6%  n=36
+      mae_to_date: median -5.9%  worst -47.1%  n=390
+      mae_20d: median -6.2%  worst -45.0%  n=247
+      mae_60d: median -6.0%  worst -43.6%  n=36
+      barrier: win +28.1% / loss +71.5% / timeout +0.3%  (n=302)
+
+========================================================================
+  3. NULL / BASE-RATE MODEL  (screener MFE vs random same-count draws)
+========================================================================
+Headline edge = median(screener MFE) − median(random-draw MFE), where
+each null draw picks, per scan day, the SAME COUNT of names the screener
+fired that day, uniformly at random from that day's eligible universe.
+
+  metric: mfe_20d   n_screener=2438
+  screener median MFE: +7.5%
+  null     median MFE: +7.4%
+  EDGE: +0.1%   95% CI [-0.1%, +0.4%]
+  permutation p-value: 0.203  (null draws=2000)
+
+-- By tier -------------------------------------------------------------
+  tier A: edge +0.2% CI [-0.3%,+0.7%] p=0.214 (n=860)
+  tier B: edge +0.4% CI [-0.2%,+1.2%] p=0.144 (n=420)
+  tier C: edge -0.3% CI [-2.0%,+1.6%] p=0.590 (n=31)
+  tier S: edge +0.0% CI [-0.4%,+0.6%] p=0.479 (n=1127)
+
+========================================================================
+  4. IN-SAMPLE / OUT-OF-SAMPLE SPLIT  (keyed on engine_config_version)
+========================================================================
+  config versions: 19
+  in-sample  versions=['4daae405458fb9695883a47730e0d13585a2a6a03f30232f0098f4ab9158b686', 'efa9e0ff7b693461dd568ede639793dde5629503f0e7bd9a04e841bf7872154f', '272023232966c65b027df037171e5ef6a45ed84c828b4df60317e3942ef83f30', 'e006cf0c55f15dbec2233e70f680927918fae7bf52994322b6dc212f4ee8154b', '3be99eef17a13fa048b21a47024f12bd128add813f75e3a083b9e1ead6d8d895', '6099c4a66e20bdf465d19ababe453b1acdc308b7ae6b02ed66794a8713d9b21c', '56ac633d164c0556aff439a733a3e1c9fb992239d7e81ac5be9adafe21880267', '2e523e951b9085fe3056acaa8fd414f8c417649d8057f23a01a0749ba5ad5a2e', 'aaf853bd0103bc65afa6356ccc8f898d9e8d1f29f6f142f998a5717abdfa0465', 'a4a4154750c0885224a19a3d86981b7b0ef6371691c570c8a4b8acf79a510d0c', '68dcec6ebd9ad0451e507b4912a4c52f24b8044649cce1aa3de9d6487fa2e89e', '424fbfa119aac9a09f17d0f6a21149aa3390aa452e6267933dfb34a91cb4c108', 'f1680dd82764284efdef1c31690c59da70268668000cca65f0db3dcc84cfe331', '824f44c9ed2c7ecd3a44e599c677ec57ac777442a60a968384ed934edee4450d', 'db0daa8b6ac1ceed6f459619858d1e85d03b1842c62b9c344bf43461b506c53f', 'c26961bfc31ed4dcefde83f8857b69ea3d33a642bfaa4533e6ec5ef7dd8ba656', '88ec252dc7f589c556638530475f44251dc5bcda3eca174cab3d98309beb8b81', '0eef903a8ee3f58b4b86a3469d58d9a136e212f24f4af8e7d11a379d760839da']  n=3019
+  out-sample version =['08c981629923c30e5e475144193792f2f258bda0c3a2ddb5425ea152b7c194ce']  n=170
+  IN-SAMPLE: headline mfe_to_date median +5.1% (n=3019)
+  OUT-OF-SAMPLE: headline mfe_to_date median - (n=0)
+
+========================================================================
+  5. ABNORMAL RETURN vs SPY  (setup MFE minus same-window SPY move)
+========================================================================
+The screener fires in up and down tapes alike, so raw MFE conflates the
+setup with the market. Abnormal return subtracts the same-window SPY move
+per setup, isolating the setup-specific edge.
+
+!  NOT COMPUTED — data dependency:
+   The archive stores SPY CONTEXT flags (spy_trend, regime_spy_*) but
+   not the same-WINDOW SPY return per setup. Abnormal return needs a
+   per-row SPY-return column aligned to mfe_20d's window (e.g.
+   'spy_20d'). The orchestrator owns that SPY price join (offline if
+   the SPY series is cached). Machinery is BUILT and tested:
+   core.backtest.stats.abnormal_return / abnormal_return_frame.
+
+========================================================================
+  6. MULTIPLE-TESTING HAIRCUT  (Benjamini-Hochberg FDR)
+========================================================================
+
+  5 slices tested. Raw p < 0.05 can be a fluke across many
+  slices; the adjusted p has survived an FDR haircut.
+
+  slice                 raw_p    adj_p  significant
+  ----------------------------------------------
+  tier=B                0.144    0.357  no
+  overall               0.203    0.357  no
+  tier=A                0.214    0.357  no
+  tier=S                0.479    0.590  no
+  tier=C                0.590    0.590  no
+
+========================================================================
+  7. MISSED-WINNERS SCORECARD  (reuses core.archive.missed_winners)
+========================================================================
+A winner = achievable R reached >= +2.0R within 60d (MFE-based
+r_multiple_60d). Engagement is unknown here (the journal join is the
+orchestrator's), so all matured winners bucket as NEVER_ENGAGED — i.e.
+this counts the engine's raw winner-find rate, not operator engagement.
+
+  episodes total: 4078   matured (60d R present): 511
+  winners (>= +2.0R within 60d): 268
+  top achievable winners:
+    MXL      2026-06-05  tier S  R60=36.21
+    BLMN     2026-06-03  tier A  R60=19.56
+    ENVA     2026-06-01  tier S  R60=19.55
+    WDC      2026-03-13  tier S  R60=17.06
+    NGL      2026-03-18  tier S  R60=16.71
+    NBR      2026-03-16  tier S  R60=13.01
+    SYRE     2026-02-11  tier S  R60=12.95
+    TORO     2026-06-08  tier S  R60=11.30
+    OMCL     2026-06-03  tier B  R60=10.88
+    ABX      2026-06-01  tier S  R60=9.71
+
+========================================================================
+  8. PREDICTOR SANITY  (rank-corr vs MFE_20d; reuses analyze helpers)
+========================================================================
+
+  (directional only on this thin sample — not a verdict)
+  feature                  rank_r vs MFE_20d
+  box_width                           +0.259
+  score                               +0.128
+  tightness_ratio                     -0.089
+  trav_n_full_traversals              +0.064
+  atr_ratio                           +0.015
+  lps_descent_frac                    -0.006
+
+========================================================================
+  9. REGIME-SEGMENTED EDGE  (does the edge survive OUTSIDE an uptrend?)
+========================================================================
+The whole confound: a bull-tape win rate is beta, not edge. Each fire is
+tagged with the SPY regime at its scan date (spy_trend). If the abnormal
+(excess-vs-SPY) edge holds in downtrend/neutral tapes too, it is not just
+market beta. Headline per regime = elapsed-window mfe_to_date + abnormal.
+
+-- By SPY regime at scan date ------------------------------------------
+  BULLISH    n=3982  mfe_to_date +6.4%   abnormal-vs-SPY -1.3% (n=3812)
+
+  Read: a POSITIVE abnormal in neutral/downtrend is the credible edge
+  signal; a large mfe with a negative abnormal is mostly market beta.
+
+========================================================================
+  10. EVENT-STUDY CAR  (abnormal-vs-SPY; calendar-time t corrects clustering)
+========================================================================
+CAR(h) = cumulative abnormal return (ticker minus SPY) h bars after the
+fire. Same-date fires are collapsed to ONE portfolio observation per date
+(calendar-time), so clustering on strong-tape days can't inflate the t.
+t_ct is authoritative; the naive cross-sectional t_cs is shown to expose
+the inflation (|t_cs| > |t_ct| when fires cluster). |t_ct| > 2 ~ notable.
+
+-- Overall CAR term structure ------------------------------------------
+      1d   CAR +0.0%   t_ct   0.19   n_dates 50    (naive t_cs 1.76)
+      5d   CAR +0.3%   t_ct   1.04   n_dates 46    (naive t_cs 7.03)
+     10d   CAR +0.2%   t_ct   0.43   n_dates 41    (naive t_cs 2.95)
+     20d   CAR -0.4%   t_ct  -0.78   n_dates 31    (naive t_cs 0.05)
+     40d   CAR -1.0%   t_ct  -0.79   n_dates 16    (naive t_cs 1.87)
+     60d   CAR +4.7%   t_ct   4.91   n_dates 2     (naive t_cs 4.78)
+
+-- By tier (CAR at 20d / 60d) ------------------------------------------
+  A          20d -0.8% (t -1.53)   60d +3.0% (t 0.74)
+  B          20d -0.2% (t -0.31)   60d -4.7% (t -1.83)
+  C          20d +2.1% (t 0.62)   60d - (t -)
+  S          20d -0.7% (t -0.93)   60d +5.0% (t 11.88)
+
+-- By regime (CAR at 20d / 60d) ----------------------------------------
+  BULLISH    20d -0.4% (t -0.68)   60d +4.7% (t 4.91)
+
+========================================================================
+  11. DEFLATED SHARPE  (does the best config beat the noise ceiling for N tries?)
+========================================================================
+We try several tier-cut x horizon configs; the BEST looks good partly by
+luck. The expected-max-Sharpe (False Strategy Theorem) is the Sharpe the
+best of N noise configs would reach. DSR = P(true SR > that ceiling),
+also correcting skew/kurtosis and sample length. DSR > 0.95 = credible.
+
+-- Candidate configs (N = 8 trials disclosed) --------------------------
+  config       per-date SR   n_dates
+  S@20d             -0.167        31
+  S@60d              8.397         2
+  S+A@20d           -0.201        31
+  S+A@60d            3.940         2
+  S+A+B@20d         -0.148        31
+  S+A+B@60d          3.473         2
+  all@20d           -0.140        31
+  all@60d            3.473         2
+
+-- Selection-corrected verdict -----------------------------------------
+  variance across the 8 configs' Sharpes (V): 9.5569
+  expected-max-Sharpe noise ceiling (SR0): 4.510
+  best config: S@60d  (per-date SR 8.397)
+  DSR = P(true SR > SR0) = 1.000   -> CREDIBLE (>0.95)
+
+========================================================================
+  12. TRIGGER-GATED EDGE  (enter on the BREAKOUT, not the fire close)
+========================================================================
+The engine is a PRE-breakout screener — you enter when price breaks the
+LPS high (the trigger), not at the fire close. This section reports (a) the
+TRIGGER RATE (share of fires that broke out within 60 bars) and (b) the
+abnormal-vs-SPY CAR measured from the BREAKOUT-day close for the triggered
+subset — the read that matches how the setups are actually taken.
+
+-- Trigger rate (broke out within 60 bars) -----------------------------
+  overall: +89.0%  (n=3868)
+  by tier: S +92.5% (n=1525)   A +87.2% (n=1576)   B +86.1% (n=705)   C +80.6% (n=62)
+
+-- Trigger-gated CAR term structure (from breakout close; calendar-time t) 
+      1d   CAR +0.0%   t_ct   0.44   n_dates 62    (naive t_cs 3.51)
+      5d   CAR +0.3%   t_ct   1.03   n_dates 58    (naive t_cs 2.92)
+     10d   CAR +0.2%   t_ct   0.37   n_dates 53    (naive t_cs 0.03)
+     20d   CAR -0.5%   t_ct  -0.99   n_dates 43    (naive t_cs -3.68)
+     40d   CAR +0.0%   t_ct   0.04   n_dates 23    (naive t_cs 0.07)
+     60d   CAR +2.5%   t_ct   1.82   n_dates 3     (naive t_cs 2.16)
+
+-- By tier (CAR at 20d / 60d, from breakout) ---------------------------
+  A          20d -1.2% (t -1.93)   60d +0.2% (t 0.20)
+  B          20d -0.8% (t -1.06)   60d -8.3% (t -62.10)
+  C          20d -0.2% (t -0.11)   60d - (t -)
+  S          20d -0.4% (t -0.66)   60d +2.8% (t 2.21)
+
+========================================================================
+  END OF PRELIMINARY REPORT
+========================================================================
+
+[structured report written to C:/Users/User/AppData/Local/Temp/claude/C--Users-User-Documents-Projects-Chrollo-Project--claude-worktrees-eager-chatelet-65e8d4/75096e69-a577-49e2-ae86-5e170a00433e/scratchpad/signal_edge_null.json]

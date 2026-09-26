@@ -1,0 +1,26 @@
+{
+ "anchor_seam": false,
+ "composition": {
+  "valid_corr": false,
+  "valid_outcome": false
+ },
+ "current_epoch": null,
+ "derived": [],
+ "episode_ids": [],
+ "epochs": [],
+ "perf_by_tier": {},
+ "raw_ids": [],
+ "signal_edge": {
+  "is_binary": false,
+  "n_minority": null,
+  "n_primary": 0,
+  "noise_floor": null,
+  "primary_target": null,
+  "rows": [],
+  "verdicts_trustworthy": false
+ },
+ "suggested_weights": {
+  "basis": "insufficient_data",
+  "weights": []
+ }
+}

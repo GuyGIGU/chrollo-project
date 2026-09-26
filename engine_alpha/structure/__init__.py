@@ -21,7 +21,7 @@ through these explicit layers — the order ``read_structure`` walks them:
 ``read_structure(df, atr)`` is the reader; the ``Structure`` it returns is the
 single daily-chart reading object every consumer (chart overlay, scope, scoring,
 archive) reads from. The per-layer validators ("bricks") live in
-``engine_alpha.structure.bricks`` and are injected into the reader, so the spine stays
+``engine_alpha.structure.narrative.bricks`` and are injected into the reader, so the spine stays
 testable in isolation with fakes:
 
     Trend / Phase A   bricks.find_root_swing, bricks.resolve_phase_a
@@ -36,10 +36,10 @@ Public API — grouped by layer (see ``__all__`` below).
 # ── The reader + its single source of truth ─────────────────────────────────
 # narrative's module-level deps are leaf submodules (lps, phase_d); the real
 # bricks load lazily at call time, so importing it here is circular-safe.
-from engine_alpha.structure.narrative import Structure, read_structure
+from engine_alpha.structure.narrative.reader import Structure, read_structure
 
 # ── Layer: Trend — a qualifying Stage-2 advance + range / strength context ───
-from engine_alpha.structure.indicators import (
+from engine_alpha.structure.metrics.indicators import (
     adr_pct,
     calculate_adx,
     calculate_atr,
@@ -48,8 +48,8 @@ from engine_alpha.structure.indicators import (
 )
 
 # ── Layer: Consolidation — locate the equilibrium box, measure how worked it is ─
-from engine_alpha.structure.consolidation import detect_boxes, find_outer_box
-from engine_alpha.structure.metrics import (
+from engine_alpha.structure.box.consolidation import detect_boxes, find_outer_box
+from engine_alpha.structure.metrics.base import (
     descent_tail_rejects,
     measure_dwell_balance,
     measure_equilibrium,
@@ -57,17 +57,17 @@ from engine_alpha.structure.metrics import (
 )
 
 # ── Layer: Phase B texture — the VCP progressive-tightening / quiet-bar / touch footprint ─
-from engine_alpha.structure.metrics import (
+from engine_alpha.structure.metrics.base import (
     assemble_box_narrative,
     measure_bar_compression,
     measure_contractions,
     measure_support_slope,
     measure_touch_volume,
 )
-from engine_alpha.structure.phase_features import measure_phases
+from engine_alpha.structure.phases.phase_features import measure_phases
 
 # ── Layer: Phase D / LPS — the right-side trigger shelf + support-test staircase ─
-from engine_alpha.structure.lps import (
+from engine_alpha.structure.lps.detection import (
     detect_lps,
     detect_lps_candidates,
     detect_lps_tests,
@@ -76,10 +76,10 @@ from engine_alpha.structure.lps import (
 )
 
 # ── Scope — clip the assembled narrative to the actionable window ────────────
-from engine_alpha.structure.scope import scope_consolidation
+from engine_alpha.structure.context.scope import scope_consolidation
 
 # ── Layer: HTF — the same Trend+Box engine on weekly/monthly bars ────────────
-from engine_alpha.structure.htf import (
+from engine_alpha.structure.context.htf import (
     htf_stage2,
     read_htf_context,
     resample_ohlc,

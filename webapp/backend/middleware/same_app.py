@@ -1,6 +1,6 @@
 """The default-on half of the same-app posture rule.
 
-`routers/calibration.require_same_app` states the first half: a custom header
+`app/dependencies.require_same_app` states the first half: a custom header
 no cross-origin page can send, declared per route. It has one structural blind
 spot and one practical one.
 
@@ -45,7 +45,7 @@ An `<img>`/`<link>`/`<video>` load sends no `Origin` at all, only
 `Sec-Fetch-Site: same-site` across `:5173 -> :8000`, which is refused. So the
 app must never hand the browser a cross-origin subresource URL: the journal
 attachment URL is relative and `vite.config.js` proxies `/attachments` in dev
-(`routers/journal._attachment_dict`). Do NOT fix a case like that by trusting
+(`domains/trading/journal._attachment_dict`). Do NOT fix a case like that by trusting
 `same-site` — that reopens the guard to every other page on localhost, which is
 most of what it buys.
 

@@ -4,14 +4,14 @@
 a PATH-specific defence: it only protects the sites that read the override. This
 is the STRUCTURAL one — it sits under every one of them at once, so a module that
 rebuilds the live path from its own anchor is refused rather than silently
-served (register row 11).
+served (register row 18).
 
 **It refuses, it does not redirect.** A test that reaches the live archive is a
 defect to be surfaced, not papered over; a silent redirect would let the caller
 keep the bug and pass.
 
 Keyed on ``_forbidden_path``, a module attribute rather than a constant baked
-into the closure, so ``tests/test_db_isolation.py`` can prove the mechanism
+into the closure, so ``tests/integration/test_db_isolation.py`` can prove the mechanism
 against a DECOY path. That matters: a proof that handed sqlite the real archive
 path would open the archive on every run where the guard was broken — which is
 precisely the failure it exists to prevent (council review 2026-09-07, finding B).

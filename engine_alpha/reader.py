@@ -144,12 +144,13 @@ def run_eval_chain(ticker: str, df: pd.DataFrame,
                                       **_only_given(near_miss=near_miss, watch=watch))
 
 
-def scan_worker(*, near_miss_lane: bool, watch_lane: bool):
+def scan_worker(*, near_miss_lane: bool, watch_lane: bool, rescue_lane: bool = False):
     """The one worker the nightly scan hands to its process pool.
 
-    The scan composes two lanes around the read — the near-miss cohort and the
-    watch-lane recorder — and both are engine twins of the same chain, not
-    second readers. Composing them HERE keeps the scan's call site one line and
+    The scan composes three lanes around the read — the near-miss cohort, the
+    watch-lane recorder and the rescue lanes' cost twin (the outermost rung,
+    so the scan's unwrap stays deterministic) — and all are engine twins of
+    the same chain, not second readers. Composing them HERE keeps the scan's call site one line and
     keeps the reader's identity in one module. The result is picklable
     (module-level functions and a ``partial`` of one), which the
     ``ProcessPoolExecutor`` requires.
@@ -171,6 +172,8 @@ def scan_worker(*, near_miss_lane: bool, watch_lane: bool):
     worker = evaluation.evaluate_ticker_with_near_miss if near_miss_lane else evaluate_ticker
     if watch_lane:
         worker = partial(evaluation.evaluate_ticker_with_watch, inner=worker)
+    if rescue_lane:
+        worker = partial(evaluation.evaluate_ticker_with_rescue_stats, inner=worker)
     return worker
 
 

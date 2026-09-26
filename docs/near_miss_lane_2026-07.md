@@ -17,7 +17,7 @@ appended at the Task-6 sitting with its standing-ruling stamp).
 ## §1 Instruments
 
 - **Volume probe (Task 4):** run-dir scratch (counters only; results recorded in §3).
-- **Margin census (Task 5):** `python -m tools.near_miss_census` — full signed-margin
+- **Margin census (Task 5):** `python -m tools.research.near_miss_census` — full signed-margin
   vectors (`engine_alpha.structure.gate_margins.complete_leg_vector`, native quanta,
   raw numerators, sign-locked) over drawn / examined / junk populations; cached-row
   iteration via `--json`/`--from`; identity + headline pins via `--check`.
@@ -370,7 +370,7 @@ Mechanics of the flip commit:
   the report cohort only.
 
 First live cohort: the next scheduled scan. Review surface:
-`python -m tools.near_miss_report` (add `--outcomes` once maturation has
+`python -m tools.research.near_miss_report` (add `--outcomes` once maturation has
 had its 5 sessions). The §6 cost levers (TOP_K cut, early-exit completion
 sized at 335-of-431) stay on the shelf — pull only if the live scan wall
 actually hurts.

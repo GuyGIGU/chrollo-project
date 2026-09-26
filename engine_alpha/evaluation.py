@@ -1,6 +1,7 @@
 """Per-ticker evaluation pass for the screener pipeline."""
 from __future__ import annotations
 
+import math
 import sys
 from enum import Enum
 from typing import Optional
@@ -32,9 +33,9 @@ from engine_alpha.structure import (
 )
 from engine_alpha.scoring import taxonomy as _taxonomy
 from engine_alpha.scoring.scoring import compose_ta_grade
-from engine_alpha.structure import line_words
-from engine_alpha.structure.market_structure import measure_trend_bases
-from engine_alpha.structure.metrics import (
+from engine_alpha.structure.events import line_words
+from engine_alpha.structure.events.market_structure import measure_trend_bases
+from engine_alpha.structure.metrics.base import (
     OUTSIDE_BAR_MEASURES,
     base_rail_touches,
     base_swing_skeleton,
@@ -42,9 +43,9 @@ from engine_alpha.structure.metrics import (
     measure_story_richness,
     traversals_per_20d,
 )
-from engine_alpha.structure.narrative import read_structure
-from engine_alpha.structure.pivots import turn_line, turn_line_floors, turns_at_rails
-from engine_alpha.structure.phase_d import (
+from engine_alpha.structure.narrative.reader import read_structure
+from engine_alpha.structure.metrics.pivots import turn_line, turn_line_floors, turns_at_rails
+from engine_alpha.structure.phases.phase_d import (
     final_v_tip_bar,
     support_test_evidence_starts,
 )
@@ -71,6 +72,16 @@ class _EvalSkip(Enum):
 
 
 EVAL_ERROR = _EvalSkip.ERROR
+
+# The sentence family's dedicated drop counter (EC-20's "loud dedicated
+# counter", per process). The family raises BY DESIGN — the write-time
+# closed-set assert, the vocabulary-miss refusal in the fold — and it is
+# ADDITIVE, so a raise must never subtract the row: the guard in
+# ``_score_eval_context`` degrades to the family's declared NULL state and
+# counts the drop HERE, beside a per-item stderr line, so an ERROR stays
+# distinguishable from an honest refusal (both archive NULL). Never a gate,
+# never archived.
+SENTENCE_DROPS = {"count": 0}
 
 
 def _sma50_dip_admits(df: pd.DataFrame) -> bool:
@@ -729,7 +740,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # inside the flag: flag-off pays zero cost and spreads {} -> byte-identical.
     event_map_fields = {}
     if settings.EVENT_MAP_ENABLED:
-        from engine_alpha.structure.event_map import (
+        from engine_alpha.structure.events.event_map import (
             episode_substrate_fields,
             read_role_labels,
             read_swing_map,
@@ -758,6 +769,111 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
             **episode_substrate_fields(_win, _struct.box.R, _struct.box.S,
                                        structure_ctx["atr_for_zone"]),
         }
+
+    # The sentence-token family (consolidation-method Task 9): the folded
+    # ONE-language tape, measured HERE in the one shared eval chain — once
+    # per elected box, riding the elected candidate outward — so live, seed
+    # and the manual route produce identical sentences by construction and
+    # replay-at-T equals live-at-T. Import + compute strictly inside the
+    # flag: flag-off spreads {} (the family archives NULL — not measured);
+    # flag-on is purely ADDITIVE in BOTH senses — nothing here reaches score,
+    # tier or any sort key, and the guard below keeps a raise from subtracting
+    # the row. A refused read (unreadable geometry) also spreads {}: the
+    # whole family NULLs together (the three-state law). The sentence's ONE
+    # ruler is the elected window (bar 0 = box.start_bar): the puzzle
+    # channel's zones are already box-relative (declared offset 0), the
+    # episode channel is window-relative by construction, and BOTH df-absolute
+    # inputs — the label layer's knowable stamps and the inner-box channel's
+    # detection bars — are rebased onto the ruler HERE — the caller declares,
+    # the naming layer converts nothing (Task 4's constraint).
+    sentence_fields = {}
+    if settings.SENTENCE_ARCHIVE_ENABLED:
+        try:
+            from engine_alpha.structure.events.event_map import (
+                read_rail_episodes,
+                read_role_labels as _read_role_labels_s,
+            )
+            from engine_alpha.structure.events.event_vocabulary import (
+                serialize_sentence,
+                unify_events,
+            )
+            _struct = structure_ctx["structure"]
+            _zatr = structure_ctx["atr_for_zone"]
+            _sR, _sS = float(_struct.box.R), float(_struct.box.S)
+            _swin = df.iloc[int(_struct.box.start_bar):]
+            _readable = (math.isfinite(_sR - _sS) and (_sR - _sS) > 0
+                         and _zatr is not None and math.isfinite(float(_zatr))
+                         and float(_zatr) > 0 and len(_swin) > 0)
+            if _readable:
+                _sroles = (_roles if settings.EVENT_MAP_ENABLED
+                           else _read_role_labels_s(
+                               df, _struct.box, _zatr,
+                               spring=_struct.spring, lps=_struct.lps))
+                _start_abs = int(_struct.box.start_bar)
+                _labels_rebased = {
+                    "labels": [
+                        {**lbl,
+                         "knowable_bar": (int(lbl["knowable_bar"]) - _start_abs
+                                          if lbl["knowable_bar"] is not None
+                                          else None)}
+                        for lbl in _sroles["labels"]],
+                    "n_labels": _sroles["n_labels"],
+                }
+                _sepi = read_rail_episodes(_swin, _sR, _sS, float(_zatr))
+                _inner_det = (getattr(_struct.inner, "detection", None)
+                              if _struct.inner is not None else None)
+                _inner_rebased = None
+                _inner_ops = None
+                if _inner_det is not None:
+                    # The inner channel's detection bars are DF-POSITIONAL
+                    # (inner_box: start_bar = n - effective base length), so
+                    # they take the SAME rebase the label layer's stamps take,
+                    # for the same reason: the ruler is the elected window.
+                    # Left df-absolute the mini consolidation's span runs off
+                    # the right end of the ruler and serializes as an honest
+                    # null — the shelf the operator reads simply missing from
+                    # every sentence (council review 2026-09-01, finding 10b).
+                    # Declaring the real offset instead is not open to us: the
+                    # mint refuses a box-origin record with a nonzero
+                    # box_start_in_window, because the tape is ORDERED on raw
+                    # spans and an unconverted one would sort to the tail.
+                    _inner_rebased = {
+                        **_inner_det,
+                        "start_bar": int(_inner_det["start_bar"]) - _start_abs,
+                    }
+                    _at_edge = (int(_inner_rebased["start_bar"])
+                                + int(_inner_rebased["base_len"])) >= len(_swin)
+                    _inner_ops = {"box_start_in_window": 0,
+                                  "at_right_edge": bool(_at_edge)}
+                _unified = unify_events(
+                    box_events=_sroles.get("events") or [],
+                    role_labels=_labels_rebased,
+                    episode_read=_sepi,
+                    inner_box=_inner_rebased,
+                    puzzle_operands={"R": _sR, "S": _sS, "atr": float(_zatr),
+                                     "box_start_in_window": 0},
+                    episode_operands={"R": _sR, "S": _sS, "atr": float(_zatr)},
+                    inner_operands=_inner_ops,
+                )
+                _cells = serialize_sentence(_unified, _swin.index)
+                sentence_fields = {("_" + k): v for k, v in _cells.items()}
+        except Exception as e:  # noqa: BLE001 — an ADDITIVE family may never
+            # SUBTRACT the row. This block raises BY DESIGN (the write-time
+            # closed-set assert at the mint, the fold's vocabulary-miss
+            # refusal) and it sits inside the ONE guarded eval chain whose
+            # skip-guard catches exactly those types — so an uncontained raise
+            # would turn every setup whose read carries a lagging word into
+            # EVAL_ERROR and delete the fire from the night AND the archive
+            # (council review 2026-09-01, finding 5). Degrade to the family's
+            # declared NULL state — the same {} an unreadable read spreads,
+            # never a fourth state — plus this lane's own counted drop, which
+            # is what keeps an ERROR distinguishable from an honest refusal
+            # (EC-20). No ticker is in scope at this seam, so the line names
+            # the evaluation date.
+            sentence_fields = {}
+            SENTENCE_DROPS["count"] += 1
+            print(f"  [sentence drop {str(df.index[-1])[:10]}] "
+                  f"{type(e).__name__}: {e}", file=sys.stderr)
 
     # The box's age from its first rail anchor (final method build step 6, measure-only, dark): carried only
     # with the 15-day floor on, so the young fires can be listed; nothing reads it. Flag-off {} -> byte-identical.
@@ -864,7 +980,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     # spreads {} -> byte-identical.
     strategy_fields = {}
     if settings.STRATEGY_READ_ENABLED:
-        from engine_alpha.structure.strategy_read import strategy_read_fields
+        from engine_alpha.structure.context.strategy_read import strategy_read_fields
         strategy_fields = strategy_read_fields(df, structure_ctx["structure"])
 
     # Election-trace export (Surface the Read, flag-dark): the walk's own
@@ -875,7 +991,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
     trace_fields = {}
     if settings.ELECTION_TRACE_EXPORT_ENABLED:
         import json
-        from engine_alpha.structure.trace_export import export_election_trace
+        from engine_alpha.structure.box.trace_export import export_election_trace
         _exported = export_election_trace(structure_ctx.get("election_trace"), df)
         if _exported is not None:
             trace_fields = {
@@ -897,6 +1013,7 @@ def _score_eval_context(prepared: dict, structure_ctx: dict, lps_ctx: dict,
         "htf_ctx": htf_ctx,
         "setup_fields": setup_fields,
         "event_map_fields": event_map_fields,
+        "sentence_fields": sentence_fields,
         "line_words_fields": line_words_fields,
         "base_age_fields": base_age_fields,
         "ledger_fields": ledger_fields,
@@ -996,7 +1113,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         # the ruled FOUR-value closed set — touching_both joined 2026-08-30 —
         # at the ±0.5-ATR tolerance) + the raw signed distances it was banded
         # from (re-rulable offline, never by rescan). Labels operator-signed
-        # 2026-08-30: the position token rides the wire (output/dashboard.py)
+        # 2026-08-30: the position token rides the wire (core/pipeline/screening/dashboard.py)
         # and fires the position chips; the raw distances stay archive-only.
         '_inner_position': inner.get('position') if inner is not None else None,
         '_inner_position_r_atr': (
@@ -1154,6 +1271,7 @@ def _build_live_result(ticker: str, prepared: dict, structure_ctx: dict,
         **{f"_{_k}": _v for _k, _v in score_ctx["htf_ctx"].items()},
         **score_ctx.get("setup_fields", {}),   # E3: {} when the narrative abstained
         **score_ctx.get("event_map_fields", {}),  # Event Map: empty flag-off -> byte-identical
+        **score_ctx.get("sentence_fields", {}),  # sentence tape: {} flag-off / refused
         **score_ctx.get("ta_grade_fields", {}),   # TA Grade v2: always present since the 2026-08-22 retirement
         **score_ctx.get("stability_fields", {}),  # election stability: empty flag-off -> byte-identical
         **score_ctx.get("trace_fields", {}),      # election-trace export: empty flag-off -> byte-identical
@@ -1308,7 +1426,7 @@ def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
     if not settings.NEAR_MISS_LANE_ENABLED:
         return _evaluate_ticker(ticker, df, spy_6m_return, breadth_pct,
                                 watch=watch), [], {}
-    from engine_alpha.structure.near_miss import (  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.box.near_miss import (  # noqa: PLC0415 — inside the flag
         NearMissRecorder, deferred_rows)
     recorder = NearMissRecorder()
     result = _run_guarded_chain(ticker, df, spy_6m_return, breadth_pct,
@@ -1440,7 +1558,7 @@ def _lane_row(ticker: str, watch: dict, state: str, floor: Optional[int] = None)
     (point 22: two at each rail). The floor touches no fire; it only decides what the lane shows. ``floor``
     overrides the setting (the ticker page's state read passes 0: one chart he asked about shows its facts
     however few turns it has, build step 12)."""
-    from engine_alpha.structure.pivots import (  # noqa: PLC0415 — inside the flag
+    from engine_alpha.structure.metrics.pivots import (  # noqa: PLC0415 — inside the flag
         turn_line, turn_line_floors, turns_at_rails)
     df = watch["df"]
     n = len(df)
@@ -1501,4 +1619,58 @@ def evaluate_ticker_with_watch(ticker: str, df: pd.DataFrame,
         print(f"  [watch skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
         stats["errored"] = 1
         row = None
+    return base, row, stats
+
+
+def evaluate_ticker_with_rescue_stats(ticker: str, df: pd.DataFrame,
+                                      spy_6m_return: float = 0.0,
+                                      breadth_pct: Optional[float] = None,
+                                      *, inner=None):
+    """The rescue lanes' cost-and-telemetry twin (consolidation-method
+    Task 10): the OUTERMOST rung of the one selection ladder, COMPOSING over
+    ``inner``, the rung below it (the plain evaluation, the near-miss twin, or
+    the watch twin over either; the screener binds it with
+    ``functools.partial``), flags re-checked in-worker. It composed over the
+    species twin until that lane was deleted (final method build step 12,
+    point 25). Returns ``(base, rescue_row, rescue_stats)`` where ``base`` is
+    exactly what ``inner`` returned; ``rescue_row`` is one bounded attempt
+    record for the conductor sink (``None`` when the escalation never ran) and
+    ``rescue_stats`` its counters (incl. ``rescue_ms``, the summed in-worker
+    cost the ``rescue_lane_worker_s`` ScanTimer pseudo-phase aggregates —
+    the instrument BOTH rescue flip rows gate their cost bound on).
+
+    The escalation runs deep inside ``read_structure``; a refusing ticker's
+    eval returns None, so the only channel is the per-process sink armed
+    around the ONE evaluation through ``narrative.rescue_sink`` (the seam that
+    always restores and refuses a nested arm — the booking describes the
+    PAYING walk only). A crashed base evaluation contributes nothing (an
+    aborted walk is incomplete evidence); a telemetry failure degrades to a
+    counted drop, never a dead scan night (EC-20). Top-level for pickling."""
+    from engine_alpha.structure.narrative import reader as _narrative  # noqa: PLC0415
+
+    inner = inner or _evaluate_ticker
+    sink: dict = {}
+    with _narrative.rescue_sink(sink):
+        base = inner(ticker, df, spy_6m_return, breadth_pct)
+    if not sink:
+        return base, None, {}
+    result = base
+    while isinstance(result, tuple):   # peel the lane triples down to the verdict
+        result = result[0]
+    if result is EVAL_ERROR:
+        # The walk aborted mid-read — partial escalation telemetry would
+        # stamp a definitive-looking record on a night the read never
+        # finished. Contribute nothing.
+        return base, None, {}
+    try:
+        stats = {"rescue_walks": int(sink.get("rescue_walks", 0)),
+                 "rescue_ms": float(sink.get("rescue_ms", 0.0)),
+                 "rescue_elected": int(bool(sink.get("elected")))}
+        row = {"ticker": ticker,
+               "escalated": list(sink.get("escalated_forms") or []),
+               "outcome": "elected" if sink.get("elected") else "refused"}
+    except Exception as e:  # noqa: BLE001 — telemetry never touches the scan
+        print(f"  [rescue-telemetry drop {ticker}] {type(e).__name__}: {e}",
+              file=sys.stderr)
+        return base, None, {"rescue_telemetry_dropped": 1}
     return base, row, stats

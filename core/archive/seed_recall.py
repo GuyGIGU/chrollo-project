@@ -412,7 +412,7 @@ def capture_fresh_baseline(baseline_path: str = _BASELINE_PATH) -> dict:
 # through the SAME ``_scan_back_seeds`` fold the live recall uses — offline and
 # deterministic. Once frozen, the ONLY thing that can move a seed from fired to
 # missed is an engine code change, so a detector edit that silently drops a known
-# winner reds the build with no network (the sibling of ``tools.shadow_diff``,
+# winner reds the build with no network (the sibling of ``tools.regression.shadow_diff``,
 # but over the curated winners via the seed twin ``_evaluate_at_date``). The
 # frozen closes are a point-in-time adjusted snapshot; that is irrelevant to
 # regression detection — the guard measures engine drift on FIXED inputs.

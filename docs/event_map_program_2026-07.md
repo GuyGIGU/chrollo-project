@@ -9,7 +9,7 @@ standing instrument:
 
 ```bash
 # --check RETIRED at the final method build step 12 (Sat 19/09/2026): its pins predated the re-draws;
-# the reader pin (tools.reader_pin) and the marks ratchet (tools.marks_corpus) are the gates now.
+# the reader pin (tools.regression.reader_pin) and the marks ratchet (tools.regression.marks_corpus) are the gates now.
 ```
 
 (ChrolloDashboard venv python. `--check` recomputes everything from the sealed fixtures +
@@ -136,7 +136,7 @@ exercise it as a routine tweak.
   Census re-run: all pins reproduce (EGBN profile unchanged); NKTR's archived admitting
   sentence gains one `~` (semantics identical).
 - Standing gates before any merge/flip touching the episode reader:
-  `python -m tools.event_map_census --check` (fingerprint + headline pins) alongside the
+  `python -m tools.research.event_map_census --check` (fingerprint + headline pins) alongside the
   pytest battery (truth table, truncation invariance, split-side horizon, the pinned
   NKTR/YPF conversions).
 - `STORY_POOL_ENABLED` **FLIPPED LIVE 2026-07-26.** The final gate — the operator's

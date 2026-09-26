@@ -1,0 +1,148 @@
+{
+  "session": "2026-08-27",
+  "counts": {
+    "tickers": 5532,
+    "universe_refused": 3982,
+    "eval_error": 0,
+    "fires_off": 309,
+    "no_fire_off": 1241,
+    "new_fires": 12,
+    "lost_fires": 1,
+    "changed_fires": 0
+  },
+  "new_fires": [
+    {
+      "ticker": "AMCR",
+      "tier": "B",
+      "score": 86.2,
+      "pool": "story",
+      "profile": "S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 47.154998779296875
+    },
+    {
+      "ticker": "BIIB",
+      "tier": "S",
+      "score": 118.2,
+      "pool": "story",
+      "profile": "S+ R+ S+ R+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 222.10000610351562
+    },
+    {
+      "ticker": "BMY",
+      "tier": "A",
+      "score": 103.7,
+      "pool": "story",
+      "profile": "S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 67.47000122070312
+    },
+    {
+      "ticker": "CARS",
+      "tier": "A",
+      "score": 101.3,
+      "pool": "story",
+      "profile": "S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 12.180000305175781
+    },
+    {
+      "ticker": "CCEP",
+      "tier": "A",
+      "score": 104.7,
+      "pool": "story",
+      "profile": "S+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 107.83000183105469
+    },
+    {
+      "ticker": "GEO",
+      "tier": "A",
+      "score": 108.9,
+      "pool": "story",
+      "profile": "R+ S+ S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 32.7599983215332
+    },
+    {
+      "ticker": "ICLR",
+      "tier": "S",
+      "score": 111.1,
+      "pool": "story",
+      "profile": "R+ S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 174.11500549316406
+    },
+    {
+      "ticker": "KFY",
+      "tier": "S",
+      "score": 119.9,
+      "pool": "story",
+      "profile": "R+ S+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 85.02999877929688
+    },
+    {
+      "ticker": "MSGS",
+      "tier": "A",
+      "score": 102.9,
+      "pool": "story",
+      "profile": "R+ S+ R+ R+ S+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 401.0050048828125
+    },
+    {
+      "ticker": "RCUS",
+      "tier": "S",
+      "score": 115.9,
+      "pool": "story",
+      "profile": "R+ S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 31.010000228881836
+    },
+    {
+      "ticker": "VRTS",
+      "tier": "A",
+      "score": 107.5,
+      "pool": "story",
+      "profile": "R+ S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 167.80999755859375
+    },
+    {
+      "ticker": "VTR",
+      "tier": "S",
+      "score": 117.9,
+      "pool": "story",
+      "profile": "S+ R+ S+ R^",
+      "R": null,
+      "S": null,
+      "trigger": 93.18000030517578
+    }
+  ],
+  "lost_fires": [
+    {
+      "ticker": "QTTB",
+      "tier": "S",
+      "score": 121.1,
+      "pool": "strict",
+      "profile": null,
+      "R": null,
+      "S": null,
+      "trigger": 16.520000457763672
+    }
+  ],
+  "changed_fires": []
+}

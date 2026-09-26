@@ -30,14 +30,14 @@ bottom of the markup and printing a phantom "SC" that never existed.
 
 ## What we already have (reuse, don't rebuild)
 
-In `core/structure/`:
+In `engine_alpha/structure/`:
 
-- `pivots.py::_find_pivots()` + `pivots.py::_build_zigzag()` — already produce the alternating
+- `metrics/pivots.py::_find_pivots()` + `metrics/pivots.py::_build_zigzag()` — already produce the alternating
   peak/valley **swing skeleton** (the HH/HL/LH/LL path the whole trading world
   reads).
-- `consolidation.py::find_outer_box()` — climax (BC/SC) enumeration + earliest-anchor selection.
-- `box_primitives.py::phase_b_zigzag()` — range validation (boundary respect, touches, midline).
-- `lps.py::detect_lps()` — the right-edge LPS, gated by `swing_complete_idx` so
+- `box/consolidation.py::find_outer_box()` — climax (BC/SC) enumeration + earliest-anchor selection.
+- `box/box_primitives.py::phase_b_zigzag()` — range validation (boundary respect, touches, midline).
+- `lps/detection.py::detect_lps()` — the right-edge LPS, gated by `swing_complete_idx` so
   it can't predate the box.
 
 We produce the swings. **We just never label the legs.** That's the job.
@@ -104,7 +104,7 @@ Once segments are first-class objects, the rest of the legend falls out:
 ## Build path (measure-first; protects the 95%)
 
 **Phase 1 — measure only, zero behavior change** *(this is what we're building)*.
-`engine_alpha/structure/segmentation.py :: segment_swings()` walks the existing zigzag and
+`engine_alpha/structure/phases/segmentation.py :: segment_swings()` walks the existing zigzag and
 emits, per scan, raw descriptive numbers:
 - each swing's ATR-normalized signed displacement,
 - window swing-efficiency (net ÷ path),
@@ -159,7 +159,7 @@ rooting to respect **segment ownership**.
   - **Blast radius** (live 2y cache, full universe): daily fire 60→46, S-tier
     ~41→~24; **seed-winner recall preserved exactly** (same 28 winners re-found,
     hermetic cache probe old vs new). DBD/RLGT/KWR/FLG reject; BBVA/ABEV/COLM →
-    A. Validity unit-tested in `tests/test_core_logic.py`.
+    A. Validity unit-tested in `tests/engine/test_core_logic.py`.
 
 **Phase 3 — fold nesting + Last Supper** off the same segment objects.
 Started measure-first: the selected inner box now archives its origin

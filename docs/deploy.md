@@ -11,7 +11,7 @@ cd "C:\Users\User\Documents\Projects\Chrollo Project"
 .\setup.bat
 ```
 
-This installs Python packages, installs frontend packages, and builds the browser UI into `webapp\frontend\dist`.
+This creates the repo venv (`.venv`) if it is missing, installs the pinned Python packages into it (`constraints.txt`), installs frontend packages, and builds the browser UI into `webapp\frontend\dist`.
 
 To reproduce the exact known-good dependency set (e.g. on a fresh machine or after a bad
 upgrade), install with the committed constraints file — `requirements.txt` stays loose on
@@ -19,7 +19,7 @@ purpose so upgrades are deliberate; `constraints.txt` pins what the service was 
 against:
 
 ```powershell
-pip install -r requirements.txt -c constraints.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -c constraints.txt
 ```
 
 After a deliberate upgrade, regenerate it: `pip freeze` → replace the pin lines in
@@ -79,8 +79,8 @@ Do **not** set `CHROLLO_DB_PATH` on this service either. It overrides the archiv
 (`webapp/backend/database.py`), and unset is the correct production value: the path stays anchored to
 `webapp\backend\trading_journal.db` regardless of the working directory. It exists for **tests and
 by-hand verification only** — `import main` runs the whole migration battery at import scope, so
-`pytest` (via `tests/conftest.py`) and any agent doing the "import main to confirm routes register"
-check point it at a throwaway file instead of the real archive:
+`pytest` (via `tests/conftest.py`), `update_dashboard.ps1`'s boot smoke and any agent doing the
+"import main to confirm routes register" check point it at a throwaway file instead of the real archive:
 
 ```powershell
 $env:CHROLLO_DB_PATH = "$env:TEMP\chrollo-verify.db"   # this shell only — never on the service
@@ -90,7 +90,7 @@ Set on the service it would silently start a second, empty archive; every scan, 
 forward return would land there and the dashboard would read an empty history.
 
 > **Recovering an existing service** (pointed at the wrong/broken interpreter, or after a PyManager
-> reset): don't reinstall — run `tools\recover_service_python.bat` (double-click, or right-click → Run
+> reset): don't reinstall — run `tools\ops\recover_service_python.bat` (double-click, or right-click → Run
 > as administrator). It self-elevates, repoints the existing service at the venv, restarts it, polls
 > `/health`, and then offers to remove the `HKLM\...\PythonCore\3.14\PythonPath` registry value that
 > lets a half-broken interpreter borrow another's stdlib instead of failing loudly (backed up first,
@@ -164,13 +164,13 @@ Deliberately **not** backed up: the `market_data_cache_5y*.parquet` price caches
 are re-downloadable — deleting one triggers a clean cold rebuild — and at ~120 MB they
 would bloat every snapshot.
 
-The script is versioned in the repo at `tools\ChrolloBackup.ps1` and **deployed** as a
+The script is versioned in the repo at `tools\ops\ChrolloBackup.ps1` and **deployed** as a
 copy at `%USERPROFILE%\ChrolloBackup.ps1` — the scheduled task runs the deployed copy.
 To change it (including setting the mirror destination), edit the repo copy, then
 redeploy:
 
 ```powershell
-Copy-Item "C:\Users\User\Documents\Projects\Chrollo Project\tools\ChrolloBackup.ps1" `
+Copy-Item "C:\Users\User\Documents\Projects\Chrollo Project\tools\ops\ChrolloBackup.ps1" `
   "$env:USERPROFILE\ChrolloBackup.ps1" -Force
 ```
 
@@ -248,7 +248,7 @@ maturation never ticks, and archived setups stall one bar short of maturing.
 > started and died counts as missed. Both failure shapes are explained in plain words by the
 > topbar status pills — click either one for the scan-run registry, which names the reason and a
 > proposed solution. To move the slot, edit `SCAN_SCHEDULE_HOUR_ET` / `SCAN_SCHEDULE_MINUTE_ET`
-> in `config/settings.py` and restart with `update_dashboard.bat`. Evidence for the collision:
+> in `config/runtime.py` and restart with `update_dashboard.bat`. Evidence for the collision:
 > [scan_interruption_incident_2026-09.md](scan_interruption_incident_2026-09.md). Because the
 maturation record is what proves the engine's edge, add a **second, backend-independent**
 nightly tick via Windows Task Scheduler. It runs the standalone updater directly, records
@@ -256,9 +256,14 @@ its own `scan_runs` row (`kind='maturation'`) so the health watchdog can see it,
 `-StartWhenAvailable` — **catches up a missed run** at the next boot/logon instead of losing
 the day.
 
-The repo ships `tools\run_maturation.bat` (it `cd`s to the repo and runs
-`python -m core.archive.forward_returns`, logging to `output\maturation.log`). Register it
-from an Administrator PowerShell:
+The task's entry point is `tools\run_maturation.bat`, and it is **permanent**: the
+"Chrollo Forward Returns" task runs it by its absolute path and is not being re-registered, so
+never move, rename or delete it. It only forwards to the implementation,
+`tools\ops\run_maturation.bat` (it `cd`s to the repo and runs
+`python -m core.archive.forward_returns`, logging to `output\maturation.log`), and passes back
+its exit code; change what the tick does there. `tests/tooling/test_maturation_launcher.py` pins
+both. The task is already registered. Only a fresh machine needs this, from an Administrator
+PowerShell, and it registers the entry point, not the `tools\ops\` path:
 
 ```powershell
 $action  = New-ScheduledTaskAction -Execute "C:\Users\User\Documents\Projects\Chrollo Project\tools\run_maturation.bat"
@@ -270,6 +275,9 @@ Register-ScheduledTask -TaskName "Chrollo Forward Returns" -Action $action -Trig
   -Settings $settings -RunLevel Limited `
   -Description "Backend-independent nightly forward-return maturation; catches up a missed run." -Force
 ```
+
+The implementation moved to `tools\ops\` on 2026-09-24; the registration was left where it was,
+and the task ran through the forwarder that day with exit code 0.
 
 The updater re-downloads fresh per-ticker data itself, so exact timing is not critical — any
 evening slot after the US close works; the important part is that it runs (and catches up)
@@ -290,7 +298,7 @@ newest snapshot actually restores — run it monthly, and after any change to th
 script:
 
 ```powershell
-python "C:\Users\User\Documents\Projects\Chrollo Project\tools\restore_drill.py"
+python "C:\Users\User\Documents\Projects\Chrollo Project\tools\ops\restore_drill.py"
 ```
 
 It copies the latest snapshot's database to a temp dir, opens it **read-only**, runs
@@ -319,19 +327,19 @@ Real restore, after data loss:
 1. Reboot the PC.
 2. Double-click the **Chrollo Dashboard** shortcut.
 3. Confirm the grid loads at `http://127.0.0.1:8000`.
-4. Wait for the scheduled scan time, or temporarily set `SCAN_SCHEDULE_HOUR_ET` and `SCAN_SCHEDULE_MINUTE_ET` in `config\settings.py` a few minutes ahead and restart the service.
+4. Wait for the scheduled scan time, or temporarily set `SCAN_SCHEDULE_HOUR_ET` and `SCAN_SCHEDULE_MINUTE_ET` in `config\runtime.py` a few minutes ahead and restart the service.
 5. Confirm the header shows the latest scan time, setup count, and `ok`.
 
 Keep the scheduled scan supervised for 1-2 weeks before fully trusting it unattended.
 
 ### 5a. Missed-slot catch-up at boot
 
-The 18:00 ET slot is 01:00 local, and a full scan takes ~17 minutes — so powering the PC
-off around 01:00 lands squarely on the scan. Two mechanisms cover a lost night, and neither
+The 17:00 ET slot is 00:00 local, and a full scan takes ~17 minutes — so a power-off soon after
+midnight still lands on the scan (§4b has the history). Two mechanisms cover a lost night, and neither
 needs a click:
 
 - **Misfire grace (4 hours).** APScheduler's default grace is 1 second, so a machine asleep
-  or a service mid-restart at 18:00 ET silently dropped the run. With hours of grace, a late
+  or a service mid-restart at the slot silently dropped the run. With hours of grace, a late
   tick still fires the job. This covers "process alive but couldn't fire on time".
 - **Boot catch-up.** A process that was fully DOWN at slot time has no job to misfire, so at
   every service boot the scheduler looks at the **most recent weekday slot** — today's if it
@@ -463,11 +471,21 @@ elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the 
 `update_dashboard.ps1`). It:
 
 1. Self-elevates once via UAC (restarting a Windows service needs admin rights).
-2. Preflights the backend: `compileall` plus an import-`main` smoke from the service's own
-   working directory (import does **not** run the lifespan — nothing starts, nothing touches
-   the broker). A backend that would die on boot is caught **before** the running service is killed.
-3. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
-4. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
+2. Asks the live service whether a scan is running, and **refuses to deploy while one is** — a
+   restart would kill the scan child mid-run (12-17 minutes of work, and the archive row it never
+   writes). Wait for it, or stop it from the dashboard's scan panel. `-Force` skips this check; a
+   service that does not answer `/health` cannot be scanning, so the deploy continues.
+3. Preflights the backend: `compileall` over `config`, `core`, `engine_alpha` and `webapp\backend`,
+   then a boot smoke from the service's own working directory. The smoke points `CHROLLO_DB_PATH`
+   at a throwaway temp file for its own process only (the live archive is never opened, and the
+   service's environment is untouched), imports `main` (import does **not** run the lifespan —
+   nothing starts, nothing touches the broker), requires more than 70 reachable leaf routes
+   including `/calibration/chart` and `/calibration/marks`, and loads the root settings the way the
+   scheduler does at startup (`app.core_settings.load_core_settings`). A backend that would die on
+   boot is caught **before** the running service is killed — including a broken settings loader,
+   which `import main` alone never calls (it crash-looped the service 22–24 Sep 2026).
+4. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
+5. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
 
 If a deploy looks wrong in the browser, roll the frontend back in one command (backend code
 comes from git, so rollback only swaps the frontend bundle):

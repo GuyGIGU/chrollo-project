@@ -11,7 +11,7 @@ not live — no test reached them against the live file — but the guards writt
 for it were PATH-specific, so a future test calling ``archive_scan_results()``
 would have written to the live archive with every guard green.
 
-This module is that one home (register row 11, EC-3). It lives in ``core`` on
+This module is that one home (register row 18, EC-3). It lives in ``core`` on
 purpose: the backend already imports ``core`` freely, so ``database.py`` can read
 it without inverting the layering, and ``config`` is not safe here — the backend's
 own working directory shadows the repo-root ``config`` package.

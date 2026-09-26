@@ -15,7 +15,7 @@ a bar whose high is under its low, and a missing column. This is the only
 contract of its kind in the tree.
 
 A NaN price does NOT reach it: the scan drops incomplete bars before the read
-(`core/pipeline/screener.py`). That drop has a consequence this contract turns
+(`core/pipeline/screening/screener.py`). That drop has a consequence this contract turns
 from silent to loud — dropping a bad day leaves a HOLE, and a hole is exactly
 what "a trading day is missing from the middle" refuses. So a ticker the old
 engine reads straight through, on a frame quietly missing a day, becomes a

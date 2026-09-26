@@ -106,7 +106,7 @@ def compute_sector_ranking(
     the rank). Returns the same shape as ``rank_sectors``.
     """
     if provider is None:
-        from core.pipeline.providers import get_provider
+        from core.pipeline.market_data.providers import get_provider
 
         provider = get_provider()
     if etfs is None or lookbacks is None:

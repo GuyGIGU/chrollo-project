@@ -122,14 +122,14 @@ The precise doctrine — quote this, not "volume is unreliable":
 > Volume **may confirm a pullback LPS and may score**. It **never defines an event**, never gates
 > the holding-shelf form, and never places a rail.
 
-Backing: [`lps.py:550`](../engine_alpha/structure/lps.py) and [`:581`](../engine_alpha/structure/lps.py)
+Backing: [`lps/detection.py:550`](../engine_alpha/structure/lps/detection.py) and [`:581`](../engine_alpha/structure/lps/detection.py)
 guard `_vol_dry_refused` behind `if not holding_shelf:` — *"the shelf form is geometry-only
 (grades-not-vetoes: volume never gates it)"*. `SCORE_VOL_CONTRACTION = 20` is the third-largest of
 15 score components.
 
 > ⚠️ **"Geometry is the only veto" does not scope the LPS detector.** `_vol_dry_refused` genuinely
 > rejects candidates, and `vol_contraction` *multiplies* the pullback form's quality at
-> [`lps.py:598-605`](../engine_alpha/structure/lps.py) — so a threshold edit changes **which window
+> [`lps/detection.py:598-605`](../engine_alpha/structure/lps/detection.py) — so a threshold edit changes **which window
 > is elected**, not just how many fire. A doctrine-purity pass that deletes it moves the sealed
 > ratchet.
 
@@ -174,7 +174,7 @@ guard `_vol_dry_refused` behind `if not holding_shelf:` — *"the shelf form is 
 
 > ⚠️ **Correction to an earlier claim in this file: genesis accumulation is NOT out of scope.**
 > The SMA-200 gate ([`evaluation.py:104-107`](../engine_alpha/evaluation.py), and structurally at
-> [`box_primitives.py:60-64`](../engine_alpha/structure/box_primitives.py) where
+> [`box_primitives.py:60-64`](../engine_alpha/structure/box/box_primitives.py) where
 > `collect_root_anchors` returns `[]` below the 200-day) does not block a genesis base. It blocks
 > **firing early in one** — in Phase A/B while price is still under its 200-day, down near the SC.
 > By the time the terminal LPS forms at the top of the range, price is above the 200-day and the
@@ -210,7 +210,7 @@ wrong code.
 | **Phase C** | always happens | an undercut below S, full stop | §2 — the no-spring case is the V tip |
 | **Phase D** | opens at the SOS | opens at earliest right-side evidence | `support_tests` ranks *first*, above anything SOS-shaped |
 | **markup** | **Phase E** | an in-box R-rail **wave label** that can sit mid-base | `grep markup` to ask "is this in markup?" returns a wave, not a regime |
-| **holding shelf** | (not canon — a Chrollo coinage, 2026-07) | **RETIRED as a TERM 2026-08-30** (ONE-Event-Map Task 7). The operator: the pattern is a REST — *“the price held like a shelf … its just one of many behaviors the price does”* — so the detector is now `_rest_verdict` (lps.py). The **stored** `lps_swing_type` value `holding_shelf` and its signed label *“LPS — flat hold”* are FROZEN history (AP-12) and meet the new name at exactly ONE documented line (`_swing_type`) | Reading an old archive row or doc that says `holding_shelf`: it is the REST form — do not “fix” the stored spelling, and do not reintroduce the term in new prose |
+| **holding shelf** | (not canon — a Chrollo coinage, 2026-07) | **RETIRED as a TERM 2026-08-30** (ONE-Event-Map Task 7). The operator: the pattern is a REST — *“the price held like a shelf … its just one of many behaviors the price does”* — so the detector is now `_rest_verdict` (`lps/detection.py`). The **stored** `lps_swing_type` value `holding_shelf` and its signed label *“LPS — flat hold”* are FROZEN history (AP-12) and meet the new name at exactly ONE documented line (`_swing_type`) | Reading an old archive row or doc that says `holding_shelf`: it is the REST form — do not “fix” the stored spelling, and do not reintroduce the term in new prose |
 | **“freshness read”** | (never canon — an agent coinage) | **RETIRED 2026-08-30 by operator order** (*“'Freshness Read' is a bad name stop using it”*). Say **the stale-support check** (the descent-tail read: has the support rail been visited recently, or does a higher working support / the story state explain its absence) | The word appears only in 2026-08-29-era session records; never in code. Do not reuse it |
 | **upthrust** | a **distribution** event (Phase C) | any failed breach of R inside an accumulation box, **stage-agnostic** | `if etype == "upthrust": # distribution` **fires constantly on good setups** |
 | **sos_reclaim** | an SOS is the advance *through* resistance | an above-R **support test** — i.e. a **BU**. `phase_d.py` never imports the function that types an SOS | **wrong polarity.** Frozen wire key — the fix is this sentence, not a rename |
@@ -301,7 +301,7 @@ stretch reference; it does not, and the question is withdrawn.
 | Measure | Reference | Verdict |
 |---|---|---|
 | `lps_stretch_atr` / `lps_stretch_box` = `(lps_low − R) / ATR` or `/ box_height` | the elected box's ceiling — the code comment already calls `R` *"the energy source"* | ✅ **matches intent** |
-| `last_supper_pullback_from_extension_pct` = `(anchor_high − lps_low) / anchor_high` | `anchor_high` = the High at the **elected LPS window's own first bar** ([`phase_features.py:264`](../engine_alpha/structure/phase_features.py), fed `elected_lps_anchor_bar` at [`:737`](../engine_alpha/structure/phase_features.py)) | ❌ **does not match intent** |
+| `last_supper_pullback_from_extension_pct` = `(anchor_high − lps_low) / anchor_high` | `anchor_high` = the High at the **elected LPS window's own first bar** ([`phase_features.py:264`](../engine_alpha/structure/phases/phase_features.py), fed `elected_lps_anchor_bar` at [`:737`](../engine_alpha/structure/phases/phase_features.py)) | ❌ **does not match intent** |
 
 **The defect.** `LPS_LENGTH_MIN/MAX = 2/7`, so `anchor_high` is at most a **seven-bar-old local
 high** — a window edge, not a pivot. The operator's anchor is *"the last pivot that caused that run
@@ -310,7 +310,7 @@ pullback and **under-reports exactly the over-extension it exists to catch**. Th
 *"pullback from extension"* but is not anchored on the extension.
 
 **BUILT 2026-07-26 — four new measure-only columns**, anchored on the last zigzag **peak** at/before
-the LPS low (`_run_up_pivot_bar` in [`phase_features.py`](../engine_alpha/structure/phase_features.py),
+the LPS low (`_run_up_pivot_bar` in [`phase_features.py`](../engine_alpha/structure/phases/phase_features.py),
 off the shared `_find_pivots` skeleton — no new detection machinery):
 
 | Column | Meaning |

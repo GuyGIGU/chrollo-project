@@ -15,10 +15,10 @@ These are intentional — do not flag as findings.
 the key.
 **Origin:** Fowler / Hunt — Council Review 2026-06-30-1124
 **Rationale:** Renaming the live archive tag is a live-SQLite migration for cosmetic gain; the boundary leak it
-caused is closed by EC-1 instead (the split lives, correctly, only inside `universe.py`).
+caused is closed by EC-1 instead (the split lives, correctly, only inside `universe/descriptor.py`).
 
 ### AP-2: `fetch_data` cold/incremental/repair state machine
-**Pattern:** `core/pipeline/downloads.py` `fetch_data` is a ~70-line lock→scope→fresh?→current?→incremental?→cold
+**Pattern:** `core/pipeline/market_data/downloads.py` `fetch_data` is a ~70-line lock→scope→fresh?→current?→incremental?→cold
 sequence of named `_try_*`/`_*_result` helpers with IO/mutations visible at the helper boundaries. Do NOT
 "simplify" or split it further.
 **Origin:** Fowler (LEAD) — Council Review 2026-06-30-1124
@@ -26,7 +26,7 @@ sequence of named `_try_*`/`_*_result` helpers with IO/mutations visible at the 
 contained.
 
 ### AP-3: Per-call `Universe` registry build + lazy settings reads
-**Pattern:** `core/pipeline/universe.py` rebuilds the registry per call and reads settings at call time (not
+**Pattern:** `core/pipeline/universe/descriptor.py` rebuilds the registry per call and reads settings at call time (not
 module-level attribute reads). Do NOT hoist the registry to a module-level materialization.
 **Origin:** universe.py design — Council Review 2026-06-30-1124
 **Rationale:** Avoids the config-vs-cwd shadowing trap (the backend cwd shadows the repo-root `config` package).
@@ -39,16 +39,16 @@ Yahoo's scraper / OHLC adjustment — it is a supply-chain + byte-parity control
 
 ### AP-5: The price-independent fill ledger is a necessary JS↔Python twin
 **Pattern:** `summarizeFillLedger` (and the price-independent half of `deriveTradeRow`) stays in
-`webapp/frontend/src/utils/tradeTableUtils.js` even though `webapp/backend/services/trade_risk.py`
+`webapp/frontend/src/features/journal/model/tradeTableUtils.js` even though `webapp/backend/domains/trading/risk.py`
 ports the same ledger. The JS copy backs a WRITE path (the fill-save payload in `useTradeFills` +
 inline `position_size` in `useTradeCellEditing`) that a read-only GET cannot serve. Do NOT flag this
 as a dual implementation / EC-3 violation — it is a deliberate cross-language twin reconciled by the
-parity test (`tests/test_trade_risk.py`).
+parity test (`tests/contracts/test_trade_risk.py`).
 **Origin:** Fowler / McKinney — Council Review 2026-06-30-1338
 **Rationale:** Only the price-DEPENDENT live overlay was centralized; the ledger twin is forced by the write path.
 
-### AP-6: `_js_number(None) == 0.0` in `trade_risk.py` is intentional
-**Pattern:** `services/trade_risk.py` maps `None`→`0.0` (mirroring JS `Number(null)`), which differs from
+### AP-6: `_js_number(None) == 0.0` in `domains/trading/risk.py` is intentional
+**Pattern:** `domains/trading/risk.py` maps `None`→`0.0` (mirroring JS `Number(null)`), which differs from
 JS `Number(undefined)=NaN` only on a literally key-absent `entry_price`. Do NOT "fix" `infer_direction`
 to treat `None` as not-knowable: the router always materializes `entry_price` present-as-None (the
 agreeing case), so the current code matches JS on every reachable input, and the proposed fix would
@@ -58,7 +58,7 @@ INTRODUCE a divergence on the reachable present-null case.
 
 ### AP-7: The eq_* archive columns' hand-listing is a family-contiguity exception
 **Pattern:** `eq_engagement_respect_frac` / `eq_max_excursion_atr` are hand-listed in
-`webapp/backend/services/startup.py` `_MIGRATIONS` and `core/archive/writer.py` `_NEW_COLUMNS`
+`webapp/backend/app/migrations/additive.py` `_MIGRATIONS` and `core/archive/writer.py` `_NEW_COLUMNS`
 ONLY to keep the eq_* gate-margin family contiguous with its already-listed siblings. Do NOT flag
 this as triple registration, and do NOT grow the hand lists for any new column family — the
 default for new archive columns is MODEL-ONLY registration (the boot pass and the writer's second
@@ -102,7 +102,7 @@ not just the primary writer.
 
 ### EC-5: Live open-trade risk is derived once, server-side
 **Convention:** The price-dependent live-trade risk overlay (live price, unrealized P&L $/%, R-multiple,
-distance-to-stop %/R, stop tone, target distances) is derived ONLY in `webapp/backend/services/trade_risk.py`
+distance-to-stop %/R, stop tone, target distances) is derived ONLY in `webapp/backend/domains/trading/risk.py`
 (the single source of truth); the frontend consumes it via the `riskFor` accessor. Never re-add a live-risk
 computation in JS. R-multiple/`riskDistance` anchor 1R to `planned_stop`→`stop_loss`→None (never fabricated);
 distance-to-stop and the stop tone use the CURRENT working `stop_loss` on both sides.
@@ -135,7 +135,7 @@ voided and re-measured, so editing a mark can never launder a regression into a 
 
 ### EC-8: Every new engine flag ships with the full flag protocol in one change
 **Convention:** A new engine behavior flag must land in the SAME change as: registration in the frozen
-settings manifest (`core/freeze`) AND the dark-flag ledger (`tests/test_invariants.py`); a unit-level
+settings manifest (`engine_alpha/freeze/manifest.py`) AND the dark-flag ledger (`docs/flag_ledger.md`, enforced by `tests/engine/test_invariants.py`); a unit-level
 inert test in its home module; one flag-off frozen-fixture pipeline replay asserting equality with the
 shadow baseline; and an agreed scan-metrics evaluation-phase cost bound measured before the operator
 flips it live. Flag-off must be byte-identical and compute-free.
@@ -157,7 +157,7 @@ the thirty survivors had been edited** (rails, LPS windows, triggers) with only 
 
 **Convention:** The calibration-marks DB (`calibration_marks`, operator-owned) is EDITABLE ground
 truth and is THE population. `docs/marks/` is a REGENERATED projection of it, not a sealed island:
-`tools.guided_list_export` overwrites, and `tools.marks_corpus --check` FAILS (never advises) when the
+`tools.calibration.guided_list_export` overwrites, and `tools.regression.marks_corpus --check` FAILS (never advises) when the
 corpus no longer matches the live DB on a machine that has one. An absent DB is not drift — CI grades
 the committed fixture.
 
@@ -228,11 +228,11 @@ operator-confirmed 2026-07-25
 
 ### EC-13: Marks-consuming instruments use the ONE validated loader and stamp the exact set scored
 **Convention:** Every tool that reads a marks population loads it through the shared validated
-loader (`tools.calibration_harness.load_marks` / `load_box_marks`) — a malformed row aborts the
+loader (`tools.calibration.calibration_harness.load_marks` / `load_box_marks`) — a malformed row aborts the
 batch naming the offender, never a silent skip — and every report stamps its population name, the
 fingerprint of EXACTLY the marks it scored (a filtered run stamps the filtered set), and the engine
-manifest hash. No instrument re-implements mark loading, window indexing (`tools.replay.session_pos`),
-or frame enrichment (`tools.replay.enrich_marked_frame`).
+manifest hash. No instrument re-implements mark loading, window indexing (`core.calibration.replay.session_pos`),
+or frame enrichment (`core.calibration.replay.enrich_marked_frame`).
 **Origin:** Fowler / Hunt / McKinney — Council Review 2026-07-24-1903 (engine/gap-breach);
 operator-confirmed 2026-07-25
 **Principle:** `conventions.md` EC-3 / EC-9; `references/refactoring.md` → P5 (twin code paths)
@@ -525,7 +525,7 @@ operator-delegated 2026-08-08
 watchlist save's pinned setup today; any future "what I saw when I acted" record), the identity
 columns are copied VERBATIM from the displayed payload's own identity — never recomputed from any
 clock at write time. Chrollo runs three clocks that disagree by design: `scan_date` is the scan
-machine's LOCAL civil date (`core/pipeline/scan_job.py`), the scheduler fires on
+machine's LOCAL civil date (`core/pipeline/screening/scan_job.py`), the scheduler fires on
 `America/New_York`, and server stamps are UTC — so "match today's date to the scan row" is provably
 wrong in definable windows (UTC trails local 00:00–03:00 local; a post-close run at ~22:30 local can
 stamp the following day; the ET↔Israel offset moves twice a year). Artifact-sourced identity is
@@ -545,7 +545,7 @@ operator-confirmed 2026-08-09
 **Pattern:** The `session_lag` health state deliberately splits `can_evaluate=True` from
 `can_archive=False`: a panel one session behind is readable but must NEVER be archived, and the
 archive path's ONLY gate is `can_archive`, enforced at the archive layer and pinned by
-`tests/test_archive_reliability.py`. Do NOT "simplify" the pair into one boolean, and do NOT add
+`tests/backend/test_archive_reliability.py`. Do NOT "simplify" the pair into one boolean, and do NOT add
 a second, parallel archive gate (a belt-and-suspenders twin lets the load-bearing one rot
 unobserved). New consumers of panel readability key on `can_evaluate`; anything that PERSISTS
 keys on `can_archive`.
@@ -687,7 +687,7 @@ operator-delegated 2026-08-17
 **Pattern:** A differently-clocked or differently-flagged read enters the engine through
 `htf.window_override` with a DECLARED settings dict (`HTF_WEEKLY_WINDOWS`,
 `HTF_MONTHLY_WINDOWS`, `POWER_PLAY_WINDOWS`) — never a forked collector, a hand-threaded
-parameter, or a per-call setattr patch. `tools.replay.flag_capture` is a thin
+parameter, or a per-call setattr patch. `core.calibration.replay.flag_capture` is a thin
 validate-first wrapper delegating to the same core. Do NOT flag the setattr save/restore
 mechanism as a smell, propose threading window parameters through call signatures, or
 re-introduce a second save/restore core.
@@ -801,7 +801,7 @@ request and refuses anything a browser attests came from another page (`Sec-Fetc
 which page JS cannot forge). Do NOT add a per-path exemption to that middleware, and do NOT reach for
 the header dependency as the *only* protection on a new route — `EventSource` cannot send a header,
 so an SSE route can never carry it. A new mutating or streaming route is guarded the moment it is
-registered; `tests/test_service_boot.py` walks every registered route and proves it.
+registered; `tests/backend/test_service_boot.py` walks every registered route and proves it.
 The guard has exactly **one** carve-out and it is keyed on the method, never on a path: the CORS
 preflight (`OPTIONS`), which is what makes the cross-origin dev flow work at all, and which
 `CORSMiddleware` — mounted outside the guard — answers or rejects before a route sees it.
@@ -856,3 +856,27 @@ reclaim is a daily-bar ruling); operator-delegated 2026-08-31
 **Rationale:** The alternative is worse in both directions — letting a daily-calibrated rescue run on
 weekly bars silently invents an unruled threshold, and hard-coding a weekly variant invents a second
 one. A preset pin says "not ruled here" in the only place that can enforce it.
+
+---
+
+### EC-57: Assert on sealed bases; disclose live drift as a ruling row
+**Convention:** A gate may only ASSERT against a **sealed** basis — the marks ratchet, the shadow
+fixture, the junk corpus, the reader pin — bases whose population is frozen and re-approved by an
+operator sitting. Fleet-level or live-population drift is never an assertion and never a silent
+pass: it is DISCLOSED, in a dated sidecar stamped with the population fingerprint it was measured
+against, handed to the operator as a ruling row. A live number may therefore block a *ruling*; it
+may never block a *build*.
+**Origin:** the operator's own acceptance ruling — *"we measure against the calibrated list"* —
+written as a convention at the consolidation-method plan delivery; proposed 2026-09-01 and
+**ruled in by him the same day** (asks sweep; the sibling candidate "a basis change is a migration"
+was offered in the same breath and DECLINED, so basis changes stay a case-by-case judgment and no
+convention binds them). Written as EC-56 on the consolidation-method branch; renumbered EC-57 when
+that branch merged onto the domain layout (2026-09-24), because main's EC-56 (the same-app guard,
+2026-09-07) had already taken the number.
+**Rationale:** the two failure modes are symmetric and both were live in this repo. Asserting on a
+fleet number makes the suite fail for reasons that have nothing to do with the change under test —
+the cache moved, the universe moved, a name got acquired — which trains everyone to re-baseline on
+red. Silently *accepting* fleet drift is worse: the 2026-08-31 bar-posture sheet said 12 of 12
+reachable and four days later said 4 of 12, and nothing in the tree would have noticed. A sealed
+basis is the only thing an assertion can honestly stand on; everything else is evidence, and
+evidence goes to the operator with its date on it.

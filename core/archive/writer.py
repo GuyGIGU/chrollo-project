@@ -34,7 +34,7 @@ _SECTOR_ETF_CACHE_PATH = os.path.join(_PROJECT_ROOT, "output", "sector_etf_cache
 
 def load_sector_etf_cache(path: str = _SECTOR_ETF_CACHE_PATH) -> dict:
     """Read the ticker -> sector-ETF map. Any unreadable/garbage file reads as
-    empty (the cache is regenerable). Shared with output/dashboard.py, which
+    empty (the cache is regenerable). Shared with core/pipeline/screening/dashboard.py, which
     passes its own path constant."""
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -59,7 +59,7 @@ def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> No
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
 from core.archive.db_path import archive_db_path
-from engine_alpha.structure.htf import HTF_COLUMN_SQL, htf_archive_values
+from engine_alpha.structure.context.htf import HTF_COLUMN_SQL, htf_archive_values
 from engine_alpha.two_eyes_archive import two_eyes_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
@@ -213,28 +213,29 @@ _NEW_COLUMNS: dict[str, str] = {
 # NOTE: the Lane E advisory columns (fund_*, days_to_earnings, rs_rating,
 # rs_line_*, sector_rank_*) are intentionally NOT hand-listed here. Like
 # engine_config_version, they are MODEL-ONLY adds: the backend's Track B
-# auto-migration (startup._apply_model_add_columns) and this writer's own
+# auto-migration (app/migrations/additive._apply_model_add_columns) and this writer's own
 # model-derived second pass in _ensure_new_columns ADD them from
 # SetupArchive.__table__, so the model stays the single source and the
 # _NEW_COLUMNS <= _MIGRATIONS guard (test_archive_writer_columns_are_modeled_
 # and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 # NOTE: engine_config_version (the frozen-config stamp) is intentionally NOT in
 # _NEW_COLUMNS. It is added to the live schema by Track B's model-derived
-# auto-migration (webapp/backend/services/startup._apply_model_add_columns,
+# auto-migration (webapp/backend/app/migrations/additive._apply_model_add_columns,
 # which diffs SetupArchive.__table__ at backend boot) and by create_all on a
 # fresh table — so the writer needs no hand-listed ALTER for it, and the
 # _NEW_COLUMNS <= _MIGRATIONS guard (test_archive_writer_columns_are_modeled_
 # and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 
 # HTF (higher-timeframe) context columns — single source of truth in
-# engine_alpha.structure.htf so the writer / model / migrations / seed stay in sync.
+# engine_alpha.structure.context.htf so the writer / model / migrations / seed stay in sync.
 _NEW_COLUMNS.update(HTF_COLUMN_SQL)
 
-# Event Map tape-summary columns — single source in engine_alpha.structure.event_map.
+# Event Map tape-summary columns — single source in engine_alpha.structure.events.event_map.
 # MODEL-ONLY schema adds (see archive_models.SetupArchive): deliberately NOT
 # merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
 # the backend's Track B auto-migration ADD them.
-from engine_alpha.structure.event_map import event_map_archive_values
+from engine_alpha.structure.events.event_map import event_map_archive_values
+from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
 # TA-grade family (grade pair + setup grades + flag-gated term points) and
 # the per-term sub-score fold — single source in engine_alpha.scoring.scoring
 # (same model-only convention).
@@ -242,11 +243,11 @@ from engine_alpha.scoring.scoring import (
     sub_score_archive_values,
     ta_grade_archive_values,
 )
-# Election-trace evidence cell — single source in engine_alpha.structure.trace_export
+# Election-trace evidence cell — single source in engine_alpha.structure.box.trace_export
 # (same model-only convention as the event_map family).
-from engine_alpha.structure.trace_export import election_trace_archive_values
-# Strategy-read family — single source in engine_alpha.structure.strategy_read.
-from engine_alpha.structure.strategy_read import strategy_archive_values
+from engine_alpha.structure.box.trace_export import election_trace_archive_values
+# Strategy-read family — single source in engine_alpha.structure.context.strategy_read.
+from engine_alpha.structure.context.strategy_read import strategy_archive_values
 
 
 def _ensure_new_columns(engine) -> None:
@@ -423,7 +424,7 @@ def archive_scan_results(
 
     import yfinance as yf
     from archive_models import SetupArchive, get_market_context, get_sector_trend, resolve_sector_etf
-    from core.pipeline.universe import resolve_universe
+    from core.pipeline.universe.descriptor import resolve_universe
     from database import make_sqlite_engine
 
     # Which universe these rows belong to (default us_stocks -> 'us_equities'),
@@ -537,7 +538,7 @@ def archive_scan_results(
     # Batch-download each unique sector ETF ONCE over the global base window.
     etf_close: dict[str, "pd.Series"] = {}
     if unique_etfs and starts and ends:
-        from core.pipeline.downloads import price_auto_adjust  # noqa: PLC0415 — call-site import; module-level would trip the backend config-shadow trap
+        from core.pipeline.market_data.downloads import price_auto_adjust  # noqa: PLC0415 — call-site import; module-level would trip the backend config-shadow trap
         g_start, g_end = min(starts), max(ends)
         print(f"  Fetching {len(unique_etfs)} sector ETF series...", flush=True)
         for etf in unique_etfs:
@@ -808,6 +809,10 @@ def archive_scan_results(
                 **htf_archive_values(row.get, prefixed=True),
                 # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
                 **event_map_archive_values(row.get, prefixed=True),
+                # Sentence-token family (consolidation-method Task 8) — NULL
+                # until the sentence measurement flag flips; refused reads NULL
+                # the whole family
+                **sentence_archive_values(row.get, prefixed=True),
                 # TA-grade family: the grade pair (always emitted since the
                 # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
                 # + the three setup grades (NULL when the narrative abstained)

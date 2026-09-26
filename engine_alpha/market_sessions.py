@@ -1,12 +1,12 @@
 """When the market was open — the NYSE session rules, owned in one place.
 
-Moved here from `core/pipeline/market_calendar.py` (two-eyes-reader task 5)
+Moved here from `core/pipeline/market_data/market_calendar.py` (two-eyes-reader task 5)
 because two parts of the system legitimately need it and the dependency arrow
 only points one way: `engine_alpha` is a LEAF — it may not import `core`, and
 a test enforces that — while `core` imports the engine everywhere. So the
 rules live on the engine's side and the pipeline's calendar re-exports them.
 
-Nothing about the rules changed in the move. `core/pipeline/market_calendar.py`
+Nothing about the rules changed in the move. `core/pipeline/market_data/market_calendar.py`
 is still the name every existing caller uses, and still the home of the
 freshness helpers (early closes, finalization margins, "why is the market
 shut") that belong to the data pipeline rather than to a chart read.

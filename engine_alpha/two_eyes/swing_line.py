@@ -1,9 +1,9 @@
-"""COPIED from engine_alpha/structure/pivots.py and engine_alpha/structure/market_structure.py at cd87fcc (two-eyes-reader task 7): the ONE turn line and its labels — `turn_line_floors`, `_opening_direction`, `turn_line`, `turns_at_rails` from pivots.py, and `_empty`, `label_market_structure` from market_structure.py.
+"""COPIED from engine_alpha/structure/metrics/pivots.py and engine_alpha/structure/events/market_structure.py at cd87fcc (two-eyes-reader task 7): the ONE turn line and its labels — `turn_line_floors`, `_opening_direction`, `turn_line`, `turns_at_rails` from pivots.py, and `_empty`, `label_market_structure` from market_structure.py.
 
 Verbatim, function for function, but for this: the one number the line reads (TURN_LINE_FLOOR_ATR) comes from the new reader's own
 `method_numbers` instead of the SHARED settings, with the same value. The original stays in the old
 engine, frozen, and the old engine keeps reading it; this copy is the new reader's, and changes on
-purpose from here. tests/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
+purpose from here. tests/engine/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
 fixtures; the task that first changes this copy deletes that pin in the same commit.
 
 The original's own documentation, unchanged:

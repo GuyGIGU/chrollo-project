@@ -33,17 +33,18 @@ from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
 from engine_alpha import reader
 from core.archive.result_adapter import seed_row_from_result
-from core.pipeline.downloads import _batched_download, price_auto_adjust
-from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 from engine_alpha.scoring.scoring import (
     sub_score_archive_values,
     ta_grade_archive_values,
 )
-from engine_alpha.structure.event_map import event_map_archive_values
-from engine_alpha.structure.htf import htf_archive_values
-from engine_alpha.structure.strategy_read import strategy_archive_values
+from engine_alpha.structure.events.event_map import event_map_archive_values
+from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
+from engine_alpha.structure.context.htf import htf_archive_values
+from engine_alpha.structure.context.strategy_read import strategy_archive_values
 from engine_alpha.two_eyes_archive import two_eyes_archive_values
-from engine_alpha.structure.trace_export import election_trace_archive_values
+from engine_alpha.structure.box.trace_export import election_trace_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -204,8 +205,13 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
 def _election_key(result: dict) -> tuple:
     """The scan-back election's ordering: the live ranking basis (ta_grade)
     first, the raw sum as tiebreak - ONE basis with the screener ranking
-    (re-keyed at the 2026-08-22 legacy-retirement seam, council ruling)."""
-    return (float(result.get("_ta_grade") or 0.0), float(result.get("score") or 0.0))
+    (re-keyed at the 2026-08-22 legacy-retirement seam, council ruling).
+
+    Reads the SEED key names: every caller passes a row that has already been
+    through ``seed_row_from_result``, whose strip pass renames the canonical
+    ``_ta_grade`` to ``ta_grade``. Reading the canonical name here misses on
+    every row and silently degrades the election to raw score alone."""
+    return (float(result.get("ta_grade") or 0.0), float(result.get("score") or 0.0))
 
 def seed_archive(
     setups: list[tuple[str, str]] | None = None,
@@ -382,7 +388,7 @@ def seed_archive(
 
         sub = best_result.get("sub_scores", {})
 
-        # Build the row via the model-driven mapper (services.archive_queries.
+        # Build the row via the model-driven mapper (domains.archive.queries.
         # archive_row_from_result) — the SAME single-source assembler the manual-
         # add route uses. It iterates SetupArchive.__table__ and fills every flat
         # pass-through column from best_result.get(col); `overrides` below carry
@@ -393,8 +399,8 @@ def seed_archive(
         # identical to the former ~161-line hand literal (same populated columns
         # and values; the mapper's extra pass-through columns are all None-valued
         # nullable columns a real seed result never carries — the persisted row is
-        # unchanged). See tests/test_archive_row_assembly.py for the guard.
-        from services.archive_queries import archive_row_from_result
+        # unchanged). See tests/archive/test_archive_row_assembly.py for the guard.
+        from domains.archive.queries import archive_row_from_result
 
         overrides = dict(
             ticker=ticker,
@@ -465,6 +471,9 @@ def seed_archive(
             **htf_archive_values(best_result.get, prefixed=False),
             # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
             **event_map_archive_values(best_result.get, prefixed=False),
+            # Sentence-token family (consolidation-method Task 8) — NULL
+            # until the sentence measurement flag flips
+            **sentence_archive_values(best_result.get, prefixed=False),
             # TA-grade family: the grade pair (always emitted since the
             # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
             # + the three setup grades (NULL when the narrative abstained)

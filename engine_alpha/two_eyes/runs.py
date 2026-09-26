@@ -1,8 +1,8 @@
-"""COPIED from engine_alpha/structure/climax.py at cd87fcc (two-eyes-reader task 7): the run reader — `_cmp`, `_reaction`, `_run`, `runs_on_the_line` (the whole module).
+"""COPIED from engine_alpha/structure/phases/climax.py at cd87fcc (two-eyes-reader task 7): the run reader — `_cmp`, `_reaction`, `_run`, `runs_on_the_line` (the whole module).
 
 Verbatim, function for function, but for this: nothing — the original reads no setting and imports nothing, so not one token changed. The original stays in the old
 engine, frozen, and the old engine keeps reading it; this copy is the new reader's, and changes on
-purpose from here. tests/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
+purpose from here. tests/engine/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
 fixtures; the task that first changes this copy deletes that pin in the same commit.
 
 The original's own documentation, unchanged:

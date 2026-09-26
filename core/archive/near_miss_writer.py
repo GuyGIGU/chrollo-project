@@ -1,7 +1,7 @@
 """Near-miss cohort writer — persists ruled refusal rows (lane Task 9).
 
 One batched pass per scan night over the rows the deferred phase produced
-(``engine_alpha.structure.near_miss.deferred_rows``): in-memory dedup on the
+(``engine_alpha.structure.box.near_miss.deferred_rows``): in-memory dedup on the
 framing identity, per-ticker + global caps (every drop COUNTED — a silent
 cap reads as "covered everything"), then the R-EPISODE upsert (operator
 ruling 2026-07-26 axis 3): a new identity inserts with ``first_seen`` =

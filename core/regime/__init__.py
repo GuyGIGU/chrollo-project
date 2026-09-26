@@ -8,6 +8,6 @@ Additive, flag-gated modules a later scoring wave will consume:
 
 Each module separates a PURE compute core (takes already-fetched frames/series,
 no IO, deterministic, unit-testable offline) from an optional thin fetch wrapper
-that reaches market data only through ``core.pipeline.providers.get_provider()``.
+that reaches market data only through ``core.pipeline.market_data.providers.get_provider()``.
 Nothing here is wired into scoring / evaluation / archive yet.
 """

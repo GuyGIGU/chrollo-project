@@ -2406,7 +2406,7 @@ td.cell-editable { overflow: hidden; }
   /* Dark ink, not white: --success and --danger are both LIGHT fills. White on
      them measures 1.94:1 and 3.18:1 — under any legibility floor, on the one
      control that records real fills. --myth-ink is the app's ink-on-fill token
-     and takes both to 8.67:1 / 5.31:1. Pinned by utils/inkContrast.test.js. */
+     and takes both to 8.67:1 / 5.31:1. Pinned by app/appearance/inkContrast.test.js. */
   color: var(--myth-ink);
 }
 .fills-panel .fill-side-btn.buy  { background: var(--success); }
