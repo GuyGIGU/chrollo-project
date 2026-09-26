@@ -24,7 +24,9 @@ built against; `frame.py` is what a chart must be before it is read.
 """
 from __future__ import annotations
 
-from engine_alpha.two_eyes.frame import FrameRefused, check as check_frame, prepare
+from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha.two_eyes import walk
+from engine_alpha.two_eyes.frame import DAILY_RANGE, FrameRefused, check as check_frame, prepare
 from engine_alpha.two_eyes.line import SwingLine, Turn, build as build_line
 from engine_alpha.two_eyes.record import _as_day
 from engine_alpha.two_eyes.record import (
@@ -47,14 +49,17 @@ __all__ = ["read", "Read", "Box", "Line", "Lps", "Step", "crashed",
            "ROLE_PARENT", "ROLE_MINI", "ROLE_EARLIER"]
 
 
-def read(ticker: str, df, *, as_of=None) -> Read:
+def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
     """Read one chart. The ONE public way in.
 
-    Today: refuse a frame that is not a chart, and otherwise answer "no lines"
-    with an empty record. A crashed read comes back as a counted failure with
-    its reason — never as the words "no lines", which is what the screen says
-    when a chart genuinely has no lines and must not be what it says when the
-    engine fell over.
+    Refuse a frame that is not a chart; else build the line (stage 1), walk
+    from every end of a trend to the box (stages 2 and 3, `walk`) and fill the
+    record: the box, the trail to it, the state word. A crashed read comes
+    back as a counted failure with its reason — never as the words "no
+    lines", which is what the screen says when a chart genuinely has no lines
+    and must not be what it says when the engine fell over. `keep_listing`
+    adds every other pair the walk listed to the trail, words only: the box
+    and the state are pinned identical with and without it.
     """
     # Inside the try: reading the last day off the index is itself a thing
     # that can fail — a string-date index raises here — and a crash before the
@@ -73,14 +78,22 @@ def read(ticker: str, df, *, as_of=None) -> Read:
         # rebuilt it could read a different line from the same bars.
         prepared = prepare(df)
         line = build_line(prepared)
+        # Stages 2 and 3 (task 10): every end of a trend the far view shows,
+        # its pair on the line, the two-legs walk and the election, on the
+        # committed turns only — the forming turn at the edge decides nothing.
+        far = line.far(M.FAR_VIEW_FLOOR_RANGES)
+        found = walk.elect(line.committed, [t for t in far if t.committed],
+                           prepared[DAILY_RANGE].to_numpy(dtype=float),
+                           days=tuple(d.date() for d in prepared.index), read_bar=len(prepared) - 1)
+        boxes, trail, state = walk.record(found, keep_listing=keep_listing)
     except FrameRefused as refusal:
         return crashed(ticker, as_of, str(refusal))
     except Exception as exc:                      # a broken frame, not a chart
         return crashed(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
-    # Stages 2 to 7 fill this in from `line`. Empty is the honest answer until
-    # they do. The close is a fact of the read day, not of a stage: the frame
-    # contract has just proved the last bar is whole.
-    del line
-    return Read(ticker=ticker, as_of=as_of, boxes=(), lps=None, trail=(),
-                state=NO_LINES, close=float(prepared["Close"].iloc[-1]))
+    # Stages 4 to 7 fill in the rest (the box's life, the story, the LPS, the
+    # grade). Empty is the honest answer until they do. The close is a fact of
+    # the read day, not of a stage: the frame contract has just proved the
+    # last bar is whole.
+    return Read(ticker=ticker, as_of=as_of, boxes=boxes, lps=None, trail=trail,
+                state=state, close=float(prepared["Close"].iloc[-1]))

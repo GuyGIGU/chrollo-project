@@ -919,8 +919,11 @@ in his order; a stage's rules are in the theory, its mechanics here.
 
 | Stage | Landed | What it does, and what proves it |
 |---|---|---|
+| 2 · 3 · the end of the trend, the walk, the election | 2026-09-26 (task 10) | `walk.trend_ends` on the committed far turns at `FAR_VIEW_FLOOR_RANGES`; `walk.end_pair` on the fine line; `walk.elect` from every trend end, `walk.winner` the shown box, `walk.record` the record. Proved by `tests/engine/test_two_eyes_walk.py`: his respect picture, a hand-built rise-then-box line for every rule, his 35 (the box never moves back, every line on a bar's own extreme, the named charts with those that wait on stage 4 pinned as expected failures) and the 88 charts (`keep_listing` pinned identical); eighteen deliberate breaks each seen red. |
 | 1 · the line and the far view | 2026-09-26 (task 8) | `frame.prepare`: the contract, each day's range (`calculate_atr`, `DAILY_RANGE_DAYS` = 10) on the LONG frame, then the cut to `READ_WINDOW` (the old `_trim_to_period`, copied) with the ranges carried. `line.build`: the fine line once per read (`swing_line.turn_line`, floor `TURN_LINE_FLOOR_ATR` of each bar's own range), every turn a `Turn` with its day, its knowable day (the confirming close) and its size (the leg into it, in its own day's range). `SwingLine.far(floor)`: the far view, a fold of the fine line — its extremes are the fine line's committed turns, the back-off tested on the bars in the fine line's order (`_far_on_bars`) — built once per floor. The copied line was corrected three times (a leg's extreme is the true extreme since the turn, the turn bar's other end included when read after it; a wide first bar is read once; the opening turn is knowable when its kind is, never on bar 0) and its copy pins retired. Proved on the 88 fixture charts by `tests/engine/test_two_eyes_line.py`: nested (0 far turns outside the fine line at 1.5, 2.5 and 3.0 ranges), causal (cutting on the right changes only the forming turn), the left edge forgotten within 40 bars (measured 28; the far views within 80, measured 69 at 3.0), a missing number refused by day; nine deliberate breaks each seen red (`handoff/mutate8.py` in the council run). Word recall on his rails is unchanged by the corrections (THE SOS 23 of 25, Phase C 10 of 10). |
 
+
+**The walk (task 10, Sat 26/09/2026): stages 2 and 3 built and measured; the current trend end is a provisional seam.** `engine_alpha/two_eyes/walk.py`, wired into `read()`: `trend_ends` (the far view's runs that ended, the run reader's own scan without its wait for the far reaction), `end_pair` (the pair on the fine line: point 4's reaction with the area, the climax bar's own other end left out, and the day the reader had both), `measure` (one pair answered his way — `respects` is the one test of nearness, either side; the unit at the second anchor's day; the fifteenth day; the listing day; the two step triggers; `unfit` for a pair under a range or not wrapped), `elect` (every trend end's walk, `_walk_from`: a heap by listing day then moves, the landing in front, the window to the next climax from the day that end is known, the stop at the first box), `box_of` (a trend end's first-born pair by the election key), `winner` (the boxes in birth order, a later one taking over only when its trend's climax left the shown box) and `record` (the box, the trail in words, the state word `lines, no LPS yet`; `keep_listing` adds every other pair, words only). Its numbers are `FAR_VIEW_FLOOR_RANGES` (1.5, ours), `BOX_DAYS` (15, his) and `BOX_MIN_HEIGHT_RANGES` (1.0, ours) in `method_numbers.py`; the ruleset stamp moved to `two-eyes-0.3.0-walk`. `tools/calibration/walk_board.py` (`python -m tools.calibration.walk_board --pages OUT`) reads his 35 on his last receding day — the reader's box, the box from the transition end alone, whether his pair was listed and is a box by these rules, pairs tried, time against the 0.2 s budget — and draws one OHLC page per drawing. The measurements, the placements and what the misses are: the decisions record (2026-09-26, the task 10 row).
 
 **The listing gate (task 9, Sat 26/09/2026): measured, and the plan's STOP rule fired.**
 `tools/calibration/listing_gate.py` (`python -m tools.calibration.listing_gate --pages OUT --floor 1.5`)
@@ -1649,7 +1652,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `eab97c65c83b9f6589df68f39439ed255465779566dc8483711b502c175ec706`_
+_engine_config_version: `08e5825e30be6f4890640799b379a45de0ea24dbe29cdad1c3f3f5b27dbc9bd5`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1750,7 +1753,7 @@ LPS_BUY_DAY_READS_HIGH_ENABLED = False
 LPS_REFUSALS_TO_GRADES_ENABLED = False
 LPS_SELLERS_RISING_FATAL_ENABLED = False
 TWO_EYES_READER_ENABLED = False
-TWO_EYES_RULESET = 'two-eyes-0.2.0-line'
+TWO_EYES_RULESET = 'two-eyes-0.3.0-walk'
 TURN_LINE_ENABLED = False
 TURN_LINE_TREND_ENABLED = False
 TURN_LINE_FLOOR_ATR = 0.75

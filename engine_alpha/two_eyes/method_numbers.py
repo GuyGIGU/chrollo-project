@@ -47,3 +47,19 @@ DAILY_RANGE_DAYS = 10
 #: so the yardstick compares like with like. Only the frame is cut; the daily range is not recomputed
 #: inside it.
 READ_WINDOW = "2y"
+
+# --- Stages 2 and 3 (task 10): the numbers the end of the trend, the walk and the election read ---------
+
+#: The far view's floor, in daily ranges: how far back the reader stands to see the trends. Placed at the
+#: listing gate (task 9, Sat 26/09/2026) as the one distance at which the trend into his box is seen at all;
+#: OURS and provisional, his sitting settles it.
+FAR_VIEW_FLOOR_RANGES = 1.5
+
+#: A pair of lines is a box no sooner than its fifteenth trading day from the first anchor: "Lets go with 15
+#: days" (Sat 12/09/2026).
+BOX_DAYS = 15
+
+#: A pair shorter than this many of its own daily ranges is listed by the walk but is never a box: bars cannot
+#: zigzag inside it (his "huge spread" is huge against the box itself, "answer a.", Sun 20/09/2026). The
+#: number is OURS, the listing gate's bound (task 9).
+BOX_MIN_HEIGHT_RANGES = 1.0

@@ -353,7 +353,7 @@ def test_a_changed_number_moves_the_version_stamp(monkeypatch):
     from engine_alpha.two_eyes import method_numbers
 
     names = sorted(n for n in vars(method_numbers) if n.isupper())
-    assert len(names) == 9, names            # seven from the copies (task 7), two from stage 1 (task 8)
+    assert len(names) == 12, names           # seven from the copies (task 7), two from stage 1 (task 8), three from stages 2 and 3 (task 10)
     before = manifest.manifest_hash()
     for name in names:
         value = getattr(method_numbers, name)

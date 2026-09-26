@@ -117,24 +117,44 @@ default as ours.
    foot at a time: *"I move one pair right until I find it, not only a single time. -> one
    line can stay on its anchor while the other moves, but they are connected like 2 lets
    placing one in front of the other"* (Sun 20/09/2026). The candidates are the consecutive
-   swings after the end of the trend, as many steps as it takes. Each line is ONE anchor
-   day's high or low, to the cent, and a line is never anchored in the direction the price
-   is going: *"we cannot start the anchor in the same direction the price is going"* (Mon
-   14/09/2026). That last sentence is tested on the result; it never filters the list
-   (ours).
+   swings after the end of the trend, as many steps as it takes. A foot moves when the swings
+   after the pair do not respect its line before the pair is a box — the first swing of its
+   kind that falls short of the line's area while the line is unanswered, or the first that
+   goes beyond the area before the box is born — and it lands on the first turn of its kind
+   in front of the other foot, past the reaction's small swings; the pair it stepped from
+   stays listed (ours, from his two sentences above). Every trend end the far view shows
+   walks; a walk goes no further than the next trend end's climax and stops listing once its
+   box is born (ours, from *"until I find it"* and his one mark per base, Sat 26/09/2026).
+   Each line is ONE anchor day's high or low, to the cent, and a line is never anchored in
+   the direction the price is going: *"we cannot start the anchor in the same direction the
+   price is going"* (Mon 14/09/2026). That last sentence is tested on the result, never
+   filtered, in the one reading his own 35 drawings satisfy: every anchor is a turn the price
+   made, a bar's own high or low (ours; the readings "the box opens against the trend's
+   direction" and "the opening line is never run through before the box is born" his own
+   drawings refute, 13 and 4 of 35, Sat 26/09/2026).
 3. **Answered and alive.** A pair of lines is the box when the swings after it come back to
    BOTH lines and price has not left for good: *"were looking for the first instance that a
-   consolidation is respected!"* (Sun 06/09/2026). A swing answers a line his way: it
-   reached the line's area (about half a daily range) and turned back, however far it
-   poked; a spring answers at support. A poke is an event, never a line. The box needs
-   fifteen trading days from its first anchor: *"Lets go with 15 days"* (Sat 12/09/2026).
-   First in time stands: the first pair that BECAME a box (the later of its answering being
-   complete and its fifteenth day), then the earlier opening day, then the tighter pair
-   (the order of the tie-breaks is ours). A line that has been shown never moves, so there
-   is no widening to an earlier, wider pair once the box has been drawn (ours); a later
-   higher top or lower low is an event on the box. The box opens on its earlier anchor,
-   each line starts at its own anchor and is never extended left. The daily range the box
-   is measured in is fixed when the pair is born and is never the read day's (ours). An
+   consolidation is respected!"* (Sun 06/09/2026). A swing answers a line his way: its turn
+   — a bar's own high or low — is close to the line, within the line's area (about half a
+   daily range) on either side: *"whenever they are slightly poking out or not does not
+   matter one bit"* (Sat 26/09/2026). A swing beyond the area is not an answer: it moves a
+   foot (stage 2), and the pair it left stays listed for a later swing within the area to
+   answer (ours). A poke is an event, never a line. The box needs fifteen trading days from
+   its first anchor: *"Lets go with 15 days"* (Sat 12/09/2026), and it is born no earlier
+   than the day the reader could first see the pair (ours). A pair shorter than one of its
+   own daily ranges, or whose span between the anchors holds a swing beyond a line's area,
+   is listed and never a box (ours: from his huge spread being huge against the box itself,
+   and from his *"the entire continues swing structure ... is still wrapped within the
+   anchored box"*, Sat 26/09/2026). First in time stands: the first pair that BECAME a box
+   (the later of its answering being complete and its fifteenth day), then the earlier
+   opening day, then the walk's order (fewer moves), then the tighter pair (the order of the
+   tie-breaks is ours, placed at the listing gate). A line that has been shown never moves,
+   so there is no widening to an earlier, wider pair once the box has been drawn (ours); a
+   later higher top or lower low is an event on the box, and so is a swing through a line
+   that then rests at a new level — widening the box to that pair was measured on his 35 and
+   lost six of eleven exact hits (Sat 26/09/2026). The box opens on its earlier anchor, each
+   line starts at its own anchor and is never extended left. The daily range the box is
+   measured in is fixed when the pair is born and is never the read day's (ours). An
    earlier, wider box is acceptable when his LPS reads against it: *"so nothing really
    disqualifies them (not until I've seen it ofc)"* (Sun 13/09/2026); the yardstick is
    concordance, never line replication.
@@ -144,7 +164,10 @@ default as ours.
    Swings as well"* (Sat 12/09/2026). The come-back is looked for up to the read day before
    any end stands. A new consolidation beyond a line takes over only when it is itself a
    box by his rules (both its lines answered, and fifteen days): *"the child box inherit
-   the parent as its cause"*. Until then the parent keeps its lines, and a pullback resting
+   the parent as its cause"* — read today, before the come-back is checked, as: a newer
+   trend end whose climax left the shown box's lines takes over when one of its pairs is a
+   box, and a trend end whose climax lies inside the box is the box's own leg (ours,
+   provisional; the walk's task, Sat 26/09/2026). Until then the parent keeps its lines, and a pullback resting
    above resistance is the parent's own LPS. A range price left long ago is no candidate.
    The mini consolidation is a box inside the parent's right side with its own two lines,
    and it never replaces the parent: *"both boxes live, they are a part of the same setup"*
