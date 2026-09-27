@@ -43,6 +43,7 @@ import numpy as np
 
 from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes.record import ROLE_PARENT, Lps, Step
+from engine_alpha.two_eyes.walk import known_by
 
 __all__ = ["Pullback", "read", "record", "recedes", "run_top", "window_top", "sellers_rising", "share_under",
            "swing_top", "SENTENCES", "SELLERS_RISING", "SLICE", "UNDER_SUPPORT", "OVER_RESISTANCE",
@@ -175,18 +176,23 @@ def read(high, low, ranges, turns, *, read_bar: Optional[int] = None, **box) -> 
     """The pullback as of ``read_bar`` (the last day by default): the last run of receding days (``measure``),
     with the first later day whose high crossed its trigger, and — when its own last day crossed the trigger of
     an LPS that stood the day before — that trigger: the cross was a buy, and because the day made a lower low
-    too the pullback goes on (five of his own 35 end on such a day). None when no day has receded yet."""
+    too the pullback goes on (five of his own 35 end on such a day). None when no day has receded yet.
+
+    A pullback is judged on the turns the line had made by the evening it ended, so its verdict is the same on
+    whatever later day it is read: one refused that evening put no trigger on the board, and no later day can
+    have crossed it (the core's blind check, Sun 27/09/2026: on SPCB the rally that crossed a refused pullback's
+    high also turned the line under it, and the read said ``crossed``)."""
     read_bar = len(high) - 1 if read_bar is None else int(read_bar)
     end = read_bar
     while end >= 1 and not recedes(high, low, end):
         end -= 1
     if end < 1:
         return None
-    found = measure(high, low, ranges, turns, end, **box)
+    found = measure(high, low, ranges, known_by(turns, end), end, **box)
     crossed = next((bar for bar in range(end + 1, read_bar + 1) if high[bar] > found.trigger), None)
     bought = None
     if high[end] > high[end - 1] and recedes(high, low, end - 1):
-        before = measure(high, low, ranges, turns, end - 1, **box)
+        before = measure(high, low, ranges, known_by(turns, end - 1), end - 1, **box)
         bought = before.trigger if before.stood else None
     return replace(found, crossed_bar=crossed, bought=bought)
 

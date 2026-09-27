@@ -507,6 +507,25 @@ def test_a_come_back_known_only_after_the_new_box_was_born_never_moves_the_shown
     assert walk.came_back(walk.known_by(line, 57), old, "above", 42, 56) is None         # known by the birth: no
 
 
+def test_a_later_box_is_placed_against_the_shown_boxes_own_area():
+    """Stage 4's area is the SHOWN box's: half of the daily range IT was measured in. A later, tighter box whose
+    support holds inside that area sits above the box, though it is further from the line than the tighter
+    box's own area would reach; a later, wider box reaches no further than the shown box's area either."""
+    from dataclasses import replace
+    from engine_alpha.two_eyes import walk
+
+    shown = _pair((5, 8), 23, 80.0, 70.0, 8)                          # measured in two points: the area is one
+
+    def later(R, S, unit):
+        return replace(_pair((30, 31), 50, R, S, 30), unit=unit)
+
+    assert walk.side_of(later(95.0, 79.2, 0.5), shown) == "above"     # its own area would be a quarter point
+    assert walk.side_of(later(70.8, 60.0, 0.5), shown) == "below"
+    assert walk.side_of(later(95.0, 78.9, 0.5), shown) is None
+    assert walk.side_of(later(95.0, 78.5, 6.0), shown) is None        # its own area would be three points
+    assert walk.side_of(later(71.5, 60.0, 6.0), shown) is None
+
+
 def test_the_edges_of_the_answering_the_birth_and_the_steps():
     from engine_alpha.two_eyes import walk
 
@@ -722,12 +741,26 @@ def test_bmrn_the_plans_named_junk_chart_reads_the_box_the_plan_names():
     assert got == (57.76, 53.89), f"BMRN: the engine's box is {got[0]:.2f} / {got[1]:.2f}"
 
 
+def test_the_plans_openings_clause_is_refuted_by_his_own_drawings(his_reads):
+    """The plan asked that "openings running with the price are 0 of 35", from his rule of Mon 14/09/2026, "we
+    cannot start the anchor in the same direction the price is going". It is NOT met, and it is no rule of the
+    reader: his own drawings do what the clause forbids. Three of the boxes the reader reads as HIS pair, to
+    the cent, open with the trend — after a rise on the low, after a decline on the high — so a reader that
+    refused such an opening would lose his own boxes (the core's blind check, Sun 27/09/2026)."""
+    for key in ("AVT:2026-04-08", "JAZZ:2026-02-24", "NGL:2026-04-20"):
+        row = next(r for r in his_reads if r["key"] == key)
+        box, rails = row["result"].winner, row["setup"]["rails_drawn"]
+        assert (round(box.R, 2), round(box.S, 2)) == (round(rails["R"], 2), round(rails["S"], 2)), key
+        assert not box.opens_against_the_trend, f"{key}: his own box opens with the trend"
+    with_the_trend = sorted(r["key"] for r in his_reads if not r["result"].winner.opens_against_the_trend)
+    assert len(with_the_trend) == 9, with_the_trend
+
+
 def test_every_line_of_every_box_sits_on_a_bars_own_extreme_on_his_35(his_reads):
-    """His rule of Mon 14/09/2026, "we cannot start the anchor in the same direction the price is going",
-    checked on the result the one way his own 35 drawings satisfy it: an anchor is a turn the price made,
-    resistance a bar's own high and support a bar's own low, never a bar in the direction of travel. (The
-    two other readings — the box opens against the trend's direction; the opening line is never run through
-    before the box is born — his drawings refute: 13 and 4 of his 35, Sat 26/09/2026.)"""
+    """The shape of the result, not a rule: an anchor is a turn the price made, resistance a bar's own high and
+    support a bar's own low. It holds by construction (a foot is a turn of the line, and a peak's price is its
+    bar's high), so no rule can be taken away to make it fail; it guards only against a line's price ever being
+    taken from somewhere else. The plan's openings clause is the test above."""
     from engine_alpha.two_eyes import frame as frame_module
 
     for row in his_reads:
@@ -905,3 +938,88 @@ def test_the_read_equals_the_knowable_order_replay_at_every_hand_over_on_every_c
                 f"{key}: on the hand-over's day the reader showed {after.feet}, not {later.pair.feet}"
             hand_overs += 1
     assert hand_overs >= 60, f"only {hand_overs} hand-overs were replayed; the guard would be thin"
+
+
+# --------------------------------------------------------------------------- #
+# Read as the scan reads: a new two-year window every night                   #
+# --------------------------------------------------------------------------- #
+def _as_the_scan_reads(raw, night) -> tuple:
+    """One night as the scan reads it: the long frame cut at the night and prepared afresh, so the window's
+    left edge is a day later every night. The walk's result and that window's own days."""
+    from engine_alpha.two_eyes import frame as frame_module, line as line_module, walk, method_numbers as M
+
+    prepared = frame_module.prepare(raw.loc[:night])
+    line = line_module.build(prepared)
+    ranges = prepared[frame_module.DAILY_RANGE].to_numpy(dtype=float)
+    far = [t for t in line.far(M.FAR_VIEW_FLOOR_RANGES) if t.committed]
+    found = walk.elect(line.committed, far, ranges, read_bar=len(prepared) - 1)
+    return found, [d.date() for d in prepared.index]
+
+
+def _lines(pair, days) -> tuple:
+    """A box by its two lines and their anchor days: the same box in whatever window it is read."""
+    return (round(pair.R, 4), days[pair.r_bar], round(pair.S, 4), days[pair.s_bar])
+
+
+#: Four of his drawings with hand-overs in their last 45 nights, and nights among them on which the record of
+#: earlier boxes was told differently (the blind check's replay, Sun 27/09/2026).
+_REPLAYED = ("EGBN:2026-01-15", "MSGS:2026-05-22", "YPF:2026-05-18", "MRK:2026-08-10")
+
+
+def test_read_night_after_night_as_the_scan_reads_the_shown_box_moves_only_the_night_a_new_box_is_born():
+    """The two proofs above read ONE prepared window and filter its turns by the day they were known. The scan
+    cuts a new window every night. Read that way, night after night, the box shown changes only on the night
+    the new box is born, and the box shown the night before is the one that night's read hands over."""
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+
+    frames, _ = load_sealed_fixture()
+    hand_overs = 0
+    for key in _REPLAYED:
+        raw = fixture_frame(frames, key, key.split(":")[0])
+        before = None
+        for night in raw.index[-45:]:
+            found, days = _as_the_scan_reads(raw, night)
+            when = f"{night:%a %d/%m/%Y}"
+            assert found.winner is not None, f"{key}: no box on {when}"
+            now = _lines(found.winner, days)
+            if before is not None and now != before:
+                assert days[found.winner.birth_bar] == night.date(), \
+                    f"{key}: the shown box moved on {when}, a night no box was born"
+                assert len(found.lives) >= 2 and _lines(found.lives[-2].pair, days) == before, \
+                    f"{key}: on {when} the box shown the night before is not the box handed over"
+                hand_overs += 1
+            before = now
+    assert hand_overs >= 4, f"only {hand_overs} hand-overs were replayed; the guard would be thin"
+
+
+def _flg_on_two_nights() -> list:
+    """FLG, the junk fixture, read on Mon 09/03/2026 and on Tue 10/03/2026: no box is born on either night. The
+    first night's window still holds the trend end of Wed 06/03/2024 and its wide box 12.09 / 9.57; the second
+    night's has lost it."""
+    from tools.regression import negative_corpus
+
+    frames, _ = negative_corpus._load_fixture()
+    told = []
+    for night in (pd.Timestamp("2026-03-09"), pd.Timestamp("2026-03-10")):
+        found, days = _as_the_scan_reads(frames["FLG"], night)
+        told.append([_lines(life.pair, days) for life in found.lives])
+    return told
+
+
+def test_flg_shows_the_same_box_the_night_after_its_window_lost_its_first_trend_end():
+    monday, tuesday = _flg_on_two_nights()
+    assert monday[-1] == tuesday[-1] and monday[-1][0] == 13.15 and monday[-1][2] == 12.57
+    assert monday[0][:3:2] == (12.09, 9.57) and tuesday[0][:3:2] != (12.09, 9.57)
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "KNOWN LIMIT, found by the core's blind check on Sun 27/09/2026. The reader has no memory: it folds the boxes "
+    "from the left edge of its two-year window, and that edge moves a day a night. So the boxes it records as "
+    "handed over are the ones TODAY'S window tells, and they change on nights with no hand-over (345 of 3,500 "
+    "replayed nights on his 35; 393 of 4,850 on the junk). The box SHOWN moved on none of those nights but a "
+    "birth night. The earlier boxes are the story's (task 12b): they are made independent of the window's edge "
+    "before the story reads them, and that day this mark comes off deliberately."))
+def test_the_boxes_recorded_as_handed_over_are_the_same_boxes_the_night_after():
+    monday, tuesday = _flg_on_two_nights()
+    assert monday[-4:-1] == tuesday[-4:-1], \
+        f"the three boxes handed over last: {monday[-4:-1]} on Monday, {tuesday[-4:-1]} on Tuesday"

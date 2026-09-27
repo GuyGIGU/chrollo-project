@@ -409,6 +409,79 @@ def test_no_box_no_lps():
 
 
 # --------------------------------------------------------------------------- #
+# What the core's blind check found (Sun 27/09/2026): a verdict that changed   #
+# after the fact, and two rules of the long run no test was watching          #
+# --------------------------------------------------------------------------- #
+def _valley_known(bar: int, price: float, known: int) -> Turn:
+    return Turn(bar=bar, day=_day(bar), kind="valley", price=float(price), knowable_bar=known,
+                knowable_day=_day(known), size_ranges=1.0)
+
+
+#: A swing up to 104 (bar 8), a fall to 97.6 (bar 11), a bounce too small to turn the line, and a one-day pullback
+#: that ends on bar 14. Bar 15 equals its high, which crosses nothing; bar 16 crosses it, and that rally is what
+#: turns the line at the low of bar 11: a valley known on bar 16, two days after the pullback ended.
+_DEEP = _QUIET + [(98.4, 96.6), (101.0, 98.0), (104.0, 100.5), (102.5, 100.0), (101.0, 98.6), (99.6, 97.6),
+                  (100.0, 97.8), (100.2, 98.0), (99.9, 97.9), (99.9, 98.0), (101.0, 98.2)]
+
+
+def test_a_pullback_is_judged_on_what_was_known_the_evening_it_ended():
+    """A pullback refused the evening it ended put no trigger on the board, so no later day can have crossed
+    one: its verdict is the verdict of that evening, whatever the line learns afterwards."""
+    from engine_alpha.two_eyes import lps
+
+    that_evening = _read(_DEEP[:15])
+    assert (that_evening.top_bar, that_evening.end_bar, that_evening.swing_top_bar) == (13, 14, 8)
+    assert that_evening.depth == pytest.approx(3.2) and that_evening.refused == (lps.SLICE,)
+    later = _read(_DEEP, turns=_LAUNCH + [_valley_known(11, 97.6, known=16)])
+    assert (later.end_bar, later.crossed_bar) == (14, 16)
+    assert (later.swing_top_bar, later.refused) == (8, (lps.SLICE,)), "the verdict changed after the fact"
+    found, steps, state = lps.record(later, [_day(i) for i in range(len(_DEEP))], read_bar=16)
+    assert found is None and state == lps.LINES_NO_LPS and lps.SLICE in steps[0].saying
+    # A turn the line had already made by that evening is read, as it always was.
+    known = _read(_DEEP, turns=_LAUNCH + [_valley_known(11, 97.6, known=14)])
+    assert (known.swing_top_bar, known.refused, known.crossed_bar) == (13, (), 16)
+    # The trigger of the day before, when the pullback's own last day crossed it, is judged on what was known
+    # the evening before too: a slice that evening, it was never a buy.
+    rows = _DEEP[:13] + [(99.8, 97.7), (100.1, 97.5)]
+    assert _read(rows[:14]).refused == (lps.SLICE,)
+    went_on = _read(rows, turns=_LAUNCH + [_valley_known(11, 97.6, known=14)])
+    assert went_on.end_bar == 14 and went_on.bought is None, "the pullback of bar 13 was refused that evening"
+
+
+#: A run of six receding days under a top at 104 (bar 8): longer than five bars, so it is read on its last five,
+#: from their highest high (bar 10). Bar 12 is an outside day, a higher high and a lower low.
+_LONG_RUN = _QUIET + [(98.4, 96.6), (101.0, 98.0), (104.0, 100.5), (103.0, 100.8), (102.0, 100.0), (101.0, 99.0),
+                      (101.4, 98.6), (100.6, 98.4), (100.0, 98.2)]
+
+
+def test_the_swings_top_is_looked_for_from_the_runs_own_top_not_from_the_trimmed_windows():
+    from engine_alpha.two_eyes import lps
+
+    high, low, _ = _bars(_LONG_RUN)
+    # The line turned inside the run, under the run's top and on the trimmed window's.
+    got = _read(_LONG_RUN, turns=_LAUNCH + [_valley(10, 100.0)])
+    assert (lps.run_top(high, low, 14), got.top_bar, got.end_bar) == (8, 10, 14)
+    assert got.swing_top_bar == 8 and got.depth == pytest.approx(2.9)
+    assert got.refused == (lps.SLICE,), "the long decline is the one sentence two exists for"
+
+
+#: A run of six receding days whose last four make higher highs and lower lows, so the highest high of its last
+#: five bars is the day before the last; its last three bars widen and fall further.
+_WIDENING = _QUIET + [(98.4, 96.6), (101.0, 98.0), (104.0, 102.0), (103.0, 101.5), (101.0, 100.4), (101.2, 100.2),
+                      (101.6, 100.0), (101.8, 99.0), (99.0, 94.8)]
+
+
+def test_sentence_one_is_read_on_the_run_and_not_on_the_trimmed_window():
+    from engine_alpha.two_eyes import lps
+
+    high, low, _ = _bars(_WIDENING)
+    got = _read(_WIDENING)
+    assert (lps.run_top(high, low, 14), got.top_bar, got.end_bar) == (8, 13, 14)
+    assert got.sellers_rising is True, "one receding day under the trimmed window's top, six under the run's"
+    assert got.refused == (lps.SELLERS_RISING, lps.SLICE)
+
+
+# --------------------------------------------------------------------------- #
 # His 37 drawn windows                                                        #
 # --------------------------------------------------------------------------- #
 def _date(value) -> dt.date:
@@ -635,6 +708,24 @@ def test_the_junk_charts_that_fire_and_the_four_that_stay_silent(junk_fire_days)
     "the grade (task 14), owes it. The day this passes, this mark comes off deliberately."))
 def test_no_more_junk_charts_fire_than_under_todays_engine(junk_fire_days):
     assert sum(1 for days in junk_fire_days.values() if days) <= 8
+
+
+def test_on_the_junk_chart_spcb_a_pullback_refused_the_evening_it_ended_is_never_worded_crossed():
+    """The blind check's night (Sun 27/09/2026). SPCB's pullback of Mon 27/11/2023 was refused that evening and
+    the next as a slice of the fall from 12.60. On Wed 29/11/2023 the rally to 8.00 crossed its high and, the
+    same day, turned the line at the low of Mon 20/11: judged again on that, the pullback was no slice and the
+    read said "crossed", the word for a buy, of a pullback that had never been on the board."""
+    from engine_alpha import two_eyes
+    from engine_alpha.two_eyes import lps
+    from tools.regression import negative_corpus
+
+    frames, _ = negative_corpus._load_fixture()
+    said = {}
+    for night in ("2023-11-27", "2023-11-28", "2023-11-29"):
+        read = two_eyes.read("SPCB", frames["SPCB"].loc[:pd.Timestamp(night)])
+        said[night] = (read.state, next(s.saying for s in read.trail if s.stage == "LPS"))
+    assert [state for state, _ in said.values()] == [lps.LINES_NO_LPS] * 3, said
+    assert all(lps.SLICE in words and "Mon 27/11/2023" in words for _, words in said.values()), said
 
 
 def test_the_day_a_box_is_born_the_pullback_that_ended_before_it_is_not_its_lps():

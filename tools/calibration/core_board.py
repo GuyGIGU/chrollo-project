@@ -46,6 +46,8 @@ from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
 from core.calibration.replay import fired_window_sessions, fixture_frame, load_sealed_fixture  # noqa: E402
 
 VERDICTS = ("HIS", "CLOSE", "OTHER", "NONE")
+#: The same verdicts on the pages, which speak to him.
+_TO_HIM = {"HIS": "YOURS", "CLOSE": "CLOSE", "OTHER": "OTHER", "NONE": "NONE"}
 DOOR = "the universe door"
 ADVANCES = "the day does not recede"
 NO_BOX = "no box"
@@ -287,7 +289,7 @@ def _render(plt, draw_bars, row: dict, path: str, title: str, words: str, his: O
                 color="#444", fontsize=8, ha="right", va="top", rotation=90)
     if his is not None:
         rails = his["rails_drawn"]
-        for price, name in ((rails["R"], "his R"), (rails["S"], "his S")):
+        for price, name in ((rails["R"], "your R"), (rails["S"], "your S")):
             ax.axhline(price, color=_HIS, lw=1.2, zorder=3)
             ax.annotate(f"{name} {price:.2f}", (0.004, price), xycoords=("axes fraction", "data"), color=_HIS,
                         fontsize=9, va="bottom", zorder=5)
@@ -296,7 +298,7 @@ def _render(plt, draw_bars, row: dict, path: str, title: str, words: str, his: O
             floor = float(view["Low"].min())
             ax.plot([at(_date(span[0])) - .4, at(_date(span[1])) + .4], [floor] * 2, color=_HIS, lw=4,
                     solid_capstyle="butt", zorder=6)
-            ax.annotate("his LPS days", (at(_date(span[0])), floor), xytext=(0, 6), textcoords="offset points",
+            ax.annotate("your LPS days", (at(_date(span[0])), floor), xytext=(0, 6), textcoords="offset points",
                         color=_HIS, fontsize=8)
         if his.get("trigger_price") and at(_date(his.get("trigger"))) is not None:
             ax.plot([at(_date(his["trigger"]))], [his["trigger_price"]], marker="^", ms=10, color=_HIS, zorder=7)
@@ -341,8 +343,8 @@ def render_pages(rows: list, junk: list, out_dir: str) -> tuple:
         if on_last["prepared"] is None:
             continue
         path = os.path.join(out_dir, f"his_{row['key'].replace(':', '_')}.png")
-        fire = "FIRES on his day at his trigger" if row["strict"] else f"no fire on his day: {row['why']}"
-        _render(plt, _draw_bars, on_last, path, f"{row['key']}  —  box {row['box']} · {fire}",
+        fire = "FIRES on your day at your trigger" if row["strict"] else f"no fire on your day: {row['why']}"
+        _render(plt, _draw_bars, on_last, path, f"{row['key']}  —  box {_TO_HIM[row['box']]} · {fire}",
                 _words(on_last["read"], on_last["door"]), his=row["setup"])
         his_pages.append((row, path))
     for row in sorted(junk, key=lambda r: (-len(r["fires"]), r["key"])):
@@ -366,8 +368,8 @@ def write_contact_sheet(his_pages: list, junk_pages: list, out_dir: str) -> str:
                 f'<figcaption>{caption}</figcaption></figure>')
 
     his = [cell("hit" if row["strict"] and row["box"] == "HIS" else "chance" if row["strict"] else "miss", path,
-                f"<b>{row['key']}</b> — box {row['box']} · "
-                + ("fires on his day at his trigger" if row["strict"] else f"no fire: {row['why']}"))
+                f"<b>{row['key']}</b> — box {_TO_HIM[row['box']]} · "
+                + ("fires on your day at your trigger" if row["strict"] else f"no fire: {row['why']}"))
            for row, path in his_pages]
     junk = [cell("miss" if row["fires"] else "hit", path,
                  f"<b>{row['key']}</b> — {row['label']} · "
@@ -384,8 +386,8 @@ def write_contact_sheet(his_pages: list, junk_pages: list, out_dir: str) -> str:
  img{{width:100%;height:auto}} figcaption{{padding-top:6px;font-size:13px}}
 </style>
 <h1>The core sitting — the reader's own box, its LPS and its trigger</h1>
-<p>OHLC bars. Blue dashed: the reader's box, each line from its own anchor day; pale blue: a box it showed before
- and handed over. Green band: the reader's LPS, from its top day to its last receding day, and the green line is
+<p>OHLC bars. Blue dashed: the reader's box, each line from its own anchor day; pale blue: an earlier box, handed
+ over, as this day's read tells it (the reader keeps no memory). Green band: the reader's LPS, from its top day to its last receding day, and the green line is
  its trigger, that day's high. Amber band: the LPS whose trigger the read day crossed, the buy day. Grey band: a
  pullback one of your four sentences refused (the words under the picture name the sentence). Red: your two lines, your LPS days (the bar along the bottom) and your buy (the
  triangle). Each chart is read on your last receding day. Misses first.</p>

@@ -171,7 +171,14 @@ default as ours.
    leaving and the birth. A dip or a thrust that comes back is the box's own event, a spring
    or an upthrust, never an end; a pair inside or overlapping the shown box is its own leg,
    or a mini, never a new box. The box handed over ends at its last turn inside its lines
-   before the price left, and stays in the record. Ours, built Sun 27/09/2026: the come-back
+   before the price left, and stays in the record. The reader keeps no memory: what it
+   records as handed over is what the day's own reading of its two-year window tells, and
+   as that window's left edge moves, a day a night, the earlier boxes can be told
+   differently on a night with no hand-over (measured Sun 27/09/2026 by the core's blind
+   check: about one night in ten; the box SHOWN moved on none of 8,350 replayed nights but
+   the night a new box was born). Until they are made independent of the window's edge the
+   earlier boxes are no memory of what was shown, and the story does not read them (ours).
+   Ours, built Sun 27/09/2026: the come-back
    is judged on the swings known by the new box's birth, so a line once shown never moves
    back; the leaving is looked for from the newer trend end's climax, on the side the new
    box sits; and an older trend end's pair born later never takes over. Measured on his 35
@@ -216,7 +223,10 @@ default as ours.
    trigger is the buy day and nothing is on the board that day; a day that crosses it and
    makes a lower low as well is a buy and the pullback goes on, its trigger now that day's
    high (ours, read off his drawings: five of his 35 end on such a day, five were bought on
-   one). The pullback is measured by highs and lows; no close is read. Only the freshest
+   one). The pullback is measured by highs and lows; no close is read. A pullback is
+   judged on what the line had made by the evening it ended, so its verdict is the same on
+   whatever later day it is read: one refused that evening put no trigger on the board, and
+   no later day can have crossed it (ours). Only the freshest
    window is highlighted. An LPS is refused only by his own four sentences, read against
    the reader's own box: (1) the pullback is increasing with sellers, *"3 bars with huge
    increases in both spread and price changes"* — its last three bars widen day by day

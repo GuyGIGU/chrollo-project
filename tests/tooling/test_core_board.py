@@ -76,6 +76,30 @@ def test_the_board_counts_what_the_rows_say_and_puts_the_misses_first(rows):
     assert [r["strict"] for r in core_board.misses_first(got)] == [False, False, False, True, True]
 
 
+def test_the_board_and_the_one_door_agree_on_every_one_of_his_35():
+    """The board reads the reader and asks the universe door's own function itself, so it can draw the lines of
+    a chart the door refuses. What it counts as a fire is what the one door returns, chart for chart, and the
+    leg it names is the leg the door names."""
+    import pandas as pd
+
+    from engine_alpha import reader
+    from tools.calibration import core_board
+    from tools.regression.marks_corpus import load_corpus
+    from core.calibration.replay import flag_capture, load_sealed_fixture
+
+    frames, _ = load_sealed_fixture()
+    got = core_board.run_board(load_corpus(), frames)
+    assert len(got) == 35
+    with flag_capture(TWO_EYES_READER_ENABLED=True):
+        for row in got:
+            watch, on_last = {}, row["on_last"]
+            result = reader.evaluate_ticker(row["ticker"], row["raw"].loc[:pd.Timestamp(row["last"])], watch=watch)
+            assert isinstance(result, dict) == on_last["fired"], row["key"]
+            assert (watch["state"] == "not scanned") == (on_last["door"] is not None), row["key"]
+            assert on_last["door"] is None or watch["why"] == on_last["door"], row["key"]
+            assert not on_last["fired"] or result["_trigger_price"] == on_last["read"].lps.trigger_price, row["key"]
+
+
 def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_none(tmp_path):
     from engine_alpha.two_eyes import lps
     from tools.calibration import core_board
