@@ -63,6 +63,44 @@ def test_the_two_arms_are_all_off_and_all_on():
         yardstick.arm_overrides("neither")
 
 
+def test_the_third_arm_is_the_new_reader_with_every_method_switch_off():
+    from tools.calibration import yardstick
+
+    assert yardstick.ARMS == (yardstick.ARM_TODAY, yardstick.ARM_METHOD, yardstick.ARM_NEW)
+    new = yardstick.arm_overrides(yardstick.ARM_NEW)
+    assert new.pop("TWO_EYES_READER_ENABLED") is True
+    assert set(new) == set(yardstick.METHOD_SWITCHES), "every method switch is named"
+    assert not any(new.values()), "the old method's switches are the old engine's: none is on beside the new reader"
+
+
+def test_the_third_arm_reads_through_the_door_with_the_readers_own_lines_fire_or_no_fire():
+    """The new reader is read as the scan would read it: the long frame cut at the day, the universe door before
+    the read, and its own lines reported whether it fired or not."""
+    from tools.regression.marks_corpus import load_corpus, setup_key
+    from core.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture
+    from tools.calibration import yardstick
+
+    setups = {setup_key(s): s for s in load_corpus()}
+    frames, _ = load_sealed_fixture()
+
+    def read(key, day):
+        setup = setups[key]
+        with flag_capture(**yardstick.arm_overrides(yardstick.ARM_NEW)):
+            return yardstick._read_one_day(setup["ticker"], fixture_frame(frames, key, setup["ticker"]), _d(day))
+
+    fired = read("SYRE:2026-02-19", "2026-02-17")               # his last receding day
+    assert fired["fired"] and fired["error"] is None
+    assert (round(fired["R"], 2), round(fired["S"], 2)) == (35.31, 32.26)
+    assert fired["lps_end"] == _d("2026-02-17") and fired["trigger_price"] == pytest.approx(37.22)
+    assert fired["box_start"] == _d("2025-12-11")
+    assert yardstick.strict_hit(setups["SYRE:2026-02-19"], [fired])
+    bought = read("SYRE:2026-02-19", "2026-02-18")              # his buy day: lines, and nothing on the board
+    assert not bought["fired"] and bought["state"] == "crossed" and round(bought["R"], 2) == 35.31
+    refused = read("JAZZ:2026-02-24", "2026-02-11")             # the universe door refuses his day
+    assert refused["error"] == "no frame" and refused["R"] is None and not refused["fired"]
+    assert yardstick.first_difference(setups["JAZZ:2026-02-24"], refused, 1.0) == "no frame"
+
+
 # --------------------------------------------------------------------------- #
 # The strict headline, and the chance column beside it                        #
 # --------------------------------------------------------------------------- #

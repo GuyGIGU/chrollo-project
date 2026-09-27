@@ -19,6 +19,12 @@ and the looser reading — fired somewhere near his setup — rides beside it in
 switches OFF; "the method" is all 27 ON. Both live in this checkout, so the
 comparison needs no second branch: one run measures both.
 
+**The third arm (task 12a) is the new reader**, asked through the same door
+with its own switch on and the method's 27 off. It is handed the chart as the
+scan would hand it — the long frame cut at the read day — because it builds
+each day's range before it cuts to its window; the universe door stands before
+it as it stands before the other two.
+
 **The picture and the number come from one run** (`--pages`), so a page can
 never disagree with the count beside it.
 
@@ -28,6 +34,7 @@ writes to a directory you name. It never touches the archive (EC-46).
     python -m tools.calibration.yardstick                     # the board, both arms
     python -m tools.calibration.yardstick --pages OUT         # the board AND one page per chart
     python -m tools.calibration.yardstick --arm today         # one arm only
+    python -m tools.calibration.yardstick --arm two-eyes      # the new reader alone
 """
 from __future__ import annotations
 
@@ -62,6 +69,8 @@ from core.calibration.replay import (  # noqa: E402
 
 ARM_TODAY = "today"
 ARM_METHOD = "method"
+ARM_NEW = "two-eyes"
+ARMS = (ARM_TODAY, ARM_METHOD, ARM_NEW)
 
 #: The twelve-step method, as the flag ledger's fate table records it. The arm
 #: is only "the method" if it is ALL of them — a switch left out measures
@@ -111,7 +120,12 @@ def arm_overrides(arm: str) -> dict:
         return {name: False for name in METHOD_SWITCHES}
     if arm == ARM_METHOD:
         return {name: True for name in METHOD_SWITCHES}
-    raise ValueError(f"unknown arm {arm!r}: expected {ARM_TODAY!r} or {ARM_METHOD!r}")
+    if arm == ARM_NEW:
+        # The method's switches are the old engine's; the new reader reads none
+        # of them, and they are off so that nothing of the old method can be
+        # mistaken for it.
+        return {**{name: False for name in METHOD_SWITCHES}, "TWO_EYES_READER_ENABLED": True}
+    raise ValueError(f"unknown arm {arm!r}: expected one of {ARMS}")
 
 
 # --------------------------------------------------------------------------- #
@@ -296,6 +310,8 @@ def _read_one_day(ticker: str, raw, day) -> dict:
     started = time.perf_counter()
     out = {"day": day, "fired": False, "R": None, "S": None, "box_start": None,
            "lps_end": None, "trigger_price": None, "error": None}
+    if reader.which_reader() == reader.READER_NEW:
+        return _read_one_day_new(ticker, raw, day, out, started)
     prepared = prepared_frame(raw, day)
     if prepared is None:
         out["seconds"] = time.perf_counter() - started
@@ -325,6 +341,28 @@ def _read_one_day(ticker: str, raw, day) -> dict:
         if read:
             out.update(R=read["R"], S=read["S"],
                        box_start=_date(read["box_start_date"]))
+    out["seconds"] = time.perf_counter() - started
+    return out
+
+
+def _read_one_day_new(ticker: str, raw, day, out: dict, started: float) -> dict:
+    """The new reader's read of one day, through the door: the long frame cut
+    at the day, the universe door before the read, and the reader's own lines
+    whether or not it fired (its record rides the watch sink)."""
+    watch: dict = {}
+    result = reader.evaluate_ticker(ticker, raw.loc[:pd.Timestamp(day)], FROZEN_SPY_6M, None, watch=watch)
+    read = watch.get("read")
+    if watch.get("state") == "not scanned":
+        out["error"] = "no frame"
+    elif read is None or read.failed:
+        out["error"] = (read.refusal if read is not None else None) or "the read failed"
+    elif read.parent is not None:
+        box = read.parent
+        out.update(R=float(box.resistance.price), S=float(box.support.price), box_start=box.opened_day)
+    if isinstance(result, dict):
+        out.update(fired=True, lps_end=_date(result["_lps_zone_end_date"]),
+                   trigger_price=float(result["_trigger_price"]))
+    out["state"] = watch.get("state")
     out["seconds"] = time.perf_counter() - started
     return out
 
@@ -436,7 +474,7 @@ def _pct(hit: int, total: int) -> str:
 
 def format_board(arms: list, junk: dict, junk_total: int) -> str:
     """The board he reads: the strict headline first, everything else beside it."""
-    out = ["", "THE YARDSTICK — his 35 drawings, both engines, "
+    out = ["", "THE YARDSTICK — his 35 drawings, each reader drawing its own lines, "
            + dt.date.today().strftime("%A %d/%m/%Y"), ""]
     head = (f"{'':<34}" + "".join(f"{a['arm']:>14}" for a in arms))
     out += [head, "-" * len(head)]
@@ -566,6 +604,15 @@ def _swing_line(raw, offset: int, as_of) -> tuple:
 
     try:
         cut = raw.loc[:pd.Timestamp(as_of)] if as_of is not None else raw
+        if reader.which_reader() == reader.READER_NEW:
+            # The new reader's own line, on its own frame: the page may not
+            # put the old engine's turns beside the new reader's box.
+            from engine_alpha import two_eyes
+
+            prepared = two_eyes.prepare(cut)
+            start = len(cut) - len(prepared)
+            return ([(t.bar + start - offset, float(t.price)) for t in two_eyes.build_line(prepared).turns
+                     if t.bar + start >= offset], None)
         points = read_market_structure(cut).get("points", [])
     except Exception as exc:
         return [], f"{type(exc).__name__}: {exc}"
@@ -721,8 +768,8 @@ def write_contact_sheet(arm: dict, pages: list, out_dir: str) -> str:
 # --------------------------------------------------------------------------- #
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--arm", choices=[ARM_TODAY, ARM_METHOD], action="append",
-                    help="run one arm only (default: both)")
+    ap.add_argument("--arm", choices=list(ARMS), action="append",
+                    help="run one arm only (default: all three)")
     ap.add_argument("--pages", metavar="DIR",
                     help="also write one page per chart and a contact sheet here")
     ap.add_argument("--json", metavar="PATH", help="also dump the board as JSON")
@@ -730,7 +777,7 @@ def main() -> int:
                     help="trading days the chance column may shift his day")
     args = ap.parse_args()
 
-    arms_wanted = args.arm or [ARM_TODAY, ARM_METHOD]
+    arms_wanted = args.arm or list(ARMS)
     setups = load_corpus()
     frames, _ = load_sealed_fixture()
     by_key = {setup_key(s): s for s in setups}

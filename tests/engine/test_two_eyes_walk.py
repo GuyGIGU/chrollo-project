@@ -592,8 +592,10 @@ def test_the_record_carries_the_box_its_trail_and_the_state_and_keep_listing_add
 
 
 def test_read_fills_the_record_from_the_walk():
+    """The read is the walk's record, then stage 6 on the box it shows: the LPS, its step after the walk's trail,
+    and the state word (task 12a)."""
     from engine_alpha import two_eyes
-    from engine_alpha.two_eyes import frame as frame_module, line as line_module, walk, method_numbers as M
+    from engine_alpha.two_eyes import frame as frame_module, line as line_module, lps, walk, method_numbers as M
     from core.calibration.replay import load_sealed_fixture
 
     frames, _ = load_sealed_fixture()
@@ -603,11 +605,17 @@ def test_read_fills_the_record_from_the_walk():
     prepared = frame_module.prepare(raw)
     line = line_module.build(prepared)
     ranges = prepared[frame_module.DAILY_RANGE].to_numpy(dtype=float)
+    days = tuple(d.date() for d in prepared.index)
     result = walk.elect(line.committed, [t for t in line.far(M.FAR_VIEW_FLOOR_RANGES) if t.committed], ranges,
-                        days=tuple(d.date() for d in prepared.index), read_bar=len(prepared) - 1)
+                        days=days, read_bar=len(prepared) - 1)
     boxes, trail, state = walk.record(result)
-    assert (read.boxes, read.trail, read.state) == (boxes, trail, state)
-    assert read.parent is not None and read.state == "lines, no LPS yet"
+    assert state == "lines, no LPS yet"
+    won = result.winner
+    pullback = lps.read(prepared["High"].to_numpy(dtype=float), prepared["Low"].to_numpy(dtype=float), ranges,
+                        line.committed, R=won.R, S=won.S, box_unit=won.unit, born_bar=won.birth_bar)
+    the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1)
+    assert (read.boxes, read.lps, read.trail, read.state) == (boxes, the_lps, trail + said, word)
+    assert read.parent is not None and len(said) == 1 and word in (lps.FIRED, lps.CROSSED, lps.LINES_NO_LPS)
 
 
 # --------------------------------------------------------------------------- #

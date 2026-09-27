@@ -263,11 +263,14 @@ def test_the_switch_is_read_in_exactly_one_place():
     # thought, which is exactly the cost it should carry.
     # config/engine.py holds the switch's default since the port onto main's layout
     # (settings.py re-exports it); the inert contract enrols the switch by NAME
-    # as a dark engine flag and decides nothing.
+    # as a dark engine flag and decides nothing. The LPS tests flip it to send a
+    # real fire through the door (task 12a), and the yardstick flips it to read
+    # the new reader as its third arm: both measure, neither decides.
     files -= {"config/settings.py", "config/engine.py", "engine_alpha/freeze/manifest.py",
               "tests/contracts/test_inert_contract.py",
               "tests/engine/test_reader_door.py", "tests/engine/test_two_eyes_adapter.py",
-              "tests/engine/test_two_eyes_skeleton.py"}
+              "tests/engine/test_two_eyes_skeleton.py", "tests/engine/test_two_eyes_lps.py",
+              "tests/tooling/test_yardstick.py", "tools/calibration/yardstick.py"}
     assert files == {"engine_alpha/reader.py"}, (
         f"the reader switch is read in {sorted(files)}; it belongs in "
         "engine_alpha.reader.which_reader() alone")

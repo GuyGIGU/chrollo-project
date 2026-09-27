@@ -97,7 +97,7 @@ def evaluate_ticker(ticker: str, df: pd.DataFrame,
     answering = which_reader()
     _stamp(stamp, answering)
     if answering == READER_NEW:
-        return _two_eyes(ticker, df, watch)
+        return _two_eyes(ticker, df, watch)[1]
     return evaluation._evaluate_ticker(ticker, df, spy_6m_return, breadth_pct,
                                        **_only_given(watch=watch))
 
@@ -108,12 +108,34 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
     Imported inside the function so that the old reader's path never pays for
     a package it does not use, and so a broken new reader cannot stop the old
     one from loading.
-    """
-    from engine_alpha import two_eyes, two_eyes_adapter
 
+    The universe door stands BEFORE the read, and it is the old engine's own
+    (one implementation of a ruled judgment): a chart it refuses is "not
+    scanned", with the leg named, and is never read. It is one of the few
+    hard things in his method, and a fire that ignored it would not be a fire
+    the scan could ever show. The frame contract comes before the door: a
+    frame that is not a chart is a counted failure, never "not scanned".
+    Returns ``(read, result)``; both None when the door refused.
+    """
+    from engine_alpha import evaluation, two_eyes, two_eyes_adapter
+
+    try:
+        two_eyes.check_frame(df)
+        admitted, reason = evaluation.apply_baseline_filters_with_reason(df)
+    except two_eyes.FrameRefused:
+        admitted = True                 # not a chart: the read below refuses it by name, a counted failure
+    except Exception as exc:            # a chart the door cannot ask about: a counted failure too
+        read = two_eyes.crashed(ticker, None, "the universe door could not read the frame: "
+                                              f"{type(exc).__name__}: {exc}")
+        two_eyes_adapter.fill_watch(read, watch)
+        return read, two_eyes_adapter.to_result(read)
+    if admitted is None:
+        if watch is not None:
+            watch.update(two_eyes=True, state="not scanned", why=reason[0])
+        return None, None
     read = two_eyes.read(ticker, df)
     two_eyes_adapter.fill_watch(read, watch)
-    return two_eyes_adapter.to_result(read)
+    return read, two_eyes_adapter.to_result(read)
 
 
 def run_eval_chain(ticker: str, df: pd.DataFrame,
@@ -133,13 +155,10 @@ def run_eval_chain(ticker: str, df: pd.DataFrame,
     _stamp(stamp, answering)
     if answering == READER_NEW:
         # This entry point's contract is that it RAISES; the caller decides.
-        from engine_alpha import two_eyes, two_eyes_adapter
-
-        read = two_eyes.read(ticker, df)
-        two_eyes_adapter.fill_watch(read, watch)
-        if read.failed:
+        read, result = _two_eyes(ticker, df, watch)
+        if read is not None and read.failed:
             raise ValueError(f"two-eyes reader refused {ticker}: {read.refusal}")
-        return two_eyes_adapter.to_result(read)
+        return result
     return evaluation._run_eval_chain(ticker, df, spy_6m_return, breadth_pct,
                                       **_only_given(near_miss=near_miss, watch=watch))
 

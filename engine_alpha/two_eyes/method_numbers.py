@@ -63,3 +63,28 @@ BOX_DAYS = 15
 #: zigzag inside it (his "huge spread" is huge against the box itself, "answer a.", Sun 20/09/2026). The
 #: number is OURS, the listing gate's bound (task 9).
 BOX_MIN_HEIGHT_RANGES = 1.0
+
+# --- Stage 6 (task 12a): the numbers the LPS and its trigger read --------------------------------------
+
+#: A pullback is read on at most this many bars, its top day and its receding days: "2 - 5 bars" (Tue
+#: 08/09/2026). Of a longer run of receding days only the last five are read, from their highest high.
+LPS_MAX_BARS = 5
+
+#: The unit the LPS is measured in: the daily range as it stood this many trading days before the pullback's
+#: last day, so the pullback's own days never move their own yardstick. It is the unit his 1.35 and the 2.5
+#: below were placed in (the old engine's sample day): in it his six lows over resistance read what they read
+#: when he ruled (ST 1.30) and his deepest pullback 2.43. OURS.
+LPS_UNIT_DAYS_BACK = 5
+
+#: His ceiling: the LPS's low sits at most this many daily ranges over resistance. "Lets go with that ceiling
+#: 1.35 I guess...." (Thu 10/09/2026); his farthest, ST, sits 1.30 over.
+LPS_CEILING_RANGES = 1.35
+
+#: A fall deeper than this from the top of its swing is a slice of a bigger swing down, not a pullback (his AEF
+#: words, Mon 14/09/2026; "the correction is getting to deep", Tue 08/09/2026). The sentence is his; the number
+#: is OURS, the daily-range yardstick he ruled that day placed over his deepest drawn pullback, 2.43.
+LPS_DEPTH_MAX_RANGES = 2.5
+
+#: More than this share of the pullback's high-to-low travel under the support area refuses it: "most of the
+#: move is above it and only small parts of it poke out down" (his JAZZ answer, Sun 13/09/2026).
+LPS_UNDER_SUPPORT_SHARE = 0.5

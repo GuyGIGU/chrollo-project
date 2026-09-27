@@ -205,20 +205,42 @@ default as ours.
    consolidations and an LPS. the rest is a nice little bonus."*
 6. **The LPS and the trigger.** He defines the pullback by the traits he wants to see:
    *"Receding Price move over time, Lowering (and low) spread below average, 2 - 5 bars"*
-   (Tue 08/09/2026). The window is the last run of receding days (a lower high or a lower
-   low than the day before), trimmed to *"the moves final bars being pretty shallow and in
-   decline"*; it *"ends on the last receding day before the buy"*. The trigger is that last
-   day's high and the buy is the cross of it; a cross inside the pullback is a buy too. The
-   pullback itself is measured by highs and lows; a close only says how far a breakout day
-   advanced. Only the freshest window is highlighted. An LPS is refused only by his own
-   four sentences: the pullback is increasing with sellers (its last days each wider and
-   each falling further); the window is a slice cut off a bigger swing down to support
-   (*"you cut the move off and it's a part of a bigger swing downwards that reaches
-   support, we cannot ignore that"*, Mon 14/09/2026); most of it sits under the support
-   area; it sits more than 1.35 daily ranges over resistance. Every other number about the
-   window is graded, never gated. The mini may carry the read: *"the LPS read can be
-   against it if it is inside/near it/resting on it and the trigger is always read against
-   the LPS by itself"* (Sat 12/09/2026).
+   (Tue 08/09/2026). One window per read day: the last run of receding days (a lower high
+   or a lower low than the day before), the day before the run its top; it *"ends on the
+   last receding day before the buy"*, and on where it starts, *"Lets go with the day
+   after"* (Sun 13/09/2026). A pullback is read on at most five bars, so of a longer run
+   only the last five are read, from their highest high down — the reading of *"the moves
+   final bars being pretty shallow and in decline"* (ours; on his BMRN picture it gives his
+   blue part, Tue 16/06 to Thu 18/06/2026). The trigger is that last day's high and the buy
+   is the cross of it; a cross inside the pullback is a buy too. The day that crosses the
+   trigger is the buy day and nothing is on the board that day; a day that crosses it and
+   makes a lower low as well is a buy and the pullback goes on, its trigger now that day's
+   high (ours, read off his drawings: five of his 35 end on such a day, five were bought on
+   one). The pullback is measured by highs and lows; no close is read. Only the freshest
+   window is highlighted. An LPS is refused only by his own four sentences, read against
+   the reader's own box: (1) the pullback is increasing with sellers, *"3 bars with huge
+   increases in both spread and price changes"* — its last three bars widen day by day
+   and fall further day by day, the last fall bigger than the whole range of the day
+   before (the form is ours); (2) it is a slice of a bigger swing down, *"you cut the
+   move off and it's a part of a bigger swing downwards that reaches support, we cannot
+   ignore that"* (Mon 14/09/2026), *"its seems like the correction is getting to deep"*
+   (Tue 08/09/2026) — the fall from the top of its swing on the line to its low is more
+   than 2.5 daily ranges (the form and the number are ours: his deepest drawn pullback is
+   2.43; reaching support is not asked, because his own pullbacks rest on it in a tight
+   box); (3) most of it sits under the support area, read on whole bars, so a poke under it
+   never refuses: *"the LPS is on the Support rather then Under it since most of the move
+   is above it and only small parts of it poke out down"* (JAZZ, Sun 13/09/2026); (4) its
+   low sits more than 1.35 daily ranges over resistance (*"Lets go with that ceiling 1.35
+   I guess...."*, Thu 10/09/2026). The LPS is measured in the daily range as it stood five
+   trading days before its last day — before the pullback, whose own days may not move
+   their own yardstick — the unit his 1.35 was placed in: in it his six lows over
+   resistance read what they read the day he ruled (his farthest, ST, 1.30), while in the
+   box's own frozen range his ST would be refused (ours). Every other number about the
+   window is graded, never gated. A pullback that ended before the box was a box is not
+   its LPS, and the universe door stands before every read: a fire is a box, an LPS and a
+   trigger on a chart the door admits (ours). The mini may carry the read: *"the LPS read
+   can be against it if it is inside/near it/resting on it and the trigger is always read
+   against the LPS by itself"* (Sat 12/09/2026).
 7. **The grade, the state word, the screen.** *"grade is built from a few important traits:
    Consolidation tightness (Consolidation width + Spread Profile), Event Map, base age
    dosen't matter to me"* (Sat 12/09/2026). Height is counted in daily ranges, never in

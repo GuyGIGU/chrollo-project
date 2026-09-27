@@ -19,11 +19,16 @@ The order the stages will fill in is his, not the old engine's:
     found by walking right like two legs -> the box's life -> the story left
     to right -> the LPS and its trigger -> the grade and the state word
 
+Built so far: stages 1 to 4 and stage 6 — the core, the box and the LPS, which
+his ruling of Sat 26/09/2026 put first. The story (stage 5) and the grade
+(stage 7) follow his core sitting.
+
 Reading order for the next session: `record.py` is the shape everything is
 built against; `frame.py` is what a chart must be before it is read.
 """
 from __future__ import annotations
 
+from engine_alpha.two_eyes import lps
 from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes import walk
 from engine_alpha.two_eyes.frame import DAILY_RANGE, FrameRefused, check as check_frame, prepare
@@ -54,8 +59,9 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
 
     Refuse a frame that is not a chart; else build the line (stage 1), walk
     from every end of a trend to the box and follow the box's life (stages 2
-    to 4, `walk`) and fill the record: the box, every box it took over from,
-    the trail to it, the state word. A crashed read comes
+    to 4, `walk`), read the LPS and its trigger against that box (stage 6,
+    `lps`) and fill the record: the box, every box it took over from, the
+    LPS, the trail to them, the state word. A crashed read comes
     back as a counted failure with its reason — never as the words "no
     lines", which is what the screen says when a chart genuinely has no lines
     and must not be what it says when the engine fell over. `keep_listing`
@@ -85,18 +91,28 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         # once the price left and did not come back — on the committed turns
         # only: the forming turn at the edge decides nothing.
         far = line.far(M.FAR_VIEW_FLOOR_RANGES)
-        found = walk.elect(line.committed, [t for t in far if t.committed],
-                           prepared[DAILY_RANGE].to_numpy(dtype=float),
-                           days=tuple(d.date() for d in prepared.index), read_bar=len(prepared) - 1)
+        ranges = prepared[DAILY_RANGE].to_numpy(dtype=float)
+        days = tuple(d.date() for d in prepared.index)
+        found = walk.elect(line.committed, [t for t in far if t.committed], ranges,
+                           days=days, read_bar=len(prepared) - 1)
         boxes, trail, state = walk.record(found, keep_listing=keep_listing)
+        # Stage 6 (task 12a): the last run of receding days against the box
+        # shown, its trigger at the last day's high, refused only by his four
+        # sentences. Read on the bars' highs and lows: no close decides it.
+        pullback = None
+        if found.winner is not None:
+            pullback = lps.read(prepared["High"].to_numpy(dtype=float), prepared["Low"].to_numpy(dtype=float),
+                                ranges, line.committed, R=found.winner.R, S=found.winner.S,
+                                box_unit=found.winner.unit, born_bar=found.winner.birth_bar)
+        the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1)
+        trail, state = trail + said, word or state
     except FrameRefused as refusal:
         return crashed(ticker, as_of, str(refusal))
     except Exception as exc:                      # a broken frame, not a chart
         return crashed(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
-    # Stages 5 to 7 fill in the rest (the story, the LPS, the grade). Empty is
-    # the honest answer until they do. The close is a fact of
-    # the read day, not of a stage: the frame contract has just proved the
-    # last bar is whole.
-    return Read(ticker=ticker, as_of=as_of, boxes=boxes, lps=None, trail=trail,
+    # Stages 5 and 7 fill in the rest (the story, the grade). Empty is the
+    # honest answer until they do. The close is a fact of the read day, not
+    # of a stage: the frame contract has just proved the last bar is whole.
+    return Read(ticker=ticker, as_of=as_of, boxes=boxes, lps=the_lps, trail=trail,
                 state=state, close=float(prepared["Close"].iloc[-1]))

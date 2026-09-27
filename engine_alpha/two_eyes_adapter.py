@@ -216,6 +216,9 @@ def fill_watch(read: Read, watch: Optional[dict]) -> None:
     if watch is None:
         return
     watch["two_eyes"] = True
+    # The record itself, for a board or a page that wants the lines and the
+    # LPS of a read that did not fire without reading the chart a second time.
+    watch["read"] = read
     if read.failed:
         # A crashed read leaves NOTHING here. Its own word is not on his
         # table, and a bare `why` is worse than silence: the page's verdict
