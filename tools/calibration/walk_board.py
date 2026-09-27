@@ -448,7 +448,8 @@ def write_contact_sheet(rows: list, pages: list, out_dir: str) -> str:
 <p>OHLC bars. Red: his two lines, their areas, his anchors (circles), his box (shaded), his last receding days
  (brown). Grey: the reader's line as of his last receding day. Blue dashed: the reader's box, from its anchors
  (circles) to the right; blue dotted: the day it became a box; the blue wedge is the trend end it walked from.
- Pale blue: the boxes the reader showed before it and handed over, each to the turn it ended on. Green dash-dot:
+ Pale blue: the earlier boxes, handed over, as this day's read tells them (the reader keeps no memory), each to
+ the turn it ended on. Green dash-dot:
  the box the walk from the one trend end into his box alone would show, when it differs. Misses first.</p>
 <div class="grid">{''.join(cells)}</div>
 """

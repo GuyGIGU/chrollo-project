@@ -437,8 +437,9 @@ def winner(pairs, ends, turns) -> Optional[Pair]:
 @dataclass(frozen=True)
 class Walk:
     """What the walk found on one read: the trend ends, every pair it listed (in the order it listed them,
-    keyed by feet), the box shown or None, the turns, and the box's life — every box shown so far, the
-    earlier ones ended (``lives``)."""
+    keyed by feet), the box shown or None, the turns, and the box's life as THIS read tells it (``lives``): the
+    box shown, and before it the boxes this read's own window says were handed over, each ended. The reader
+    keeps no memory, so the earlier ones are not a record of what an earlier night showed."""
     ends: tuple
     pairs: dict
     winner: Optional[Pair]

@@ -909,10 +909,12 @@ def test_a_range_price_left_long_ago_is_no_candidate_on_bmrn_and_ohi():
 
 
 def test_the_read_equals_the_knowable_order_replay_at_every_hand_over_on_every_chart(prepared_frames):
-    """A reader with no memory: the boxes the last day's read records as handed over are the boxes a reader
-    watching every day would have shown. At each of the last two hand-overs on every chart, the day before the
-    new box's birth shows the earlier box and the birth day shows the new one; every earlier box in the record
-    ended before the box after it was born, and only the last box is the parent."""
+    """Within ONE prepared window: the boxes the last day's read records as handed over are the boxes the same
+    window shows when it is read day by day, its turns filtered by the day they were known. At each of the
+    last two hand-overs on every chart, the day before the new box's birth shows the earlier box and the birth
+    day shows the new one; every earlier box in the record ended before the box after it was born, and only
+    the last box is the parent. It does NOT read a new window every night, as the scan does: the tests at the
+    end of this file do, and across nights the earlier boxes are told differently (the pinned limit)."""
     from engine_alpha.two_eyes import frame as frame_module, line as line_module, walk, record, method_numbers as M
 
     hand_overs = 0
@@ -945,15 +947,22 @@ def test_the_read_equals_the_knowable_order_replay_at_every_hand_over_on_every_c
 # --------------------------------------------------------------------------- #
 def _as_the_scan_reads(raw, night) -> tuple:
     """One night as the scan reads it: the long frame cut at the night and prepared afresh, so the window's
-    left edge is a day later every night. The walk's result and that window's own days."""
-    from engine_alpha.two_eyes import frame as frame_module, line as line_module, walk, method_numbers as M
+    left edge is a day later every night. The walk's result, that window's own days, and the night's LPS word
+    (None while no day has receded)."""
+    from engine_alpha.two_eyes import frame as frame_module, line as line_module, lps, walk, method_numbers as M
 
     prepared = frame_module.prepare(raw.loc[:night])
     line = line_module.build(prepared)
     ranges = prepared[frame_module.DAILY_RANGE].to_numpy(dtype=float)
     far = [t for t in line.far(M.FAR_VIEW_FLOOR_RANGES) if t.committed]
     found = walk.elect(line.committed, far, ranges, read_bar=len(prepared) - 1)
-    return found, [d.date() for d in prepared.index]
+    days = [d.date() for d in prepared.index]
+    word, won = None, found.winner
+    if won is not None:
+        pullback = lps.read(prepared["High"].to_numpy(dtype=float), prepared["Low"].to_numpy(dtype=float), ranges,
+                            line.committed, R=won.R, S=won.S, box_unit=won.unit, born_bar=won.birth_bar)
+        word = lps.record(pullback, days, read_bar=len(prepared) - 1)[2]
+    return found, days, word
 
 
 def _lines(pair, days) -> tuple:
@@ -962,23 +971,26 @@ def _lines(pair, days) -> tuple:
 
 
 #: Four of his drawings with hand-overs in their last 45 nights, and nights among them on which the record of
-#: earlier boxes was told differently (the blind check's replay, Sun 27/09/2026).
+#: earlier boxes was told differently (the blind check's replay, Sun 27/09/2026). A SAMPLE, sized to run in a
+#: test: the checker's own replay read 8,350 nights, and its scripts and results are kept in the build run.
 _REPLAYED = ("EGBN:2026-01-15", "MSGS:2026-05-22", "YPF:2026-05-18", "MRK:2026-08-10")
 
 
 def test_read_night_after_night_as_the_scan_reads_the_shown_box_moves_only_the_night_a_new_box_is_born():
     """The two proofs above read ONE prepared window and filter its turns by the day they were known. The scan
     cuts a new window every night. Read that way, night after night, the box shown changes only on the night
-    the new box is born, and the box shown the night before is the one that night's read hands over."""
+    the new box is born, and the box shown the night before is the one that night's read hands over. And the
+    LPS word: a night says ``crossed``, the buy, only when the night before had the trigger on the board."""
+    from engine_alpha.two_eyes import lps
     from core.calibration.replay import fixture_frame, load_sealed_fixture
 
     frames, _ = load_sealed_fixture()
-    hand_overs = 0
+    hand_overs = crossed = 0
     for key in _REPLAYED:
         raw = fixture_frame(frames, key, key.split(":")[0])
-        before = None
+        before = word_before = None
         for night in raw.index[-45:]:
-            found, days = _as_the_scan_reads(raw, night)
+            found, days, word = _as_the_scan_reads(raw, night)
             when = f"{night:%a %d/%m/%Y}"
             assert found.winner is not None, f"{key}: no box on {when}"
             now = _lines(found.winner, days)
@@ -988,8 +1000,13 @@ def test_read_night_after_night_as_the_scan_reads_the_shown_box_moves_only_the_n
                 assert len(found.lives) >= 2 and _lines(found.lives[-2].pair, days) == before, \
                     f"{key}: on {when} the box shown the night before is not the box handed over"
                 hand_overs += 1
-            before = now
+            elif before is not None and word == lps.CROSSED:
+                assert word_before == lps.FIRED, \
+                    f"{key}: {when} says crossed, and the night before ({word_before}) no trigger was on the board"
+                crossed += 1
+            before, word_before = now, word
     assert hand_overs >= 4, f"only {hand_overs} hand-overs were replayed; the guard would be thin"
+    assert crossed >= 8, f"only {crossed} buy days were replayed; the guard would be thin"
 
 
 def _flg_on_two_nights() -> list:
@@ -1001,7 +1018,7 @@ def _flg_on_two_nights() -> list:
     frames, _ = negative_corpus._load_fixture()
     told = []
     for night in (pd.Timestamp("2026-03-09"), pd.Timestamp("2026-03-10")):
-        found, days = _as_the_scan_reads(frames["FLG"], night)
+        found, days, _ = _as_the_scan_reads(frames["FLG"], night)
         told.append([_lines(life.pair, days) for life in found.lives])
     return told
 
