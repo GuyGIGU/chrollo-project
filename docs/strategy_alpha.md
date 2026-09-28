@@ -127,11 +127,23 @@ default as ours.
    box is born (ours, from *"until I find it"* and his one mark per base, Sat 26/09/2026).
    Each line is ONE anchor day's high or low, to the cent, and a line is never anchored in
    the direction the price is going: *"we cannot start the anchor in the same direction the
-   price is going"* (Mon 14/09/2026). That last sentence is tested on the result, never
-   filtered, in the one reading his own 35 drawings satisfy: every anchor is a turn the price
-   made, a bar's own high or low (ours; the readings "the box opens against the trend's
-   direction" and "the opening line is never run through before the box is born" his own
-   drawings refute, 13 and 4 of 35, Sat 26/09/2026).
+   price is going"* (Mon 14/09/2026). He said what that means at the core sitting: *"we only
+   start to anchor from the end point of previous swings"* (Mon 28/09/2026) — the first line
+   sits on the END POINT of the swing before the box, the high point where a rise stopped
+   (the climax of the previous trend) or the low point where a fall did, and the other line
+   on the end of the counter move that came off it; that counter move is the root swing, and
+   the two lines are its two ends. A line never sits inside a swing that is still running, and
+   the root swing is never a move in the direction of the trend. His own 35 drawings keep
+   it: every one opens on the end of the swing before it, 31 on resistance after a rise, 4
+   on support after a fall, and on 29 of them his two lines are the two ends of one swing
+   (on the others his support is the first low of a shelf, or the climax bar's own low, or
+   his resistance one of three equal highs). The reader as built does NOT keep it yet: its feet may land on a
+   turn made of one wide bar's own high and low inside a running move, and on 17 of his 35 a
+   line of its box is no swing's end. The record of Sat 26/09/2026 that his own drawings
+   refute the rule on 13 of 35 measured the reader's label of the trend, not his drawings,
+   and is withdrawn; what stands of it is that on 4 of his 35 the price poked past his first
+   line inside the box's first fifteen days and came back. The walk is rebuilt on his rule
+   once it is settled on paper with him (the stop rule).
 3. **Answered and alive.** A pair of lines is the box when the swings after it come back to
    BOTH lines and price has not left for good: *"were looking for the first instance that a
    consolidation is respected!"* (Sun 06/09/2026). A swing answers a line his way: its turn

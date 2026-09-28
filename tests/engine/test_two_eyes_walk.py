@@ -19,7 +19,14 @@ His words that these pin:
 * the box's life (Sat 12/09/2026, Sat 19/09/2026): "if the price continues to Rise/Fall with out recovering we can
   deduce that either that the consolidating structure we measured ended and the price began to trend"; "the child
   box inherit the parent as its cause + its tricky to define it with Close value we need to deduce it Swings as
-  well"; and his two dead-space drawings (BMRN, OHI): a box the price left and never came back to is no candidate.
+  well"; and his two dead-space drawings (BMRN, OHI): a box the price left and never came back to is no candidate;
+* the anchors (Mon 28/09/2026, at the core sitting, on the reader's PBT box): "a single rule you just won't seem
+  to get is that we only start to anchor from the end point of previous swings ... my Placement of Resistance
+  came from the High point of a previous swing (one in green) that's the so called climax of the previous trend
+  and the red swing I marked is the AR that became the root swing for that box's trading range, your Pick came
+  from the middle of a swing in the direction of the trend with out there being a counter move to begin with".
+  The walk below is NOT yet built on it: his rule is pinned here first, from his own marked bars, the tests the
+  reader fails today marked as expected failures, strictly.
 """
 from __future__ import annotations
 from _paths import REPO_ROOT
@@ -714,7 +721,12 @@ _NAMED = ("VIK:2026-06-11", "SYRE:2026-02-19", "EWTX:2026-03-31", "NGL:2026-04-2
           pytest.param("MSGS:2026-05-22", marks=pytest.mark.xfail(strict=True, reason=(
               "his support is the climax bar's own low; the walk's roots leave it out (his sitting)"))),
           pytest.param("ROIV:2026-06-17", marks=pytest.mark.xfail(strict=True, reason=(
-              "an inner pair is respected first; his resistance is the higher top (his sitting)"))))
+              "an inner pair is respected first; his resistance is the higher top (his sitting)"))),
+          pytest.param("PBT:2026-05-11", marks=pytest.mark.xfail(strict=True, reason=(
+              "his ruling of Mon 28/09/2026: his box is the root swing off the end of the rise, 22.65 (the high of "
+              "Wed 25/03/2026) / 21.58 (the low of Thu 26/03/2026); the reader shows 22.55 / 20.79, its support the "
+              "low of Thu 02/04/2026, the second day of a rise that had begun at 20.03 the day before. Stages 2 and "
+              "3 are rebuilt on his rule next"))))
 
 
 @pytest.mark.parametrize("key", _NAMED)
@@ -741,26 +753,98 @@ def test_bmrn_the_plans_named_junk_chart_reads_the_box_the_plan_names():
     assert got == (57.76, 53.89), f"BMRN: the engine's box is {got[0]:.2f} / {got[1]:.2f}"
 
 
-def test_the_plans_openings_clause_is_refuted_by_his_own_drawings(his_reads):
-    """The plan asked that "openings running with the price are 0 of 35", from his rule of Mon 14/09/2026, "we
-    cannot start the anchor in the same direction the price is going". It is NOT met, and it is no rule of the
-    reader: his own drawings do what the clause forbids. Three of the boxes the reader reads as HIS pair, to
-    the cent, open with the trend — after a rise on the low, after a decline on the high — so a reader that
-    refused such an opening would lose his own boxes (the core's blind check, Sun 27/09/2026)."""
+def _a_swings_end(values, bar: int, last: int, top: bool) -> bool:
+    """His "the High point of a previous swing" (Mon 28/09/2026), by bars alone: a bar's high is the end of a swing
+    up when the bar on neither side beats it (the mirror for a low). A bar after the read day is not read."""
+    sign = 1.0 if top else -1.0
+    if bar > 0 and sign * values[bar - 1] > sign * values[bar]:
+        return False
+    return not (bar + 1 <= last and sign * values[bar + 1] > sign * values[bar])
+
+
+def _came_from_beyond(row, first_bar: int, opens_on_resistance: bool, R: float, S: float, days: int = 10) -> bool:
+    """The swing before the box ran INTO its first line: within ``days`` trading days before a box that opens
+    on its resistance the price was under its support (above its resistance, for one that opens on support)."""
+    before = slice(max(0, first_bar - days), first_bar)
+    if opens_on_resistance:
+        return bool(row["prepared"]["Low"].to_numpy(dtype=float)[before].min() < S)
+    return bool(row["prepared"]["High"].to_numpy(dtype=float)[before].max() > R)
+
+
+#: His two support anchors that are no swing's end by the bar on either side, and why (his drawings, to the cent).
+_HIS_SUPPORT_NOT_AN_END = {
+    "MSGS:2026-05-22": "his support is the climax bar's own low: the bar gapped up, the day before is far under it",
+    "PKE:2026-04-07": "the first of two lows ten cents apart: 26.30 on Fri 06/03/2026, 26.20 the day after",
+}
+
+
+def test_his_own_35_drawings_keep_his_rule_of_the_end_points(his_reads):
+    """His ruling of Mon 28/09/2026, measured on his own drawings by bars alone, no reader in the way: each of
+    his lines sits on a swing's end (all 35 resistance anchors; every support anchor but the two named), and
+    every one of his boxes opens on the END of the swing before it, the other line on the counter move — 31 on
+    resistance after a rise, 4 on support after a fall. Task 10 recorded his rule as refuted by 13 of these
+    drawings; that was the reader's own label of the trend, not his drawings (the test below)."""
+    opens_on_support = []
+    for row in his_reads:
+        setup, days = row["setup"], row["days"]
+        highs = row["prepared"]["High"].to_numpy(dtype=float)
+        lows = row["prepared"]["Low"].to_numpy(dtype=float)
+        R, S = float(setup["rails_drawn"]["R"]), float(setup["rails_drawn"]["S"])
+        r_bar = days.index(dt.date.fromisoformat(setup["anchors"]["R"]))
+        s_bar = days.index(dt.date.fromisoformat(setup["anchors"]["S"]))
+        assert abs(highs[r_bar] - R) < 0.005 and abs(lows[s_bar] - S) < 0.005, f"{row['key']}: not a bar's own end"
+        assert _a_swings_end(highs, r_bar, len(days) - 1, top=True), f"{row['key']}: his resistance"
+        assert _a_swings_end(lows, s_bar, len(days) - 1, top=False) == (row["key"] not in _HIS_SUPPORT_NOT_AN_END), \
+            f"{row['key']}: his support"
+        assert _came_from_beyond(row, min(r_bar, s_bar), r_bar <= s_bar, R, S), \
+            f"{row['key']}: the swing before his box did not run into his first line"
+        if s_bar < r_bar:
+            opens_on_support.append(row["key"])
+    assert opens_on_support == ["ALB:2026-04-13", "AVT:2026-04-08", "JAZZ:2026-02-24", "SKYT:2026-04-13"]
+
+
+def test_the_readers_label_of_the_trend_is_not_the_swing_before_his_box(his_reads):
+    """What task 10 measured when it called his rule ("we cannot start the anchor in the same direction the price
+    is going", Mon 14/09/2026) refuted by his own drawings: the READER's label. The label names the run of the
+    far view a walk started from, and that run can end weeks before the box: AVT's and JAZZ's boxes open on
+    support at the end of a FALL (the test above), and the reader, which walked to them from the top that fall
+    began on, labels them "after a rise". The label is pinned as it is until stages 2 and 3 are rebuilt on his
+    rule of Mon 28/09/2026; it refutes nothing of his."""
     for key in ("AVT:2026-04-08", "JAZZ:2026-02-24", "NGL:2026-04-20"):
         row = next(r for r in his_reads if r["key"] == key)
         box, rails = row["result"].winner, row["setup"]["rails_drawn"]
         assert (round(box.R, 2), round(box.S, 2)) == (round(rails["R"], 2), round(rails["S"], 2)), key
-        assert not box.opens_against_the_trend, f"{key}: his own box opens with the trend"
+        assert not box.opens_against_the_trend, f"{key}: the reader's label"
+        assert _came_from_beyond(row, min(box.r_bar, box.s_bar), box.r_bar <= box.s_bar, box.R, box.S), \
+            f"{key}: by the bars his box opens on the end of the swing before it"
     with_the_trend = sorted(r["key"] for r in his_reads if not r["result"].winner.opens_against_the_trend)
     assert len(with_the_trend) == 9, with_the_trend
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "his ruling of Mon 28/09/2026, \"we only start to anchor from the end point of previous swings\": on 17 of his "
+    "35 a line of the reader's box sits on a bar that is no swing's end (its resistance on 6, its support on 15), "
+    "PBT's support among them. The walk lets a foot land on a turn the line made out of one wide bar's own high "
+    "and low inside a move still running. Stages 2 and 3 are rebuilt on his rule next"))
+def test_every_line_of_the_readers_box_sits_on_a_swings_end_on_his_35(his_reads):
+    """His rule on the reader's own boxes, on his last receding day: resistance on the high point of a swing,
+    support on the low point of one."""
+    not_an_end = []
+    for row in his_reads:
+        box = row["result"].winner
+        highs = row["prepared"]["High"].to_numpy(dtype=float)
+        lows = row["prepared"]["Low"].to_numpy(dtype=float)
+        if not (_a_swings_end(highs, box.r_bar, row["last_bar"], top=True)
+                and _a_swings_end(lows, box.s_bar, row["last_bar"], top=False)):
+            not_an_end.append(row["key"])
+    assert not not_an_end, f"{len(not_an_end)} of 35: {', '.join(not_an_end)}"
 
 
 def test_every_line_of_every_box_sits_on_a_bars_own_extreme_on_his_35(his_reads):
     """The shape of the result, not a rule: an anchor is a turn the price made, resistance a bar's own high and
     support a bar's own low. It holds by construction (a foot is a turn of the line, and a peak's price is its
     bar's high), so no rule can be taken away to make it fail; it guards only against a line's price ever being
-    taken from somewhere else. The plan's openings clause is the test above."""
+    taken from somewhere else. His rule of the end points is the three tests above."""
     from engine_alpha.two_eyes import frame as frame_module
 
     for row in his_reads:
