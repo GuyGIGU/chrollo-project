@@ -26,7 +26,12 @@ His words that these pin:
   and the red swing I marked is the AR that became the root swing for that box's trading range, your Pick came
   from the middle of a swing in the direction of the trend with out there being a counter move to begin with".
   The walk below is NOT yet built on it: his rule is pinned here first, from his own marked bars, the tests the
-  reader fails today marked as expected failures, strictly.
+  reader fails today marked as expected failures, strictly;
+* the rule read back to him (Tue 29/09/2026): a line is "the Resistance/support line aka the rail"; "Root swing
+  anchoring (Line placing) is based on end of swings in general"; that a swing the price went on well past had
+  not ended: "Correct I think?"; and "perhaps you can check all of the calibrated Setups and maybe see what I
+  chose and maybe analyze why?" — what his 35 drawings say of the root swing is measured by bars alone and
+  pinned below.
 """
 from __future__ import annotations
 from _paths import REPO_ROOT
@@ -801,6 +806,63 @@ def test_his_own_35_drawings_keep_his_rule_of_the_end_points(his_reads):
         if s_bar < r_bar:
             opens_on_support.append(row["key"])
     assert opens_on_support == ["ALB:2026-04-13", "AVT:2026-04-08", "JAZZ:2026-02-24", "SKYT:2026-04-13"]
+
+
+#: His one root swing that took longer than four trading days, in trading days: ROIV's support is the second low
+#: after his top ("one line can stay on its anchor while the other moves", Sun 20/09/2026).
+_HIS_SLOW_COUNTER_MOVE = {"ROIV:2026-06-17": 7}
+
+
+def _first_bar(values, line: float, area: float, start: int, stop: int, how: str):
+    """The first bar from ``start`` to ``stop`` whose high (low) is ``how`` against a line: "near" within the
+    line's area on either side, "over" beyond the area upward, "under" beyond it downward. None when none is."""
+    for bar in range(start, stop + 1):
+        gap = float(values[bar]) - line
+        if (how == "near" and abs(gap) <= area) or (how == "over" and gap > area) or (how == "under" and gap < -area):
+            return bar
+    return None
+
+
+def test_his_own_35_drawings_say_how_the_root_swing_behaves(his_reads):
+    """What his 35 drawings say of the root swing and of the days after it, by bars alone, no reader in the way
+    (measured Tue 29/09/2026 for the paper rule of the pair, on his words "check all of the calibrated Setups and
+    maybe see what I chose"). The counter move is quick and at least a daily range tall: its end is within four
+    trading days of the first anchor on every drawing but the one named. The bars come back to BOTH his lines
+    (a bar's high within the area of his resistance, a bar's low within the area of his support) before the price
+    goes on past his FIRST line: on 35 of 35. In the box's first fifteen days the price is never an upthrust's
+    distance over his resistance, whichever line the box opened on, while it dips more than a full range under
+    his support on ten of them and he kept the line: resistance is the strict line, support the forgiving one."""
+    from engine_alpha.two_eyes import method_numbers as M
+
+    slow, deep = {}, []
+    for row in his_reads:
+        setup, days, key = row["setup"], row["days"], row["key"]
+        highs = row["prepared"]["High"].to_numpy(dtype=float)
+        lows = row["prepared"]["Low"].to_numpy(dtype=float)
+        R, S = float(setup["rails_drawn"]["R"]), float(setup["rails_drawn"]["S"])
+        r_bar = days.index(dt.date.fromisoformat(setup["anchors"]["R"]))
+        s_bar = days.index(dt.date.fromisoformat(setup["anchors"]["S"]))
+        first, second, last = min(r_bar, s_bar), max(r_bar, s_bar), len(days) - 1
+        unit = float(row["ranges"][second])
+        area = float(M.LINE_WORD_AREA_ATR) * unit
+        if second - first > 4:
+            slow[key] = second - first
+        assert float(M.BOX_MIN_HEIGHT_RANGES) <= (R - S) / unit <= 3.5, f"{key}: {(R - S) / unit:.2f} ranges tall"
+        r_back = _first_bar(highs, R, area, second + 1, last, "near")
+        s_back = _first_bar(lows, S, area, second + 1, last, "near")
+        assert r_back is not None and s_back is not None, f"{key}: the bars never came back to both his lines"
+        past = (_first_bar(highs, R, area, second + 1, last, "over") if r_bar <= s_bar else
+                _first_bar(lows, S, area, second + 1, last, "under"))
+        assert past is None or max(r_back, s_back) <= past, \
+            f"{key}: the price went on past his first line before the bars were back on both lines"
+        young = slice(second + 1, first + int(M.BOX_DAYS))
+        over = (float(highs[young].max()) - R) / unit
+        assert over < float(M.LINE_WORD_UPTHRUST_MIN_POKE_ATR), \
+            f"{key}: {over:.2f} ranges over his resistance in the box's first fifteen days"
+        if (S - float(lows[young].min())) / unit > 1.0:
+            deep.append(key)
+    assert slow == _HIS_SLOW_COUNTER_MOVE
+    assert len(deep) == 10, deep
 
 
 def test_the_readers_label_of_the_trend_is_not_the_swing_before_his_box(his_reads):
