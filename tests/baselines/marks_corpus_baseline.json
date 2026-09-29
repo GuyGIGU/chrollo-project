@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-09-20T16:05:30+00:00",
+  "captured_at": "2026-09-29T19:17:17+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "15cff41edf5e4bfd2e181a091145a92b609890d97a218d67ca3c4aaa0c98d176",
+  "corpus_sha256": "1bec506916a7a40a66d011448d03922d810e45b30af6bc77b7d82edfd7a0df7b",
   "population": "guided-list",
-  "marks_fingerprint": "ee9ec8844163ef5134d265941e39e1015d05555e4cfada273e9be18af74d04be",
+  "marks_fingerprint": "22d648c21ca3da6f19ffa939e8455c13c0f500346ec9eeadf9359062acbfee59",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "94a9f7a97c49c694457994e69c1acfcd8f1103b6829bcf6e0e66e81b39ec722c",
+  "engine_config_version": "6f8e139814acb846ffaa2455dc877d881ae44328943051acb0b2c0d43dd272ea",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -16,7 +16,7 @@
       "key": "ALB:2026-04-13",
       "ticker": "ALB",
       "status": "hit",
-      "setup_digest": "df11b1dc2bbeb603abf5dbdf88cc78c6a19d0cb486a71a7cb19dbb76c0089e8a",
+      "setup_digest": "91f3fe43c3396790531159277866f3f2d3c79b9320f3b1d5ff715dd0652667a9",
       "windows": [
         [
           "2026-03-30",
@@ -106,6 +106,22 @@
       "spy_6m_return": 0.0,
       "bars": 616,
       "first_fire": "2026-03-30",
+      "tier": "S"
+    },
+    {
+      "key": "DRTS:2026-04-15",
+      "ticker": "DRTS",
+      "status": "hit",
+      "setup_digest": "036e6911b83526bd71191f0a0d9b6bb6745b1ed23b226fb67f819f43509b3dbc",
+      "windows": [
+        [
+          "2026-04-01",
+          "2026-04-15"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-04-10",
       "tier": "S"
     },
     {
@@ -265,6 +281,22 @@
       "bars": 619,
       "first_fire": "2026-05-21",
       "tier": "A"
+    },
+    {
+      "key": "MTLS:2026-09-04",
+      "ticker": "MTLS",
+      "status": "hit",
+      "setup_digest": "7abfef21aeea29de307bee12ff373e7f31b60e779756d66d667bdf4cf5160764",
+      "windows": [
+        [
+          "2026-08-24",
+          "2026-09-04"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 620,
+      "first_fire": "2026-09-03",
+      "tier": "S"
     },
     {
       "key": "NGL:2026-01-20",

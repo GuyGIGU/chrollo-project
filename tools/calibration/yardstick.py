@@ -474,7 +474,7 @@ def _pct(hit: int, total: int) -> str:
 
 def format_board(arms: list, junk: dict, junk_total: int) -> str:
     """The board he reads: the strict headline first, everything else beside it."""
-    out = ["", "THE YARDSTICK — his 35 drawings, each reader drawing its own lines, "
+    out = ["", "THE YARDSTICK — his drawings, each reader drawing its own lines, "
            + dt.date.today().strftime("%A %d/%m/%Y"), ""]
     head = (f"{'':<34}" + "".join(f"{a['arm']:>14}" for a in arms))
     out += [head, "-" * len(head)]

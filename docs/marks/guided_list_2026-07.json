@@ -1,12 +1,12 @@
 {
-  "_about": "The Guided List \u2014 the operator's curated engine-test standard (35 setups / 34 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
+  "_about": "The Guided List \u2014 the operator's curated engine-test standard (37 setups / 36 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
   "_provenance": {
     "population": "guided-list",
-    "marks_fingerprint": "ee9ec8844163ef5134d265941e39e1015d05555e4cfada273e9be18af74d04be",
-    "engine_config_version": "94a9f7a97c49c694457994e69c1acfcd8f1103b6829bcf6e0e66e81b39ec722c",
+    "marks_fingerprint": "22d648c21ca3da6f19ffa939e8455c13c0f500346ec9eeadf9359062acbfee59",
+    "engine_config_version": "6f8e139814acb846ffaa2455dc877d881ae44328943051acb0b2c0d43dd272ea",
     "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-    "exported_at": "2026-09-20T16:03:28+00:00",
-    "n_setups": 35
+    "exported_at": "2026-09-29T19:14:50+00:00",
+    "n_setups": 37
   },
   "setups": [
     {
@@ -16,24 +16,28 @@
       "as_of": "2026-04-13",
       "frame_digest": "935a059e479eab5ee021b8b62c5a909ae588e242a412f2a532527d52caf71c1e",
       "box": [
-        "2026-03-03",
+        "2026-01-15",
         "2026-04-13"
       ],
       "anchors": {
-        "R": "2026-03-04",
-        "S": "2026-03-03"
+        "R": "2026-01-15",
+        "S": "2026-01-20"
       },
-      "first_rail": "support",
+      "first_rail": "resistance",
       "lps": [
-        "2026-04-08",
-        "2026-04-10"
+        "2026-04-01",
+        "2026-04-07"
       ],
       "trigger": "2026-04-13",
       "trigger_price": 178.79,
       "rails_drawn": {
-        "R": 173.0,
-        "S": 157.27000427246094
-      }
+        "R": 179.10000610351562,
+        "S": 160.02000427246094
+      },
+      "lps2": [
+        "2026-04-09",
+        "2026-04-10"
+      ]
     },
     {
       "ticker": "ANRO",
@@ -163,6 +167,32 @@
       "rails_drawn": {
         "R": 28.56999969482422,
         "S": 27.0
+      }
+    },
+    {
+      "ticker": "DRTS",
+      "setup": "2026-04-15",
+      "source": "operator",
+      "as_of": "2026-04-15",
+      "frame_digest": "eca057e0032e19ae4dadb29fe1f48e73c56bf8eca7098bb016ebcc0743220c61",
+      "box": [
+        "2026-01-29",
+        "2026-04-15"
+      ],
+      "anchors": {
+        "R": "2026-01-29",
+        "S": "2026-01-29"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-04-08",
+        "2026-04-10"
+      ],
+      "trigger": "2026-04-13",
+      "trigger_price": 7.38,
+      "rails_drawn": {
+        "R": 7.775000095367432,
+        "S": 6.75
       }
     },
     {
@@ -443,6 +473,32 @@
           "2026-04-15",
           "2026-05-13"
         ]
+      }
+    },
+    {
+      "ticker": "MTLS",
+      "setup": "2026-09-04",
+      "source": "operator",
+      "as_of": "2026-09-04",
+      "frame_digest": "f5bd0d142f591769acd5da2c1d29525bdbefa3911e8f9e839c5ac88a7007847b",
+      "box": [
+        "2026-06-09",
+        "2026-09-04"
+      ],
+      "anchors": {
+        "R": "2026-06-09",
+        "S": "2026-06-09"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-08-31",
+        "2026-09-03"
+      ],
+      "trigger": "2026-09-04",
+      "trigger_price": 7.14,
+      "rails_drawn": {
+        "R": 6.829999923706055,
+        "S": 6.389999866485596
       }
     },
     {

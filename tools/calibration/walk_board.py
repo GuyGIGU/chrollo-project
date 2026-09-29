@@ -216,7 +216,7 @@ def _difference(row: dict) -> str:
 
 
 def format_board(rows: list) -> str:
-    out = ["THE WALK ON HIS 35 — the box the reader shows on his last receding day (far floor "
+    out = [f"THE WALK ON HIS {len(rows)} — the box the reader shows on his last receding day (far floor "
            f"{M.FAR_VIEW_FLOOR_RANGES} ranges, area {M.LINE_WORD_AREA_ATR} range, {M.BOX_DAYS} days, tall floor "
            f"{M.BOX_MIN_HEIGHT_RANGES} range)", ""]
     for name, key in (("THE READER'S BOX", "verdict"), ("FROM THE ONE TREND END INTO HIS BOX ALONE", "one_verdict")):
@@ -435,7 +435,7 @@ def write_contact_sheet(rows: list, pages: list, out_dir: str) -> str:
              f'<figcaption><b>{row["key"]}</b> — {row["verdict"]} · from the one trend end alone: '
              f'{row["one_verdict"]}</figcaption></figure>' for row, page in zip(misses_first(rows), pages)]
     html = f"""<!doctype html><meta charset="utf-8">
-<title>The walk on his 35</title>
+<title>The walk on his drawings</title>
 <style>
  body{{font:14px/1.5 system-ui,sans-serif;margin:24px;background:#faf9f7;color:#222}}
  h1{{font-size:20px}}
@@ -444,7 +444,7 @@ def write_contact_sheet(rows: list, pages: list, out_dir: str) -> str:
  figure.miss{{border-color:#d62728}} figure.chance{{border-color:#e8a33d}} figure.hit{{border-color:#2e8b57}}
  img{{width:100%;height:auto}} figcaption{{padding-top:6px;font-size:13px}}
 </style>
-<h1>The walk on his 35 — the box the reader shows on his last receding day</h1>
+<h1>The walk on his drawings — the box the reader shows on his last receding day</h1>
 <p>OHLC bars. Red: his two lines, their areas, his anchors (circles), his box (shaded), his last receding days
  (brown). Grey: the reader's line as of his last receding day. Blue dashed: the reader's box, from its anchors
  (circles) to the right; blue dotted: the day it became a box; the blue wedge is the trend end it walked from.

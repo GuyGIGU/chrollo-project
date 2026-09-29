@@ -133,17 +133,23 @@ default as ours.
    (the climax of the previous trend) or the low point where a fall did, and the other line
    on the end of the counter move that came off it; that counter move is the root swing, and
    the two lines are its two ends. A line never sits inside a swing that is still running, and
-   the root swing is never a move in the direction of the trend. His own 35 drawings keep
-   it: every one opens on the end of the swing before it, 31 on resistance after a rise, 4
-   on support after a fall, and on 29 of them his two lines are the two ends of one swing
-   (on the others his support is the first low of a shelf, or the climax bar's own low, or
-   his resistance one of three equal highs). The reader as built does NOT keep it yet: its feet may land on a
-   turn made of one wide bar's own high and low inside a running move, and on 17 of his 35 a
-   line of its box is no swing's end. The record of Sat 26/09/2026 that his own drawings
-   refute the rule on 13 of 35 measured the reader's label of the trend, not his drawings,
-   and is withdrawn; what stands of it is that on 4 of his 35 the price poked past his first
-   line inside the box's first fifteen days and came back. The walk is rebuilt on his rule
-   once it is settled on paper with him (the stop rule).
+   the root swing is never a move in the direction of the trend. His own drawings keep it
+   (37 of them on Tue 29/09/2026; the standard follows what he draws): every one opens on
+   the end of the swing before it, 34 on resistance after a rise, 3 on support after a
+   fall, and on 29 of them his two lines are the two ends of one swing (on the others his
+   support is the first low of a shelf, or the climax bar's own low, or his resistance one
+   of near-equal highs). The anchor is not always the climax itself: on 11 of the 37 it is a
+   swing later (*"said root swing can either be them, or a swing later"*, Sat 19/09/2026),
+   and on 4 both lines are one wide bar's own high and low. The reader as built does NOT
+   keep the rule yet: its feet may land on a turn made of one wide bar's own high and low
+   inside a running move, and on 18 of his 37 a line of its box is no swing's end. The
+   record of Sat 26/09/2026 that his own drawings refute the rule on 13 of 35 measured the
+   reader's label of the trend, not his drawings, and is withdrawn. What his drawings do
+   show is that the price may go on past his first line soon after the box opens and come
+   back: within the first fifteen days by more than half a range on 7 of the 37, on two of
+   them (ALB, MTLS) by two daily ranges. That is his upthrust, and the box stands; a thrust
+   past a line never unmakes a pair by itself. The walk is rebuilt on his rule once it is
+   settled on paper with him (the stop rule).
 3. **Answered and alive.** A pair of lines is the box when the swings after it come back to
    BOTH lines and price has not left for good: *"were looking for the first instance that a
    consolidation is respected!"* (Sun 06/09/2026). A swing answers a line his way: its turn
@@ -234,7 +240,7 @@ default as ours.
    is the cross of it; a cross inside the pullback is a buy too. The day that crosses the
    trigger is the buy day and nothing is on the board that day; a day that crosses it and
    makes a lower low as well is a buy and the pullback goes on, its trigger now that day's
-   high (ours, read off his drawings: five of his 35 end on such a day, five were bought on
+   high (ours, read off his drawings: five of them end on such a day, six were bought on
    one). The pullback is measured by highs and lows; no close is read. A pullback is
    judged on what the line had made by the evening it ended, so its verdict is the same on
    whatever later day it is read: one refused that evening put no trigger on the board, and

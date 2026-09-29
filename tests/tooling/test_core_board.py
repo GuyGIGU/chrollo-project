@@ -76,7 +76,7 @@ def test_the_board_counts_what_the_rows_say_and_puts_the_misses_first(rows):
     assert [r["strict"] for r in core_board.misses_first(got)] == [False, False, False, True, True]
 
 
-def test_the_board_and_the_one_door_agree_on_every_one_of_his_35():
+def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
     """The board reads the reader and asks the universe door's own function itself, so it can draw the lines of
     a chart the door refuses. What it counts as a fire is what the one door returns, chart for chart, and the
     leg it names is the leg the door names."""
@@ -88,8 +88,9 @@ def test_the_board_and_the_one_door_agree_on_every_one_of_his_35():
     from core.calibration.replay import flag_capture, load_sealed_fixture
 
     frames, _ = load_sealed_fixture()
-    got = core_board.run_board(load_corpus(), frames)
-    assert len(got) == 35
+    drawings = load_corpus()
+    got = core_board.run_board(drawings, frames)
+    assert len(got) == len(drawings) >= 37    # the population follows his drawings (his ruling, Tue 08/09/2026)
     with flag_capture(TWO_EYES_READER_ENABLED=True):
         for row in got:
             watch, on_last = {}, row["on_last"]

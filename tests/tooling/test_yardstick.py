@@ -124,7 +124,7 @@ def _read(day: str, **over) -> dict:
     """One engine read of one chart on one day."""
     # `lps_end` is the day the ENGINE's own run of receding days ended. His
     # `trigger` is the day he would BUY — the next session. They are one day
-    # apart on all 35 of his drawings, so they are never compared directly.
+    # apart on every one of his drawings, so they are never compared directly.
     base = {"day": _d(day), "fired": True, "R": 100.0, "S": 90.0,
             "box_start": _d("2026-01-05"), "lps_end": _d("2026-03-06"),
             "trigger_price": 101.5, "stage": None, "seconds": 0.01}
@@ -192,7 +192,7 @@ def test_the_chance_column_shifts_his_day_and_his_trigger_with_it():
 def test_a_setup_with_no_buy_can_never_be_a_strict_hit():
     """A drawing with no buy marked can never be scored a hit.
 
-    All 35 carry a buy today — YPF got its on Sun 20/09/2026, mid-build — but
+    All of them carry a buy today — YPF got its on Sun 20/09/2026, mid-build — but
     "no buy marked" is a legal state of a drawing, and the day it comes back
     nothing may quietly count it.
     """
@@ -263,7 +263,7 @@ def test_an_opening_that_moves_when_the_chart_is_reread_is_reported():
 
 
 def test_a_refused_frame_is_not_reported_as_wrong_lines():
-    """On four of his 35 the universe door refuses his own last receding day,
+    """On four of his drawings the universe door refuses his own last receding day,
     so the engine never sees a chart. Calling that "it drew the wrong lines"
     puts four charts in the board's biggest bucket accused of something they
     were never given the chance to do."""
@@ -377,7 +377,7 @@ _HIS_LINES = {
     # ticker: (resistance, support, the day he anchored resistance)
     "VIK": (87.00, 79.28, "2026-04-21"),
     "SYRE": (35.31, 32.26, "2025-12-11"),
-    "ALB": (173.00, 157.27, "2026-03-04"),
+    "ALB": (179.10, 160.02, "2026-01-15"),
     "FOSL": (4.00, 3.61, "2025-12-26"),
     "MSGS": (345.46, 320.70, "2026-02-18"),
     "ROIV": (30.33, 27.12, "2026-03-11"),
@@ -385,11 +385,11 @@ _HIS_LINES = {
 
 
 def test_his_buy_is_the_day_after_his_last_receding_day_priced_off_it():
-    """The law the strict headline rests on, measured on all 35 of his marks.
+    """The law the strict headline rests on, measured on every one of his marks.
 
     His BUY day is the very next trading day after his last run of receding
     days, and his trigger price is exactly the HIGH of that last receding day
-    — 35 of 35, no exceptions. This is why his `trigger` field and the
+    — every one, no exceptions (37 of 37 on Tue 29/09/2026). This is why his `trigger` field and the
     engine's LPS end are never compared to each other: they are one session
     apart by construction, and comparing them scores every setup a miss.
 
@@ -417,7 +417,7 @@ def test_his_buy_is_the_day_after_his_last_receding_day_priced_off_it():
         assert abs(high - float(setup["trigger_price"])) < 0.005, (
             f"{setup_key(setup)}: his trigger price is not that day's high")
         checked += 1
-    assert checked == 35, f"checked {checked} drawings, expected all 35"
+    assert checked == len(setups) >= 37, f"checked {checked} drawings of {len(setups)}"
 
 
 #: The named charts, and the stage of the rewrite that has to turn each green.
@@ -433,8 +433,9 @@ def test_his_buy_is_the_day_after_his_last_receding_day_priced_off_it():
 _STAGE_OF = {
     "VIK": "stage 10 — the election: the day the pair became a box",
     "SYRE": "stage 10 — the election: the day the pair became a box",
-    "ALB": "stage 10 — the election order; he also blessed a second reading, "
-           "option 1, which he calls closer to how ALB is marked today",
+    "ALB": "stage 10 — the election order; he redrew it on Sun 20/09/2026 to the reading he "
+           "called option 1 (the climax of the rise and its reaction, the clean chop from "
+           "January kept); the shorter box he drew before is his option 2, acceptable",
     "FOSL": "stage 10 — the election order (one of the four it decides)",
     "MSGS": "stage 10 — the election order; he also blessed a shorter base "
             "that skips the dead space, so his marked box is not the only pass",

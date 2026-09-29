@@ -562,7 +562,7 @@ def _day(d) -> str:
 
 
 def format_board(rows: list, floors=FAR_FLOORS) -> str:
-    out = ["", "THE LISTING GATE — his 35 drawings on the new reader's line, "
+    out = ["", f"THE LISTING GATE — his {len(rows)} drawings on the new reader's line, "
            + dt.date.today().strftime("%A %d/%m/%Y"), ""]
     exact = lambda r: r["anchors"]["r_match"] == "exact" and r["anchors"]["s_match"] == "exact"
     his_line = lambda r: r["anchors"]["r_match"] in ("exact", "price") and r["anchors"]["s_match"] in ("exact", "price")

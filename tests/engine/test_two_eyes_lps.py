@@ -1,5 +1,5 @@
 """Stage 6 of the two-eyes reader (task 12a): the LPS and its trigger on the reader's own box — his words first,
-then the rule on hand-built bars, then his 37 drawn windows and the junk he named.
+then the rule on hand-built bars, then his drawn windows (40 on Tue 29/09/2026) and the junk he named.
 
 His words that these pin:
 
@@ -120,8 +120,8 @@ def test_a_day_with_a_higher_high_and_a_lower_low_inside_the_run_does_not_end_it
 
 
 def test_a_last_day_that_crosses_the_trigger_and_makes_a_lower_low_is_a_buy_and_the_pullback_goes_on():
-    """Five of his own 35 end on such a day (MATX, NTCT, PBT, ROIV, WTS): his trigger is that day's high. On five
-    more it is his buy day (DLX, RGR, SKYT, UNF, VIK): the cross was his buy."""
+    """Five of his own drawings end on such a day (MATX, NTCT, PBT, ROIV, WTS): his trigger is that day's high. On
+    six more it is his buy day (DLX, MTLS, RGR, SKYT, UNF, VIK): the cross was his buy."""
     from engine_alpha.two_eyes import lps
 
     rows = _QUIET + _RISE + [(100.6, 98.9), (100.9, 98.6)]
@@ -482,7 +482,7 @@ def test_sentence_one_is_read_on_the_run_and_not_on_the_trimmed_window():
 
 
 # --------------------------------------------------------------------------- #
-# His 37 drawn windows                                                        #
+# His drawn windows                                                           #
 # --------------------------------------------------------------------------- #
 def _date(value) -> dt.date:
     return dt.date.fromisoformat(str(value)[:10])
@@ -490,7 +490,7 @@ def _date(value) -> dt.date:
 
 @pytest.fixture(scope="module")
 def his_windows() -> list:
-    """Each of his 37 drawn windows, read on its own last day: the bars, the reader's line, HIS two lines in the
+    """Each of his drawn windows, read on its own last day: the bars, the reader's line, HIS two lines in the
     unit the reader measures a pair in (the range of its second anchor's day), and the reader's own read."""
     from engine_alpha import two_eyes
     from engine_alpha.two_eyes import frame as frame_module, line as line_module, lps
@@ -519,7 +519,7 @@ def his_windows() -> list:
                         "span": (_date(span[0]), _date(span[1])), "days": days, "high": high, "low": low,
                         "on_his_lines": on_his_lines, "raw": raw,
                         "read": two_eyes.read(setup["ticker"], cut)})
-    assert len(out) == 37
+    assert len(out) == 40      # 37 drawings, three of them with two windows (ALB, PBT, SYRE)
     return out
 
 
@@ -543,12 +543,12 @@ def test_on_his_last_receding_day_the_pullback_ends_that_day_at_his_trigger(his_
     assert tuple(seen) == _LAST_DAY_ADVANCES
 
 
-def test_none_of_his_37_windows_is_refused_by_any_of_his_four_sentences_on_his_own_lines(his_windows):
+def test_none_of_his_windows_is_refused_by_any_of_his_four_sentences_on_his_own_lines(his_windows):
     refused = {row["key"]: row["on_his_lines"].refused for row in his_windows if row["on_his_lines"].refused}
     assert refused == {}
 
 
-def test_the_window_opens_where_he_shades_it_on_most_of_his_37(his_windows):
+def test_the_window_opens_where_he_shades_it_on_most_of_his_windows(his_windows):
     """His shading starts on the top day (30 of 37 when he ruled it) or the day after ("Lets go with the day
     after"); the seven that differ carry a bounce day inside his drawing, which by his MRK answer is a buy."""
     his = [row for row in his_windows if row["key"] not in _LAST_DAY_ADVANCES]
@@ -571,9 +571,9 @@ def test_the_numbers_are_re_derived_from_his_marks_in_the_unit_the_reader_uses(h
     over = {row["key"]: round(row["on_his_lines"].over_resistance, 2) for row in his_windows
             if row["key"] not in _LAST_DAY_ADVANCES and row["on_his_lines"].over_resistance > 0}
     # The ruling's six (Thu 10/09/2026): WTS 0.12, VLO 0.27, NGL 0.29, VIK 0.33, UNF 0.45, ST 1.30 — to the cent in
-    # this unit. SILC's low sits on his resistance.
-    assert over == {"NGL:2026-04-20": 0.29, "SILC:2026-04-13": 0.01, "ST:2026-04-17": 1.30, "UNF:2026-07-10": 0.45,
-                    "VIK:2026-06-11": 0.33, "VLO:2026-07-08": 0.27, "WTS:2026-06-12": 0.12}
+    # this unit. SILC's low sits on his resistance. MTLS joined them when he drew it (Sun 27/09/2026).
+    assert over == {"MTLS:2026-09-04": 0.63, "NGL:2026-04-20": 0.29, "SILC:2026-04-13": 0.01, "ST:2026-04-17": 1.30,
+                    "UNF:2026-07-10": 0.45, "VIK:2026-06-11": 0.33, "VLO:2026-07-08": 0.27, "WTS:2026-06-12": 0.12}
     assert max(over.values()) < M.LPS_CEILING_RANGES < max(over.values()) + 0.1
     # His deepest pullback, top to low (R8's research, Tue 08/09/2026: min 0.80, median 1.23, max 2.43).
     deepest = max(p.depth for p in got)
@@ -611,12 +611,13 @@ def test_the_reader_fires_on_his_last_receding_day_at_his_trigger_on_its_own_box
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
     for key in _REFUSED_ON_THE_READERS_BOX:
         assert lps.OVER_RESISTANCE in silent[key], silent[key]
-    assert len(fired) == 33
+    assert len(fired) == 36       # of his 40 windows: all but the three refused on the reader's box, and YPF
 
 
 #: His buy days that made a lower low as well as crossing his trigger: the cross was his buy, and the pullback
 #: goes on with that day's high as its trigger.
-_BUY_DAY_RECEDES = ("DLX:2026-04-13", "RGR:2026-03-19", "SKYT:2026-04-13", "UNF:2026-07-10", "VIK:2026-06-11")
+_BUY_DAY_RECEDES = ("DLX:2026-04-13", "MTLS:2026-09-04", "RGR:2026-03-19", "SKYT:2026-04-13", "UNF:2026-07-10",
+                    "VIK:2026-06-11")
 
 
 def test_on_his_buy_day_the_read_says_crossed_and_shows_no_fire(his_windows):
@@ -638,7 +639,7 @@ def test_on_his_buy_day_the_read_says_crossed_and_shows_no_fire(his_windows):
             continue
         assert read.state == lps.CROSSED and read.fired is False and read.lps is None, f"{row['key']}: {read.state}"
         crossed.append(row["key"])
-    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 26
+    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 27
 
 
 # --------------------------------------------------------------------------- #
@@ -785,8 +786,8 @@ _THE_DOOR_REFUSES = {"JAZZ:2026-02-24": "sma50", "MDT:2026-07-24": "sma200", "NG
                      "SKYT:2026-04-13": "sma50"}
 
 
-def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_on_27_of_his_35(his_windows):
-    """The yardstick's headline for the new reader, pinned chart by chart: every one of his 35 either fires on his
+def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_or_is_named(his_windows):
+    """The yardstick's headline for the new reader, pinned chart by chart: every one of his drawings either fires on his
     last receding day at his trigger, or is named here with the reason it does not."""
     from engine_alpha import reader
     from core.calibration.replay import flag_capture
@@ -811,7 +812,7 @@ def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_on_27_of_hi
                 silent.append(row["key"])
     assert not_scanned == _THE_DOOR_REFUSES
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
-    assert len(fired) == 27 and len(fired) + len(silent) + len(not_scanned) == 35
+    assert len(fired) == 29 and len(fired) + len(silent) + len(not_scanned) == 37
 
 
 def test_the_universe_door_stands_before_the_read_and_a_refused_chart_is_not_scanned():
