@@ -1,9 +1,9 @@
 # Conventions archive — Chrollo Project
 
-NOT read by council runs — only conventions.md is. Made on 2026-09-29 by the consolidation in
-proposal.md. Every entry below is the ORIGINAL full text of that entry, unchanged, as it stood in
+NOT read by council runs — only conventions.md is. Made on 2026-09-29 by the consolidation commit
+"Trim the council memory file to under 25 KB". Every entry below is the ORIGINAL full text of that entry, unchanged, as it stood in
 conventions.md before the consolidation (LF line endings). conventions.md keeps each rule in short form
-under the same ID, and its Origin line points here (conventions-archive.md#<ID>). An ID shown as
+under the same ID, and its header links here (each entry has an anchor, #<ID>). An ID shown as
 "(merged from …)" in conventions.md was folded into the entry that names it; its own full text is
 still here under its old ID. Nothing here was retired: every rule below is still in force through
 conventions.md.
