@@ -703,23 +703,27 @@ def junk_fire_days() -> dict:
 #: The junk charts none of his four sentences and nothing in the box's rules keeps silent today. His words on them
 #: are about the box ("Extreme Width, Spread, Messy non tight structure"; on OHI "lps is fine though"), which his
 #: method grades (task 14) and never gates.
-_JUNK_THAT_FIRES = ("ABEV", "AEF", "BBVA@2026-06-05", "BMRN", "COLM", "DGII", "ENIC", "FLG", "FRPH", "KWR", "OHI",
-                    "RLGT", "SPCB")
+_JUNK_THAT_FIRES = ("ABEV", "AEF", "BBVA", "BBVA@2026-06-05", "BMRN", "COLM", "DGII", "ENIC", "FLG", "FRPH", "KWR",
+                    "OHI", "RLGT", "SPCB")
 
 
-def test_the_junk_charts_that_fire_and_the_three_that_stay_silent(junk_fire_days):
+def test_the_junk_charts_that_fire_and_the_two_that_stay_silent(junk_fire_days):
     firing = sorted(key for key, days in junk_fire_days.items() if days)
     assert firing == sorted(_JUNK_THAT_FIRES)
-    # BBVA by his ceiling and one receding day, DBD by his third sentence and the door, GOOD by the door. On the
-    # box of the rule he settled AEF fires on one day (the test above) and FRPH on two, its box now where the
-    # price trades; DBD, which fired before the rebuild, is silent.
-    assert sorted(set(junk_fire_days) - set(firing)) == ["BBVA", "DBD", "GOOD"]
+    # DBD by his third sentence and the door, GOOD by the door. On the box of the rule he settled AEF fires on one
+    # day (the test above); DBD, which fired before the rebuild, is silent. BBVA joined on Fri 02/10/2026: once a
+    # dip that comes back gives a box its place back, its box is the one over the dip (23.74 / 22.89) and three
+    # days of its window fire. He had set the junk charts aside the evening before ("idc about bodi, nor about
+    # other junk charts lets focus on Working intended examples").
+    assert sorted(set(junk_fire_days) - set(firing)) == ["DBD", "GOOD"]
     assert junk_fire_days["AEF"] == [dt.date(2026, 6, 3)]
+    assert junk_fire_days["BBVA"] == [dt.date(2026, 6, 18), dt.date(2026, 6, 24), dt.date(2026, 6, 26)]
 
 
 @pytest.mark.xfail(strict=True, reason=(
     "THE STOP RULE'S JUNK CLAUSE, not met at task 12a and not met on the rule of the pair he settled (Thu "
-    "01/10/2026): today's engine fires on 8 of the 16 junk charts, the new reader on 13 (12 before the rebuild). "
+    "01/10/2026): today's engine fires on 8 of the 16 junk charts, the new reader on 14 (13 before a dip that "
+    "comes back gave a box its place back, 12 before the rebuild). He set the junk charts aside on Thu 01/10/2026. "
     "The bar was fixed on Sun 20/09/2026 and is not moved here; his ruling at the core sitting, or the grade "
     "(task 14), owes it. The day this passes, this mark comes off deliberately."))
 def test_no_more_junk_charts_fire_than_under_todays_engine(junk_fire_days):

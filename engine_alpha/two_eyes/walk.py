@@ -42,11 +42,17 @@ His sentences, and where each lives:
    25/02/2026 its just that those pairs could be used to fit the box, even a later pair could work if that
    movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place where the trend ends"*.
 9. *Once a box, it stays a box through dips and pokes that come back* — a later pair inside or across the shown
-   box never takes its place (``left_for_good`` asks that it lie beyond).
+   box never takes its place (``left_for_good`` asks that it lie beyond). And a dip that comes back LATE: the
+   reader reads day by day, so when the price left the box downward for fifteen days it followed it to the lower
+   pair; the day the bars are back at both rails of the box it gave up, that box takes its place back
+   (``came_back_to``). His ROIV picture (Thu 01/10/2026: a red dash on each bar that meets one of his two lines,
+   none on the days under the support nor on the two days over the resistance) and his word on the boxes the
+   reader never went back to: *"go ahead with the five earlier boxes I think as long as the engine understand
+   that there is a setup there I'm happy"*.
 10. *The box gives way to a newer pair only when the price left it and did not come back: the bars now hang on
     the newer rails and no longer come back to the old ones* — ``left_for_good``, judged on every day from the
-    day the newer pair is a box: over the last fifteen trading days the bars did not come back to both rails
-    of the shown box.
+    day the newer pair is a box, both halves: over the last fifteen trading days the bars came back to both
+    rails of the newer pair, and not to both rails of the shown box.
 
 His earlier words that still place the rest: *"usually when a trend ends it reaches some sort of climax ->
 counter move -> consolidation ... so were looking for the first instance that a consolidation is respected!"*
@@ -64,8 +70,10 @@ alone (for a top, the lowest
 low since the price was last above it); the first foot of a trend end's walk (the first swing end of the climax's
 level in its run: a later poke does not move his line); the live-trend rule as a hand-over at the newer box's
 birth; "beyond" as resting on the shown rail's area or further; how long "no longer" is (his fifteen days); that
-a shown line never moves back to a pair that opened earlier; the unit of a pair (the range of its second
-anchor's day); the day a handed-over box's lines stop (the newer pair's opening).
+a shown line moves back only to the box it gave up, and only after a DIP (when the price left a box upward and a
+box above took its place, a fall back into the old box is the newer box's own dip: his ST, where the spring under
+his box is at both rails of the box under it); the unit of a pair (the range of its second anchor's day); the day
+a handed-over box's lines stop (the newer pair's opening).
 """
 from __future__ import annotations
 
@@ -78,10 +86,10 @@ from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes.record import NO_LINES, ROLE_EARLIER, ROLE_PARENT, Box, Line, Step
 from engine_alpha.two_eyes.runs import _cmp
 
-__all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "connects", "elect", "first_foot",
-           "inside_a_live_trend", "known_by", "left_for_good", "lives", "measure", "move_began", "pairs_from",
-           "rail_of", "record", "swing_ends", "trend_ends", "FIRST_BOX", "LEFT_FOR_GOOD", "LIVE_TREND",
-           "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
+__all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
+           "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lives", "measure", "move_began",
+           "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD",
+           "LIVE_TREND", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
 
 #: The screen's word for a chart with a box and no LPS yet (his ten-word table; the LPS is stage 6).
 LINES_NO_LPS = "lines, no LPS yet"
@@ -94,6 +102,7 @@ UNFIT_WHOLE_MOVE = "the counter move took back the whole move before it"
 FIRST_BOX = "the first pair to become a box"
 LIVE_TREND = "the box before it was anchored inside a live trend"
 LEFT_FOR_GOOD = "the price left the box before it and the bars no longer came back to both its rails"
+CAME_BACK = "the dip came back: the bars are back at both rails of the box it had given up"
 
 RESISTANCE, SUPPORT = "R", "S"
 _BOTH = frozenset((RESISTANCE, SUPPORT))
@@ -410,13 +419,25 @@ def inside_a_live_trend(shown: Pair, new: Pair, trends, day: int) -> Optional[di
     return found
 
 
+def _back_at_both(pair: Pair, high, low, first: int, days) -> np.ndarray:
+    """For each day of ``days``: over the last fifteen trading days, never before ``first``, a bar was back at
+    the pair's resistance and one at its support."""
+    last = int(days[-1])
+    on_r, on_s = _respects(high[first:last + 1], low[first:last + 1], pair.R, pair.S, pair.area)
+    at_r, at_s = np.concatenate(([0], np.cumsum(on_r))), np.concatenate(([0], np.cumsum(on_s)))
+    since = np.maximum(first, days - (int(M.BOX_DAYS) - 1))
+    return (at_r[days - first + 1] > at_r[since - first]) & (at_s[days - first + 1] > at_s[since - first])
+
+
 def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
     """His sentences 9 and 10, judged on every day: the newer box lies beyond the shown one — its support in or
     above the shown resistance's area, or its resistance in or below the shown support's area — and *"the bars
-    now hang on the newer rails and no longer come back to the old ones"*: over the last fifteen trading days,
-    never before the newer pair opened, the bars did not come back to both rails of the shown box. The first
-    such day from ``since`` on, never before the newer pair is a box; None when there is none by the read day.
-    A pair inside or across the shown box is its own leg, a poke, a dip or a mini, and never takes its place."""
+    now hang on the newer rails and no longer come back to the old ones"*, both halves: over the last fifteen
+    trading days, never before the newer pair opened, the bars came back to both rails of the newer pair and not
+    to both rails of the shown box. The first such day from ``since`` on, never before the newer pair is a box;
+    None when there is none by the read day. A pair inside or across the shown box is its own leg, a poke, a dip
+    or a mini, and never takes its place; nor does a pair the bars have left (his MTLS: the pair of the July run,
+    a box by the rule on a day the price was already back under it)."""
     if new.opening_bar <= shown.opening_bar:
         return None
     if not (new.S >= shown.R - shown.area or new.R <= shown.S + shown.area):
@@ -424,13 +445,25 @@ def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) 
     first, start = new.opening_bar, max(int(since), int(new.birth_bar))
     if start > read_bar:
         return None
-    on_r, on_s = _respects(high[first:read_bar + 1], low[first:read_bar + 1], shown.R, shown.S, shown.area)
-    at_r, at_s = np.concatenate(([0], np.cumsum(on_r))), np.concatenate(([0], np.cumsum(on_s)))
     days = np.arange(start, read_bar + 1)
-    since_bar = np.maximum(first, days - (int(M.BOX_DAYS) - 1))
-    both = (at_r[days - first + 1] > at_r[since_bar - first]) & (at_s[days - first + 1] > at_s[since_bar - first])
-    gone = np.flatnonzero(~both)
+    left = ~_back_at_both(shown, high, low, first, days)
+    if not left.any():
+        return None
+    gone = np.flatnonzero(left & _back_at_both(new, high, low, first, days))
     return int(days[gone[0]]) if len(gone) else None
+
+
+def came_back_to(old: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
+    """His sentence 9 for a dip that comes back late — *"Once a box, it stays a box through dips under support
+    ... that come back"*: the first day after ``since`` (the day the box was given up) on which the bars since
+    that day, and of the last fifteen trading days, have come back to both its rails. None when there is none by
+    the read day. A bar at a rail on or before ``since`` is not the price coming back."""
+    first = int(since) + 1
+    if first > read_bar:
+        return None
+    days = np.arange(first, read_bar + 1)
+    back = np.flatnonzero(_back_at_both(old, high, low, first, days))
+    return int(days[back[0]]) if len(back) else None
 
 
 def _key(pair: Pair) -> tuple:
@@ -443,15 +476,22 @@ def lives(pairs, trends, high, low, read_bar: int) -> tuple:
     """The box's life, read day by day on what each day knew. The first pair to become a box is shown. A pair
     that is a box takes its place when the shown pair was anchored inside a live trend (``inside_a_live_trend``:
     judged once that trend end is known) or on the first day the price has left it for good (``left_for_good``).
-    Every hand-over goes to a pair that opened later, so a shown line never moves back. Every box handed over
-    stays, with the day its lines stop; the last one stands."""
+    Each of those goes to a pair that opened later. One hand-over goes back: when the price had left a box
+    DOWNWARD and a lower pair took its place, the box takes its place back on the first day the bars are back at
+    both its rails (``came_back_to``) — a dip that came back. Every box handed over stays, with the day its lines
+    stop; the last one stands."""
     born = sorted((p for p in pairs if p.birth_bar is not None), key=_key)
     if not born:
         return ()
     out = []
-    shown, day, why, trend = born[0], int(born[0].birth_bar), FIRST_BOX, None
+    shown, day, why, trend, before = born[0], int(born[0].birth_bar), FIRST_BOX, None, None
     while True:
         best = None
+        if why == LEFT_FOR_GOOD and before is not None and shown.S < before.R - before.area:
+            # The shown pair lies under the box it took over from: the price had left that box downward.
+            back = came_back_to(before, high, low, day, read_bar)
+            if back is not None:
+                best = ((back, ()), before, CAME_BACK, None)    # the empty key: it comes before a pair of that day
         for pair in born:
             if best is not None and pair.birth_bar > best[0][0]:
                 break                   # born after the best day found: no later-born pair can come before it
@@ -476,6 +516,7 @@ def lives(pairs, trends, high, low, read_bar: int) -> tuple:
             return tuple(out)
         out.append(Life(shown, shown_bar=day, why=why, ended_bar=max(best[1].opening_bar, shown.second_bar),
                         trend_end=trend))
+        before = shown
         shown, day, why, trend = best[1], best[0][0], best[2], best[3]
 
 
@@ -560,6 +601,10 @@ def _hand_over_words(walk: Walk, life: Life, new: Life) -> str:
         what = "rise" if trend["kind"] == "BC" else "decline"
         why = (f"it was anchored inside a {what} that had not ended (its climax {trend['climax_price']:.2f} on "
                f"{_when(walk, trend['climax_bar'])}, known {_when(walk, trend['known_bar'])})")
+    elif new.why == CAME_BACK:
+        return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: the dip came back, the "
+                f"bars came back to both rails of the box before it, and {pair.R:.2f} / {pair.S:.2f} took its "
+                f"place again on {_when(walk, new.shown_bar)}")
     else:
         side = "above" if pair.S >= old.R - old.area else "below"
         why = f"the price left it {side} and the bars no longer came back to both its rails"

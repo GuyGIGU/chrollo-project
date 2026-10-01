@@ -8,7 +8,7 @@ Per drawing, on the reader's own line built on the frame cut at his day:
 * THE BOX the reader shows on his last receding day (`engine_alpha.two_eyes.walk.elect`): HIS (both lines to the
   cent), CLOSE (both within half a daily range of his), OTHER, or NONE — and why it is shown: the first pair to
   become a box, or a hand-over (the box before it was anchored inside a live trend; the price left the box
-  before it for good);
+  before it for good; a dip came back and the box took its place again);
 * the box's life: the box shown on his BUY day, and how many boxes the reader handed over before his day (kept
   in the record as earlier boxes);
 * HIS OWN PAIR read by the rule: whether it is a pair the rule lists (two swing ends a swing connects), whether
@@ -60,7 +60,7 @@ from core.calibration.replay import fixture_frame, load_sealed_fixture  # noqa: 
 NAMED = ("VIK", "SYRE", "ALB", "FOSL", "MSGS", "ROIV", "EWTX", "NGL", "VLO", "ST", "NOK")
 BUDGET_SECONDS = 0.2
 VERDICTS = ("HIS", "CLOSE", "OTHER", "NONE")
-WHYS = (walk.FIRST_BOX, walk.LIVE_TREND, walk.LEFT_FOR_GOOD)
+WHYS = (walk.FIRST_BOX, walk.LIVE_TREND, walk.LEFT_FOR_GOOD, walk.CAME_BACK)
 
 
 def _date(value) -> Optional[dt.date]:

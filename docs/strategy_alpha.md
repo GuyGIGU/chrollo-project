@@ -207,14 +207,29 @@ default as ours.
    (9) *Once a box, it stays a box through dips under support and pokes over resistance that
    come back* — *"correct"*. A dip or a poke that comes back is the box's own event, a
    spring or an upthrust, never an end; a pair inside or across the shown box is its own
-   leg, or a mini, and never takes its place.
+   leg, or a mini, and never takes its place. And a dip that comes back LATE: the reader
+   reads day by day, so when the price has been under the box for fifteen days it follows
+   it to the lower pair (sentence 10); on the first day the bars since then, and of the
+   last fifteen days, are back at both rails of the box it gave up, that box takes its
+   place back. His ROIV picture is this (Thu 01/10/2026: a red dash on each bar that meets
+   one of his two lines, none on the days under the support at the end of March), and his
+   word on the boxes the reader never went back to: *"go ahead with the five earlier boxes
+   I think as long as the engine understand that there is a setup there I'm happy"*. The
+   way back is for a dip only, and only to the box given up (ours): when the price left a
+   box upward and a box above took its place, a fall back into the old box is the newer
+   box's own dip (on his ST the spring under his box is at both rails of the box under it:
+   giving the place back there loses his box and silences the read on his day).
    (10) *The box gives way to a newer pair only when the price left it and did not come back:
    the bars now hang on the newer rails and no longer come back to the old ones* —
    *"correct"*. As built: the newer pair is a box by the rule and lies beyond the shown one
    — its support resting on the shown resistance's area or above it, or its resistance on
    the shown support's area or below — and over the last fifteen trading days, never
-   reaching back before the newer pair opened, the bars did not come back to both rails of
-   the shown box. It is judged on every day, not once: a breakout that failed keeps the box
+   reaching back before the newer pair opened, the bars came back to both rails of the
+   newer pair, and not to both rails of the shown box. Both halves of his sentence are
+   read: the box never gives way to rails the bars have left (on his MTLS the pair of the
+   July run became a box on a day the price was already back under it; the reader used to
+   hop to it, and from it to a pair under it). It is judged on every day, not once: a
+   breakout that failed keeps the box
    while the bars still come back to it, and the box gives way on the fifteenth day after
    they stopped. What "beyond" is and how long "no longer" is (his fifteen days) are ours.
    And his anchor rule: *"We can't start the anchor from the opposite direction of the trend
@@ -223,35 +238,39 @@ default as ours.
    opens on that rise's own end, once the far view says the rise ended there and that box
    is a box by the rule (the mirror for a fall; the form is ours). This is how the reader
    takes his other reading of ALB, the *"later pair"* after the run of 20/01 to 27/01/2026.
-   Every hand-over goes to a pair that opened later: a shown line never moves back to an
-   earlier pair (ours, and the open one: on his ROIV, as he redrew it on Thu 01/10/2026, the
-   bars came back to his resistance five weeks late; by then the reader had followed the dip
-   of late March to a lower box, and it stays on a pair inside his. His answer to sentence 7,
-   the base's eventual recovery, asks for the way back; the forms measured on his 37 each
-   read fewer of his boxes or traded one for another). His picture of ROIV, later the same
-   evening, shows what the reader lacks: a red dash on each bar that meets one of his two
-   lines, none on the days under the support at the end of March or the two days over the
-   resistance in May. The box is the pair the bars keep coming back to on both sides, visit
-   after visit, and an extreme the price never returns to is a dip or a poke, however far it
-   went (his ruling of Sat 25/07/2026 said the same of a rail: where several bar extremes
-   rest, the odd poke past it tolerated). The reader shows the first pair that got one
-   return on each side and from there only moves forward; choosing the box by the whole
-   base is not built. The box handed over stays in the record, its lines stopping where the
-   newer pair opens (ours).
+   But for that way back, every hand-over goes to a pair that opened later. A pair that
+   opened EARLIER does not take the shown box's place on the day it becomes a box (ours:
+   measured on his 37 on Thu 01/10/2026 in three forms, it put old wide pairs in the place
+   of his own box on EGBN, NTCT and ST, or moved DRTS to its first reaction low). His
+   picture of ROIV says more than the reader does: a red dash on each bar that meets one of
+   his two lines, none on the days under the support at the end of March or the two days
+   over the resistance in May. The box is the pair the bars keep coming back to on both
+   sides, visit after visit, and an extreme the price never returns to is a dip or a poke,
+   however far it went (his ruling of Sat 25/07/2026 said the same of a rail: where several
+   bar extremes rest, the odd poke past it tolerated). The reader shows the first pair that
+   got one return on each side; on ROIV that is the pair one swing before his (30.03 /
+   28.31, within half a daily range of his 30.33 / 27.92), and it now holds it through the
+   dip. Choosing the box by the whole base is not built: the patch rules and the counts of
+   what lies near a line that were measured are not his logic (the Tested-DEAD rows of
+   2026-10-01). His bar for a drawing the reader does not read to the cent, the same day:
+   the engine understands that there is a setup there. The box handed over stays in the
+   record, its lines stopping where the newer pair opens; a pair the reader left for the
+   box it had given up stays in the record too, its lines never running on (ours).
    The reader keeps no memory: what it records as handed over is what the day's own reading
    of its two-year window tells, and each hand-over is judged on what its own day knew, so
    a reader standing on any day tells the same history up to that day as one standing
    later. The window's left edge moves a day a night, and the OLDEST boxes of the record,
    those of the window's first months, can be told differently on a night with no hand-over
-   (measured Thu 01/10/2026 on his 37 and the 16 junk charts, forty nights each: on 137 of
+   (measured Fri 02/10/2026 on his 37 and the 16 junk charts, forty nights each: on 134 of
    2,120 nights; the last three earlier boxes were told the same on every one of them, and
-   the box SHOWN moved on 104 nights, each the night the read itself says the newer box took
-   its place). Until the earlier boxes are made independent of the window's edge the story
+   the box SHOWN moved on 88 nights, 6 of them a place given back, each the night the
+   read itself says so). Until the earlier boxes are made independent of the window's edge the story
    does not read them (ours).
-   Measured on his 37 on his last receding day (Thu 01/10/2026, the standard following his
+   Measured on his 37 on his last receding day (Fri 02/10/2026, the standard following his
    redrawn ROIV): the reader's box is his to the cent on 23, both lines within half a daily
-   range of his on 12, another box on 2 (the reader before the rebuild: 9, 15 and 13). No
-   close is read anywhere: a close-dated
+   range of his on 11, another box on 3 (BODI, MATX, MTLS; the reader before the rebuild: 9,
+   15 and 13), and the read fires on his day at his trigger on 32, the three with another
+   box among them. No close is read anywhere: a close-dated
    hand-over is Tested-DEAD. Until a new box is born the parent keeps its lines, and a
    pullback resting above resistance is the parent's own LPS. A range price left long ago is
    no candidate because the hand-over follows the price to the box where it trades (his
