@@ -228,8 +228,16 @@ default as ours.
    bars came back to his resistance five weeks late; by then the reader had followed the dip
    of late March to a lower box, and it stays on a pair inside his. His answer to sentence 7,
    the base's eventual recovery, asks for the way back; the forms measured on his 37 each
-   read fewer of his boxes or traded one for another). The box handed over stays in the
-   record, its lines stopping where the newer pair opens (ours).
+   read fewer of his boxes or traded one for another). His picture of ROIV, later the same
+   evening, shows what the reader lacks: a red dash on each bar that meets one of his two
+   lines, none on the days under the support at the end of March or the two days over the
+   resistance in May. The box is the pair the bars keep coming back to on both sides, visit
+   after visit, and an extreme the price never returns to is a dip or a poke, however far it
+   went (his ruling of Sat 25/07/2026 said the same of a rail: where several bar extremes
+   rest, the odd poke past it tolerated). The reader shows the first pair that got one
+   return on each side and from there only moves forward; choosing the box by the whole
+   base is not built. The box handed over stays in the record, its lines stopping where the
+   newer pair opens (ours).
    The reader keeps no memory: what it records as handed over is what the day's own reading
    of its two-year window tells, and each hand-over is judged on what its own day knew, so
    a reader standing on any day tells the same history up to that day as one standing
