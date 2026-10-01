@@ -33,13 +33,14 @@ _ROOT = str(REPO_ROOT)
 _CORPUS = os.path.join(_ROOT, "docs", "marks", "guided_list_2026-07.json")
 
 # The charts carrying a mini consolidation when the standard was last exported
-# (Sun 20/09/2026, 18:40 local). It is a written-down expectation, not a live
+# (Thu 01/10/2026, 20:35 local). It is a written-down expectation, not a live
 # read: if he draws or deletes a mini, this list moves in the SAME change as the
 # re-export, so a mini can never appear or vanish from the standard unremarked.
 # History: an earlier read reported five (it named ANRO, which carries none);
 # ST's mini was in the standard for one export and he deleted it the same
-# evening, together with ST's spring test.
-_MINI_CHARTS = {"DSGN", "MSGS", "ROIV"}
+# evening, together with ST's spring test. ROIV's went on Thu 01/10/2026, when
+# he redrew its box ("Sorry Roiv was wrong": support 27.92 for 27.12).
+_MINI_CHARTS = {"DSGN", "MSGS"}
 
 #: Removes a key, where None would SET it (a null trigger is a real value).
 _DROP = object()

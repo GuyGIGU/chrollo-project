@@ -2,10 +2,10 @@
   "_about": "The Guided List \u2014 the operator's curated engine-test standard (37 setups / 36 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
   "_provenance": {
     "population": "guided-list",
-    "marks_fingerprint": "22d648c21ca3da6f19ffa939e8455c13c0f500346ec9eeadf9359062acbfee59",
-    "engine_config_version": "6f8e139814acb846ffaa2455dc877d881ae44328943051acb0b2c0d43dd272ea",
+    "marks_fingerprint": "a3d0eeb00046de5b193a1494e8561aa4ab40050d44c6056a0209f578516775d1",
+    "engine_config_version": "eb47261ba142bed2c51464894ebb6861e97b2e294ce4fc00f6fa89bbe77ce0cb",
     "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-    "exported_at": "2026-09-29T19:14:50+00:00",
+    "exported_at": "2026-10-01T17:35:29+00:00",
     "n_setups": 37
   },
   "setups": [
@@ -747,11 +747,11 @@
       "frame_digest": "3e7a8f5a03572b35446ca5dc57b6bc1a1f9d3cdf03d27900e9990dabfadfe376",
       "box": [
         "2026-03-11",
-        "2026-06-17"
+        "2026-06-16"
       ],
       "anchors": {
         "R": "2026-03-11",
-        "S": "2026-03-20"
+        "S": "2026-03-13"
       },
       "first_rail": "resistance",
       "lps": [
@@ -762,17 +762,7 @@
       "trigger_price": 30.57,
       "rails_drawn": {
         "R": 30.329999923706055,
-        "S": 27.1200008392334
-      },
-      "mini": {
-        "band": {
-          "R": 29.799999237060547,
-          "S": 28.510000228881836
-        },
-        "span": [
-          "2026-05-12",
-          "2026-06-11"
-        ]
+        "S": 27.920000076293945
       }
     },
     {

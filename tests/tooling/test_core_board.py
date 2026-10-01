@@ -53,9 +53,10 @@ def test_a_drawing_is_scored_on_his_last_receding_day_and_the_silence_is_named(r
     ypf = rows["YPF:2026-05-18"]
     assert not ypf["strict"] and ypf["why"] == core_board.ADVANCES + ": the buy day"
     # SILC: on the box of tasks 10 and 11 his window was refused by sentence four (the reader's box sat far under
-    # his); on the box of the rule he settled it is within half a range of his and the read fires on his day.
+    # his); on the box of the rule he settled it is his to the cent — the bars resting on his support are respect
+    # (his word on the pictures, Thu 01/10/2026) — and the read fires on his day.
     silc = rows["SILC:2026-04-13"]
-    assert (silc["box"], silc["strict"], silc["why"]) == ("CLOSE", True, None)
+    assert (silc["box"], silc["strict"], silc["why"]) == ("HIS", True, None)
     assert silc["on_last"]["pullback"].refused == ()
     # His buy day made a lower low as well: the pullback goes on, and the board says so.
     assert rows["DLX:2026-04-13"]["strict"] and rows["DLX:2026-04-13"]["on_buy"]["read"].state == lps.FIRED
@@ -73,7 +74,7 @@ def test_the_board_counts_what_the_rows_say_and_puts_the_misses_first(rows):
     got = list(rows.values())
     board = core_board.format_board(got)
     assert "FIRES ON HIS DAY AT HIS TRIGGER: 3 of 5" in board
-    assert "THE BOX: HIS 3 · CLOSE 2 · OTHER 0 · NONE 0" in board
+    assert "THE BOX: HIS 4 · CLOSE 1 · OTHER 0 · NONE 0" in board
     assert "crossed, nothing on the board 2" in board and "the pullback goes on 1 (DLX:2026-04-13)" in board
     assert [r["strict"] for r in core_board.misses_first(got)] == [False, False, True, True, True]
 

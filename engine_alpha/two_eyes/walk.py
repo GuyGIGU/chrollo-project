@@ -29,7 +29,10 @@ His sentences, and where each lives:
    trend end on.
 6. *Come back*; his answer: *"if by "Come back" to be counted as respect to the respective rail that bar is
    closest too then yes"* — each end of a bar counts for the rail it is closest to, within the rail's area
-   (``rail_of``, ``bar_respects``).
+   (``rail_of``, ``bar_respects``). On the pictures (Thu 01/10/2026): *"Silc supposed to work due the much
+   respect of the support"* — bars RESTING on a rail respect it, they need not have left it first — and
+   *"why would DRTS move away as it almost perfectly respect both boundaries"* — a reaction low the bars
+   never return to is no respected rail (``came_back``).
 7. *A box on its fifteenth day, or later if the bars take longer*; his answer: *"we have to account for the bases
    eventual recovery ... looking at the base structure as whole rather and seeing that it fits rather then
    rejecting it out right"* — the birth is the later of both come-backs, the fifteenth day and the listing day,
@@ -54,8 +57,10 @@ anchor from the opposite direction of the trend if we are still inside that tren
 respecting support resistance or both is to look at their High and Low values ... whenever they are slightly
 poking out or not does not matter one bit"* (Sat 26/09/2026).
 
-Ours, recorded as ours in the decisions record (Thu 01/10/2026): that "back" means back — a rail is come back to
-by a bar that respects it after a bar that did not; the move before read by bars alone (for a top, the lowest
+Ours, recorded as ours in the decisions record (Thu 01/10/2026): the order of the two come-backs — the rail the
+pair opened on first, the other rail on that day or after, so the price has been at the other rail in between
+and the day after a reaction low, still resting on it, is no come-back by itself; the move before read by bars
+alone (for a top, the lowest
 low since the price was last above it); the first foot of a trend end's walk (the first swing end of the climax's
 level in its run: a later poke does not move his line); the live-trend rule as a hand-over at the newer box's
 birth; "beyond" as resting on the shown rail's area or further; how long "no longer" is (his fifteen days); that
@@ -131,25 +136,26 @@ def _respects(high, low, R: float, S: float, area: float) -> tuple:
     return out[0], out[1]
 
 
-def came_back(high, low, R: float, S: float, area: float, r_bar: int, s_bar: int, read_bar: int) -> tuple:
-    """The first bar that came BACK to each rail: later than both anchors, it respects the rail after a bar,
-    later than that rail's own anchor, that did not. ``(resistance, support)``, each a bar or None."""
-    first, second = min(r_bar, s_bar), max(r_bar, s_bar)
-    if first + 1 > read_bar:
+def came_back(high, low, R: float, S: float, area: float, r_bar: int, s_bar: int, read_bar: int,
+              top_first: bool) -> tuple:
+    """The first bar that came back to each rail, later than both anchors: ``(resistance, support)``, each a bar
+    or None. A bar comes back to a rail when it respects it — resting on it is respect, the price need not have
+    left it first (his SILC: the bars rest on support for weeks). The rail the pair opened on is come back to
+    first; the other rail by the first bar that respects it on that day or after: the price has been at the
+    other rail in between, so the day after a reaction low, still resting on it, is no come-back by itself
+    (his DRTS: the climax 7.89 and its reaction 6.23, a low the base never returned to)."""
+    second = max(r_bar, s_bar)
+    if second + 1 > read_bar:
         return None, None
-    span = slice(first + 1, read_bar + 1)
-    on_r, on_s = _respects(high[span], low[span], R, S, area)
-    out = []
-    for on, anchor in ((on_r, r_bar), (on_s, s_bar)):
-        left = np.flatnonzero(~on[anchor - first:])
-        found = None
-        if len(left):
-            start = max(anchor - first + int(left[0]) + 1, second - first)
-            back = np.flatnonzero(on[start:])
-            if len(back):
-                found = first + 1 + start + int(back[0])
-        out.append(found)
-    return out[0], out[1]
+    on_r, on_s = _respects(high[second + 1:read_bar + 1], low[second + 1:read_bar + 1], R, S, area)
+    lead, follow = (on_r, on_s) if top_first else (on_s, on_r)
+    first = np.flatnonzero(lead)
+    if not len(first):
+        return None, None
+    lead_back = second + 1 + int(first[0])
+    then = np.flatnonzero(follow[int(first[0]):])
+    follow_back = lead_back + int(then[0]) if len(then) else None
+    return (lead_back, follow_back) if top_first else (follow_back, lead_back)
 
 
 # --------------------------------------------------------------------------- #
@@ -329,7 +335,8 @@ def measure(high, low, ranges, first: End, second: End, joined: int, read_bar: i
     elif part is None:
         unfit = UNFIT_WHOLE_MOVE
     top_first, began = part if part is not None else (first.kind == "peak", move_began(high, low, first))
-    r_back, s_back = came_back(high, low, top.price, bottom.price, area, top.bar, bottom.bar, read_bar)
+    r_back, s_back = came_back(high, low, top.price, bottom.price, area, top.bar, bottom.bar, read_bar,
+                               bool(top_first))
     fifteenth = first.bar + int(M.BOX_DAYS) - 1
     birth = None
     if unfit is None and r_back is not None and s_back is not None:

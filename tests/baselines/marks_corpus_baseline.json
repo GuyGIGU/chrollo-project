@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-09-29T19:17:17+00:00",
+  "captured_at": "2026-10-01T17:39:04+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "1bec506916a7a40a66d011448d03922d810e45b30af6bc77b7d82edfd7a0df7b",
+  "corpus_sha256": "94296f1948989587e65b7c5c20f639e1208ba91e059bc7359d9e76d91fa73e0c",
   "population": "guided-list",
-  "marks_fingerprint": "22d648c21ca3da6f19ffa939e8455c13c0f500346ec9eeadf9359062acbfee59",
+  "marks_fingerprint": "a3d0eeb00046de5b193a1494e8561aa4ab40050d44c6056a0209f578516775d1",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "6f8e139814acb846ffaa2455dc877d881ae44328943051acb0b2c0d43dd272ea",
+  "engine_config_version": "eb47261ba142bed2c51464894ebb6861e97b2e294ce4fc00f6fa89bbe77ce0cb",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -445,7 +445,7 @@
       "key": "ROIV:2026-06-17",
       "ticker": "ROIV",
       "status": "hit",
-      "setup_digest": "7cfb5e091e2b17f873ccf3bf62cf9c16427c307b3dacb125b2e6b25543016046",
+      "setup_digest": "bc314c4272c17fb4a8b60c3461f44e1a682e0ace1c34c62f7eaa05ccd84a5abc",
       "windows": [
         [
           "2026-06-04",

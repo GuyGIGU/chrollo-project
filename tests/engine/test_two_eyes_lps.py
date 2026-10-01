@@ -703,16 +703,17 @@ def junk_fire_days() -> dict:
 #: The junk charts none of his four sentences and nothing in the box's rules keeps silent today. His words on them
 #: are about the box ("Extreme Width, Spread, Messy non tight structure"; on OHI "lps is fine though"), which his
 #: method grades (task 14) and never gates.
-_JUNK_THAT_FIRES = ("ABEV", "AEF", "BBVA", "BBVA@2026-06-05", "BMRN", "COLM", "DGII", "ENIC", "FLG", "KWR", "OHI",
+_JUNK_THAT_FIRES = ("ABEV", "AEF", "BBVA@2026-06-05", "BMRN", "COLM", "DGII", "ENIC", "FLG", "FRPH", "KWR", "OHI",
                     "RLGT", "SPCB")
 
 
 def test_the_junk_charts_that_fire_and_the_three_that_stay_silent(junk_fire_days):
     firing = sorted(key for key, days in junk_fire_days.items() if days)
     assert firing == sorted(_JUNK_THAT_FIRES)
-    # DBD by his third sentence and the door, FRPH by his ceiling, GOOD by the door. On the box of the rule he
-    # settled AEF fires on one day (the test above) and BBVA on two; DBD, which fired before, is silent.
-    assert sorted(set(junk_fire_days) - set(firing)) == ["DBD", "FRPH", "GOOD"]
+    # BBVA by his ceiling and one receding day, DBD by his third sentence and the door, GOOD by the door. On the
+    # box of the rule he settled AEF fires on one day (the test above) and FRPH on two, its box now where the
+    # price trades; DBD, which fired before the rebuild, is silent.
+    assert sorted(set(junk_fire_days) - set(firing)) == ["BBVA", "DBD", "GOOD"]
     assert junk_fire_days["AEF"] == [dt.date(2026, 6, 3)]
 
 

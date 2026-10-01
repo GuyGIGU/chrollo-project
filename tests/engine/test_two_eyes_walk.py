@@ -27,6 +27,11 @@ The rule is his, settled at the core sitting. On Wed 30/09/2026 it was typed out
 10. the box gives way to a newer pair only when the price left it and did not come back: the bars now hang on
     the newer rails and no longer come back to the old ones — "correct".
 
+On the pictures of the rebuilt reader (Thu 01/10/2026) he redrew ROIV ("Sorry Roiv was wrong": 30.33 / 27.92) and
+said of sentence 6: "Silc supposed to work due the much respect of the support" — bars resting on a rail respect
+it — and "why would DRTS move away as it almost perfectly respect both boundaries" — a reaction low the base never
+returns to is no respected rail.
+
 His earlier words these still pin: respect is read on a bar's High and Low, "whenever they are slightly poking out
 or not does not matter one bit" (Sat 26/09/2026); "were looking for the first instance that a consolidation is
 respected!" (Sun 06/09/2026); "Lets go with 15 days" (Sat 12/09/2026); "We can't start the anchor from the
@@ -405,24 +410,42 @@ def test_one_wide_bar_is_a_pair_read_in_whichever_order_makes_it_a_counter_move(
 # --------------------------------------------------------------------------- #
 # Sentences 6, 7 and 8: coming back, and the day the pair is a box            #
 # --------------------------------------------------------------------------- #
-def test_back_means_back_a_bar_comes_back_to_a_rail_after_a_bar_that_left_it():
+def test_the_bars_come_back_to_the_rail_the_pair_opened_on_and_then_to_the_other():
+    """Sentence 6 as he showed it on the pictures (Thu 01/10/2026). A bar comes back to a rail when it respects
+    it, and resting on it is respect: "Silc supposed to work due the much respect of the support". The rail the
+    pair opened on comes first; the other rail counts from that day on, so the price has been at the other rail in
+    between: a reaction low the base never returns to is no respected rail ("why would DRTS move away")."""
     from engine_alpha.two_eyes.walk import came_back
 
     #                  0      1      2      3      4      5      6
     high = np.array([100.0, 97.0, 93.0, 99.4, 97.0, 96.0, 101.2])
     low = np.array([98.0, 90.0, 90.5, 96.0, 94.0, 89.4, 99.3])
-    # Resistance 100 (bar 0), support 90 (bar 1), the area one point. Bar 2 rests on support the day after the
-    # low: the price has not left it, so it is no come-back. Bar 3's high is back at resistance: the price left
-    # it on bar 1. Bar 5's low, six tenths under support, is back at support: poking out counts.
-    assert came_back(high, low, 100.0, 90.0, 1.0, 0, 1, read_bar=6) == (3, 5)
+    # Resistance 100 (bar 0), support 90 (bar 1), the area one point, the pair opening on resistance. Bar 3's
+    # high is back at resistance. Bar 5's low, six tenths under support, is back at support: poking out counts.
+    # Bar 2 rests on support the day after the low — respect, but before the bars were back at resistance.
+    assert came_back(high, low, 100.0, 90.0, 1.0, 0, 1, 6, top_first=True) == (3, 5)
     # What the reader knows on an earlier day.
-    assert came_back(high, low, 100.0, 90.0, 1.0, 0, 1, read_bar=4) == (3, None)
-    assert came_back(high, low, 100.0, 90.0, 1.0, 0, 1, read_bar=2) == (None, None)
+    assert came_back(high, low, 100.0, 90.0, 1.0, 0, 1, 4, top_first=True) == (3, None)
+    assert came_back(high, low, 100.0, 90.0, 1.0, 0, 1, 2, top_first=True) == (None, None)
+    # His DRTS: the bars go back to resistance and never return to the reaction low. The day after the low,
+    # still resting on it, does not make the low a respected rail.
+    assert came_back(high[:5], low[:5], 100.0, 90.0, 1.0, 0, 1, 4, top_first=True) == (3, None)
+    # The same bars read as a pair that opened on SUPPORT: support comes first (bar 2, resting on it the day
+    # after), then resistance on that day or after (bar 3).
+    assert came_back(high, low, 100.0, 90.0, 1.0, 1, 0, 6, top_first=False) == (3, 2)
     # A come-back is later than BOTH anchors: with support anchored on bar 4 (94), bar 3 is no come-back to
     # resistance, and bar 6 — its low resting on resistance from above — is.
-    assert came_back(high, low, 100.0, 94.0, 1.0, 0, 4, read_bar=6) == (6, None)
+    assert came_back(high, low, 100.0, 94.0, 1.0, 0, 4, 6, top_first=True) == (6, None)
     # Nothing after the anchors: nothing came back.
-    assert came_back(high, low, 100.0, 99.3, 1.0, 0, 6, read_bar=6) == (None, None)
+    assert came_back(high, low, 100.0, 99.3, 1.0, 0, 6, 6, top_first=True) == (None, None)
+    # His SILC: a box barely over one daily range tall, where every bar sits within the area of support. The bars
+    # never LEAVE support, they rest on it; bar 3, whose high is back at resistance, rests on support too, and
+    # both rails are come back to that day.
+    #                 0     1     2     3     4
+    high = np.array([96.0, 95.2, 94.9, 95.6, 94.8])
+    low = np.array([95.0, 94.0, 94.2, 94.4, 94.1])
+    assert came_back(high, low, 96.0, 94.0, 1.0, 0, 1, 4, top_first=True) == (3, 3)
+    assert came_back(high, low, 96.0, 94.0, 1.0, 0, 1, 2, top_first=True) == (None, None)
 
 
 def test_a_pair_is_a_box_on_the_later_of_both_come_backs_its_fifteenth_day_and_its_listing_day():
@@ -440,8 +463,9 @@ def test_a_pair_is_a_box_on_the_later_of_both_come_backs_its_fifteenth_day_and_i
     # eventual recovery ... rather then rejecting it out right".
     late = _chart(_RISE + [(17, 71.6), (20, 70.5), (23, 71.8), (26, 70.4), (29, 79.6), (32, 71), (35, 79)])
     slow = _pair(_elect(late), 80.0, 70.0)
-    assert (slow.r_back, slow.s_back, slow.fifteenth, slow.birth_bar) == (29, 18, 25, 29)
-    assert _box(_elect(late, read_bar=28)) is None and _box(_elect(late, read_bar=29)) == (80.0, 70.0)
+    # ... and then back at support, on bar 32: resistance first, support on that day or after.
+    assert (slow.r_back, slow.s_back, slow.fifteenth, slow.birth_bar) == (29, 32, 25, 32)
+    assert _box(_elect(late, read_bar=31)) is None and _box(_elect(late, read_bar=32)) == (80.0, 70.0)
     # The listing day binds when the trend end before the pair is known late: with a far view that sees the
     # first decline end only on bar 27, nothing is listed before it and the pair is a box that day.
     known_late = _elect(chart, far_bars={0, 1, 2, 3, 26, 29, 32})
@@ -496,7 +520,7 @@ def test_the_first_pair_to_become_a_box_is_shown_and_a_pair_inside_or_across_it_
     pokes = _chart(_BOX_WITH_POKES)
     found = _elect(pokes)
     poke = _pair(found, 84.0, 72.0)
-    assert poke.birth_bar == 49 and poke.opening_bar > found.winner.opening_bar
+    assert poke.birth_bar == 50 and poke.opening_bar > found.winner.opening_bar
     assert walk.left_for_good(found.winner, poke, pokes["high"], pokes["low"], 0, pokes["n"] - 1) is None
     assert _shown_day_by_day(pokes) == [(80.0, 70.0, 25)]
 
@@ -527,12 +551,12 @@ def test_the_box_gives_way_only_when_the_price_left_it_and_the_bars_no_longer_co
     assert f"{_day(35):%a %d/%m/%Y}" in trail[0].saying and f"{_day(49):%a %d/%m/%Y}" in trail[0].saying
     # The same run and the same pair above — but the price crashed back to the box's support (bar 43) and its
     # resistance (bar 46) before the pair above was a box: a breakout that failed. The bars came back to both
-    # rails, so on the day the pair above is a box (bar 49) the box stands, however clean the pair above.
+    # rails, so on the day the pair above is a box (bar 52) the box stands, however clean the pair above.
     failed = _chart(_BREAKOUT_THAT_CAME_BACK)
     high, low, last = failed["high"], failed["low"], failed["n"] - 1
     box, above = _pair(_elect(failed), 80.0, 70.0), _pair(_elect(failed), 94.0, 88.0)
-    assert above.birth_bar == 49 and above.S >= box.R - box.area
-    assert _box(_elect(failed, read_bar=49)) == _box(_elect(failed, read_bar=57)) == (80.0, 70.0)
+    assert above.birth_bar == 52 and above.S >= box.R - box.area
+    assert _box(_elect(failed, read_bar=52)) == _box(_elect(failed, read_bar=57)) == (80.0, 70.0)
     assert walk.left_for_good(box, above, high, low, 0, 57) is None
     # Judged on every day, not once: the price went back up and for fifteen days the bars hung on the rails
     # above — the last bar at the old support is bar 43, and bar 58 is the fifteenth day after it. That day the
@@ -647,21 +671,21 @@ def test_a_shown_line_never_moves_back_read_day_by_day_with_no_memory():
 
 
 def test_an_earlier_pair_that_becomes_a_box_later_never_takes_the_shown_boxs_place():
-    """OURS, not his, and asked of him at the core sitting (Thu 01/10/2026): the shown line never moves back to a
-    pair that opened earlier. The climax and its reaction (80 / 70) is a box only on bar 40, when the bars at last
-    come back to its resistance; by then the reader has shown the pair to its right (76 / 70) for twelve days, and
-    it stays. Three ways of going back to the earlier pair were measured on his 37 drawings and each read fewer of
-    his boxes to the cent (13 to 19, against 20); on his ROIV this rule costs his box."""
+    """OURS, not his: the shown line never moves back to a pair that opened earlier. The climax and its reaction
+    (80 / 70) is a box only on bar 49, when the bars are at last back at its resistance (bar 40) and then at its
+    support; by then the reader has shown the pair to its right (76 / 70) for three weeks, and it stays. On his
+    ROIV, as he redrew it on Thu 01/10/2026, this rule costs his box; the ways of going back that were measured on
+    his 37 drawings each read fewer of his boxes, or traded one for another."""
     chart = _chart(_OUTER_PAIR_RESPECTED_LATE)
     found = _elect(chart)
     outer, shown = _pair(found, 80.0, 70.0), found.winner
-    assert (outer.opening_bar, outer.r_back, outer.s_back, outer.birth_bar, outer.unfit) == (11, 40, 20, 40, None)
+    assert (outer.opening_bar, outer.r_back, outer.s_back, outer.birth_bar, outer.unfit) == (11, 40, 49, 49, None)
     assert (shown.R, shown.S, shown.opening_bar, shown.top_first, shown.birth_bar) == (76.0, 70.0, 14, False, 28)
     assert len(found.lives) == 1
     assert _shown_day_by_day(chart) == [(76.0, 70.0, 28)]
     # The day before the outer pair is a box, and the day it is one: the same box shown.
-    assert _box(_elect(chart, read_bar=39)) == _box(_elect(chart, read_bar=40)) == (76.0, 70.0)
-    assert _pair(_elect(chart, read_bar=39), 80.0, 70.0).birth_bar is None
+    assert _box(_elect(chart, read_bar=48)) == _box(_elect(chart, read_bar=49)) == (76.0, 70.0)
+    assert _pair(_elect(chart, read_bar=48), 80.0, 70.0).birth_bar is None
 
 
 def test_the_record_carries_the_box_its_trail_and_the_state_and_keep_listing_adds_words_only():
@@ -799,13 +823,17 @@ def his_reads() -> list:
 #: failures, strictly, each with its reason, so the day one passes it is a red test and the pin moves.
 _NAMED = ("VIK:2026-06-11", "SYRE:2026-02-19", "EWTX:2026-03-31", "NGL:2026-04-20", "VLO:2026-07-08",
           "PBT:2026-05-11",
+          # His words on the pictures (Thu 01/10/2026): "Silc supposed to work due the much respect of the
+          # support". And ST, the plan's named chart, reads his box with it.
+          "SILC:2026-04-13", "ST:2026-04-17",
           pytest.param("ALB:2026-04-13", marks=pytest.mark.xfail(strict=True, reason=(
               "his box is the top of Thu 15/01/2026 and its reaction (179.10 / 160.02), his option 1. The reader "
               "shows it from Wed 04/02/2026 (on 179.14, the high of the day before his, four cents over) and, "
-              "from Wed 25/02/2026, the day the bars came back to the run's own top, the pair of that top: 195.69 "
-              "(Tue 27/01/2026) / 164.15. His word of Thu 01/10/2026: \"even a later pair could work if that "
-              "movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place where the trend "
-              "ends\""))),
+              "from Thu 26/02/2026, 182.80 (Thu 12/02/2026) / 156.04 (Thu 05/02/2026): the low of the crash that "
+              "followed the run to 195.69 and the top after it, the far view saying the fall ended on that low. "
+              "Both lines are within half a range of his. His word of Thu 01/10/2026: \"even a later pair could "
+              "work if that movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place where "
+              "the trend ends\""))),
           pytest.param("FOSL:2026-02-18", marks=pytest.mark.xfail(strict=True, reason=(
               "his box is one wide bar three weeks into the base (4.00 / 3.61, Fri 26/12/2025); the reader shows "
               "the pair of the top before it, 4.13 (Fri 05/12/2025) / 3.61 (Mon 08/12/2025), a box that same Fri "
@@ -816,9 +844,11 @@ _NAMED = ("VIK:2026-06-11", "SYRE:2026-02-19", "EWTX:2026-03-31", "NGL:2026-04-2
               "high, so it is no end of the move off the top, and his pair is not listed. The reader shows "
               "345.48 / 325.27, within half a range of his 345.46 / 320.70"))),
           pytest.param("ROIV:2026-06-17", marks=pytest.mark.xfail(strict=True, reason=(
-              "the bars came back to his resistance (30.33, Wed 11/03/2026) only on Fri 17/04/2026; by then the "
-              "reader showed a pair that opened later, inside his, and a shown line never moves back to an "
-              "earlier pair (ours)"))))
+              "his box as he redrew it on Thu 01/10/2026 (30.33, Wed 11/03/2026 / 27.92, Fri 13/03/2026) is a box "
+              "by the rule only on Thu 23/04/2026: the bars came back to his resistance on Fri 17/04/2026. By "
+              "then the reader had followed the dip of late March to a lower box (Fri 10/04/2026), and a shown "
+              "line never moves back to a pair that opened earlier (ours). On his last receding day it shows a "
+              "pair inside his box, 29.64 / 28.67"))))
 
 
 @pytest.mark.parametrize("key", _NAMED)
@@ -896,9 +926,11 @@ def test_his_own_drawings_keep_his_rule_of_the_end_points(his_reads):
     assert opens_on_support == ["AVT:2026-04-08", "JAZZ:2026-02-24", "SKYT:2026-04-13"]
 
 
-#: His one root swing that took longer than four trading days, in trading days: ROIV's support is the second low
+#: His root swings that took longer than four trading days: none, since he redrew ROIV on Thu 01/10/2026 (its
+#: support had been the second low after his top, seven days on; "Sorry Roiv was wrong"). Before the redraw:
+#: ROIV's support is the second low
 #: after his top ("one line can stay on its anchor while the other moves", Sun 20/09/2026).
-_HIS_SLOW_COUNTER_MOVE = {"ROIV:2026-06-17": 7}
+_HIS_SLOW_COUNTER_MOVE = {}
 #: His box the price went on past (its first line, by more than the area) BEFORE the bars were back on both lines,
 #: and his boxes the price stood well over (1.25 daily ranges and more) in their first fifteen days, in daily
 #: ranges. He kept all of them: a run past a rail never unmakes a pair by itself (sentence 8). On ALB he said the
@@ -922,7 +954,7 @@ def test_his_own_drawings_say_how_the_root_swing_behaves(his_reads):
     """What his drawings say of the root swing and of the days after it, by bars alone, no reader in the way
     (measured Tue 29/09/2026 on his words "check all of the calibrated Setups and maybe see what I chose"). The
     counter move is quick and at least a daily range tall: its end is within four trading days of the first
-    anchor on every drawing but the one named. The bars come back to BOTH his lines (a bar's high within the area
+    anchor on every drawing. The bars come back to BOTH his lines (a bar's high within the area
     of his resistance, a bar's low within the area of his support) on every one. They do so before the price goes
     on past his FIRST line on 36 of 37, and in the box's first fifteen days the price is 1.25 ranges or more over
     his resistance on 2: both are TENDENCIES with his own exceptions named, never a rule that drops a pair. Under
@@ -975,16 +1007,18 @@ _HIS_PAIR_NOT_LISTED = {
 #: BODI: the price fell out of his box in January and for fifteen days and more hung on rails under it; it came
 #: back up in March, and he kept his December lines. EWTX: on his buy day the bars had hung for fifteen days on
 #: a shelf resting on his resistance, none back at his support. MATX: the same shelf on his resistance, a box on
-#: his last receding day.
+#: his last receding day. ROIV (redrawn Thu 01/10/2026): his pair is a box on Thu 23/04/2026; from Tue 21/04/2026
+#: to Mon 11/05/2026, fifteen days, no bar came back to his resistance, and the lower box of the March dip takes
+#: its place.
 _HIS_BOX_GIVES_WAY_BEFORE_HIS_BUY = {"BODI:2026-04-21": (10.36, 9.30), "EWTX:2026-03-31": (31.29, 29.46),
-                                     "MATX:2026-07-01": (197.63, 190.16)}
+                                     "MATX:2026-07-01": (197.63, 190.16), "ROIV:2026-06-17": (28.39, 27.12)}
 
 
 def test_his_own_pair_is_a_pair_the_rule_lists_and_a_box_by_it_on_his_drawings(his_reads):
     """His own two anchors, read by the rule he settled: two swing ends a swing connects, a counter move that took
     back a part only, at least a daily range tall, the bars back on both rails and fifteen days by his buy day —
     on every drawing but the five named. And sentences 9 and 10 on his own box: by his buy day no later pair takes
-    its place by the reader's two rules, but on the three named."""
+    its place by the reader's two rules, but on the four named."""
     from engine_alpha.two_eyes import walk
 
     not_listed, gives_way = [], {}
@@ -1011,6 +1045,9 @@ def test_his_own_pair_is_a_pair_the_rule_lists_and_a_box_by_it_on_his_drawings(h
 
 #: His drawings on which the reader's box opens on the other rail than his, and why.
 _OPENS_ON_THE_OTHER_RAIL = {
+    "ALB:2026-04-13": "the reader shows the low of the crash and the top after it (182.80 / 156.04): it opens on "
+                      "the low",
+    "MTLS:2026-09-04": "his box is one wide bar; the reader shows a low and the top of the next day (6.78 / 6.36)",
     "ROIV:2026-06-17": "the reader shows a later pair inside his box that opens on its low (29.64 / 28.67)",
 }
 
@@ -1042,7 +1079,7 @@ def test_the_readers_box_on_his_drawings_his_rule_on_the_result(his_reads):
 _THE_BOX_CHANGES_ON_HIS_BUY_DAY = {
     "EWTX:2026-03-31": "from Wed 11/03/2026 the bars hang at his resistance and over it, none back at his support; "
                        "his buy day is the fifteenth such day, and the shelf 31.29 / 29.46, resting on his "
-                       "resistance's area by six cents and a box since Mon 09/03/2026, takes his box's place",
+                       "resistance's area by six cents and a box since Fri 06/03/2026, takes his box's place",
 }
 
 
@@ -1052,28 +1089,21 @@ _THE_BOX_CHANGES_ON_HIS_BUY_DAY = {
 _READS_HIS_BOX = (
     "ANRO:2026-08-12", "AVT:2026-04-08", "DSGN:2026-03-31", "EGBN:2026-01-15", "EWTX:2026-03-31", "JAZZ:2026-02-24",
     "MRK:2026-08-10", "MS:2026-06-04", "NGL:2026-01-20", "NGL:2026-04-20", "NKTR:2026-04-10", "NOK:2026-02-17",
-    "NTCT:2026-03-04", "PBT:2026-05-11", "SKYT:2026-04-13", "SYRE:2026-02-19", "UNF:2026-07-10", "VIK:2026-06-11",
-    "VLO:2026-07-08", "WTS:2026-06-12", "YPF:2026-05-18")
+    "NTCT:2026-03-04", "PBT:2026-05-11", "SILC:2026-04-13", "SKYT:2026-04-13", "ST:2026-04-17", "SYRE:2026-02-19",
+    "UNF:2026-07-10", "VIK:2026-06-11", "VLO:2026-07-08", "WTS:2026-06-12", "YPF:2026-05-18")
 #: CLOSE: both lines within half a daily range of his.
 _READS_CLOSE_TO_HIS = (
-    "BODI:2026-04-21", "BWA:2026-05-05", "DLX:2026-04-13", "DRTS:2026-04-15", "FOSL:2026-02-18", "MDT:2026-07-24",
-    "MSGS:2026-05-22", "ORMP:2026-04-13", "PKE:2026-04-07", "RGR:2026-03-19", "SILC:2026-04-13")
+    "ALB:2026-04-13", "BODI:2026-04-21", "BWA:2026-05-05", "DLX:2026-04-13", "DRTS:2026-04-15", "FOSL:2026-02-18",
+    "MDT:2026-07-24", "MSGS:2026-05-22", "MTLS:2026-09-04", "ORMP:2026-04-13", "PKE:2026-04-07", "RGR:2026-03-19")
 #: ANOTHER BOX, and why, each measured on the bars.
 _READS_ANOTHER_BOX = {
-    "ALB:2026-04-13": "his other reading: the pair of the run's own top, 195.69 (Tue 27/01/2026) / 164.15, shown from "
-                      "Wed 25/02/2026, the far view saying the rise ended on that top. Before it the reader showed "
-                      "179.14 / 160.02, four cents over his",
-    "MATX:2026-07-01": "his pair lies across the resistance of the box shown before it (180.21 / 167.35: his support "
-                       "176.99 is under that resistance's area), so it never took its place; on Tue 30/06/2026, his "
-                       "last receding day, the shelf on his own resistance (197.63 / 190.16) became a box and did",
-    "MTLS:2026-09-04": "the climax bar's own pair (7.00 / 6.60, one wide bar, Mon 01/06/2026) was a box first; his "
-                       "pair is one wide bar a swing later (Tue 09/06/2026), across that box's support, and a pair "
-                       "inside or across the shown box never takes its place",
-    "ROIV:2026-06-17": "the bars came back to his resistance (30.33, Wed 11/03/2026) only on Fri 17/04/2026; by then "
-                       "the reader showed a pair that opened later, and a shown line never moves back (ours)",
-    "ST:2026-04-17": "the earlier top's pair (36.25, Thu 11/12/2025 / 32.83, Wed 17/12/2025) was a box on Mon "
-                     "05/01/2026, the day of his own top; his pair (36.14 / 33.95) lies inside it, and a pair inside "
-                     "the shown box never takes its place",
+    "MATX:2026-07-01": "on Tue 30/06/2026, his last receding day, the shelf resting on his own resistance (197.63 / "
+                       "190.16) became a box and took the place of 187.00 / 179.21, shown from Mon 15/06/2026. His "
+                       "own pair lay across the resistance of the box shown when it became a box (180.21 / 167.35) "
+                       "and never took its place",
+    "ROIV:2026-06-17": "his box as redrawn on Thu 01/10/2026 (30.33 / 27.92) is a box by the rule only on Thu "
+                       "23/04/2026; by then the reader had followed the dip of late March to a lower box, and a shown "
+                       "line never moves back to a pair that opened earlier (ours). It shows 29.64 / 28.67, inside his",
 }
 
 
@@ -1092,7 +1122,38 @@ def test_the_readers_box_against_his_own_on_each_of_his_drawings(his_reads):
             got["OTHER"].append(row["key"])
     assert sorted(got["OTHER"]) == sorted(_READS_ANOTHER_BOX)
     assert sorted(got["CLOSE"]) == sorted(_READS_CLOSE_TO_HIS)
-    assert sorted(got["HIS"]) == sorted(_READS_HIS_BOX) and len(got["HIS"]) == 21
+    assert sorted(got["HIS"]) == sorted(_READS_HIS_BOX) and len(got["HIS"]) == 23
+
+
+def test_silc_and_drts_as_he_said_them_on_the_pictures(his_reads):
+    """His words of Thu 01/10/2026, each on his own marked bars. SILC: "Silc supposed to work due the much respect
+    of the support" — from the day after his low the bars rest on his support for seven weeks and never leave its
+    area; resting is respect, so his pair is a box on its fifteenth day and it is the box shown. DRTS: "why would
+    DRTS move away as it almost perfectly respect both boundaries" — the climax and its reaction low (7.89 / 6.23)
+    are no box while the base forms, because the bars never return to that low before the spring of March; the
+    reader's box stays within half a daily range of his."""
+    from engine_alpha.two_eyes import walk
+    from tools.calibration.yardstick import rails_close
+
+    silc = next(r for r in his_reads if r["key"] == "SILC:2026-04-13")
+    pair, days = silc["his_pair"], silc["days"]
+    resting = walk._respects(silc["high"], silc["low"], pair.R, pair.S, pair.area)[1]
+    assert resting[pair.s_bar + 1:days.index(dt.date(2026, 3, 23)) + 1].all()      # never off the support's area
+    assert (days[pair.r_back], days[pair.s_back]) == (dt.date(2026, 2, 9), dt.date(2026, 2, 9))
+    assert pair.birth_bar == pair.fifteenth and days[pair.birth_bar] == dt.date(2026, 2, 25)
+    assert silc["result"].winner.feet == pair.feet
+
+    drts = next(r for r in his_reads if r["key"] == "DRTS:2026-04-15")
+    days, rails = drts["days"], drts["setup"]["rails_drawn"]
+    climax = next(p for p in drts["result"].pairs.values() if (round(p.R, 2), round(p.S, 2)) == (7.89, 6.23))
+    assert (days[climax.r_bar], days[climax.s_bar]) == (dt.date(2026, 1, 14), dt.date(2026, 1, 20))
+    assert days[climax.r_back] == dt.date(2026, 1, 26) and days[climax.s_back] == dt.date(2026, 3, 4)
+    box = drts["result"].winner
+    assert days[box.birth_bar] < days[climax.birth_bar] == dt.date(2026, 3, 4)
+    assert (round(box.R, 2), round(box.S, 2)) == (7.59, 6.90)
+    unit = float(drts["ranges"][max(drts["r_bar"], drts["s_bar"])])
+    assert rails_close(rails["R"], rails["S"], box.R, box.S, unit)
+    assert drts["his_pair"].birth_bar == drts["his_pair"].fifteenth       # his own pair: a box on its fifteenth day
 
 
 def test_the_boxes_life_on_his_drawings_moves_only_forward_and_only_by_the_two_rules(his_reads):
@@ -1255,7 +1316,7 @@ def _lines(pair, days) -> tuple:
 
 #: Four of his drawings with hand-overs in their last 45 nights. A SAMPLE, sized to run in a test: on Thu
 #: 01/10/2026 the whole population was replayed the same way — his 37 and the 16 junk charts, 40 nights each,
-#: 2,120 nights — and the box shown moved on 91 of them, every one a night the read itself says the newer box
+#: 2,120 nights — and the box shown moved on 104 of them, every one a night the read itself says the newer box
 #: took its place (the decisions record).
 _REPLAYED = ("EGBN:2026-01-15", "MSGS:2026-05-22", "YPF:2026-05-18", "MRK:2026-08-10")
 
@@ -1263,8 +1324,9 @@ _REPLAYED = ("EGBN:2026-01-15", "MSGS:2026-05-22", "YPF:2026-05-18", "MRK:2026-0
 def test_read_night_after_night_as_the_scan_reads_the_shown_box_moves_only_the_night_the_newer_box_takes_its_place():
     """The proofs above read ONE prepared window and filter its turns by the day they were known. The scan cuts a
     new window every night. Read that way, night after night: the box shown changes only on the night the read
-    itself says the newer box took its place, and the box of the night before is the one it hands over; on every
-    other night the last three earlier boxes are told as the night before told them. And the LPS word: a night
+    itself says the newer box took its place, and the box of the night before is among the boxes it hands over
+    (two hand-overs can fall on one night); on every other night the last three earlier boxes are told as the
+    night before told them. And the LPS word: a night
     says ``crossed``, the buy, only when the night before had the trigger on the board."""
     from engine_alpha.two_eyes import lps
     from core.calibration.replay import fixture_frame, load_sealed_fixture
@@ -1282,8 +1344,8 @@ def test_read_night_after_night_as_the_scan_reads_the_shown_box_moves_only_the_n
             if before is not None and told[-1] != before[-1]:
                 assert days[found.lives[-1].shown_bar] == night.date(), \
                     f"{key}: the shown box moved on {when}, not the night the read says the newer box took its place"
-                assert told[-2] == before[-1], \
-                    f"{key}: on {when} the box shown the night before is not the box handed over"
+                assert before[-1] in told[:-1], \
+                    f"{key}: on {when} the box shown the night before is not among the boxes handed over"
                 hand_overs += 1
             elif before is not None:
                 assert told[-4:-1] == before[-4:-1], \
@@ -1328,7 +1390,7 @@ def test_flg_tells_the_same_boxes_the_night_after_its_window_lost_its_first_tren
     "KNOWN LIMIT, found by the core's blind check on Sun 27/09/2026 and narrowed by the rebuild of Thu 01/10/2026. "
     "The reader has no memory: it reads the boxes from the first trend end its two-year window holds, and the "
     "window's left edge moves a day a night. So the OLDEST boxes it records, those of the window's first months, "
-    "are told differently on some nights no box took another's place (118 of 2,120 replayed nights on his 37 and "
+    "are told differently on some nights no box took another's place (137 of 2,120 replayed nights on his 37 and "
     "the junk; before the rebuild 738 of 8,350). The last three earlier boxes were told differently on none of "
     "those nights, and the box SHOWN moved only on a hand-over's own night. The earlier boxes are the story's "
     "(task 12b): they are made independent of the window's edge before the story reads them, and that day this "

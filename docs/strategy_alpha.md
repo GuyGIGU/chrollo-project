@@ -151,8 +151,8 @@ default as ours.
    he draws): every one opens on the end of the swing before it, 34 on resistance after a
    rise, 3 on support after a fall. His own two anchors are a pair the rule lists on 32 of
    the 37; on the other five one of his anchors is one of two near-equal highs or lows a few
-   cents apart, or the climax bar's own low, and on four of those five the reader's box is
-   within half a daily range of his. The anchor is not always the climax: on 11 of the 37
+   cents apart, or the climax bar's own low, and on all five the reader's box is within
+   half a daily range of his. The anchor is not always the climax: on 11 of the 37
    it is a swing later, and on 4 both lines are one wide bar's own high and low.
 3. **Answered and alive.** A pair of lines is the box when the bars come back to BOTH lines:
    *"were looking for the first instance that a consolidation is respected!"* (Sun
@@ -164,11 +164,17 @@ default as ours.
    *"whenever they are slightly poking out or not does not matter one bit"* (Sat
    26/09/2026). So a bar whose high touches resistance and whose low touches support
    respects both, small bars low in the box rest on support, and a bar above resistance
-   whose low is close to it respects resistance. Back means back: a rail is come back to by
-   a bar that respects it after a bar that did not (ours, and stricter than the sentence as
-   it was typed to him, which says any later bar; read that way his SILC box is his to the
-   cent and MTLS comes within half a range, DRTS moves away, and one more junk chart, FRPH,
-   fires: 22 / 10 / 5 against 21 / 11 / 5; asked of him on Thu 01/10/2026).
+   whose low is close to it respects resistance. Resting on a rail is respect, the price
+   need not have left it first: *"Silc supposed to work due the much respect of the
+   support"* (Thu 01/10/2026, on the pictures: SILC's bars rest on his support for seven
+   weeks). And a rail the base does not return to is no respected rail: *"why would DRTS
+   move away as it almost perfectly respect both boundaries"* (the same day: DRTS's climax
+   and its reaction low, 7.89 / 6.23, a low the bars left the day after and did not see
+   again until the spring six weeks later). So the bars come back first to the rail the
+   pair opened on, and to the other rail on that day or after: the price has been at the
+   other rail in between. The order is ours; it is what reads both of his examples. Read as
+   "any later bar", the day after a reaction low counts and DRTS's climax pair is the box;
+   read as "only after the price left the rail", SILC's support is never come back to.
    (7) *The pair is a box on its fifteenth trading day, or later if the bars take longer to
    come back* — *"Correct we have to account for the bases eventual recovery when scanning
    and detecting, its looking at the base structure as whole rather and seeing that it fits
@@ -218,24 +224,26 @@ default as ours.
    is a box by the rule (the mirror for a fall; the form is ours). This is how the reader
    takes his other reading of ALB, the *"later pair"* after the run of 20/01 to 27/01/2026.
    Every hand-over goes to a pair that opened later: a shown line never moves back to an
-   earlier pair (ours, and asked of him on Thu 01/10/2026: on his ROIV the bars came back
-   to his outer pair five weeks late and the reader stays on a pair inside it; on his BODI
-   the price left his box for two months and came back; three ways of going back were
-   measured on his 37 and each read fewer of his boxes to the cent). The box handed over
-   stays in the record, its lines stopping where the newer pair opens (ours).
+   earlier pair (ours, and the open one: on his ROIV, as he redrew it on Thu 01/10/2026, the
+   bars came back to his resistance five weeks late; by then the reader had followed the dip
+   of late March to a lower box, and it stays on a pair inside his. His answer to sentence 7,
+   the base's eventual recovery, asks for the way back; the forms measured on his 37 each
+   read fewer of his boxes or traded one for another). The box handed over stays in the
+   record, its lines stopping where the newer pair opens (ours).
    The reader keeps no memory: what it records as handed over is what the day's own reading
    of its two-year window tells, and each hand-over is judged on what its own day knew, so
    a reader standing on any day tells the same history up to that day as one standing
    later. The window's left edge moves a day a night, and the OLDEST boxes of the record,
    those of the window's first months, can be told differently on a night with no hand-over
-   (measured Thu 01/10/2026 on his 37 and the 16 junk charts, forty nights each: on 118 of
+   (measured Thu 01/10/2026 on his 37 and the 16 junk charts, forty nights each: on 137 of
    2,120 nights; the last three earlier boxes were told the same on every one of them, and
-   the box SHOWN moved on 91 nights, each the night the read itself says the newer box took
+   the box SHOWN moved on 104 nights, each the night the read itself says the newer box took
    its place). Until the earlier boxes are made independent of the window's edge the story
    does not read them (ours).
-   Measured on his 37 on his last receding day (Thu 01/10/2026): the reader's box is his to
-   the cent on 21, both lines within half a daily range of his on 11, another box on 5
-   (the reader before the rebuild: 9, 15 and 13). No close is read anywhere: a close-dated
+   Measured on his 37 on his last receding day (Thu 01/10/2026, the standard following his
+   redrawn ROIV): the reader's box is his to the cent on 23, both lines within half a daily
+   range of his on 12, another box on 2 (the reader before the rebuild: 9, 15 and 13). No
+   close is read anywhere: a close-dated
    hand-over is Tested-DEAD. Until a new box is born the parent keeps its lines, and a
    pullback resting above resistance is the parent's own LPS. A range price left long ago is
    no candidate because the hand-over follows the price to the box where it trades (his
