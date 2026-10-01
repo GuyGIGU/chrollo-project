@@ -587,10 +587,10 @@ def test_the_numbers_are_re_derived_from_his_marks_in_the_unit_the_reader_uses(h
     assert max(p.end_bar - p.top_bar + 1 for p in got) <= M.LPS_MAX_BARS
 
 
-#: Where the reader's OWN box refuses his window, by sentence four: on these three the reader's box sits far under
-#: his (its resistance 1.4 to 3.3 of its ranges under his LPS), so the miss is the box's, shown at his sitting.
-_REFUSED_ON_THE_READERS_BOX = {"MS:2026-06-04": "over resistance", "ROIV:2026-06-17": "over resistance",
-                               "SILC:2026-04-13": "over resistance"}
+#: Where the reader's OWN box refuses his window. On the box of tasks 10 and 11 sentence four refused three (MS,
+#: ROIV, SILC: its resistance sat 1.4 to 3.3 ranges under his LPS). On the box of the rule he settled (Thu
+#: 01/10/2026) none of his windows is refused.
+_REFUSED_ON_THE_READERS_BOX = {}
 
 
 def test_the_reader_fires_on_his_last_receding_day_at_his_trigger_on_its_own_box(his_windows):
@@ -611,7 +611,7 @@ def test_the_reader_fires_on_his_last_receding_day_at_his_trigger_on_its_own_box
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
     for key in _REFUSED_ON_THE_READERS_BOX:
         assert lps.OVER_RESISTANCE in silent[key], silent[key]
-    assert len(fired) == 36       # of his 40 windows: all but the three refused on the reader's box, and YPF
+    assert len(fired) == 39       # of his 40 windows: all but YPF, whose last day advances
 
 
 #: His buy days that made a lower low as well as crossing his trigger: the cross was his buy, and the pullback
@@ -639,7 +639,7 @@ def test_on_his_buy_day_the_read_says_crossed_and_shows_no_fire(his_windows):
             continue
         assert read.state == lps.CROSSED and read.fired is False and read.lps is None, f"{row['key']}: {read.state}"
         crossed.append(row["key"])
-    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 27
+    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 30
 
 
 # --------------------------------------------------------------------------- #
@@ -655,18 +655,29 @@ def _junk_days(key: str) -> list:
     return [(ts.date(), raw.loc[:ts]) for ts in sessions]
 
 
-def test_aef_fires_no_lps_on_any_day_of_its_window_and_each_refusal_names_his_sentence():
+def test_aef_the_pullback_he_refused_fires_on_no_day_and_each_refusal_names_his_sentence():
+    """His AEF words (Mon 14/09/2026): "3 bars with huge increases in both spread and price changes meaning the
+    pull back is increasing with sellers, not to mention you cut the move off and it's a part of a bigger swing
+    downwards that reaches support". That pullback runs from Wed 03/06/2026; from its second day on it is refused,
+    each day by his own sentence. On its FIRST day it is one receding day inside the reader's box (9.98 / 9.57,
+    the rule he settled on Thu 01/10/2026), none of his sentences is true of it yet, and the read fires at 10.00;
+    the next day falls and nothing crosses it. On the box of tasks 10 and 11 that day was refused by sentence
+    four, and AEF fired on no day."""
     from engine_alpha import two_eyes
     from engine_alpha.two_eyes import lps
 
-    said = {}
+    said, fires = {}, []
     for day, cut in _junk_days("AEF"):
         read = two_eyes.read("AEF", cut)
-        assert read.failed is False and read.fired is False, f"AEF fired on {day:%a %d/%m/%Y}"
+        assert read.failed is False
+        if read.fired:
+            fires.append((day, read.lps.trigger_price))
         said[day] = next((s.saying for s in read.trail if s.stage == "LPS"), "")
-    assert lps.OVER_RESISTANCE in said[dt.date(2026, 6, 3)]
+    assert fires == [(dt.date(2026, 6, 3), pytest.approx(10.00))]
+    assert "one receding day under the top of Tue 02/06/2026" in said[dt.date(2026, 6, 3)]
     assert lps.SELLERS_RISING in said[dt.date(2026, 6, 4)] and lps.SELLERS_RISING in said[dt.date(2026, 6, 5)]
     assert lps.SLICE in said[dt.date(2026, 6, 8)] and lps.SLICE in said[dt.date(2026, 6, 9)]
+    assert all("no LPS" in words for day, words in said.items() if day > dt.date(2026, 6, 3))
 
 
 @pytest.fixture(scope="module")
@@ -692,21 +703,24 @@ def junk_fire_days() -> dict:
 #: The junk charts none of his four sentences and nothing in the box's rules keeps silent today. His words on them
 #: are about the box ("Extreme Width, Spread, Messy non tight structure"; on OHI "lps is fine though"), which his
 #: method grades (task 14) and never gates.
-_JUNK_THAT_FIRES = ("ABEV", "BBVA@2026-06-05", "BMRN", "COLM", "DBD", "DGII", "ENIC", "FLG", "KWR", "OHI", "RLGT",
-                    "SPCB")
+_JUNK_THAT_FIRES = ("ABEV", "AEF", "BBVA", "BBVA@2026-06-05", "BMRN", "COLM", "DGII", "ENIC", "FLG", "KWR", "OHI",
+                    "RLGT", "SPCB")
 
 
-def test_the_junk_charts_that_fire_and_the_four_that_stay_silent(junk_fire_days):
+def test_the_junk_charts_that_fire_and_the_three_that_stay_silent(junk_fire_days):
     firing = sorted(key for key, days in junk_fire_days.items() if days)
     assert firing == sorted(_JUNK_THAT_FIRES)
-    # AEF by his sentences, BBVA and FRPH by his ceiling (2.5 to 4.4 ranges over resistance), GOOD by the door.
-    assert sorted(set(junk_fire_days) - set(firing)) == ["AEF", "BBVA", "FRPH", "GOOD"]
+    # DBD by his third sentence and the door, FRPH by his ceiling, GOOD by the door. On the box of the rule he
+    # settled AEF fires on one day (the test above) and BBVA on two; DBD, which fired before, is silent.
+    assert sorted(set(junk_fire_days) - set(firing)) == ["DBD", "FRPH", "GOOD"]
+    assert junk_fire_days["AEF"] == [dt.date(2026, 6, 3)]
 
 
 @pytest.mark.xfail(strict=True, reason=(
-    "THE STOP RULE'S JUNK CLAUSE, not met at task 12a: today's engine fires on 8 of the 16 junk charts, the new "
-    "reader on 12. The bar was fixed on Sun 20/09/2026 and is not moved here; his ruling at the core sitting, or "
-    "the grade (task 14), owes it. The day this passes, this mark comes off deliberately."))
+    "THE STOP RULE'S JUNK CLAUSE, not met at task 12a and not met on the rule of the pair he settled (Thu "
+    "01/10/2026): today's engine fires on 8 of the 16 junk charts, the new reader on 13 (12 before the rebuild). "
+    "The bar was fixed on Sun 20/09/2026 and is not moved here; his ruling at the core sitting, or the grade "
+    "(task 14), owes it. The day this passes, this mark comes off deliberately."))
 def test_no_more_junk_charts_fire_than_under_todays_engine(junk_fire_days):
     assert sum(1 for days in junk_fire_days.values() if days) <= 8
 
@@ -730,15 +744,16 @@ def test_on_the_junk_chart_spcb_a_pullback_refused_the_evening_it_ended_is_never
 
 
 def test_the_day_a_box_is_born_the_pullback_that_ended_before_it_is_not_its_lps():
-    """BODI on Mon 05/01/2026: the box became a box that day, and the last receding days ended on Fri 02/01."""
+    """ALB on Tue 13/01/2026: the box became a box that day, and the last receding days ended on Thu 08/01."""
     from engine_alpha import two_eyes
     from engine_alpha.two_eyes import lps
 
-    setup, raw = _his("BODI:2026-04-21")
-    read = two_eyes.read("BODI", raw.loc[:pd.Timestamp("2026-01-05")])
+    setup, raw = _his("ALB:2026-04-13")
+    read = two_eyes.read("ALB", raw.loc[:pd.Timestamp("2026-01-13")])
     said = next(s.saying for s in read.trail if s.stage == "LPS")
     assert read.parent is not None and read.state == lps.LINES_NO_LPS and read.lps is None
-    assert "before the box became a box on Mon 05/01/2026" in said
+    assert "from Wed 07/01/2026 to Thu 08/01/2026" in said
+    assert "before the box became a box on Tue 13/01/2026" in said
 
 
 def test_bmrn_is_read_on_the_final_shallow_declining_days():
@@ -812,7 +827,7 @@ def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_or_is_named
                 silent.append(row["key"])
     assert not_scanned == _THE_DOOR_REFUSES
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
-    assert len(fired) == 29 and len(fired) + len(silent) + len(not_scanned) == 37
+    assert len(fired) == 32 and len(fired) + len(silent) + len(not_scanned) == 37
 
 
 def test_the_universe_door_stands_before_the_read_and_a_refused_chart_is_not_scanned():

@@ -109,111 +109,144 @@ default as ours.
    26/09/2026): one and a half daily ranges, ours and provisional, the one distance at which the
    trend into his box is seen at all — and the reaction after the climax is read on the line
    itself, not on the far view, whose folded swings overshoot his support; his sitting settles both.
-2. **The end of the trend, then the two lines.** A run of higher highs and higher lows is a
-   trend; its highest turn is the climax and the low that ends the first reaction after it
-   is the automatic reaction. They are decided first: *"the swings for BC and AR are needed
+2. **The end of the trend, then the rule of the pair.** A run of higher highs and higher lows
+   is a trend; its highest turn is the climax and the low that ends the first reaction after
+   it is the automatic reaction. They are decided first: *"the swings for BC and AR are needed
    to be decided before the Root Swing, because said root swing can either be them, or a
-   swing later"* (Sat 19/09/2026). From there the lines are found by walking right, one
-   foot at a time: *"I move one pair right until I find it, not only a single time. -> one
-   line can stay on its anchor while the other moves, but they are connected like 2 lets
-   placing one in front of the other"* (Sun 20/09/2026). The candidates are the consecutive
-   swings after the end of the trend, as many steps as it takes. A foot moves when the swings
-   after the pair do not respect its line before the pair is a box — the first swing of its
-   kind that falls short of the line's area while the line is unanswered, or the first that
-   goes beyond the area before the box is born — and it lands on the first turn of its kind
-   in front of the other foot, past the reaction's small swings; the pair it stepped from
-   stays listed (ours, from his two sentences above). Every trend end the far view shows
-   walks; a walk goes no further than the next trend end's climax and stops listing once its
-   box is born (ours, from *"until I find it"* and his one mark per base, Sat 26/09/2026).
-   Each line is ONE anchor day's high or low, to the cent, and a line is never anchored in
-   the direction the price is going: *"we cannot start the anchor in the same direction the
-   price is going"* (Mon 14/09/2026). He said what that means at the core sitting: *"we only
-   start to anchor from the end point of previous swings"* (Mon 28/09/2026) — the first line
-   sits on the END POINT of the swing before the box, the high point where a rise stopped
-   (the climax of the previous trend) or the low point where a fall did, and the other line
-   on the end of the counter move that came off it; that counter move is the root swing, and
-   the two lines are its two ends. A line never sits inside a swing that is still running, and
-   the root swing is never a move in the direction of the trend. His own drawings keep it
-   (37 of them on Tue 29/09/2026; the standard follows what he draws): every one opens on
-   the end of the swing before it, 34 on resistance after a rise, 3 on support after a
-   fall, and on 29 of them his two lines are the two ends of one swing (on the others his
-   support is the first low of a shelf, or the climax bar's own low, or his resistance one
-   of near-equal highs). The anchor is not always the climax itself: on 11 of the 37 it is a
-   swing later (*"said root swing can either be them, or a swing later"*, Sat 19/09/2026),
-   and on 4 both lines are one wide bar's own high and low. The reader as built does NOT
-   keep the rule yet: its feet may land on a turn made of one wide bar's own high and low
-   inside a running move, and on 18 of his 37 a line of its box is no swing's end. The
-   record of Sat 26/09/2026 that his own drawings refute the rule on 13 of 35 measured the
-   reader's label of the trend, not his drawings, and is withdrawn. What his drawings do
-   show is that the price may go on past his first line soon after the box opens and come
-   back: within the first fifteen days by more than half a range on 7 of the 37, on two of
-   them (ALB, MTLS) by two daily ranges. That is his upthrust, and the box stands; a thrust
-   past a line never unmakes a pair by itself. The walk is rebuilt on his rule once it is
-   settled on paper with him (the stop rule).
-3. **Answered and alive.** A pair of lines is the box when the swings after it come back to
-   BOTH lines and price has not left for good: *"were looking for the first instance that a
-   consolidation is respected!"* (Sun 06/09/2026). A swing answers a line his way: its turn
-   — a bar's own high or low — is close to the line, within the line's area (about half a
-   daily range) on either side: *"whenever they are slightly poking out or not does not
-   matter one bit"* (Sat 26/09/2026). A swing beyond the area is not an answer: it moves a
-   foot (stage 2), and the pair it left stays listed for a later swing within the area to
-   answer (ours). A poke is an event, never a line. The box needs fifteen trading days from
-   its first anchor: *"Lets go with 15 days"* (Sat 12/09/2026), and it is born no earlier
-   than the day the reader could first see the pair (ours). A pair shorter than one of its
-   own daily ranges, or whose span between the anchors holds a swing beyond a line's area,
-   is listed and never a box (ours: from his huge spread being huge against the box itself,
-   and from his *"the entire continues swing structure ... is still wrapped within the
-   anchored box"*, Sat 26/09/2026). First in time stands: the first pair that BECAME a box
-   (the later of its answering being complete and its fifteenth day), then the earlier
-   opening day, then the walk's order (fewer moves), then the tighter pair (the order of the
-   tie-breaks is ours, placed at the listing gate). A line that has been shown never moves,
-   so there is no widening to an earlier, wider pair once the box has been drawn (ours); a
-   later higher top or lower low is an event on the box, and so is a swing through a line
-   that then rests at a new level — widening the box to that pair was measured on his 35 and
-   lost six of eleven exact hits (Sat 26/09/2026). The box opens on its earlier anchor, each
-   line starts at its own anchor and is never extended left. The daily range the box is
-   measured in is fixed when the pair is born and is never the read day's (ours). An
-   earlier, wider box is acceptable when his LPS reads against it: *"so nothing really
-   disqualifies them (not until I've seen it ofc)"* (Sun 13/09/2026); the yardstick is
-   concordance, never line replication.
-4. **The box's life.** A box ends only by swings, and only into a new box: *"if the price
-   continues to Rise/Fall with out recovering we can deduce that either that the
+   swing later"* (Sat 19/09/2026). The rule that places the two lines is his, settled at the
+   core sitting: on Wed 30/09/2026 it was typed out to him in ten sentences, and on Thu
+   01/10/2026 he answered each. The first five place the pair; six to eight are stage 3, nine
+   and ten stage 4.
+   (1) *A rail sits only on the end point of a swing* — *"correct"*. His ruling on the
+   reader's PBT box (Mon 28/09/2026): *"we only start to anchor from the end point of
+   previous swings"*; its line had come *"from the middle of a swing in the direction of the
+   trend with out there being a counter move to begin with"*. The end point is the high
+   where a rise stopped or the low where a fall did: a bar whose high the bar on neither side
+   beats (the mirror for a low).
+   (2) *A box's two rails are the two ends of one counter move; after a swing up the top
+   comes first* — *"correct"*. And *"we cannot start the anchor in the same direction the
+   price is going"* (Mon 14/09/2026).
+   (3) *The two ends can be one wide bar's own high and low* — *"correct"*. Daily bars do
+   not say which end of a bar printed first, so a one-bar pair is read in whichever order
+   makes it a counter move (ours).
+   (4) *The counter move is smaller than the move it comes off* — *"correct most Automatic
+   rallies (AR) cover only part of the previous move if a counter move is bigger it
+   contributes already to a new counter trend!"* A pair whose second end takes back the
+   whole move before its first is listed and never a box. The move before is read on the
+   bars alone: for a top, from the lowest low since the price was last above it (ours).
+   (5) *The first pair tried is the climax and its reaction; if the bars do not come back to
+   both rails, one pair to the right; one rail may stay while the other moves* — *"correct
+   but ... only if a swing connects between them, we cannot allow for dismemberd anchor
+   paring"*. His earlier words: *"I move one pair right until I find it, not only a single
+   time. -> one line can stay on its anchor while the other moves, but they are connected
+   like 2 lets placing one in front of the other"* (Sun 20/09/2026). A swing connects two
+   ends when, from the first one's bar to the second's, the top is the highest high and the
+   low the lowest low; a top is never paired with a low printed after a bar went over it.
+   The pairs are listed in the order they open, from the first end of a trend the far view
+   shows; nothing is listed before one. Where a trend end's walk starts is the first swing
+   end of the climax's level in its run: a later high that pokes a little over his top does
+   not move his line (his PBT: 22.71 five days after his 22.65) (ours). Each line is ONE
+   anchor day's high or low, to the cent.
+   His own drawings keep the rule (37 of them on Thu 01/10/2026; the standard follows what
+   he draws): every one opens on the end of the swing before it, 34 on resistance after a
+   rise, 3 on support after a fall. His own two anchors are a pair the rule lists on 32 of
+   the 37; on the other five one of his anchors is one of two near-equal highs or lows a few
+   cents apart, or the climax bar's own low, and on four of those five the reader's box is
+   within half a daily range of his. The anchor is not always the climax: on 11 of the 37
+   it is a swing later, and on 4 both lines are one wide bar's own high and low.
+3. **Answered and alive.** A pair of lines is the box when the bars come back to BOTH lines:
+   *"were looking for the first instance that a consolidation is respected!"* (Sun
+   06/09/2026).
+   (6) *Come back: a later bar's high within half a daily range of resistance, a later bar's
+   low within half a daily range of support* — *"if by "Come back" to be counted as respect
+   to the respective rail that bar is closest too then yes"*. Each end of a bar counts for
+   the rail it is closest to, when it is within that rail's area, on either side of it:
+   *"whenever they are slightly poking out or not does not matter one bit"* (Sat
+   26/09/2026). So a bar whose high touches resistance and whose low touches support
+   respects both, small bars low in the box rest on support, and a bar above resistance
+   whose low is close to it respects resistance. Back means back: a rail is come back to by
+   a bar that respects it after a bar that did not (ours, and stricter than the sentence as
+   it was typed to him, which says any later bar; read that way his SILC box is his to the
+   cent and MTLS comes within half a range, DRTS moves away, and one more junk chart, FRPH,
+   fires: 22 / 10 / 5 against 21 / 11 / 5; asked of him on Thu 01/10/2026).
+   (7) *The pair is a box on its fifteenth trading day, or later if the bars take longer to
+   come back* — *"Correct we have to account for the bases eventual recovery when scanning
+   and detecting, its looking at the base structure as whole rather and seeing that it fits
+   rather then rejecting it out right"*. Fifteen days from the first anchor: *"Lets go with
+   15 days"* (Sat 12/09/2026). The box is born on the later of both come-backs and the
+   fifteenth day, however late, and no earlier than the day the reader could first list the
+   pair (ours).
+   (8) *A run past a rail never unmakes a pair by itself.* On his ALB the price stood two
+   daily ranges over his resistance a week after the box opened, and he kept the lines. Of
+   that breach he said: *"that breach is not an upthrust in fact there is a later on
+   25/02/2026 its just that those pairs could be used to fit the box, even a later pair
+   could work if that movement in 20/1 -> 27/1 and the crash afterwards could be treated as
+   the place where the trend ends"*. So a run past a rail early in a box's life is not his
+   upthrust (the record of Tue 29/09/2026 that called it one is corrected by him), and no
+   pair is dropped for one.
+   A pair shorter than one of its own daily ranges is listed and never a box (ours: from
+   his huge spread being huge against the box itself). First in time stands: the first pair
+   that BECAME a box is the box shown — then the earlier opening, then the earlier second
+   anchor, then the tighter pair (the tie-breaks are ours). The box opens on its earlier
+   anchor, each line starts at its own anchor and is never extended left. The daily range
+   the box is measured in is the range of its second anchor's day and is never the read
+   day's (ours). An earlier, wider box is acceptable when his LPS reads against it: *"so
+   nothing really disqualifies them (not until I've seen it ofc)"* (Sun 13/09/2026); the
+   yardstick is concordance, never line replication.
+4. **The box's life.** A box ends only by what the bars do, and only into a new box: *"if the
+   price continues to Rise/Fall with out recovering we can deduce that either that the
    consolidating structure we measured ended and the price began to trend"*, *"its tricky
    to define it with Close value we need to deduce it Swings as well"* (Sat 12/09/2026), and
-   *"the child box inherit the parent as its cause"*. A newer trend end takes over the shown
-   box only when one of its pairs became a box by his rules (both lines answered, fifteen
-   days) BEYOND the shown box's lines — its support in or above the shown resistance's area,
-   or its resistance in or below the shown support's area — and the price, having left the
-   shown box on that side, did not come back into it before that box was born: no swing
-   turned back under the resistance's area (over the support's, for a decline) between the
-   leaving and the birth. A dip or a thrust that comes back is the box's own event, a spring
-   or an upthrust, never an end; a pair inside or overlapping the shown box is its own leg,
-   or a mini, never a new box. The box handed over ends at its last turn inside its lines
-   before the price left, and stays in the record. The reader keeps no memory: what it
-   records as handed over is what the day's own reading of its two-year window tells, and
-   as that window's left edge moves, a day a night, the earlier boxes can be told
-   differently on a night with no hand-over (measured Sun 27/09/2026 by the core's blind
-   check: about one night in ten; the box SHOWN moved on none of 8,350 replayed nights but
-   the night a new box was born). Until they are made independent of the window's edge the
-   earlier boxes are no memory of what was shown, and the story does not read them (ours).
-   Ours, built Sun 27/09/2026: the come-back
-   is judged on the swings known by the new box's birth, so a line once shown never moves
-   back; the leaving is looked for from the newer trend end's climax, on the side the new
-   box sits; and an older trend end's pair born later never takes over. Measured on his 35
-   against the walk's first reading of this stage (a newer trend end's climax beyond the
-   shown box, no come-back asked): that reading ended fifteen of his own boxes before his
-   buy day, this one ends none, and it reads his box to the cent on nine for its five. No
-   close is read anywhere: a close-dated hand-over is Tested-DEAD. Until a new box is born
-   the parent keeps its lines, and a pullback resting above resistance is the parent's own
-   LPS. A range price left long ago is no candidate because the hand-over follows the price
-   to the box where it trades (his dead-space drawings, BMRN and OHI, Sat 19/09/2026); where
-   the price has run on and no new box has been born yet, the old box is still the box shown,
-   and it is the LPS's own refusals and the state word that keep it from firing. The mini
-   consolidation is a box inside the parent's right side with its own two lines, and it never
-   replaces the parent: *"both boxes live, they are a part of the same setup"* (Sun
-   20/09/2026). What tells a mini from a new box is ours, and it is the same line as above: a
-   band whose bottom dips back under the parent's resistance area is a mini; one that holds
-   in or above it is a new box.
+   *"the child box inherit the parent as its cause"*.
+   (9) *Once a box, it stays a box through dips under support and pokes over resistance that
+   come back* — *"correct"*. A dip or a poke that comes back is the box's own event, a
+   spring or an upthrust, never an end; a pair inside or across the shown box is its own
+   leg, or a mini, and never takes its place.
+   (10) *The box gives way to a newer pair only when the price left it and did not come back:
+   the bars now hang on the newer rails and no longer come back to the old ones* —
+   *"correct"*. As built: the newer pair is a box by the rule and lies beyond the shown one
+   — its support resting on the shown resistance's area or above it, or its resistance on
+   the shown support's area or below — and over the last fifteen trading days, never
+   reaching back before the newer pair opened, the bars did not come back to both rails of
+   the shown box. It is judged on every day, not once: a breakout that failed keeps the box
+   while the bars still come back to it, and the box gives way on the fifteenth day after
+   they stopped. What "beyond" is and how long "no longer" is (his fifteen days) are ours.
+   And his anchor rule: *"We can't start the anchor from the opposite direction of the trend
+   if we are still inside that trend"* (Mon 27/07/2026). A box whose first anchor sat on a
+   top inside a rise that had not ended — a pause on the way up — gives way to the box that
+   opens on that rise's own end, once the far view says the rise ended there and that box
+   is a box by the rule (the mirror for a fall; the form is ours). This is how the reader
+   takes his other reading of ALB, the *"later pair"* after the run of 20/01 to 27/01/2026.
+   Every hand-over goes to a pair that opened later: a shown line never moves back to an
+   earlier pair (ours, and asked of him on Thu 01/10/2026: on his ROIV the bars came back
+   to his outer pair five weeks late and the reader stays on a pair inside it; on his BODI
+   the price left his box for two months and came back; three ways of going back were
+   measured on his 37 and each read fewer of his boxes to the cent). The box handed over
+   stays in the record, its lines stopping where the newer pair opens (ours).
+   The reader keeps no memory: what it records as handed over is what the day's own reading
+   of its two-year window tells, and each hand-over is judged on what its own day knew, so
+   a reader standing on any day tells the same history up to that day as one standing
+   later. The window's left edge moves a day a night, and the OLDEST boxes of the record,
+   those of the window's first months, can be told differently on a night with no hand-over
+   (measured Thu 01/10/2026 on his 37 and the 16 junk charts, forty nights each: on 118 of
+   2,120 nights; the last three earlier boxes were told the same on every one of them, and
+   the box SHOWN moved on 91 nights, each the night the read itself says the newer box took
+   its place). Until the earlier boxes are made independent of the window's edge the story
+   does not read them (ours).
+   Measured on his 37 on his last receding day (Thu 01/10/2026): the reader's box is his to
+   the cent on 21, both lines within half a daily range of his on 11, another box on 5
+   (the reader before the rebuild: 9, 15 and 13). No close is read anywhere: a close-dated
+   hand-over is Tested-DEAD. Until a new box is born the parent keeps its lines, and a
+   pullback resting above resistance is the parent's own LPS. A range price left long ago is
+   no candidate because the hand-over follows the price to the box where it trades (his
+   dead-space drawings, BMRN and OHI, Sat 19/09/2026); where the price has run on and no new
+   box has been born yet, the old box is still the box shown, and it is the LPS's own
+   refusals and the state word that keep it from firing. The mini consolidation is a box
+   inside the parent's right side with its own two lines, and it never replaces the parent:
+   *"both boxes live, they are a part of the same setup"* (Sun 20/09/2026). What tells a
+   mini from a new box is ours, and it is the same line as above: a pair whose bottom sits
+   under the parent's resistance area is a mini; one that rests on it or above it is a new
+   box once the bars no longer come back to the parent's two lines.
 5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
    beyond the support area is a Phase C candidate until the swing after its tip recovers it
    (a high back in the area, then a higher low) or fails it (a lower low first); one Phase

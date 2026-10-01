@@ -78,11 +78,12 @@ def read_day(ticker: str, raw, day) -> dict:
     line = two_eyes.build_line(prepared)
     ranges = prepared[two_eyes.DAILY_RANGE].to_numpy(dtype=float)
     far = line.far(M.FAR_VIEW_FLOOR_RANGES)
-    found = walk.elect(line.committed, [t for t in far if t.committed], ranges, read_bar=len(prepared) - 1)
+    high, low = prepared["High"].to_numpy(dtype=float), prepared["Low"].to_numpy(dtype=float)
+    found = walk.elect(line.committed, [t for t in far if t.committed], ranges, high, low,
+                       read_bar=len(prepared) - 1)
     won = found.winner
     out.update(prepared=prepared, won=won, found=found, line=line,
-               pullback=lps.read(prepared["High"].to_numpy(dtype=float), prepared["Low"].to_numpy(dtype=float),
-                                 ranges, line.committed, R=won.R, S=won.S, box_unit=won.unit,
+               pullback=lps.read(high, low, ranges, line.committed, R=won.R, S=won.S, box_unit=won.unit,
                                  born_bar=won.birth_bar))
     return out
 

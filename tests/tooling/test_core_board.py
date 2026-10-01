@@ -52,16 +52,18 @@ def test_a_drawing_is_scored_on_his_last_receding_day_and_the_silence_is_named(r
     assert jazz["on_last"]["read"].fired, "the read fires: the door is what refuses the day"
     ypf = rows["YPF:2026-05-18"]
     assert not ypf["strict"] and ypf["why"] == core_board.ADVANCES + ": the buy day"
+    # SILC: on the box of tasks 10 and 11 his window was refused by sentence four (the reader's box sat far under
+    # his); on the box of the rule he settled it is within half a range of his and the read fires on his day.
     silc = rows["SILC:2026-04-13"]
-    assert silc["box"] == "OTHER" and silc["why"] == lps.OVER_RESISTANCE
-    assert silc["on_last"]["pullback"].refused == (lps.OVER_RESISTANCE,)
+    assert (silc["box"], silc["strict"], silc["why"]) == ("CLOSE", True, None)
+    assert silc["on_last"]["pullback"].refused == ()
     # His buy day made a lower low as well: the pullback goes on, and the board says so.
     assert rows["DLX:2026-04-13"]["strict"] and rows["DLX:2026-04-13"]["on_buy"]["read"].state == lps.FIRED
     # How each is drawn: the LPS with its trigger, the LPS the door keeps out, the buy day, the refused pullback.
     looks = {key: core_board.pullback_look(row["on_last"])[1] for key, row in rows.items()}
     assert looks == {"SYRE:2026-02-19": "trigger", "DLX:2026-04-13": "trigger",
                      "JAZZ:2026-02-24": "not scanned; trigger", "YPF:2026-05-18": "crossed",
-                     "SILC:2026-04-13": "no LPS"}
+                     "SILC:2026-04-13": "trigger"}
     assert core_board.pullback_look(syre["on_buy"])[1] == "crossed"
 
 
@@ -70,10 +72,10 @@ def test_the_board_counts_what_the_rows_say_and_puts_the_misses_first(rows):
 
     got = list(rows.values())
     board = core_board.format_board(got)
-    assert "FIRES ON HIS DAY AT HIS TRIGGER: 2 of 5" in board
-    assert "THE BOX: HIS 2 · CLOSE 1 · OTHER 2 · NONE 0" in board
-    assert "crossed, nothing on the board 1" in board and "the pullback goes on 1 (DLX:2026-04-13)" in board
-    assert [r["strict"] for r in core_board.misses_first(got)] == [False, False, False, True, True]
+    assert "FIRES ON HIS DAY AT HIS TRIGGER: 3 of 5" in board
+    assert "THE BOX: HIS 3 · CLOSE 2 · OTHER 0 · NONE 0" in board
+    assert "crossed, nothing on the board 2" in board and "the pullback goes on 1 (DLX:2026-04-13)" in board
+    assert [r["strict"] for r in core_board.misses_first(got)] == [False, False, True, True, True]
 
 
 def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
@@ -101,7 +103,12 @@ def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
             assert not on_last["fired"] or result["_trigger_price"] == on_last["read"].lps.trigger_price, row["key"]
 
 
-def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_none(tmp_path):
+def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_one(tmp_path):
+    """AEF: the pullback he refused runs from Wed 03/06/2026. On its first day, one receding day inside the
+    reader's box, none of his sentences is true of it yet and the read fires; from the second day on it is
+    refused, each day by his own sentence (tests/engine/test_two_eyes_lps.py)."""
+    import datetime as dt
+
     from engine_alpha.two_eyes import lps
     from tools.calibration import core_board
     from tools.regression import negative_corpus
@@ -109,12 +116,15 @@ def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_none(t
     frames, meta = negative_corpus._load_fixture()
     case = next(c for c in meta["cases"] if c["ticker"] == "AEF")
     row = core_board.junk_row(case, frames["AEF"])
-    assert len(row["reads"]) == 10 and row["fires"] == []
-    said = {core_board.why_silent(r) for r in row["reads"]}
-    assert lps.SLICE in said and lps.OVER_RESISTANCE in said
-    assert any(lps.SELLERS_RISING in (why or "") for why in said)
+    assert len(row["reads"]) == 10 and [f["day"] for f in row["fires"]] == [dt.date(2026, 6, 3)]
+    said = [core_board.why_silent(r) or "" for r in row["reads"]]
+    assert any(lps.SLICE in why for why in said) and any(lps.UNDER_SUPPORT in why for why in said)
+    assert any(lps.SELLERS_RISING in why for why in said)
+    # How a refused pullback is drawn: grey, "no LPS".
+    refused = next(r for r in row["reads"] if r["day"] == dt.date(2026, 6, 4))
+    assert core_board.pullback_look(refused)[1] == "no LPS"
     board = core_board.format_junk([row])
-    assert "charts that fire on any day of their window: 0 of 1" in board and "silent: AEF" in board
+    assert "charts that fire on any day of their window: 1 of 1 (AEF)" in board and "silent: none" in board
 
 
 def test_the_pages_draw_bars_and_never_candles_and_one_is_written_per_chart(rows, tmp_path):
