@@ -239,11 +239,14 @@ def junk_rows() -> list:
         if box is None:
             rows.append({"key": key, "box": None, "beyond": None, "earlier": 0, "read": read})
             continue
-        area = M.LINE_WORD_AREA_ATR * box.daily_range
+        # ONE judgment of "the price has run on past the box": the reader's own (state.side). The board only
+        # adds how far, in the box's ranges.
+        from engine_alpha.two_eyes import record as words, state as edge
+        where = edge.side(high, low, box.resistance.price, box.support.price, M.LINE_WORD_AREA_ATR * box.daily_range)
         beyond = 0.0
-        if low > box.resistance.price + area:
+        if where == words.BEYOND_R:
             beyond = (low - box.resistance.price) / box.daily_range
-        elif high < box.support.price - area:
+        elif where == words.UNDER_S:
             beyond = -(box.support.price - high) / box.daily_range
         rows.append({"key": key, "box": box, "beyond": beyond,
                      "earlier": sum(1 for b in read.boxes if b.role == two_eyes.ROLE_EARLIER), "read": read})

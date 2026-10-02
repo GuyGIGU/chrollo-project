@@ -893,7 +893,10 @@ def test_read_fills_the_record_from_the_walk():
     events = story.read(line.turns, high, low, days, start_bar=won.opening_bar, R=won.R, S=won.S, unit=won.unit,
                         read_bar=len(prepared) - 1, pullback=pullback)
     told = story.record(events)
-    assert (read.boxes, read.lps, read.trail, read.state) == (boxes, the_lps, trail + said + told, word)
+    from engine_alpha.two_eyes import state as state_word
+    final, beside = state_word.decide(result, word, high, low, len(prepared) - 1)
+    assert (read.boxes, read.lps, read.trail, read.state) == (boxes, the_lps, trail + said + told, final)
+    assert read.state_days == beside
     assert read.events == events and [s.stage for s in told] == [story.STAGE]
     assert read.parent is not None and len(said) == 1 and word in (lps.FIRED, lps.CROSSED, lps.LINES_NO_LPS)
 

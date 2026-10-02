@@ -27,7 +27,7 @@ import pytest
 from core.calibration.replay import fixture_frame, load_sealed_fixture
 from engine_alpha.two_eyes import line_words as LW
 from engine_alpha import two_eyes
-from engine_alpha.two_eyes import lps, record, story, walk
+from engine_alpha.two_eyes import lps, record, state, story, walk
 from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes.daily_range import calculate_atr
 from engine_alpha.two_eyes.swing_line import turn_line, turn_line_floors
@@ -566,3 +566,123 @@ def test_on_the_readers_own_alb_box_his_upthrust_tops_before_the_box_is_fifteen_
     assert (alb.parent.resistance.price, alb.parent.support.price) == pytest.approx((182.80, 156.04), abs=0.005)
     assert _named(alb, record.UPTHRUST) == []
     assert (dt.date(2026, 2, 25) - alb.parent.opened_day).days < 21
+
+
+# --------------------------------------------------------------------------- #
+# The state word: one of the ten, decided after the LPS                       #
+# --------------------------------------------------------------------------- #
+def _box(R=14.0, S=10.0, unit=1.0, birth_bar=0):
+    return SimpleNamespace(R=R, S=S, area=0.5 * unit, birth_bar=birth_bar)
+
+
+def _found(winner=None, pairs=()):
+    return SimpleNamespace(winner=winner, pairs=dict(enumerate(pairs)))
+
+
+def _bars(*rows):
+    high, low = zip(*rows)
+    return np.array(high, dtype=float), np.array(low, dtype=float)
+
+
+def test_the_right_edge_is_read_only_when_nothing_fired():
+    """Row 1 before row 5, his ANRO: "its an LPS above Resistance that fires". Bars that sit wholly over the
+    resistance area change no fire and no buy day: ``fired`` and ``crossed`` are final."""
+    high, low = _bars((13.0, 12.0), (15.6, 14.8), (15.9, 14.9))
+    for word in (record.FIRED, record.CROSSED):
+        assert state.decide(_found(_box()), word, high, low, 2) == (word, None)
+    assert state.decide(_found(_box()), record.LINES_NO_LPS, high, low, 2) == (record.BEYOND_R, 2)
+
+
+def test_bars_wholly_past_a_lines_area_are_undetermined_and_the_run_is_counted():
+    """Resistance 14, support 10, the area half a range. "The bars after wards determine the meaning" (Sun
+    30/08/2026): a day whose LOW is over 14.5 is wholly beyond resistance, a day whose HIGH is under 9.5 wholly
+    under support; a day that still reaches the area is at the box."""
+    high, low = _bars((13.0, 12.0), (15.0, 14.4), (15.6, 14.6), (15.9, 14.9), (16.2, 15.1))
+    assert state.decide(_found(_box()), record.LINES_NO_LPS, high, low, 4) == (record.BEYOND_R, 3)
+    assert state.decide(_found(_box()), record.LINES_NO_LPS, high, low, 1) == (record.LINES_NO_LPS, None), \
+        "a low at 14.4 still reaches the resistance area"
+    high, low = _bars((11.0, 10.2), (9.4, 8.8), (9.2, 8.5))
+    assert state.decide(_found(_box()), record.LINES_NO_LPS, high, low, 2) == (record.UNDER_S, 2)
+    high, low = _bars((11.0, 10.2), (9.4, 8.8), (9.6, 8.5))
+    assert state.decide(_found(_box()), record.LINES_NO_LPS, high, low, 2) == (record.LINES_NO_LPS, None)
+    # The run is counted on the days the box has been a box, no further back.
+    high, low = _bars((15.5, 14.8), (15.6, 14.6), (15.9, 14.9))
+    assert state.decide(_found(_box(birth_bar=1)), record.LINES_NO_LPS, high, low, 2) == (record.BEYOND_R, 2)
+
+
+def test_a_young_pair_the_bars_came_back_to_is_forming_and_the_number_rides_beside_the_word():
+    """No box is shown. A pair of lines the bars have already come back to, on its twelfth day: ``forming N of
+    15`` with the letter N (the word is one of the closed ten) and 12 beside it. A pair the bars have not come
+    back to is no lines yet; so is a pair that can never be a box."""
+    young = SimpleNamespace(unfit=None, birth_bar=None, r_back=5, s_back=7, fifteenth=24, opening_bar=10, second_bar=11)
+    high, low = _bars(*[(12.0, 11.0)] * 30)
+    assert state.decide(_found(None, [young]), record.NO_LINES, high, low, 21) == (record.FORMING, 12)
+    assert record.FORMING == "forming N of 15"
+    no_answer = SimpleNamespace(unfit=None, birth_bar=None, r_back=5, s_back=None, fifteenth=24, opening_bar=10, second_bar=11)
+    unfit = SimpleNamespace(unfit="under one daily range tall", birth_bar=None, r_back=5, s_back=7, fifteenth=24,
+                            opening_bar=10, second_bar=11)
+    assert state.decide(_found(None, [no_answer, unfit]), record.NO_LINES, high, low, 21) == (record.NO_LINES, None)
+    assert state.decide(_found(None, []), record.NO_LINES, high, low, 21) == (record.NO_LINES, None)
+    # Fifteen days is the whole of "forming": a pair past its fifteenth day that is still no box is not forming.
+    late = SimpleNamespace(unfit=None, birth_bar=None, r_back=5, s_back=7, fifteenth=20, opening_bar=6, second_bar=7)
+    assert state.decide(_found(None, [late]), record.NO_LINES, high, low, 21) == (record.NO_LINES, None)
+    # The oldest of two young pairs gives the count.
+    older = SimpleNamespace(unfit=None, birth_bar=None, r_back=5, s_back=7, fifteenth=22, opening_bar=8, second_bar=9)
+    assert state.decide(_found(None, [young, older]), record.NO_LINES, high, low, 21) == (record.FORMING, 14)
+
+
+def test_every_read_of_his_40_carries_one_of_the_ten_words(his_last_receding_day):
+    tally = {}
+    for key, read in his_last_receding_day.items():
+        assert read.state in record.STATE_WORDS, (key, read.state)
+        assert (read.state_days is not None) == (read.state in (record.FORMING, record.BEYOND_R, record.UNDER_S)), key
+        tally[read.state] = tally.get(read.state, 0) + 1
+    # On his last receding day the bare read fires on 39 of his 40; YPF's last day advances (it crossed).
+    assert tally == {record.FIRED: 39, record.CROSSED: 1}, tally
+
+
+def test_a_state_word_that_cannot_be_decided_costs_no_fire(monkeypatch):
+    """The state word has its own guard, like the story: make the decision raise on a real fire (SYRE, his last
+    receding day) and the read still fires, still says ``fired``, and the trail says the word could not be
+    decided."""
+    s, raw = _standard()["SYRE:2026-02-19"]
+    cut = raw.loc[:pd.Timestamp((s.get("lps2") or s["lps"])[1])]
+    whole = two_eyes.read("SYRE", cut)
+
+    def broken(*args, **kwargs):
+        raise KeyError("forming 12 of 15")
+
+    monkeypatch.setattr(state, "decide", broken)
+    read = two_eyes.read("SYRE", cut)
+    assert read.fired and read.failed is False and read.state == record.FIRED and read.state_days is None
+    assert read.lps == whole.lps and read.events == whole.events
+    assert [s.stage for s in read.trail][-1] == state.STAGE and "could not be decided" in read.trail[-1].saying
+    assert read.trail[:-1] == whole.trail
+
+
+def test_alb_the_day_its_box_is_born_the_bars_sit_wholly_over_resistance():
+    """ALB on Tue 13/01/2026: the box (150.72 / 143.84) became a box that day and the day's bar (high 177.67, low
+    172.75) sits wholly over its resistance area: no LPS, and the word for the open right edge."""
+    s, raw = _standard()["ALB:2026-04-13"]
+    read = two_eyes.read("ALB", raw.loc[:pd.Timestamp("2026-01-13")])
+    assert read.parent is not None and read.lps is None and not read.fired
+    assert (read.state, read.state_days) == (record.BEYOND_R, 1)
+
+
+#: The junk charts whose last days trade wholly past the box shown, with no new box born where they trade (the
+#: build log's note of task 12a): the word for the open right edge, and how many days it has run.
+_JUNK_RIGHT_EDGE = {"BBVA": (record.BEYOND_R, 6), "BMRN": (record.BEYOND_R, 7), "KWR": (record.BEYOND_R, 6)}
+
+
+def test_the_junk_charts_that_ran_on_past_their_box_say_so():
+    from tools.regression import negative_corpus
+
+    frames, meta = negative_corpus._load_fixture()
+    said = {}
+    for case in meta["cases"]:
+        key = case.get("key", case["ticker"])
+        read = two_eyes.read(case["ticker"], frames[key])
+        assert read.state in record.STATE_WORDS, (key, read.state)
+        said[key] = (read.state, read.state_days)
+    undetermined = {k: v for k, v in said.items() if v[0] in (record.BEYOND_R, record.UNDER_S)}
+    assert undetermined == _JUNK_RIGHT_EDGE, said

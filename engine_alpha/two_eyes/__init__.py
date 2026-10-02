@@ -29,6 +29,7 @@ built against; `frame.py` is what a chart must be before it is read.
 from __future__ import annotations
 
 from engine_alpha.two_eyes import lps
+from engine_alpha.two_eyes import state as state_word
 from engine_alpha.two_eyes import story
 from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes import walk
@@ -126,6 +127,14 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                 trail = trail + story.record(events)
             except Exception as exc:                  # the read stands; the words are missing; the trail says why
                 events, trail = (), trail + story.could_not_be_read(exc)
+        # The state word (task 12b), decided LAST and in its own guard: `fired` and `crossed` are final; with no
+        # fire and no cross the right edge is read (bars wholly past a line's area), and with no box a young pair
+        # the bars came back to is `forming N of 15`. A decision that falls over leaves the word above standing.
+        state_days = None
+        try:
+            state, state_days = state_word.decide(found, state, high, low, len(prepared) - 1)
+        except Exception as exc:
+            trail = trail + state_word.could_not_be_decided(exc)
     except FrameRefused as refusal:
         return crashed(ticker, as_of, str(refusal))
     except Exception as exc:                      # a broken frame, not a chart
@@ -135,4 +144,4 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
     # honest answer until it does. The close is a fact of the read day, not
     # of a stage: the frame contract has just proved the last bar is whole.
     return Read(ticker=ticker, as_of=as_of, boxes=boxes, lps=the_lps, trail=trail,
-                state=state, close=float(prepared["Close"].iloc[-1]), events=events)
+                state=state, close=float(prepared["Close"].iloc[-1]), events=events, state_days=state_days)

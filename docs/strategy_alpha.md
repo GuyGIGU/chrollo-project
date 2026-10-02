@@ -293,7 +293,8 @@ default as ours.
    no candidate because the hand-over follows the price to the box where it trades (his
    dead-space drawings, BMRN and OHI, Sat 19/09/2026); where the price has run on and no new
    box has been born yet, the old box is still the box shown, and it is the LPS's own
-   refusals and the state word that keep it from firing. The mini consolidation is a box
+   refusals that keep it from firing; the state word only says where the price is, it
+   keeps nothing from firing. The mini consolidation is a box
    inside the parent's right side with its own two lines, and it never replaces the parent:
    *"both boxes live, they are a part of the same setup"* (Sun 20/09/2026). What tells a
    mini from a new box is ours, and it is the same line as above: a pair whose bottom sits
@@ -382,7 +383,15 @@ default as ours.
    root candidate unconfirmed, beyond resistance undetermined, under support undetermined,
    broke down, not scanned, no lines. Fired charts go on the board, the rest in a watch
    lane; nothing is on the board on the buy day. A read that failed is a fault on the
-   screen, never one of the ten words (ours).
+   screen, never one of the ten words (ours). The word is decided last, after the LPS:
+   fired and crossed are final (an LPS over resistance fires). With no fire and no cross
+   the open right edge is read, *"The bars after wards determine the meaning"*: days whose
+   whole bar sits over the resistance area are beyond resistance, undetermined, days whose
+   whole bar sits under the support area are under support, undetermined, and the count
+   of such days rides beside the word. With no box shown, a pair of lines the bars have
+   already come back to and that is younger than his fifteen days is forming, its day
+   count beside it. "Root candidate, unconfirmed" and "broke down" stay on the table and
+   are not said by this reader, where a box ends only into a newer box (all ours).
 
 Until the new reader lands, the sections below describe the reading as the live engine
 builds it today; the rulings and every measurement behind this method are in the decisions

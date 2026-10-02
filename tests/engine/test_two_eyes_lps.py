@@ -758,7 +758,9 @@ def test_the_day_a_box_is_born_the_pullback_that_ended_before_it_is_not_its_lps(
     setup, raw = _his("ALB:2026-04-13")
     read = two_eyes.read("ALB", raw.loc[:pd.Timestamp("2026-01-13")])
     said = next(s.saying for s in read.trail if s.stage == "LPS")
-    assert read.parent is not None and read.state == lps.LINES_NO_LPS and read.lps is None
+    # No LPS; and since build task 12b the state word reads the open right edge: that day's bar sits wholly
+    # over the new box's resistance area (tests/engine/test_two_eyes_story.py pins the word and the count).
+    assert read.parent is not None and read.state == "beyond R, undetermined" and read.lps is None
     assert "from Wed 07/01/2026 to Thu 08/01/2026" in said
     assert "before the box became a box on Tue 13/01/2026" in said
 
