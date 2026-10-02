@@ -172,3 +172,22 @@ def test_the_board_prints_the_story_against_his_drawn_events(rows):
     assert sum(1 for k, _, _ in every if k == "sos") >= 3
     assert "could not be read on: 0 of" in board
     assert "state words, his drawings: " in board
+
+
+def test_the_board_counts_the_names_that_move_night_to_night():
+    """A count in a document is reproduced by a tool: the committed words whose name moved from one night to the
+    next while the box shown stayed the same. VIK alone, from three days before his last receding day to his
+    as-of day: his upthrust's top is THE SOS at first and THE upthrust once the middle of the box has passed it,
+    so THE SOS's name is counted as moved and the day carries another word."""
+    from core.calibration.replay import load_sealed_fixture
+    from tools.calibration import core_board
+    from tools.regression.marks_corpus import load_corpus
+
+    frames, _ = load_sealed_fixture()
+    vik = [s for s in load_corpus() if s["ticker"] == "VIK"]
+    moves = core_board.name_moves(vik, frames, back=3)
+    assert moves["nights"] >= 6 and moves["same_box"] == moves["pairs"] == moves["nights"] - 1
+    assert moves["renamed"].get("SOS", 0) + moves["gone"].get("SOS", 0) >= 1
+    board = core_board.format_name_moves(moves)
+    total = sum(moves["gone"].values()) + sum(moves["renamed"].values())
+    assert f"committed names moved {total} times in {moves['same_box']} pairs of nights" in board

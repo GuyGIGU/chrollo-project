@@ -891,7 +891,8 @@ def test_read_fills_the_record_from_the_walk():
                         born_bar=won.birth_bar)
     the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1)
     events = story.read(line.turns, high, low, days, start_bar=won.opening_bar, R=won.R, S=won.S, unit=won.unit,
-                        read_bar=len(prepared) - 1, pullback=pullback)
+                        read_bar=len(prepared) - 1, pullback=pullback,
+                        trend_end_bar=(result.lives[-1].trend_end or {}).get("climax_bar"))
     told = story.record(events)
     from engine_alpha.two_eyes import state as state_word
     final, beside = state_word.decide(result, word, high, low, len(prepared) - 1)

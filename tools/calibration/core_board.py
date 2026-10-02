@@ -255,6 +255,54 @@ def format_story(rows: list, junk: Optional[list] = None) -> str:
     return "\n".join(out)
 
 
+def name_moves(setups: list, frames: dict, back: int = 10) -> dict:
+    """Night after night, the reader's own read: over the ``back`` trading days up to his last receding day and
+    on to his as-of day, while the box shown is the same box, what became of each word the story had called
+    COMMITTED the night before. ``gone``: no longer named; ``renamed``: its day now carries another word;
+    ``respanned``: the same word on the same day with another price or span. Counted per word."""
+    out = {"nights": 0, "pairs": 0, "same_box": 0, "gone": {}, "renamed": {}, "respanned": {}}
+    for setup in setups:
+        raw = fixture_frame(frames, setup_key(setup), setup["ticker"])
+        end = raw.index.get_loc(pd.Timestamp(his_last_lps_day(setup)))
+        before = None
+        for i in range(max(0, end - back), len(raw)):
+            read = two_eyes.read(setup["ticker"], raw.iloc[:i + 1])
+            out["nights"] += 1
+            box = None if read.parent is None else (read.parent.resistance, read.parent.support,
+                                                    read.parent.opened_day)
+            if before is not None:
+                out["pairs"] += 1
+                if box is not None and box == before[0]:
+                    out["same_box"] += 1
+                    tonight = {(e.kind, e.day): e for e in read.events}
+                    days_named = {e.day for e in read.events}
+                    for e in before[1]:
+                        if not e.committed:
+                            continue
+                        now = tonight.get((e.kind, e.day))
+                        if now is None:
+                            which = "renamed" if e.day in days_named else "gone"
+                        elif (now.price, now.first_day, now.last_day) != (e.price, e.first_day, e.last_day):
+                            which = "respanned"
+                        else:
+                            continue
+                        out[which][e.kind] = out[which].get(e.kind, 0) + 1
+            before = (box, read.events)
+    return out
+
+
+def format_name_moves(moves: dict) -> str:
+    said = lambda counts: " · ".join(f"{k} {n}" for k, n in sorted(counts.items())) or "none"
+    total = sum(moves["gone"].values()) + sum(moves["renamed"].values())
+    return "\n".join([
+        "", f"THE NAMES THAT MOVE — {moves['nights']} nights read, {moves['same_box']} pairs of nights with the same "
+            "box shown; a word the story called committed the night before:",
+        f"  is no longer named: {said(moves['gone'])}",
+        f"  its day now carries another word: {said(moves['renamed'])}",
+        f"  kept its word and day, another price or span: {said(moves['respanned'])}",
+        f"  committed names moved {total} times in {moves['same_box']} pairs of nights"])
+
+
 def format_junk(rows: list) -> str:
     firing = [r for r in rows if r["fires"]]
     out = ["", f"THE JUNK — charts that fire on any day of their window: {len(firing)} of {len(rows)} "
@@ -497,6 +545,8 @@ def write_contact_sheet(his_pages: list, junk_pages: list, out_dir: str) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--pages", metavar="DIR", help="also write one OHLC page per chart and a contact sheet here")
+    ap.add_argument("--nights", metavar="N", type=int, help="also count, over the N trading days up to his last "
+                    "receding day and on to his as-of day, the committed words whose name moved (about a minute)")
     args = ap.parse_args()
     setups = load_corpus()
     frames, _ = load_sealed_fixture()
@@ -507,6 +557,8 @@ def main() -> int:
     print(format_story(rows, junk))
     print(format_junk(junk))
     print(f"\n  {len(rows)} drawings and {len(junk)} junk charts read in {time.perf_counter() - started:.1f}s")
+    if args.nights:
+        print(format_name_moves(name_moves(setups, frames, args.nights)))
     if args.pages:
         his_pages, junk_pages = render_pages(rows, junk, args.pages)
         sheet = write_contact_sheet(his_pages, junk_pages, args.pages)

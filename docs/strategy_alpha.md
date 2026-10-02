@@ -308,10 +308,13 @@ default as ours.
    per box, in Phase B, *"similar to a Spring but in reverse being a Resistance based
    event swing"* — price climbs quickly out of the structure, then crashes back into the
    range. The crash may take more than one swing, as long as the price is back under the
-   resistance area before it makes a higher top; and a run past resistance in the box's
-   first fourteen days is the trend still ending, never an upthrust (his ALB, Thu
-   01/10/2026: the run of Tue 20/01 to Tue 27/01/2026 *"is not an upthrust in fact there is
-   a later on 25/02/2026"*; the form of both clauses is ours). In Phase D a push that may be THE SOS, *"a push
+   resistance area before it makes a higher top; and a run past resistance within fourteen
+   trading days of the end of the trend is the trend still ending, never an upthrust. The
+   trend's end is the box's first line, or the earlier top of the trend the box took its
+   place from (his ALB, Thu 01/10/2026: the run of Tue 20/01 to Tue 27/01/2026 *"is not an
+   upthrust in fact there is a later on 25/02/2026"*, and *"even a later pair could work if
+   that movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place
+   where the trend ends"*; the form of both clauses is ours). In Phase D a push that may be THE SOS, *"a push
    that's like a paradigm shift it signals local buyer strength"*; a deep correction after
    a breach of resistance in Phase D is the last supper, written only in hindsight. Phase D
    opens at the first right-side evidence after the middle of the box, never at or before
@@ -322,7 +325,7 @@ default as ours.
    there is one spring, one upthrust and one SOS per box, the middle of the box moves
    right every day, and three words lean on the pullback of the day. On his 40, over the
    ten nights up to his last receding day and on to his as-of day, committed names moved
-   166 times in 470 pairs of nights, most often Phase D and THE SOS (Fri 02/10/2026). And no word ever blocks a fire: *"The up
+   162 times in 470 pairs of nights, most often Phase D and THE SOS (Sat 03/10/2026). And no word ever blocks a fire: *"The up
    thrust isn't even all that important, we just got to nail down our core for detecting
    consolidations and an LPS. the rest is a nice little bonus."* The story is read after
    the LPS, because three of its words lean on the pullback, and it reads the box shown

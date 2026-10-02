@@ -47,14 +47,23 @@ def _lps_days(pullback, low) -> tuple:
 
 
 def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: float, read_bar: int,
-         pullback=None) -> tuple:
+         pullback=None, trend_end_bar: Optional[int] = None) -> tuple:
     """The events of the box shown, oldest first. ``turns`` is the read's own line, forming turn included;
     ``start_bar`` the day the box opened; ``unit`` the one daily range the words are measured in; ``pullback``
-    what the LPS stage measured, or None."""
+    what the LPS stage measured, or None; ``trend_end_bar`` the top (or low) of the trend the box took its place
+    from, when it took it from a box anchored inside that trend.
+
+    "The trend still ending": a push that tops within fourteen trading days of the END OF THE TREND is no
+    upthrust. The trend's end is the box's first line, or the earlier ``trend_end_bar`` when there is one: his ALB
+    (Thu 01/10/2026), "even a later pair could work if that movement in 20/1 -> 27/1 and the crash afterwards
+    could be treated as the place where the trend ends" and "there is a later [upthrust] on 25/02/2026". On the
+    reader's own, later ALB box (it opens Thu 05/02/2026) the trend ended on Tue 27/01/2026, so the push of Wed
+    25/02 is his upthrust there too; counted from the box's own first line it would be one day short."""
     line = [(int(t.bar), t.kind, float(t.price), None if t.knowable_bar is None else int(t.knowable_bar))
             for t in turns]
     start, read_bar, unit = int(start_bar), int(read_bar), float(unit)
-    fifteenth = start + M.BOX_DAYS - 1
+    ended = start if trend_end_bar is None else min(start, int(trend_end_bar))
+    fifteenth = ended + M.BOX_DAYS - 1
     lps_start, lps_low_bar = _lps_days(pullback, low)
     at = {(bar, kind): know for bar, kind, _, know in line}
 
@@ -79,8 +88,9 @@ def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: fl
         out.append(Event(kind=UPTHRUST, day=day(up["top_bar"]), price=up["top_price"],
                          first_day=day(up["swing_bar"]), last_day=day(up["back_bar"]), size=up["poke_ranges"],
                          committed=up["knowable_bar"] is not None, known_day=day(up["knowable_bar"])))
+    sos_settled = sos is not None and sos["knowable_bar"] is not None and not sos["in_progress"]
     if sos is not None:
-        settled = sos["knowable_bar"] is not None and not sos["in_progress"]
+        settled = sos_settled
         out.append(Event(kind=SOS, day=day(sos["top_bar"]), price=sos["top_price"], first_day=day(sos["swing_bar"]),
                          last_day=day(sos["top_bar"]), size=sos["ground_ranges"], committed=settled,
                          known_day=day(sos["knowable_bar"]) if settled else None,
@@ -94,12 +104,14 @@ def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: fl
     if opens is not None:
         bar, opener = int(opens["open_bar"]), opens["opener"]
         # The right side's opening is as settled as what opened it: a low of the line that has committed (the
-        # round trip, the staircase), THE SOS once an LPS follows it, or the LPS's own first day.
-        settled = {"round trip": at.get((bar, "valley")) is not None, "staircase": at.get((bar, "valley")) is not None,
-                   "SOS": True, "LPS": True}[opener]
-        out.append(Event(kind=PHASE_D, day=day(bar), price=float(low[bar]), committed=settled,
-                         known_day=day(at.get((bar, "valley"))) if opener in ("round trip", "staircase") and settled
-                         else (day(bar) if settled else None), note=opener))
+        # round trip, the staircase); THE SOS once THE SOS is itself settled; the LPS once it has been bought
+        # (until then the pullback is only the read day's own, and tomorrow's read may measure another).
+        low_known = at.get((bar, "valley"))
+        bought = None if pullback is None else pullback.crossed_bar
+        known = {"round trip": low_known, "staircase": low_known,
+                 "SOS": sos["knowable_bar"] if sos_settled else None, "LPS": bought}[opener]
+        out.append(Event(kind=PHASE_D, day=day(bar), price=float(low[bar]), committed=known is not None,
+                         known_day=None if known is None else day(max(int(known), bar)), note=opener))
     return tuple(sorted(out, key=lambda e: (e.day, e.kind)))
 
 

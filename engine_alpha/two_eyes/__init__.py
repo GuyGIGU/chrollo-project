@@ -123,7 +123,8 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
             try:
                 events = story.read(line.turns, high, low, days, start_bar=found.winner.opening_bar,
                                     R=found.winner.R, S=found.winner.S, unit=found.winner.unit,
-                                    read_bar=len(prepared) - 1, pullback=pullback)
+                                    read_bar=len(prepared) - 1, pullback=pullback,
+                                    trend_end_bar=(found.lives[-1].trend_end or {}).get("climax_bar"))
                 trail = trail + story.record(events)
             except Exception as exc:                  # the read stands; the words are missing; the trail says why
                 events, trail = (), trail + story.could_not_be_read(exc)

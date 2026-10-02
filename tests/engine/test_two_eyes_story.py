@@ -492,7 +492,8 @@ _SOS_MISSES = {
     "ALB": "the box: the reader's box is 182.80 / 156.04 for his 179.10 / 160.02",
     "BODI": "the box, set aside by him",
     "DSGN": 'his word: "Ignore the DSGN SOS markings"',
-    "MATX": "the box: the reader shows the shelf on his resistance",
+    "MATX": "the box (the reader shows the shelf on his resistance) AND the word: on his own lines the rule "
+            "names Tue 09/06/2026 for his Fri 12/06/2026, his half-range area keeping the earlier top",
     "MDT": "the word: in the box's range the pauses of Mon 29/06 and Thu 02/07/2026 each end a push",
     "VIK": "the word: on his fire day the middle of the box has not passed his upthrust of Thu 14/05/2026",
 }
@@ -558,14 +559,85 @@ def test_the_story_leans_only_on_a_pullback_that_stood():
     assert story._lps_days(None, low) == (None, None)
 
 
-def test_on_the_readers_own_alb_box_his_upthrust_tops_before_the_box_is_fifteen_days_old(his_last_receding_day):
-    """The fifteenth-day clause is read on the box SHOWN. The reader's ALB box (182.80 / 156.04) is not his (179.10
-    / 160.02) and opens later, so his upthrust of Wed 25/02/2026 tops inside that box's first fourteen days and is
-    not named there: a miss of the box, not of the word (on his own rails it is named, above)."""
+def test_on_the_readers_own_later_alb_box_his_upthrust_is_named_too(his_last_receding_day):
+    """His ALB sentence (Thu 01/10/2026): "even a later pair could work if that movement in 20/1 -> 27/1 and the
+    crash afterwards could be treated as the place where the trend ends", and "there is a later [upthrust] on
+    25/02/2026". The reader's ALB box (182.80 / 156.04) is such a later pair: it opens on Thu 05/02/2026 and took
+    its place from a box anchored inside the rise that topped on Tue 27/01/2026. The fourteen days of "the trend
+    still ending" are counted from that top, the END OF THE TREND, so his upthrust of Wed 25/02/2026 is named on
+    the reader's box too. Counted from the box's own first line it would be the fourteenth day, one day short:
+    the blind check of Sat 03/10/2026 found the reader refusing his own named upthrust by that one day."""
     alb = his_last_receding_day["ALB:2026-04-13"]
     assert (alb.parent.resistance.price, alb.parent.support.price) == pytest.approx((182.80, 156.04), abs=0.005)
-    assert _named(alb, record.UPTHRUST) == []
-    assert (dt.date(2026, 2, 25) - alb.parent.opened_day).days < 21
+    assert alb.parent.opened_day == dt.date(2026, 2, 5)
+    assert [e.day for e in _named(alb, record.UPTHRUST)] == [dt.date(2026, 2, 25)]
+
+
+def test_the_days_of_the_trend_still_ending_are_counted_from_the_end_of_the_trend():
+    """Hand-built: resistance 14, support 10, the box opens on bar 20; a push tops on bar 30 two ranges over
+    resistance and crashes back. Counted from the box's first line (its fifteenth day is bar 34) that push is
+    the trend still ending and no upthrust. When the box took its place from one anchored inside a trend that
+    topped on bar 10, the trend ended there (its fifteenth day is bar 24) and the push is THE upthrust."""
+    turn = lambda bar, kind, price, known: SimpleNamespace(bar=bar, kind=kind, price=price, knowable_bar=known)
+    turns = [turn(20, "peak", 13.8, 21), turn(24, "valley", 10.2, 25), turn(30, "peak", 16.0, 31),
+             turn(33, "valley", 11.0, 34), turn(40, "peak", 13.0, 41), turn(44, "valley", 11.5, 45)]
+    high, low = np.full(50, 13.0), np.full(50, 11.0)
+    days = [dt.date(2026, 1, 1) + dt.timedelta(days=i) for i in range(50)]
+    box = dict(start_bar=20, R=14.0, S=10.0, unit=1.0, read_bar=49)
+    kinds = lambda events: [e.kind for e in events]
+    assert record.UPTHRUST not in kinds(story.read(turns, high, low, days, **box))
+    late = story.read(turns, high, low, days, trend_end_bar=10, **box)
+    assert [(e.kind, e.day) for e in late if e.kind == record.UPTHRUST] == [(record.UPTHRUST, days[30])]
+    # A trend end AFTER the box's first line never pushes the count later: a push topping on bar 36, past the
+    # box's own fifteenth day, is THE upthrust whatever later trend end the read may name.
+    later = [turn(20, "peak", 13.8, 21), turn(24, "valley", 10.2, 25), turn(36, "peak", 16.0, 37),
+             turn(39, "valley", 11.0, 40), turn(46, "peak", 13.0, 47), turn(50, "valley", 11.5, 51)]
+    high, low = np.full(60, 13.0), np.full(60, 11.0)
+    days = [dt.date(2026, 1, 1) + dt.timedelta(days=i) for i in range(60)]
+    box = dict(start_bar=20, R=14.0, S=10.0, unit=1.0, read_bar=59)
+    for trend_end in (None, 10, 28):
+        named = story.read(later, high, low, days, trend_end_bar=trend_end, **box)
+        assert [e.day for e in named if e.kind == record.UPTHRUST] == [days[36]], trend_end
+
+
+def test_a_phase_d_opened_by_an_unsettled_sos_is_provisional():
+    """Hand-built: resistance 14, support 10, the box from bar 0, read on bar 30. A push from 11.0 (bar 16) is at
+    15.0 on bar 20 and that top has not committed on the line yet; the LPS stood on bars 21 and 22. THE SOS is
+    named, provisional; it opens Phase D (its last swing starts on bar 16, after the middle), and that opening
+    is provisional too: it is as settled as what opened it."""
+    turn = lambda bar, kind, price, known: SimpleNamespace(bar=bar, kind=kind, price=price, knowable_bar=known)
+    turns = [turn(10, "peak", 13.0, 11), turn(16, "valley", 11.0, 17), turn(20, "peak", 15.0, None)]
+    high, low = np.full(31, 13.0), np.full(31, 12.0)
+    low[22] = 11.8
+    days = [dt.date(2026, 1, 1) + dt.timedelta(days=i) for i in range(31)]
+    lps_days = SimpleNamespace(stood=True, start_bar=21, end_bar=22, crossed_bar=None)
+    events = {e.kind: e for e in story.read(turns, high, low, days, start_bar=0, R=14.0, S=10.0, unit=1.0,
+                                           read_bar=30, pullback=lps_days)}
+    assert events[record.SOS].committed is False and events[record.SOS].day == days[20]
+    opening = events[record.PHASE_D]
+    assert (opening.note, opening.day, opening.committed, opening.known_day) == ("SOS", days[16], False, None)
+
+
+def test_phase_d_is_as_settled_as_what_opened_it(his_last_receding_day):
+    """The right side's opening is committed when what opened it is: a low of the line that has committed, THE
+    SOS once THE SOS itself is settled, the LPS once the pullback has been bought. On his last receding day the
+    LPS is still only that day's reading, so a Phase D that the LPS opened is provisional; on his buy day it is
+    committed."""
+    by_opener = {}
+    for key, read in his_last_receding_day.items():
+        for d in _named(read, record.PHASE_D):
+            by_opener.setdefault(d.note, []).append((key, read, d))
+    assert set(by_opener) <= {"round trip", "staircase", "SOS", "LPS"} and len(by_opener.get("SOS", [])) >= 5
+    for key, read, d in by_opener.get("SOS", []):
+        (sos,) = _named(read, record.SOS)
+        assert d.committed == sos.committed, key
+    for key, read, d in by_opener.get("LPS", []):
+        assert d.committed is False and d.known_day is None, key
+    key, read, d = by_opener["LPS"][0]
+    s, raw = _standard()[key]
+    bought = two_eyes.read(s["ticker"], raw.loc[:pd.Timestamp(s["trigger"])])
+    after = [e for e in _named(bought, record.PHASE_D) if e.note == "LPS"]
+    assert bought.state == record.CROSSED and after and after[0].committed and after[0].known_day == bought.as_of
 
 
 # --------------------------------------------------------------------------- #
