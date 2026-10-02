@@ -141,7 +141,7 @@ function CleanCard({ ticker, card, onSelect, onRemove }) {
 // are useCallback'd by the page for the same reason.
 const WatchlistCardGrid = React.memo(function WatchlistCardGrid({
   tickers, cards, selected, watchlist,
-  onSelect, onToggleWatchlist, passed, onTogglePassed,
+  onSelect, onToggleWatchlist, liked, onToggleLike,
 }) {
   return (
     <div className="wl-card-grid">
@@ -156,10 +156,10 @@ const WatchlistCardGrid = React.memo(function WatchlistCardGrid({
             {card.kind === 'scan' ? (
               <ScreenerCard
                 data={card.data}
+                liked={liked.has(ticker)}
                 onClick={onSelect}
-                onTogglePassed={onTogglePassed}
+                onToggleLike={onToggleLike}
                 onToggleWatchlist={onToggleWatchlist}
-                passed={passed.has(ticker)}
                 ticker={ticker}
                 watchlisted={watchlist.has(ticker)}
               />

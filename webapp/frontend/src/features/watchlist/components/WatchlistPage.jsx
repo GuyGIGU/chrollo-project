@@ -51,7 +51,7 @@ function WatchlistPage() {
   const watchlistStatus = useSyncExternalStore(
     subscribeWatchlistStore, getWatchlistStatus);
   const { watchlist, toggleWatchlist } = useWatchlist();
-  const { passed, togglePassed } = useReviews();
+  const { liked, toggleLiked } = useReviews();
   const { prices, priceErr } = useLivePrices();
   const envelopes = useCandleEnvelopes();
   const batchCells = useBatchCells();
@@ -339,10 +339,10 @@ function WatchlistPage() {
         </div>
         <WatchlistCardGrid
           cards={grid.cards}
+          liked={liked}
           onSelect={selectFromCard}
-          onTogglePassed={togglePassed}
+          onToggleLike={toggleLiked}
           onToggleWatchlist={removeFromPage}
-          passed={passed}
           selected={selected}
           tickers={tickers}
           watchlist={watchlist}
