@@ -186,8 +186,9 @@ def test_the_copies_numbers_start_at_the_values_the_originals_read():
     from config import settings
     from engine_alpha.two_eyes import method_numbers
 
-    pinned = ("LINE_WORD_AREA_ATR", "LINE_WORD_SOS_MIN_GROUND_ATR",
-              "LINE_WORD_SUPPER_DIG_ATR", "LINE_WORD_SUPPER_MAX_DAYS", "LINE_WORD_UPTHRUST_MIN_POKE_ATR",
+    # Two left on purpose at build task 12b (Fri 02/10/2026): the ground of a push and the dig of a last supper
+    # were re-placed in the box's own range, from his marks (tests/engine/test_two_eyes_story.py holds them now).
+    pinned = ("LINE_WORD_AREA_ATR", "LINE_WORD_SUPPER_MAX_DAYS", "LINE_WORD_UPTHRUST_MIN_POKE_ATR",
               "TURN_LINE_FLOOR_ATR")
     assert set(pinned) <= {n for n in vars(method_numbers) if n.isupper()}
     for name in pinned:

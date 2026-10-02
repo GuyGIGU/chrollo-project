@@ -18,6 +18,7 @@ import datetime as dt
 import inspect
 
 import functools
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -25,7 +26,8 @@ import pytest
 
 from core.calibration.replay import fixture_frame, load_sealed_fixture
 from engine_alpha.two_eyes import line_words as LW
-from engine_alpha.two_eyes import lps, record, walk
+from engine_alpha import two_eyes
+from engine_alpha.two_eyes import lps, record, story, walk
 from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes.daily_range import calculate_atr
 from engine_alpha.two_eyes.swing_line import turn_line, turn_line_floors
@@ -274,3 +276,293 @@ def test_a_push_before_the_boxs_fifteenth_day_does_not_cost_the_box_its_spring()
     spring = LW.phase_c(line, highs, 0, 10.0, 1.0, 14.0, None, 30, fifteenth=14)
     assert spring is not None and spring["tip_bar"] == 3
     assert LW.phase_c(line, highs, 0, 10.0, 1.0, 14.0, None, 30) is None
+
+
+# --------------------------------------------------------------------------- #
+# The story, wired: the reader's OWN read on his last receding day            #
+# --------------------------------------------------------------------------- #
+@pytest.fixture(scope="module")
+def his_last_receding_day() -> dict:
+    """Each of his 40 setups read by the reader itself, through its one door, on the last day of his last LPS
+    window: the day the fire is judged on."""
+    out = {}
+    for key, (s, raw) in _standard().items():
+        day = (s.get("lps2") or s["lps"])[1]
+        out[key] = two_eyes.read(s["ticker"], raw.loc[:pd.Timestamp(day)])
+    assert len(out) == 40
+    return out
+
+
+def test_the_story_is_one_step_after_the_lps_and_its_events_are_dated_by_days(his_last_receding_day):
+    told = 0
+    for key, read in his_last_receding_day.items():
+        assert read.failed is False, key
+        stages = [s.stage for s in read.trail]
+        if read.parent is None:
+            assert read.events == () and story.STAGE not in stages, key
+            continue
+        assert stages.count(story.STAGE) == 1 and stages[-1] == story.STAGE and stages[-2] == "LPS", (key, stages)
+        assert "could not be read" not in read.trail[-1].saying, (key, read.trail[-1].saying)
+        for event in read.events:
+            assert isinstance(event, record.Event) and type(event.day) is dt.date, (key, event)
+            assert read.parent.opened_day <= event.day <= read.as_of, (key, event)
+            for other in (event.first_day, event.last_day, event.known_day):
+                assert other is None or (type(other) is dt.date and other <= read.as_of), (key, event)
+            assert (event.known_day is not None) == event.committed, (key, event)
+        assert list(read.events) == sorted(read.events, key=lambda e: (e.day, e.kind)), key
+        told += bool(read.events)
+    assert told >= 30, "the story names a word on most of his boxes; under that the wiring is not reading them"
+
+
+def test_a_story_that_falls_over_costs_no_fire(monkeypatch):
+    """THE GUARD, on a real fire: SYRE on his last receding day. Make a word rule raise: the read still fires at
+    the same trigger, it is not a failed read, the events are empty and the trail says the story could not be
+    read. A bug in a word is a missing word, never a missing setup."""
+    s, raw = _standard()["SYRE:2026-02-19"]
+    cut = raw.loc[:pd.Timestamp((s.get("lps2") or s["lps"])[1])]
+    whole = two_eyes.read("SYRE", cut)
+    assert whole.fired and whole.events, "the control: SYRE fires and the story names words on it"
+
+    def broken(*args, **kwargs):
+        raise StopIteration("a word rule fell over")
+
+    monkeypatch.setattr(LW, "phase_d", broken)
+    read = two_eyes.read("SYRE", cut)
+    assert read.fired and read.failed is False and read.state == record.FIRED
+    assert read.lps == whole.lps and read.boxes == whole.boxes and read.close == whole.close
+    assert read.events == ()
+    assert read.trail[:-1] == whole.trail[:-1], "everything before the story is told as before"
+    assert read.trail[-1].stage == story.STAGE and "could not be read" in read.trail[-1].saying
+    assert "StopIteration" in read.trail[-1].saying
+
+
+def test_keeping_the_listing_changes_no_event(his_last_receding_day):
+    for key in ("SYRE:2026-02-19", "VIK:2026-06-11", "ALB:2026-04-13"):
+        s, raw = _standard()[key]
+        cut = raw.loc[:pd.Timestamp((s.get("lps2") or s["lps"])[1])]
+        listed = two_eyes.read(s["ticker"], cut, keep_listing=True)
+        assert listed.events == his_last_receding_day[key].events, key
+        assert listed.trail[-1] == his_last_receding_day[key].trail[-1], key
+
+
+# --------------------------------------------------------------------------- #
+# The unit of the words: the box's own range, the numbers held to his marks   #
+# --------------------------------------------------------------------------- #
+#: Left out of the SOS ground: DSGN by his word ("Ignore the DSGN SOS markings", Tue 15/09/2026) and BODI by ours
+#: (he set the chart's BOX aside on Thu 01/10/2026; its drawn events stand, and no push of the line tops on his).
+_SET_ASIDE = ("DSGN", "BODI")
+
+
+def _drawn_in_the_boxs_range(kind: str) -> list:
+    """Each of his drawn spans of ``kind`` measured on the bars alone, in the range of the day his box's second
+    line was anchored: for an SOS the ground from the lowest low to the highest high of his span; for a last
+    supper the drop from its highest high to the lowest low after it in his span, and the days between."""
+    out = []
+    for key, (s, raw) in _standard().items():
+        if kind not in s:
+            continue
+        his = _on_his_rails(key, "box")
+        df = raw.loc[:pd.Timestamp(s["as_of"])]
+        high, low = df["High"].to_numpy(float), df["Low"].to_numpy(float)
+        at = {d: i for i, d in enumerate(his["days"])}
+        for first, last in s[kind]:
+            a, b = at[dt.date.fromisoformat(first)], at[dt.date.fromisoformat(last)]
+            top = a + int(np.argmax(high[a:b + 1]))
+            if kind == "sos":
+                launch = a + int(np.argmin(low[a:top + 1]))
+                out.append(((high[top] - low[launch]) / his["unit"], 0, key.split(":")[0]))
+            else:
+                bottom = top + int(np.argmin(low[top:b + 1]))
+                out.append(((high[top] - low[bottom]) / his["unit"], bottom - top, key.split(":")[0]))
+    return sorted(out)
+
+
+def test_a_push_covers_no_more_ground_than_his_smallest_drawn_sos():
+    """His sentence: "It's hard to gate using a raw number in case we reject a valid setups because of a small
+    neumeric gap" (Sat 12/09/2026). In the box's own range his smallest drawn SOS covers 1.33 ranges (SGHT, Mon
+    21/09 to Tue 22/09/2026); the floor sits a fifth of a range on his side of it."""
+    grounds = [g for g in _drawn_in_the_boxs_range("sos") if g[2] not in _SET_ASIDE]
+    assert len(grounds) == 27
+    smallest = grounds[0]
+    assert smallest[2] == "SGHT" and smallest[0] == pytest.approx(1.33, abs=0.01)
+    assert M.LINE_WORD_SOS_MIN_GROUND_ATR <= smallest[0] - 0.195
+
+
+def test_a_last_supper_digs_no_deeper_and_lasts_no_longer_than_his_own():
+    suppers = _drawn_in_the_boxs_range("last_supper")
+    assert len(suppers) == 8
+    shallowest = suppers[0]
+    assert shallowest[2] == "SILC" and shallowest[0] == pytest.approx(1.52, abs=0.01)
+    assert M.LINE_WORD_SUPPER_DIG_ATR <= shallowest[0] - 0.2
+    assert max(days for _, days, _ in suppers) == 4 == M.LINE_WORD_SUPPER_MAX_DAYS, "his longest: MATX, four days"
+
+
+def test_the_upthrust_floor_sits_between_the_breach_he_crossed_out_and_the_smallest_he_named():
+    """In the box's own range the breach he crossed out on UNF (Fri 05/06/2026) climbs 1.21 ranges over his
+    resistance and the smallest upthrust he named (VIK, Thu 14/05/2026) 1.31. The floor is strictly between; the
+    band is under a tenth of a range wide, a knife edge on both sides that the record says out loud."""
+    def climb(ticker, day):
+        (key,) = _keys(ticker)
+        his = _on_his_rails(key, "box")
+        top = next(t[2] for t in his["line"] if t[1] == "peak" and his["days"][t[0]] == day)
+        return (top - his["R"]) / his["unit"]
+
+    crossed_out, smallest = climb("UNF", dt.date(2026, 6, 5)), climb("VIK", dt.date(2026, 5, 14))
+    assert crossed_out == pytest.approx(1.21, abs=0.01) and smallest == pytest.approx(1.31, abs=0.01)
+    assert crossed_out < M.LINE_WORD_UPTHRUST_MIN_POKE_ATR < smallest
+
+
+def test_the_story_reads_every_word_in_the_boxs_own_range(his_last_receding_day):
+    """One unit per box: the size the story records for a word is measured in the range the box's own rail areas
+    are measured in (``Box.daily_range``), frozen at the box's birth, never the read day's."""
+    seen = 0
+    for key, read in his_last_receding_day.items():
+        if read.parent is None:
+            continue
+        unit = read.parent.daily_range
+        for event in read.events:
+            if event.kind == record.SPRING:
+                assert event.size == pytest.approx((read.parent.support.price - event.price) / unit, abs=0.002), key
+                seen += 1
+            if event.kind == record.UPTHRUST:
+                assert event.size == pytest.approx((event.price - read.parent.resistance.price) / unit, abs=0.002), key
+                seen += 1
+    assert seen >= 20
+
+
+# --------------------------------------------------------------------------- #
+# The reader's own story, held to his drawn events on his last receding day   #
+# --------------------------------------------------------------------------- #
+def _named(read, kind) -> list:
+    return [e for e in read.events if e.kind == kind]
+
+
+def _his_words(key: str, read) -> dict:
+    """Per drawn word of his on this setup: ``(kind, his day, hit)``. His day is the day his drawing points at:
+    the last day of his SOS span (the last SOS drawn before his last LPS window ends), the lowest low of a spring
+    or spring-test span, the highest high of a last-supper span. A hit is the reader's word within ONE trading
+    day of it."""
+    s, raw = _standard()[key]
+    last = (s.get("lps2") or s["lps"])[1]
+    df = raw.loc[:pd.Timestamp(last)]
+    days = [d.date() for d in df.index]
+    at = {d: i for i, d in enumerate(days)}
+    bar = lambda iso: at[dt.date.fromisoformat(iso)]
+    high, low = df["High"].to_numpy(float), df["Low"].to_numpy(float)
+    near = lambda events, target: any(e.day in at and abs(at[e.day] - target) <= 1 for e in events)
+    out = []
+    spans = [x for x in s.get("sos", []) if dt.date.fromisoformat(x[1]) <= dt.date.fromisoformat(last)]
+    if spans:
+        target = bar(spans[-1][1])
+        out.append(("sos", days[target], near(_named(read, record.SOS), target)))
+    for kind, word in (("phase_c", record.SPRING), ("spring_test", record.SPRING_TEST)):
+        for first, end in s.get(kind, []):
+            a, b = bar(first), bar(end)
+            target = a + int(np.argmin(low[a:b + 1]))
+            out.append((kind, days[target], near(_named(read, word), target)))
+    for first, end in s.get("last_supper", []):
+        a, b = bar(first), min(bar(end) if dt.date.fromisoformat(end) in at else len(days) - 1, len(days) - 1)
+        target = a + int(np.argmax(high[a:b + 1]))
+        out.append(("last_supper", days[target], near(_named(read, record.LAST_SUPPER), target)))
+    return out
+
+
+def test_the_named_charts_read_his_words_on_his_days(his_last_receding_day):
+    """Each date is his own drawing or his own word, read by the reader on its own box and its own line."""
+    day = lambda read, kind: [e.day for e in _named(read, kind)]
+    syre = his_last_receding_day["SYRE:2026-02-19"]
+    assert day(syre, record.SPRING) == [dt.date(2026, 1, 5)]
+    assert day(syre, record.PHASE_D) == [dt.date(2026, 1, 26)], '"Phase D opens roughly after the 26/01/26"'
+    assert day(syre, record.SOS) == [dt.date(2026, 2, 13)]
+    pbt = his_last_receding_day["PBT:2026-05-11"]
+    assert day(pbt, record.PHASE_D) == [dt.date(2026, 4, 23)], '"on PBT I would say it starts on 23/04/26"'
+    assert day(pbt, record.SOS) == [dt.date(2026, 5, 4)], "his push tops Tue 05/05/2026: within a day"
+    nktr = his_last_receding_day["NKTR:2026-04-10"]
+    assert day(nktr, record.SPRING) == [dt.date(2026, 3, 30)] and day(nktr, record.SOS) == [dt.date(2026, 4, 1)]
+    mrk = his_last_receding_day["MRK:2026-08-10"]
+    assert day(mrk, record.SOS) == [dt.date(2026, 7, 28)] and dt.date(2026, 7, 28) in day(mrk, record.LAST_SUPPER)
+    # THE upthrust, on the reader's own box: UNF as he named it.
+    (unf,) = _keys("UNF")
+    assert day(his_last_receding_day[unf], record.UPTHRUST) == [dt.date(2026, 6, 11)]
+
+
+#: His drawn words the reader's own story does NOT land on his last receding day, each with its cause. A miss is
+#: charged to the box (the reader's box is not his), to the word (the rule), or to his own setting aside.
+_SOS_MISSES = {
+    "ALB": "the box: the reader's box is 182.80 / 156.04 for his 179.10 / 160.02",
+    "BODI": "the box, set aside by him",
+    "DSGN": 'his word: "Ignore the DSGN SOS markings"',
+    "MATX": "the box: the reader shows the shelf on his resistance",
+    "MDT": "the word: in the box's range the pauses of Mon 29/06 and Thu 02/07/2026 each end a push",
+    "VIK": "the word: on his fire day the middle of the box has not passed his upthrust of Thu 14/05/2026",
+}
+_SPRING_MISSES = {
+    "ORMP": "the box: 3.67 / 3.32 for his 3.71 / 3.35, and an earlier dip takes the word",
+    "ST": "the word: his rail area (half a range) in the box's range leaves the top of Wed 11/03/2026 outside it",
+}
+_LAST_SUPPER_MISSES = {"MATX": "the box"}
+
+
+def test_the_reader_lands_his_drawn_words_and_every_miss_is_named(his_last_receding_day):
+    """The ratchet, on the reader's OWN read: THE SOS on 22 of his 28, the spring on 9 of his 11, the last supper
+    on 7 of his 8. A word landed today may not be lost tomorrow; a miss that starts landing is taken off the
+    list on purpose. The spring test is listed, never scored (5 drawn, two on BODI)."""
+    missed = {"sos": [], "phase_c": [], "last_supper": [], "spring_test": []}
+    count = {"sos": 0, "phase_c": 0, "last_supper": 0, "spring_test": 0}
+    for key, read in his_last_receding_day.items():
+        for kind, _, hit in _his_words(key, read):
+            count[kind] += 1
+            if not hit:
+                missed[kind].append(key.split(":")[0])
+    assert count == {"sos": 28, "phase_c": 11, "last_supper": 8, "spring_test": 5}
+    assert sorted(missed["sos"]) == sorted(_SOS_MISSES)
+    assert sorted(missed["phase_c"]) == sorted(_SPRING_MISSES)
+    assert sorted(missed["last_supper"]) == sorted(_LAST_SUPPER_MISSES)
+    assert len(missed["spring_test"]) <= 4
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    'KNOWN MISS, his own words against the moving middle. VIK (Sat 19/09/2026): "No for the spring" on the dip of '
+    "Wed 29/04/2026, and his upthrust is Thu 14/05/2026. The upthrust belongs in Phase B, read as at or before the "
+    "middle of the box, and the middle is measured to the read day: on his last receding day (Mon 08/06/2026) his "
+    "push sits on bar 17 of the box and the middle is 16.5, so no upthrust is named, the dip keeps the spring's "
+    "word and his upthrust's top is read as THE SOS. From his buy day on the middle has passed it and the read is "
+    "his. Dropping the Phase B clause is Tested-DEAD (it calls his SOS pushes upthrusts). Shown to him as a picture."))
+def test_vik_reads_his_upthrust_and_no_spring_on_his_fire_day(his_last_receding_day):
+    vik = his_last_receding_day["VIK:2026-06-11"]
+    assert [e.day for e in _named(vik, record.UPTHRUST)] == [dt.date(2026, 5, 14)]
+    assert dt.date(2026, 4, 29) not in [e.day for e in _named(vik, record.SPRING)]
+
+
+def test_a_word_standing_on_the_forming_turn_is_provisional(his_last_receding_day):
+    """The story reads the whole line, the turn still forming at the right edge included: that turn is what makes
+    a word provisional. NGL on Fri 16/01/2026: the spring's test of Thu 15/01/2026 stands on a low the line has
+    not committed yet, so it is named, provisional, with no day it became known. Every other word that day is
+    committed."""
+    (key,) = [k for k in _keys("NGL") if k.endswith("2026-01-20")]
+    read = his_last_receding_day[key]
+    provisional = [e for e in read.events if not e.committed]
+    assert [(e.kind, e.day, e.known_day) for e in provisional] == [(record.SPRING_TEST, dt.date(2026, 1, 15), None)]
+    assert ", provisional" in read.trail[-1].saying
+    assert all(e.known_day is not None for e in read.events if e.committed)
+
+
+def test_the_story_leans_only_on_a_pullback_that_stood():
+    """Three words lean on the LPS (THE SOS tops at or before its low, a last supper is sought before its window,
+    Phase D may open on its first day). They lean on a pullback that STOOD on its last day: one that his sentences
+    refused, or that ended before the box was a box, is no LPS and gives the words nothing."""
+    low = np.array([10.0, 9.0, 8.0, 7.5, 7.8, 9.0])
+    stood = SimpleNamespace(stood=True, start_bar=2, end_bar=4)
+    assert story._lps_days(stood, low) == (2, 3)
+    assert story._lps_days(SimpleNamespace(stood=False, start_bar=2, end_bar=4), low) == (None, None)
+    assert story._lps_days(None, low) == (None, None)
+
+
+def test_on_the_readers_own_alb_box_his_upthrust_tops_before_the_box_is_fifteen_days_old(his_last_receding_day):
+    """The fifteenth-day clause is read on the box SHOWN. The reader's ALB box (182.80 / 156.04) is not his (179.10
+    / 160.02) and opens later, so his upthrust of Wed 25/02/2026 tops inside that box's first fourteen days and is
+    not named there: a miss of the box, not of the word (on his own rails it is named, above)."""
+    alb = his_last_receding_day["ALB:2026-04-13"]
+    assert (alb.parent.resistance.price, alb.parent.support.price) == pytest.approx((182.80, 156.04), abs=0.005)
+    assert _named(alb, record.UPTHRUST) == []
+    assert (dt.date(2026, 2, 25) - alb.parent.opened_day).days < 21

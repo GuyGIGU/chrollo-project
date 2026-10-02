@@ -29,6 +29,7 @@ built against; `frame.py` is what a chart must be before it is read.
 from __future__ import annotations
 
 from engine_alpha.two_eyes import lps
+from engine_alpha.two_eyes import story
 from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes import walk
 from engine_alpha.two_eyes.frame import DAILY_RANGE, FrameRefused, check as check_frame, prepare
@@ -112,13 +113,26 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                                 box_unit=found.winner.unit, born_bar=found.winner.birth_bar)
         the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1)
         trail, state = trail + said, word or state
+        # Stage 5 (task 12b): the story, the words the drawing printed against the box shown. It runs AFTER the
+        # fire is decided and inside its own guard: a word never costs a fire, a bug in a word rule included.
+        # It reads the whole line (the forming turn is what makes a word provisional), the box shown and no
+        # earlier box, and the pullback stage 6 measured.
+        events = ()
+        if found.winner is not None:
+            try:
+                events = story.read(line.turns, high, low, days, start_bar=found.winner.opening_bar,
+                                    R=found.winner.R, S=found.winner.S, unit=found.winner.unit,
+                                    read_bar=len(prepared) - 1, pullback=pullback)
+                trail = trail + story.record(events)
+            except Exception as exc:                  # the read stands; the words are missing; the trail says why
+                events, trail = (), trail + story.could_not_be_read(exc)
     except FrameRefused as refusal:
         return crashed(ticker, as_of, str(refusal))
     except Exception as exc:                      # a broken frame, not a chart
         return crashed(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
-    # Stages 5 and 7 fill in the rest (the story, the grade). Empty is the
-    # honest answer until they do. The close is a fact of the read day, not
+    # Stage 7 fills in the rest (the grade). Empty is the
+    # honest answer until it does. The close is a fact of the read day, not
     # of a stage: the frame contract has just proved the last bar is whole.
     return Read(ticker=ticker, as_of=as_of, boxes=boxes, lps=the_lps, trail=trail,
-                state=state, close=float(prepared["Close"].iloc[-1]))
+                state=state, close=float(prepared["Close"].iloc[-1]), events=events)

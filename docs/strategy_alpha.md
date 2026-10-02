@@ -316,7 +316,17 @@ default as ours.
    opens at the first right-side evidence after the middle of the box, never at or before
    it. A word is either committed or provisional, and no word ever blocks a fire: *"The up
    thrust isn't even all that important, we just got to nail down our core for detecting
-   consolidations and an LPS. the rest is a nice little bonus."*
+   consolidations and an LPS. the rest is a nice little bonus."* The story is read after
+   the LPS, because three of its words lean on the pullback, and it reads the box shown
+   and no earlier box; the dependency runs one way, the LPS never reads a word. Every word
+   of a box is measured in that box's own daily range, the range its two rail areas are
+   measured in, frozen for the box's life, so a word never changes because today's bars
+   were wide (ours). In that range the smallest push he drew as an SOS covers 1.33 ranges
+   and his shallowest last supper digs 1.52; the floors sit on his side of both (ours,
+   re-derived from his marked bars). No frozen range keeps every word he drew: read by
+   the reader itself on his last receding day, his 40 give THE SOS on 22 of his 28, the
+   spring on 9 of his 11, the last supper on 7 of his 8 (Fri 02/10/2026), each miss named
+   with its cause, most of them a box that is not his.
 6. **The LPS and the trigger.** He defines the pullback by the traits he wants to see:
    *"Receding Price move over time, Lowering (and low) spread below average, 2 - 5 bars"*
    (Tue 08/09/2026). One window per read day: the last run of receding days (a lower high

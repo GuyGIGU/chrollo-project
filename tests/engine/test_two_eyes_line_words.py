@@ -22,6 +22,17 @@ from engine_alpha.two_eyes import line_words as W
 V, P = "valley", "peak"
 
 
+@pytest.fixture(autouse=True)
+def _the_numbers_these_charts_were_drawn_at(monkeypatch):
+    """The hand-built charts of this file were drawn around the numbers the rules were first placed at (a push
+    covers 1.70 ranges, a last supper digs 1.5). Build task 12b re-placed those two in the box's own range, from
+    his marks. What this file tests is each rule's LOGIC, so its charts keep the numbers they were drawn at; the
+    placing of the numbers is held to his marked bars in tests/engine/test_two_eyes_story.py."""
+    from engine_alpha.two_eyes import method_numbers
+    monkeypatch.setattr(method_numbers, "LINE_WORD_SOS_MIN_GROUND_ATR", 1.70)
+    monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_DIG_ATR", 1.5)
+
+
 RECORD_KEYS = {"basis", "thrusts", "the_sos", "the_upthrust", "last_suppers", "phase_c", "spring_tests", "phase_d",
                "mini"}
 

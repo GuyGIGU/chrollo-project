@@ -20,15 +20,27 @@ TURN_LINE_FLOOR_ATR = 0.75
 #: The ruled rail area, in daily ranges ("rail area is about half a daily range").
 LINE_WORD_AREA_ATR = 0.5
 
-#: An upthrust climbs this far over R: between the breach he crossed out (his UNF, 0.94) and his smallest (his
-#: VIK note, 1.55).
+# THE UNIT OF THE WORDS (build task 12b, Fri 02/10/2026; ours): the story measures every word of a box in that
+# box's OWN daily range, the range of the day its second line was anchored: the same range its two rail areas
+# are measured in, frozen for the box's whole life, so a word never changes because today's bars were wide. The
+# three numbers below were first placed in another range (the one six bars back from the read day) and are
+# re-derived here from his own marked bars in the box's range (tests/engine/test_two_eyes_story.py holds each to
+# them). The rail area above is HIS number and did not move.
+
+#: An upthrust climbs this far over R: between the breach he crossed out (his UNF, Fri 05/06/2026: 1.21 of the
+#: box's ranges) and the smallest he named (his VIK, Thu 14/05/2026: 1.31). The band is 0.09 wide in this range:
+#: a knife edge on both sides, said so in the decisions record. Not re-placed.
 LINE_WORD_UPTHRUST_MIN_POKE_ATR = 1.25
 
-#: His smallest SOS, launch low to top, on his own spans.
-LINE_WORD_SOS_MIN_GROUND_ATR = 1.70
+#: A push covers at least this much ground, launch low to top. His smallest drawn SOS covers 1.33 of the box's
+#: ranges (SGHT, Mon 21/09 to Tue 22/09/2026); the floor sits 0.20 on his side of it (1.70 as first placed).
+LINE_WORD_SOS_MIN_GROUND_ATR = 1.13
 
-#: A last supper digs this far (his ten: 1.75 to 3.76); a pause this deep ends a thrust.
-LINE_WORD_SUPPER_DIG_ATR = 1.5
+#: A last supper digs this far; a pause this deep ends a push. His shallowest drawn last supper digs 1.52 of the
+#: box's ranges (SILC), and the pause before his PBT push of Tue 05/05/2026 is 1.24: the number sits 0.21 under
+#: that pause, so his push is read as he drew it, and 0.49 on his side of his shallowest supper (1.5 as first
+#: placed).
+LINE_WORD_SUPPER_DIG_ATR = 1.03
 
 #: His longest last supper, in trading days.
 LINE_WORD_SUPPER_MAX_DAYS = 4
