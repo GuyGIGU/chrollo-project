@@ -10,11 +10,22 @@ const chartOptions = (width, height) => {
   const base = baseChartOptions('modal', width, height);
   return {
     ...base,
+    // ResizeObserver-backed, like the card and calibration charts: the pane
+    // follows its CONTAINER, so a UI-scale change or a move to the other
+    // monitor — neither fires a window resize — re-fits it (review 2026-10-02;
+    // it used to keep its old width until the window itself was resized).
+    autoSize: true,
     crosshair: { mode: 1 },
     // Tight vertical fit so amplitude isn't flattened; bottom band sized to the
     // (now smaller) volume footprint so price/volume don't overlap.
     rightPriceScale: { ...base.rightPriceScale, scaleMargins: CHART_FRAMING.modal.scaleMargins, autoScale: true },
-    timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
+    // lockVisibleTimeRangeOnResize: a resize (the window dragged to the other
+    // monitor, the UI scale stepped — autoSize sees both) keeps the FRAMED
+    // trading days and re-spaces the bars, instead of keeping the bar spacing
+    // and silently showing more or fewer days than modalFocusLogicalRange chose
+    // (2026-10-02).
+    timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false,
+                 lockVisibleTimeRangeOnResize: true },
     handleScroll: true,
     handleScale: true,
   };
@@ -146,9 +157,6 @@ export default function useDailyStructureChart(containerRef, ticker, data, activ
         if (phaseOverlayRef.current === phaseOverlay) phaseOverlayRef.current = null;
       };
     },
-    onResize: (chart, container) =>
-      chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }),
-    resizeDelayMs: 100,
     deps: [containerRef, data, ticker, interval],
   });
 }

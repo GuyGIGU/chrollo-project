@@ -439,16 +439,20 @@ const etfNoteStyle = {
 
 const gridStyle = {
   display: 'grid',
-  // Responsive "reading room": fit as many ~480px cards as the screen allows and
-  // stretch them to fill the row — THREE per row at 1536 effective, a 490px card
-  // and a ~435px plot. Briefly widened to 620 (two-up) on 2026-09-02 and put back
-  // the same day: two-up made the chart wide and short, so a stock's whole run was
-  // squeezed into a strip and the rest read as a sliver in the corner. The height,
-  // not the width, is where the card had room (see --card-chart-h). Keep this in
+  // Responsive "reading room": ~480px cards stretched to fill the row — three per
+  // row on both of his screens. Briefly widened to 620 (two-up) on 2026-09-02 and
+  // put back the same day: two-up made the chart wide and short, so a stock's whole
+  // run was squeezed into a strip and the rest read as a sliver in the corner. The
+  // height, not the width, is where the card had room (the well is locked to the
+  // card's width at --card-chart-aspect, 2026-10-02). Keep this in
   // sync with uiScale.CARD_MIN_PX and index.html's pre-paint copy; HealthBoard and
   // .wl-card-grid must match too, or a surface sharing ScreenerMiniChart frames the
   // same window in half the pane. uiScale.test.js pins all five.
-  gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
+  // NEVER MORE THAN THREE (operator 2026-10-02, "the clean 3 charts per row"): a
+  // track is at least a third of the row (less the two 14px gaps; -1px absorbs
+  // sub-pixel rounding), so a 2560px screen draws three wide cards, not five
+  // narrow ones. Below ~1468px of grid the 480px floor takes over: two, then one.
+  gridTemplateColumns: 'repeat(auto-fill, minmax(max(480px, calc((100% - 28px) / 3 - 1px)), 1fr))',
   gap: '14px',
   width: '100%',
 };

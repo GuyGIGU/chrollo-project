@@ -16,7 +16,7 @@
 // NaN-free comparators (numAsc/strAsc) live in format.js — one shared home the
 // watchlist and this module both import, so the missing-value ordering can
 // never drift between the two ledgers (EC-3).
-import { finiteOrNull, numAsc, strAsc } from '../../../shared/formatting/format.js';
+import { EMPTY, finiteOrNull, numAsc, strAsc } from '../../../shared/formatting/format.js';
 
 // ============================================================================
 // COVERAGE — "what have I calibrated": one row per ticker, aggregated over ALL
@@ -215,4 +215,51 @@ function setupCompare(a, b, key) {
     case 'count': return numAsc(a.count, b.count);
     default: return 0;
   }
+}
+
+// ============================================================================
+// RAIL SEARCH + PAGES — operator ask 2026-10-02: "add a way to search the
+// tickers and split the list into pages of 20 setups. since we already got 40
+// and I'm planning to add more". The rail runs filter -> sort -> page; each
+// step is pure and never mutates its input.
+// ============================================================================
+export const SETUPS_PER_PAGE = 20;
+
+// Case-insensitive substring on the ticker OR the label, so a query finds a
+// symbol and a named setup alike. Two setups on one ticker both match — the
+// filter keeps rows, never collapses them. An empty query is a no-op.
+export function filterSetupRows(rows, query) {
+  const q = String(query ?? '').trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter((row) => String(row.ticker ?? '').toLowerCase().includes(q)
+    || String(row.label ?? '').toLowerCase().includes(q));
+}
+
+// At least one page, so "1/1" is the floor even for an empty list.
+export const pageCount = (total, size = SETUPS_PER_PAGE) =>
+  Math.max(1, Math.ceil(total / size));
+
+// The rows on a 1-based page; a page past either end clamps into range (a
+// delete that empties the last page shows the new last page, never a blank).
+export function pageSlice(rows, page, size = SETUPS_PER_PAGE) {
+  const current = Math.min(Math.max(1, page), pageCount(rows.length, size));
+  return rows.slice((current - 1) * size, current * size);
+}
+
+// The 1-based page that holds the row with `key`, or null when it is not in
+// the (filtered, sorted) list — how the rail follows the loaded setup.
+export function pageOfKey(rows, key, size = SETUPS_PER_PAGE) {
+  const index = rows.findIndex((row) => row.key === key);
+  return index < 0 ? null : Math.floor(index / size) + 1;
+}
+
+// The rail's Setup date WITH its year — "13 Apr 26" — so setups a year apart
+// on one symbol never read alike. Non-date strings pass through; empty is the
+// em-dash, like every other formatter in the app.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export function setupDateLabel(iso) {
+  if (!iso) return EMPTY;
+  const match = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return iso;
+  return `${Number(match[3])} ${MONTHS[Number(match[2]) - 1]} ${match[1].slice(2)}`;
 }

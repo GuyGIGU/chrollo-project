@@ -7,29 +7,32 @@
     <meta name="description" content="Chrollo — Wyckoff Screener & Trading Journal Dashboard" />
     <title>Chrollo</title>
     <script>
-      /* Apply the saved UI scale (or a first-run auto-fit) before React paints,
-         so there is no scale flash on load. Mirrors src/app/appearance/uiScale.js — keep
-         the constants in sync. Auto-fit = least shrink that unlocks another
-         screener column for this viewport, never enlarging past 100%. */
+      /* Apply this screen's UI scale (or a live auto-fit) before React paints,
+         so there is no scale flash on load. Mirrors src/app/appearance/uiScale.js —
+         keep the constants in sync (uiScale.test.js runs this script). The scale is
+         remembered PER SCREEN ('chrollo:ui-scale@2560x1440'); a screen with no
+         manual choice auto-fits = least shrink that unlocks another screener column
+         (never more than MAX_COLS), never enlarging past 100%, and is NOT saved. */
       (function () {
         try {
-          var KEY = 'chrollo:ui-scale';
+          var PREFIX = 'chrollo:ui-scale@';
           var STEPS = [0.85, 0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2, 1.25, 1.3];
-          var saved = localStorage.getItem(KEY);
+          var sc = window.screen || {};
+          var id = (sc.width > 0 && sc.height > 0) ? Math.round(sc.width) + 'x' + Math.round(sc.height) : 'default';
+          var saved = localStorage.getItem(PREFIX + id);
           var scale;
           if (saved != null && STEPS.indexOf(parseFloat(saved)) !== -1) {
             scale = parseFloat(saved);
           } else {
-            var V = document.documentElement.clientWidth || window.innerWidth || 1536;
-            var CHROME = 38, CARD = 480, GAP = 14, best = 1, bestCols = 0;
+            var V = document.documentElement.clientWidth || window.innerWidth || 1920;
+            var CHROME = 38, CARD = 480, GAP = 14, MAX_COLS = 3, best = 1, bestCols = 0;
             for (var i = 0; i < STEPS.length; i++) {
               var s = STEPS[i];
               if (s > 1) continue;
-              var cols = Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP)));
+              var cols = Math.min(MAX_COLS, Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP))));
               if (cols > bestCols || (cols === bestCols && s > best)) { bestCols = cols; best = s; }
             }
             scale = best;
-            localStorage.setItem(KEY, String(scale));
           }
           document.documentElement.style.setProperty('--ui-scale', String(scale));
         } catch (e) { /* leave the CSS default of 1 */ }

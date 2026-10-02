@@ -134,8 +134,8 @@ test('setupIndexes: baseEnd subtracts forward bars; baseStart clamps at 0', () =
 test('miniFocusLogicalRange: window adds real pre-base context', () => {
   const candles = makeCandles(60);
   // baseEnd = 60-1-2 = 57, baseStart = 46, rightPadding = clamp(2+5,5,9)=7 -> rightEdge 59.
-  // The 140-bar reference is longer than the whole history, so it clamps at 0.
-  // vb 12 + pad 7 over a 0.35 cap wants 55 days, which is also the floor.
+  // vb 12 + pad 7 over the 0.45 cap wants only 43 days, so the 55-day floor
+  // takes over: from 59-55+1 = 5.
   const range = miniFocusLogicalRange({ candles, base_len: 12, forward_bars: 2 });
   assert.deepEqual(range, { from: 5, to: 59 });
   assert.equal(miniFocusLogicalRange({ candles: [], base_len: 1, forward_bars: 0 }), null);
@@ -145,7 +145,7 @@ test('miniFocusLogicalRange: a base WIDER than the window stretches it, never cr
   const candles = makeCandles(300);
   // RULING 2026-08-09 (crop vs stretch, McKinney's open question): the box is the
   // datum — a base whose left edge sits off-pane misreports where it began, so
-  // every bound yields rather than cropping. base_len 200 asks for 586 days; the
+  // every bound yields rather than cropping. base_len 200 asks for 456 days; the
   // 220 ceiling cannot frame it (the rest would still own 93% of the pane), so
   // the ceiling yields and the window opens to the whole carried history.
   const range = miniFocusLogicalRange({ candles, base_len: 200, forward_bars: 0 });
@@ -199,23 +199,23 @@ test('miniFocusLogicalRange: single candle is a degenerate but valid range', () 
 
 test('miniFocusLogicalRange: the consolidation sets the window, not the surface', () => {
   // THE point of the model, and the correction the operator made to its first
-  // cut: a fixed span for every setup is "way way too much" on a short rest. A
-  // 20-day rest earns 72 days; a 40-day rest earns 129. Literal expectations —
-  // reading the answer off the profile would pin nothing.
+  // cut: a fixed span for every setup is "way way too much" on a short rest. At
+  // the card's 0.45 cap (2026-10-02) a 20-day rest earns 56 days; a 40-day rest
+  // earns 100. Literal expectations — reading the answer off the profile would
+  // pin nothing.
   const candles = makeCandles(300);
   const short = miniFocusLogicalRange({ candles, base_len: 20, forward_bars: 0 });
   const long = miniFocusLogicalRange({ candles, base_len: 40, forward_bars: 0 });
-  assert.deepEqual(short, { from: 228, to: 299 });   // 72 days
-  assert.deepEqual(long, { from: 171, to: 299 });    // 129 days
+  assert.deepEqual(short, { from: 244, to: 299 });   // 56 days
+  assert.deepEqual(long, { from: 200, to: 299 });    // 100 days
   assert.ok(long.to - long.from > short.to - short.from, 'a longer rest earns a wider window');
 });
 
 test('miniFocusLogicalRange: a very short rest still gets room behind it', () => {
   // minWindowBars is a FLOOR, not a span. A 10-day rest asks for only
-  // ceil(15/0.35) = 43 days, which would leave almost no approach leg to judge
-  // it against, so the floor takes over at 55. Inert on the live 230 — every
-  // real rest already earns more than 55 through the cap — so this fixture is
-  // the only thing that pins it.
+  // ceil(15/0.45) = 34 days, which would leave almost no approach leg to judge
+  // it against, so the floor takes over at 55. At the card's 0.45 cap it binds
+  // on rests under 20 days (re-measured 2026-10-02).
   const candles = makeCandles(300);
   const range = miniFocusLogicalRange({ candles, base_len: 10, forward_bars: 0 });
   assert.deepEqual(range, { from: 245, to: 299 });
@@ -224,10 +224,10 @@ test('miniFocusLogicalRange: a very short rest still gets room behind it', () =>
 
 test('miniFocusLogicalRange: the base never owns more than baseWidthCap of the pane', () => {
   const candles = makeCandles(300);
-  // base_len 30 asks for ceil((30+5)/0.35) = 100 days, inside the ceiling, so the
-  // cap is honoured exactly: the rest owns 30 of 100 days.
+  // base_len 30 asks for ceil((30+5)/0.45) = 78 days, inside the ceiling, so the
+  // cap is honoured exactly: the rest owns 30 of 78 days.
   const range = miniFocusLogicalRange({ candles, base_len: 30, forward_bars: 0 });
-  assert.deepEqual(range, { from: 200, to: 299 });
+  assert.deepEqual(range, { from: 222, to: 299 });
   const visibleBase = range.to - Math.max(range.from, 270) + 1;
   assert.ok(
     visibleBase / (range.to - range.from + 1) <= CHART_FRAMING.mini.baseWidthCap,
@@ -256,7 +256,7 @@ test('miniFocusLogicalRange: a LONGER base renders a strictly larger share of th
 test('miniFocusLogicalRange: a base the ceiling cannot frame zooms OUT to the whole history', () => {
   // Operator 2026-09-02: "for monster bases simply zoom out the base." Holding
   // bars wide does not make a rest that long readable. base_len 280 over 300
-  // candles: the cap wants 815 days, and the 220 ceiling would leave the rest
+  // candles: the cap wants 634 days, and the 220 ceiling would leave the rest
   // owning 130% of the pane, so the ceiling yields and the window takes
   // everything the payload carries.
   const candles = makeCandles(300);
@@ -267,7 +267,7 @@ test('miniFocusLogicalRange: a base the ceiling cannot frame zooms OUT to the wh
 
 test('miniFocusLogicalRange: a MEDIUM base still respects the ceiling', () => {
   // The other half of the same ruling, and the reason the yield is a tail rule
-  // rather than a hard stop: base_len 100 asks for 300 days, but at the ceiling
+  // rather than a hard stop: base_len 100 asks for 234 days, but at the ceiling
   // the rest owns only 48% of the pane — under ceilingYieldShare — so it holds at
   // 220 rather than opening to the whole history.
   const candles = makeCandles(300);
@@ -280,7 +280,8 @@ test('the box\'s open is NEVER cropped, at any base length, on any profile', () 
   // RULING 2026-08-09, as a property sweep rather than a fixture. It is proved
   // this way on purpose: since the ceiling learned to yield (2026-09-02) the
   // never-crop CLAMP in miniFocusLogicalRange is redundant — a base long enough
-  // to threaten its own leg now earns a window ~2.9x its own width — so a
+  // to threaten its own leg now earns a window ~2.2x its own width (1 / the
+  // card's 0.45 cap, re-swept 2026-10-02) — so a
   // fixture aimed at the clamp would pass with the clamp deleted, i.e. would not
   // be a guard at all. This sweep instead pins the INVARIANT the ruling is
   // about, and goes red the moment any future constant re-opens the hole
@@ -355,21 +356,41 @@ test('miniFocusLogicalRange: the hover glance frames at its OWN span, not the ca
 
   // A short rest falls back on the floor (55).
   assert.deepEqual(glance(10), { from: 245, to: 299 });
+  // Under the ceiling the card's 0.45 cap sets it: ceil(45/0.45) = 100 days.
+  assert.deepEqual(glance(40), { from: 200, to: 299 });
   // Over the cap, under the yield: it holds at the ceiling (105).
-  assert.deepEqual(glance(40), { from: 195, to: 299 });
-  // A rest that does not FIT the pane yields to the whole history — and the
-  // glance yields at 1, not at the card's 0.75, which is what keeps that a tail.
-  assert.deepEqual(glance(101), { from: 0, to: 299 });
+  assert.deepEqual(glance(60), { from: 195, to: 299 });
+  // A rest that does not FIT the pane yields to the window the cap wants,
+  // ceil(106/0.45) = 236 days — and the glance yields at 1, not at the card's
+  // 0.75, which is what keeps that a tail.
+  assert.deepEqual(glance(101), { from: 64, to: 299 });
   // Just under the knee the never-crop clamp is what widens it, not the yield:
   // 114 bars is neither the ceiling nor a yielded window.
   assert.deepEqual(glance(100), { from: 186, to: 299 });
 });
 
-test('CHART_FRAMING: the card, the modal and the glance agree on the base-share cap', () => {
-  // Different spans, ONE rule about how much pane a base may own — so the card
-  // and the big chart can never disagree about how wide a rest looks.
-  assert.equal(CHART_FRAMING.mini.baseWidthCap, CHART_FRAMING.modal.baseWidthCap);
+test('CHART_FRAMING: the glance agrees with the card, and the modal never frames closer than either', () => {
+  // ONE rule about how much pane a base may own on the card and on its preview,
+  // the hover glance (different spans, same share). The modal may frame wider
+  // but never closer: the card is the close-up, the modal is the stock
+  // (operator 2026-10-02 — card and glance 0.45, modal 0.35).
   assert.equal(CHART_FRAMING.mini.baseWidthCap, CHART_FRAMING.popover.baseWidthCap);
+  assert.ok(
+    CHART_FRAMING.modal.baseWidthCap <= CHART_FRAMING.mini.baseWidthCap,
+    'the modal must not let a base own more of the big chart than of the card',
+  );
+});
+
+test('CHART_FRAMING: the card\'s price band takes at least 88% of the well', () => {
+  // Operator 2026-10-02, "I want more close up on the setups themselves". The
+  // card's height goes to the candles: margins of at most 12% together, and the
+  // volume strip kept to the bottom 8% (volume is decoration on the card —
+  // doctrine keeps it out of the read). Pinned as bounds, not literals, so a
+  // future tune toward MORE price room passes and a regression toward the old
+  // 80% band (0.06 + 0.14, volume from 0.86) goes red.
+  const { scaleMargins, volumeScaleTop } = CHART_FRAMING.mini;
+  assert.ok(scaleMargins.top + scaleMargins.bottom <= 0.12 + 1e-9, `mini price margins ${scaleMargins.top} + ${scaleMargins.bottom} > 0.12`);
+  assert.ok(volumeScaleTop >= 0.92, `mini volume band starts at ${volumeScaleTop}, above the bottom 8%`);
 });
 
 test('marketFocusLogicalRange: last N bars, or null when history is shorter than the budget', () => {

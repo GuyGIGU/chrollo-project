@@ -115,21 +115,20 @@
      and pre-seeded by index.html's pre-paint script so there's no reload flash. */
   --ui-scale: 1;
 
-  /* The screener card's chart well — ONE token, was a three-times-copied inline
-     `clamp(180px, 11vw, 240px)` that on a 1536-wide monitor resolved to 168.96px
-     and so sat PERMANENTLY on its 180px floor: the well had never once grown,
-     and no setting the operator could change moved it (operator 2026-09-02,
-     "make the mini chart graph bigger"). Height-keyed now, so his 864px of
-     height counts, and divided by --ui-scale because `vh` is not rescaled by
-     CSS `zoom`. Scope that correction honestly: only the MIDDLE term carries it,
-     so the well is physically constant just while 200 <= 26vh/scale <= 300 — at
-     864px tall that is every step up to 1.10, and from 1.15 the 200px floor binds
-     and the well grows with the zoom (230/240/250/260px at 1.15/1.20/1.25/1.30).
-     Benign: it only ever gets bigger. Making it literally constant would mean
-     calc(clamp(200px, 26vh, 300px) / var(--ui-scale)), which at Scale 1.30 leaves
-     the well 172.8 internal px while everything around it grew 30% — the chart
-     shrinking against its own card, the opposite of the 2026-09-02 ask. */
-  --card-chart-h: clamp(200px, calc(26vh / var(--ui-scale)), 300px);
+  /* The screener card's chart well is locked to the card's WIDTH, not the
+     viewport's height (2026-10-02): the same card proportions on every monitor,
+     so a setup looks the same on the 1920 and the 2560 screen. The height-keyed
+     token it replaces (--card-chart-h, clamp(200px, 26vh/scale, 300px)) made
+     the shape a property of the SCREEN — ~281px in a 618px card at 1920 but
+     capped at 300px in an 831px card at 2560, so the bigger monitor drew every
+     setup flatter. 1.9:1 is "slightly more a cube like" (operator 2026-09-02)
+     than the ~2.2:1 well it replaces: 618px card -> 324px well at 1920, 831px ->
+     436px at 2560. A ratio is unitless, so --ui-scale's `zoom` grows the well
+     with its card and needs no correction. The 200px floor is a backstop for a
+     card under ~382px wide; it never binds at the 480px card minimum. Used by
+     ScreenerCard (firing + health) and WatchlistCardGrid's clean card. */
+  --card-chart-aspect: 1.9;
+  --card-chart-min-h: 200px;
 }
 
 * {
@@ -1471,6 +1470,22 @@ td {
   box-shadow: inset 0 3px 7px -4px rgba(0, 0, 0, 0.7);
 }
 
+/* The header lip — ONE 30px row on every card kind (firing, health, the
+   Watchlist's clean card), so their charts start at the same height in a mixed
+   row. Was two rows; the operator circled it as space the chart should get
+   (2026-10-02). Children decide what gives way; the row itself never wraps. */
+.screener-card-head {
+  align-items: center;
+  background: rgba(20, 23, 33, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  display: flex;
+  flex-shrink: 0;
+  gap: 7px;
+  height: 30px;
+  min-width: 0;
+  padding: 4px 10px;
+}
+
 /* Corner reticle — solid mythril L-brackets, one per corner, hidden until
    the card is the one under attention. */
 .screener-card::after {
@@ -1776,8 +1791,9 @@ td {
 /* ===================================================================
    Calibration workbench layout (Task 7): a chart-protagonist main column +
    a persistent right rail of setups. The rail is a recessed navigator, not a
-   second focus — fixed width, its own scroll, dense rows — so the chart never
-   yields space to it.
+   second focus — its own scroll, dense rows. Widened 2026-10-02 (operator:
+   "make the chart block smaller to make the list part bigger"): 30% of the
+   page, held between 440 and 620px — ~557px on a 1920 screen, 620 on 2560.
    =================================================================== */
 .calibration-page {
   display: flex;
@@ -1794,8 +1810,7 @@ td {
   gap: 10px;
 }
 .calibration-rail {
-  flex: 0 0 380px;
-  width: 380px;
+  flex: 0 0 clamp(440px, 30%, 620px);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1808,6 +1823,51 @@ td {
 .calibration-rail .instrument-table thead th,
 .calibration-rail .instrument-table tbody td {
   padding: 6px 8px;
+}
+/* The Label column is the rail's one FLUID column: width:100% takes whatever
+   the content-sized columns leave, max-width:0 lets it shrink below its text,
+   and the label ellipsizes (full text in the title) — so a long label can
+   never push Engine or the × past the rail's edge. */
+.calibration-rail .instrument-table tbody td:has(> .cal-rail-label) {
+  width: 100%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+}
+/* The rail's one-row header (2026-10-02): count · search · pager. */
+.cal-rail-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.cal-rail-title {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.calibration-page .cal-rail-search {
+  flex: 1 1 auto;
+  min-width: 80px;
+}
+.cal-rail-pager {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.calibration-page .cal-rail-pager button { padding: 2px 8px; }
+.cal-rail-page {
+  min-width: 34px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 /* One-click engine test control on a rail row: a quiet ghost at rest that locks
    on with mythril on hover (interactivity IS scarce, so the ONE actionable
@@ -1842,11 +1902,94 @@ td {
   border-color: color-mix(in srgb, var(--trigger) 55%, transparent);
   color: var(--trigger);
 }
-/* The folded command band (Task 8) packs three groups (lookup · mark · save)
-   into one instrument-tile; a hair more row-gap keeps them legible when the
-   band wraps onto multiple lines on a narrower main column. */
-.calibration-command-band { row-gap: 10px; align-items: center; }
-.calibration-command-band .ccb-group { min-width: 0; }
+/* The folded command band (Task 8), THREE fixed lines since 2026-10-02
+   (operator: five stacked rows "got to much dead space"). Line 1 holds only
+   fixed-width controls — lookup · tools · engine — and wraps only when the main
+   column is narrower than they are (a width fact, never a marking event). Line
+   2 never wraps: the save group (its note shrinks first, its status line
+   ellipsizes) and the instance actions at the far end. Line 3 is the draft
+   readout across the whole width, at a fixed height — a complete draft needs
+   ~980px, which a shared second row could not give it (review 2026-10-02) — so
+   the band height is constant while he marks. */
+.calibration-command-band {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px 12px;
+}
+.ccb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 28px;
+}
+.ccb-row-tools { flex-wrap: wrap; row-gap: 6px; }
+.ccb-row-draft { flex-wrap: nowrap; }
+.ccb-row > *,
+.ccb-group > * { flex-shrink: 0; }
+/* A group alone on a line narrower than itself wraps its own buttons (the
+   order never changes, only the line they sit on). */
+.ccb-row-tools > .ccb-group { flex-shrink: 1; flex-wrap: wrap; row-gap: 6px; }
+.ccb-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ccb-row-draft > .ccb-save { flex: 0 1 auto; }
+.ccb-row-draft > .ccb-frame-actions { margin-left: auto; }
+/* A WIDTH, not a flex-basis: the save group sizes itself from its children's
+   widths, and a basis alone left the note at the input's default ~180px. */
+.calibration-page .ccb-note { width: 360px; flex: 0 1 auto; min-width: 120px; }
+/* Never squeezed below its text (the note gives way first), but capped: a long
+   failure ellipsizes at the cap, the full sentence in its title. */
+.ccb-status {
+  flex: 0 0 auto;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.ccb-row-readout { min-height: 22px; }
+.ccb-row-readout > .ccb-readout {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ccb-readout-tokens {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ccb-readout-tokens::-webkit-scrollbar { height: 4px; }
+/* What the next click does: its own cell at the END, so its width changing as
+   tools arm never moves a token or a ×; ellipsized, the full text in its title. */
+.ccb-readout-status {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+/* The × on a readout token: a compact glyph, so a token is one text line tall
+   and the readout's fixed height always fits it. */
+.calibration-page .ccb-readout button {
+  margin-left: 2px;
+  padding: 0 4px;
+  line-height: 16px;
+}
 @media (max-width: 1100px) {
   /* Below the operator's wide secondary monitor: stack the rail under the chart
      instead of starving the protagonist of width. */
@@ -3219,7 +3362,8 @@ td.cell-editable { overflow: hidden; }
 .wl-card-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  /* Same three-card ceiling as ScreenerGrid's gridStyle (uiScale.test.js pins it). */
+  grid-template-columns: repeat(auto-fill, minmax(max(480px, calc((100% - 28px) / 3 - 1px)), 1fr));
   padding-bottom: 8px;
 }
 

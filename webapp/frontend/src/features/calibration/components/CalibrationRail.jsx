@@ -1,7 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import InstrumentTable from '../../../shared/components/InstrumentTable';
-import { buildSetupRows, sortSetupRows } from '../model/calibrationTables';
-import { fmtDateShort } from '../../../shared/formatting/format';
+import CalibrationRailHeader from './CalibrationRailHeader';
+import {
+  buildSetupRows,
+  filterSetupRows,
+  pageCount,
+  pageOfKey,
+  pageSlice,
+  setupDateLabel,
+  sortSetupRows,
+} from '../model/calibrationTables';
 
 // One-click engine test per setup: priority-ordered evidence, not a bare
 // pass/fail token — Box/R/S first (the top priority), then LPS, then the
@@ -57,29 +65,58 @@ function GradeCell({ grade, testing, onTest }) {
 // selectedSetupId. Rows are cheap static DOM (never a live chart). Element
 // indicators answer the priority order Box/R/S → LPS → Trigger at a glance; the
 // engine-test verdict lands in the Engine column.
+//
+// Search + pages of 20 (operator ask 2026-10-02, 40 setups and growing): the
+// list runs filter -> sort -> page through pure, tested helpers. A new query or
+// sort starts at page 1; loading a setup (a rail click or a lookup) turns to
+// the page that holds it, and only then — he can still page away from it.
 function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
                           grades = {}, testing = {}, onTest, onDeleteSetup }) {
   const [sort, setSort] = useState({ by: 'ticker', dir: 'asc' });
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
 
-  const rows = useMemo(
-    // Defensive: accept either prebuilt setup rows or raw marks, so the rail is
-    // correct even if a caller hands it the marks array directly.
-    () => {
-      const built = Array.isArray(setups) && setups.length && 'key' in setups[0]
-        ? setups
-        : buildSetupRows(setups);
-      return sortSetupRows(built, sort.by, sort.dir);
-    },
-    [setups, sort],
+  // Defensive: accept either prebuilt setup rows or raw marks, so the rail is
+  // correct even if a caller hands it the marks array directly.
+  const allRows = useMemo(
+    () => (Array.isArray(setups) && setups.length && 'key' in setups[0]
+      ? setups
+      : buildSetupRows(setups)),
+    [setups],
   );
+  const rows = useMemo(
+    () => sortSetupRows(filterSetupRows(allRows, query), sort.by, sort.dir),
+    [allRows, query, sort],
+  );
+  const pages = pageCount(rows.length);
+  const current = Math.min(Math.max(1, page), pages); // a delete can shrink the list under him
+  // ...and the clamp is WRITTEN BACK (React's adjust-state-while-rendering
+  // pattern, no effect): left stale, a later save that grows the list again
+  // would turn the rail to a page he never chose (review 2026-10-02).
+  if (page !== current) setPage(current);
+  const shown = useMemo(() => pageSlice(rows, current), [rows, current]);
+
+  // Turn to the loaded setup's page when the LOADED SETUP changes — keyed on
+  // that alone (the rows ride a ref), so a save's summary refresh or his own
+  // paging never yanks the page back.
+  const activeKey = activeTicker && activeAsOf ? `${activeTicker}|${activeAsOf}` : null;
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  useEffect(() => {
+    const holding = activeKey ? pageOfKey(rowsRef.current, activeKey) : null;
+    if (holding != null) setPage(holding);
+  }, [activeKey]);
 
   const isActive = (row) => row.ticker === activeTicker && row.asOf === activeAsOf;
 
-  const onSort = (key) =>
-    setSort((current) =>
-      current.by === key
-        ? { by: key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+  const onSort = (key) => {
+    setPage(1);
+    setSort((prev) =>
+      prev.by === key
+        ? { by: key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
         : { by: key, dir: key === 'ticker' ? 'asc' : 'desc' });
+  };
+  const onQuery = (value) => { setQuery(value); setPage(1); };
 
   const columns = [
     {
@@ -98,16 +135,31 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
     {
       // The as-of session IS the setup's identity — what tells two setups on one
       // symbol apart. A ·N badge flags the rare multi-mark session (extra label /
-      // a negative alongside the box).
+      // a negative alongside the box). The year shows (2026-10-02): the list now
+      // spans more than one, and "Apr 13" alone no longer says which.
       key: 'asOf',
       label: 'Setup',
       align: 'left',
       render: (row) => (
         <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-          {fmtDateShort(row.asOf)}
+          {setupDateLabel(row.asOf)}
           {row.count > 1 && (
             <span style={{ color: 'var(--text-faint)', marginLeft: 4 }}>·{row.count}</span>
           )}
+        </span>
+      ),
+    },
+    {
+      // His label, given the width the wider rail freed (2026-10-02): the one
+      // fluid column — it takes what the others leave and ellipsizes, the full
+      // text one hover away (the .cal-rail-label rule sizes the cell).
+      key: 'label',
+      label: 'Label',
+      align: 'left',
+      sortable: false,
+      render: (row) => (
+        <span className="cal-rail-label" title={row.label || undefined}>
+          {row.label || <span style={{ color: 'var(--text-faint)' }}>—</span>}
         </span>
       ),
     },
@@ -175,18 +227,23 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%' }}>
-      <div style={{ color: 'var(--text-faint)', fontSize: 11, letterSpacing: '0.06em',
-                    textTransform: 'uppercase', fontWeight: 600 }}>
-        Setups{rows.length ? ` · ${rows.length}` : ''}
-      </div>
-      {rows.length ? (
+      <CalibrationRailHeader
+        shown={rows.length}
+        total={allRows.length}
+        query={query}
+        onQuery={onQuery}
+        page={current}
+        pages={pages}
+        onPage={setPage}
+      />
+      {shown.length ? (
         // Fill the rail's remaining height and scroll inside the well (the table
         // owns its own scroll when handed a maxHeight; '100%' resolves against
         // this flex:1 min-height:0 wrapper).
         <div style={{ flex: 1, minHeight: 0 }}>
           <InstrumentTable
             columns={columns}
-            rows={rows}
+            rows={shown}
             rowKey={(row) => row.key}
             sortBy={sort.by}
             sortDir={sort.dir}
@@ -199,7 +256,9 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
         </div>
       ) : (
         <div style={{ color: 'var(--text-faint)', fontSize: 12, padding: '8px 2px' }}>
-          No setups yet — load a chart and mark one; it appears here.
+          {allRows.length
+            ? `No setup matches “${query.trim()}”.`
+            : 'No setups yet — load a chart and mark one; it appears here.'}
         </div>
       )}
     </div>

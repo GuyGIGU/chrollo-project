@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import CalibrationChartPane from './CalibrationChartPane';
+import CalibrationDraftReadout from './CalibrationDraftReadout';
+import CalibrationFrameActions from './CalibrationFrameActions';
 import CalibrationLookupForm from './CalibrationLookupForm';
 import CalibrationMarkingBar from './CalibrationMarkingBar';
 import CalibrationMarksList from './CalibrationMarksList';
@@ -191,9 +193,20 @@ function CalibrationTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartData, representativeBox, marking.frameKey, marking.editingId, marking.draft]);
 
+  // The saved setup on screen — its rail row (ticker + as-of), from the summary
+  // that loads with the page, so it is known BEFORE the chart draws. Its box
+  // start and buy widen the chart's opening frame (operator ask 2026-10-02:
+  // open zoomed in on the setup, with all of it in view). Null on a fresh
+  // lookup. The canvas reads it once per new frame, never as a rebuild dep.
+  const framing = useMemo(() => {
+    const row = setups.find((r) => r.ticker === chartData?.ticker
+      && r.asOf === chartData?.as_of_session);
+    return row ? { boxStart: row.boxStart, triggerDate: row.triggerDate } : null;
+  }, [setups, chartData]);
+
   const spec = useCalibrationCanvas({
     chartData, marking, savedForFrame, engineOn, engineRead,
-    dispatchMarking, setPlaceNotice,
+    dispatchMarking, setPlaceNotice, framing,
   });
 
   const canSave = !!chartData && draftComplete(marking.draft);
@@ -421,56 +434,80 @@ function CalibrationTab() {
   return (
     <div className="calibration-page">
       <div className="calibration-main">
-      {/* ONE command band (Task 8): lookup · mark · save read as a single
-          continuous flow, the screener's proven folded pattern (one
-          instrument-tile band, seams between groups). Each group WRAPS rather
-          than clipping, so the full vocabulary stays visible. The lookup group
-          keeps its own <form> so Enter there submits the lookup — and only the
-          lookup (the label lives outside it). */}
+      {/* ONE command band (Task 8), folded from five stacked rows to three
+          fixed lines (operator ask 2026-10-02: the band "got to much dead
+          space"). Line 1 is the fixed controls — lookup · the tools in their
+          ruled order · the engine peek; line 2 is the save group, then the
+          instance actions pushed to the far end; line 3 is the live draft
+          readout across the whole width. The readout had a two-row cut for an
+          hour and was measured clipped: a complete draft (R/S/span, an LPS, a
+          buy) needs ~980px and that row left it ~300px at 1920 (review
+          2026-10-02), so it keeps a line of its own, as it always had. Every
+          transient text lives on line 3, which never wraps, so arming a tool
+          never moves a button and the band height never changes mid-mark.
+          The lookup group keeps its own <form> so Enter there submits the
+          lookup — and only the lookup (the label lives outside it). */}
       <div className="instrument-tile screener-command-band calibration-command-band">
-      <CalibrationLookupForm
-        ticker={ticker}
-        onTicker={setTicker}
-        asOf={asOf}
-        onAsOf={setAsOf}
-        dateInputRef={dateInputRef}
-        loading={loading}
-        chartData={chartData}
-        engineOn={engineOn}
-        onToggleEngine={() => setEngineOn((v) => !v)}
-        eveOfBuyAsOf={eveOfBuyAsOf}
-        onLockSnapshot={lockSnapshotToBuyEve}
-        onAddInstance={addInstance}
-        onSubmit={submit}
-      />
+        <div className="ccb-row ccb-row-tools">
+          <CalibrationLookupForm
+            ticker={ticker}
+            onTicker={setTicker}
+            asOf={asOf}
+            onAsOf={setAsOf}
+            dateInputRef={dateInputRef}
+            loading={loading}
+            onSubmit={submit}
+          />
+          <span className="screener-command-seam" aria-hidden="true" />
+          <CalibrationMarkingBar
+            state={marking}
+            dispatch={dispatchMarking}
+            disabled={!chartData}
+            onReMark={reMark}
+          />
+          <span className="screener-command-seam" aria-hidden="true" />
+          <button type="button" aria-pressed={engineOn} disabled={!chartData}
+                  onClick={() => setEngineOn((v) => !v)}
+                  title="Overlay the engine's read of this frame (the agreement harness's own lens) [e]. Mark FIRST, peek after — anchoring on the engine corrupts the ground truth.">
+            Engine
+          </button>
+        </div>
 
-      <span className="screener-command-seam" aria-hidden="true" />
-      <CalibrationMarkingBar
-        state={marking}
-        dispatch={dispatchMarking}
-        disabled={!chartData}
-        asOfSession={chartData?.as_of_session}
-        onReMark={reMark}
-      />
+        <div className="ccb-row ccb-row-draft">
+          <CalibrationSaveBar
+            disabled={!chartData}
+            canSave={canSave}
+            saving={saving}
+            editingId={marking.editingId}
+            label={label}
+            onLabel={(v) => { setLabel(v); if (conflict) clearConflict(); }}
+            note={note}
+            onNote={setNote}
+            onSave={save}
+            onNewMark={newMark}
+            conflict={conflict}
+            onResolveConflict={resolveSaveConflict}
+            saveError={saveError}
+            tally={tally}
+            needs={draftStarted(marking.draft) ? saveNeeds(marking.draft) : []}
+          />
+          <CalibrationFrameActions
+            chartData={chartData}
+            loading={loading}
+            eveOfBuyAsOf={eveOfBuyAsOf}
+            onLockSnapshot={lockSnapshotToBuyEve}
+            onAddInstance={addInstance}
+          />
+        </div>
 
-      <span className="screener-command-seam" aria-hidden="true" />
-      <CalibrationSaveBar
-        disabled={!chartData}
-        canSave={canSave}
-        saving={saving}
-        editingId={marking.editingId}
-        label={label}
-        onLabel={(v) => { setLabel(v); if (conflict) clearConflict(); }}
-        note={note}
-        onNote={setNote}
-        onSave={save}
-        onNewMark={newMark}
-        conflict={conflict}
-        onResolveConflict={resolveSaveConflict}
-        saveError={saveError}
-        tally={tally}
-        needs={draftStarted(marking.draft) ? saveNeeds(marking.draft) : []}
-      />
+        <div className="ccb-row ccb-row-readout">
+          <CalibrationDraftReadout
+            state={marking}
+            dispatch={dispatchMarking}
+            disabled={!chartData}
+            asOfSession={chartData?.as_of_session}
+          />
+        </div>
       </div>
 
       <CalibrationChartPane

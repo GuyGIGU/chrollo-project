@@ -5,38 +5,64 @@ import {
   DEFAULT_SCALE,
   computeAutoFitScale,
   screenerColumnsAt,
+  monitorId,
   readStoredScale,
   persistScale,
+  clearStoredScale,
   applyScale,
 } from '../appearance/uiScale';
 
 const readViewport = () =>
-  (typeof document !== 'undefined' && document.documentElement.clientWidth) || 1536;
+  (typeof document !== 'undefined' && document.documentElement.clientWidth) || 1920;
 
 // A top-nav action that opens a small popover to size the whole app via CSS `zoom`
-// (--ui-scale on .app-layout). Self-contained: it owns the scale state, applies
-// it to the document root, and persists it — index.html's pre-paint script sets
-// the initial value so there is no flash on reload. Auto-fit picks the least
-// shrink that unlocks another screener column, which is the operator's real
-// goal on a scaled monitor (more cards per row).
+// (--ui-scale on .app-layout). Self-contained: it owns the scale state and applies
+// it to the document root — index.html's pre-paint script sets the initial value
+// so there is no flash on reload. The scale is PER SCREEN (operator 2026-10-02):
+// a manual step is remembered for the screen it was chosen on; a screen with no
+// choice auto-fits to its own width, live, and moving the window to the other
+// monitor re-reads that monitor's choice.
 function AppearanceControl() {
   const [open, setOpen] = useState(false);
-  const [scale, setScale] = useState(() => readStoredScale() ?? DEFAULT_SCALE);
+  const [monitor, setMonitor] = useState(monitorId);
+  const [override, setOverride] = useState(() => readStoredScale(monitorId()));
   const [viewport, setViewport] = useState(readViewport);
   const anchorRef = useRef(null);
+  const scale = override ?? computeAutoFitScale(viewport);
 
-  // Keep the document var + storage in lockstep with state on every change.
   useEffect(() => {
     applyScale(scale);
-    persistScale(scale);
   }, [scale]);
 
-  // Track viewport width so the cards-per-row readout and auto-fit stay honest.
+  // A resize, a move to the other monitor, or a return to the window: re-read
+  // which screen we are on, its width, and its remembered choice. `focus` covers
+  // a window dragged across without resizing, which fires no resize at all.
   useEffect(() => {
-    const onResize = () => setViewport(readViewport());
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    const sync = () => {
+      const id = monitorId();
+      setMonitor(id);
+      setOverride(readStoredScale(id));
+      setViewport(readViewport());
+    };
+    const screenApi = typeof window !== 'undefined' ? window.screen : null;
+    window.addEventListener('resize', sync);
+    window.addEventListener('focus', sync);
+    screenApi?.addEventListener?.('change', sync);
+    return () => {
+      window.removeEventListener('resize', sync);
+      window.removeEventListener('focus', sync);
+      screenApi?.removeEventListener?.('change', sync);
+    };
   }, []);
+
+  const choose = (next) => {
+    persistScale(next, monitor);
+    setOverride(next);
+  };
+  const pickAuto = () => {
+    clearStoredScale(monitor);
+    setOverride(null);
+  };
 
   // Dismiss on outside click or Escape.
   useEffect(() => {
@@ -58,7 +84,7 @@ function AppearanceControl() {
   const idx = SCALE_STEPS.indexOf(scale);
   const stepBy = (delta) => {
     const next = SCALE_STEPS[Math.min(SCALE_STEPS.length - 1, Math.max(0, idx + delta))];
-    if (next != null) setScale(next);
+    if (next != null) choose(next);
   };
   const cols = screenerColumnsAt(scale, viewport);
 
@@ -84,7 +110,9 @@ function AppearanceControl() {
             <button type="button" onClick={() => stepBy(-1)} disabled={idx <= 0} aria-label="Smaller">
               −
             </button>
-            <span className="appearance-value">{Math.round(scale * 100)}%</span>
+            <span className="appearance-value">
+              {Math.round(scale * 100)}%{override == null ? ' · auto' : ''}
+            </span>
             <button
               type="button"
               onClick={() => stepBy(1)}
@@ -103,18 +131,19 @@ function AppearanceControl() {
             <button
               type="button"
               className="appearance-primary"
-              onClick={() => setScale(computeAutoFitScale(readViewport()))}
-              title="Pick the densest comfortable scale for this window"
+              onClick={pickAuto}
+              aria-pressed={override == null}
+              title="Size the app to this screen automatically (follows the window)"
             >
               Auto-fit
             </button>
-            <button type="button" onClick={() => setScale(DEFAULT_SCALE)}>
+            <button type="button" onClick={() => choose(DEFAULT_SCALE)}>
               Reset
             </button>
           </div>
 
           <div className="appearance-hint">
-            Keep browser zoom at 100% (Ctrl+0) and use this to size the app to your monitor.
+            Remembered for this screen ({monitor.replace('x', '×')}). Keep browser zoom at 100% (Ctrl+0).
           </div>
         </div>
       )}

@@ -58,8 +58,8 @@ const hoverOff = (event) => {
 
 // Covers both the 'clean' kind (bare candles, no engine read) and the 'void'
 // kind (no candles at all — the well carries the named reason instead). The
-// well takes flex:1 so a clean card beside a taller scan card grows its CHART
-// to match, never a blank bottom band.
+// well grows (flex 1 0 auto) so a clean card beside a taller scan card grows its
+// CHART to match, never a blank bottom band.
 function CleanCard({ ticker, card, onSelect, onRemove }) {
   const candles = card.data?.candles || [];
   const changePct = dailyChangeFrac(candles);
@@ -83,47 +83,37 @@ function CleanCard({ ticker, card, onSelect, onRemove }) {
       onMouseEnter={hoverOn}
       onMouseLeave={hoverOff}
     >
-      <div
-        style={{
-          background: 'rgba(20, 23, 33, 0.5)',
-          borderBottom: '1px solid rgba(255,255,255,0.055)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 6,
-          padding: '9px 10px',
-          position: 'relative',
-        }}
-      >
-        {/* right:33 reserves the scan card's second toggle slot, so the star
-            column lines up across both card kinds in a mixed row. */}
-        <div style={{ position: 'absolute', right: 33, top: 8 }}>
-          <WatchlistButton active onToggle={() => onRemove(ticker)} />
-        </div>
-        <div style={{ alignItems: 'center', display: 'flex', gap: 7, minWidth: 0, paddingRight: 52 }}>
-          <span style={{ color: 'var(--text-main)', fontSize: 19, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {ticker}
+      {/* The scan card's ONE-row shell (2026-10-02): the state line is the part
+          that gives way, and an empty slot stands where the scan card's ♡ sits,
+          so the star column lines up across both card kinds in a mixed row. */}
+      <div className="screener-card-head">
+        <span style={{ color: 'var(--text-main)', flexShrink: 0, fontSize: 17, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
+          {ticker}
+        </span>
+        <span style={{ color: 'var(--text-faint)', fontSize: 11, marginLeft: 3, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={stateLine || undefined}>
+          {stateLine || 'price & volume only — no engine read'}
+        </span>
+        <span style={{ color: 'var(--text-faint)', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+          {asOfDate(candles)}
+        </span>
+        <span style={{ alignItems: 'baseline', display: 'flex', flexShrink: 0, gap: 6 }}>
+          <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            ${fx(lastClose, 2)}
           </span>
-          <span style={{ color: 'var(--text-faint)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-            {asOfDate(candles)}
-          </span>
-        </div>
-        <div style={{ alignItems: 'center', display: 'flex', gap: 10, minWidth: 0 }}>
-          <span style={{ color: 'var(--text-faint)', fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={stateLine || undefined}>
-            {stateLine || 'price & volume only — no engine read'}
-          </span>
-          <span style={{ alignItems: 'baseline', display: 'flex', gap: 6, marginLeft: 'auto' }}>
-            <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700 }}>
-              ${fx(lastClose, 2)}
+          {changePct != null && (
+            <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              {fmtSignedPctFrac(changePct, 1)}
             </span>
-            {changePct != null && (
-              <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700 }}>
-                {fmtSignedPctFrac(changePct, 1)}
-              </span>
-            )}
-          </span>
-        </div>
+          )}
+        </span>
+        <span style={{ display: 'flex', flexShrink: 0, gap: 4, marginLeft: 2 }}>
+          <WatchlistButton active onToggle={() => onRemove(ticker)} />
+          <span aria-hidden="true" style={{ width: 20 }} />
+        </span>
       </div>
-      <div className="screener-card-well" style={{ display: 'flex', flex: 1, minHeight: 'var(--card-chart-h)', position: 'relative' }}>
+      {/* Width-locked like the scan card's well (1.9:1, 2026-10-02), and free
+          to GROW (flex 1 0 auto) when a taller scan card shares the row. */}
+      <div className="screener-card-well" style={{ aspectRatio: 'var(--card-chart-aspect)', display: 'flex', flex: '1 0 auto', minHeight: 'var(--card-chart-min-h)', position: 'relative' }}>
         {candles.length ? (
           <ScreenerMiniChart ticker={ticker} data={card.data} />
         ) : (

@@ -388,12 +388,15 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 - **Section labels:** 9px uppercase, faint, wide tracking.
 
 ### Signature — The Screener Card
-The triage unit of the product: a header (tier-colored ticker + tier badge +
-sector ETF + as-of date on the first line, the weekly/monthly read and the live
-price on the second, with the watchlist star and the **like** heart floating in
-the top-right corner), a mini price chart, and a tag row. The setup label, score
-and sub-score pills live in the click-through modal, not on the card face — the
-card is for the chart.
+The triage unit of the product: a **one-row** header (tier-colored ticker + tier
+badge + sector ETF + the weekly/monthly read, then the as-of date, the live price
+and its daily %, and the watchlist star and the **like** heart inline at the far
+right), a mini price chart, and a **one-row** tag strip whose overflow folds into
+`+N`. The header was two rows until 2026-10-02, when the operator circled it as
+space the chart should get; on a narrow (480px) card the weekly/monthly words are
+what ellipsize, never the price or the toggles. The setup label, score and
+sub-score pills live in the click-through modal, not on the card face — the card
+is for the chart.
 
 **The like (♥, or `L`)** says "this is the kind of setup I want more of"
 (operator 2026-09-02). It replaced the neutral "considered" check-off, which now
@@ -404,19 +407,28 @@ the engine's. (An earlier draft of this section claimed cards dim to 50% when
 marked; they never did — no such rule was ever written.)
 
 **The chart is the card, and its spare room is VERTICAL** (operator 2026-09-02).
-The target is **three-up on a 1536×864-effective monitor**: a 490px card carrying
-a 225px chart well — a **2.17:1** chart, within a rounding error of Finviz's own
-screener charts (2.1:1), which is the reference he rules by. A two-up 620px card
-was tried the same day and reverted: it made the chart wide and short (3.1:1), so
-a stock's whole run was squeezed into a strip and the rest read as a sliver in the
-corner. Widening the card is not how this chart gets better; heightening it is.
+**Three-up on every monitor** (operator 2026-10-02, "the clean 3 Charts per row
+rule"): every card grid caps at three per row, so a wide screen gets three BIGGER
+cards, never a fourth or fifth — a 618px card at 1920x1080, an 831px card at
+2560x1440; below ~1468px of grid the 480px minimum takes over (two, then one). The
+chart well is locked to the card's **width**, not the viewport's height: a
+**1.9:1** well (`--card-chart-aspect`) — "slightly more a cube like" than the
+~2.2:1 well it replaced, and the same proportions on every monitor, so a setup is
+the same shape on his 1920 and his 2560 screen. Finviz's own screener charts
+(2.1:1) are the reference he rules by. A two-up 620px card was tried on
+2026-09-02 and reverted: it made the chart wide and short (3.1:1), so a stock's
+whole run was squeezed into a strip and the rest read as a sliver in the corner.
+Widening the card is not how this chart gets better; heightening it is.
 
 Density stays the point, and it means *honest bars per trading day*: the window is
-set by the consolidation the engine found (a 24-day rest gets ~83 days, a 33-day
-rest ~109), never by a fixed span, so a wide choppy setup and a tight coil can
-never occupy the same width. See
-[docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md); the knobs are
-`CHART_FRAMING` and `uiScale.CARD_MIN_PX`.
+set by the consolidation the engine found (on the card a 24-day rest gets ~65
+days, a 33-day rest ~85 — closer since 2026-10-02, "I want more close up on the
+setups themselves"), never by a fixed span, so a wide choppy setup and a tight
+coil can never occupy the same width. The card's price band takes 88% of the well;
+volume is a thin strip under the bars. See
+[docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md) (its 2026-10-02
+revision); the knobs are `CHART_FRAMING`, `--card-chart-aspect`,
+`uiScale.CARD_MIN_PX` and `uiScale.MAX_CARD_COLS`.
 
 ## 6. Do's and Don'ts
 

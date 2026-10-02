@@ -1,11 +1,14 @@
 import CandleChart from '../../../shared/charts/CandleChart';
 import { CHART_FONT, surfaceOf } from '../../../shared/charts/chartTheme';
 import {
+  PRESERVED_LABEL,
+  preservedTitle,
   engineLine,
   engineTitle,
   failureNotice,
   paneBody,
   paneTitle,
+  provenanceLine,
 } from '../model/calibrationPaneText';
 
 // The calibration page's fixed, never-shifting chart pane: the retained chart
@@ -32,6 +35,28 @@ function CalibrationChartPane({
             errorFallback={<PaneMessage title="Chart failed to draw" body="Reload the lookup." />}
             emptyFallback={<PaneMessage title="No drawable bars" body="Every bar in this window was non-finite." />}
           />
+          {/* Which frame is on screen (top-left, inside the price scale's top
+              margin at the opening frame; clicks pass through to the chart),
+              moved here from the command band (operator ask 2026-10-02).
+              Figures change on every load — mono +
+              tabular so the eye holds position across adjacent sessions. A
+              chart drawn from the preserved copy says so here too, in the
+              calm caution ink: the vendor lost the ticker, the bars did not. */}
+          <div style={{
+            position: 'absolute', top: 8, left: 8, zIndex: 3,
+            fontSize: 11, fontFamily: CHART_FONT, color: 'var(--text-muted)',
+            fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
+            background: 'rgba(23, 25, 34, 0.85)', padding: '3px 8px',
+            borderRadius: 6, pointerEvents: 'none',
+          }}>
+            {provenanceLine(chartData)}
+            {chartData.source === 'preserved' && (
+              <span title={preservedTitle(chartData.preserved_reason)}
+                    style={{ color: 'var(--warning)', pointerEvents: 'auto', cursor: 'help' }}>
+                {' '}· {PRESERVED_LABEL}
+              </span>
+            )}
+          </div>
           {failure && (
             // A failed step never wipes the working chart — the last good
             // frame stays up and the failure rides above it. A transient

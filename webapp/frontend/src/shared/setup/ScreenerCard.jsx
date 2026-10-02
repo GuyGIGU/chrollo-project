@@ -119,75 +119,79 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
   );
 }
 
-// Minimal Finviz charts-view header: the top line is stock + tier + date; the
-// meta line is the weekly / monthly trend read (moved up from the old HTF band)
-// plus the live price and its daily % change. Score, setup name, and the next-
-// earnings date move to the click-through detail lens, keeping the card face to
-// the chart itself.
+const monoFaint = { color: 'var(--text-faint)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, whiteSpace: 'nowrap' };
+
+// Minimal Finviz charts-view header, ONE row since 2026-10-02 — the operator
+// circled the old two-row header as space the chart should get ("increasing the
+// real state each setup gets in the mini chart cards"). Stock + tier + sector
+// ETF, then the weekly / monthly read, then — pushed right — the as-of date, the
+// live price and its daily % change, and the two toggles. The W/M group is the
+// ONE part that gives way: on a narrow (480px) card its state words ellipsize so
+// the row never wraps or overflows; the full read stays in each cell's tooltip.
+// The shell (.screener-card-head, 30px) is shared with the health card and the
+// Watchlist's clean card, so every card kind's chart starts at the same height.
+// Score, setup name, and the next-earnings date live in the click-through detail
+// lens, keeping the card face to the chart itself.
 function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike }) {
   const changePct = dailyChangeFrac(data.candles);
   const hasHtf = data.htf_w_trend_state != null || data.htf_m_trend_state != null;
 
   return (
-    <div
-      style={{
-        background: 'rgba(20, 23, 33, 0.5)',
-        borderBottom: '1px solid rgba(255,255,255,0.055)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        padding: '6px 10px',
-        pointerEvents: 'auto',
-        position: 'relative',
-      }}
-    >
-      {/* Utility toggles float in the top-right corner, out of the reading path */}
-      <div style={{ display: 'flex', gap: 4, position: 'absolute', right: 9, top: 8 }}>
-        <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
-        <LikeButton active={liked} onToggle={() => onToggleLike(ticker)} />
-      </div>
-
-      {/* Row 1 — stock + tier + date (date clears the corner toggles) */}
-      <div style={{ alignItems: 'center', display: 'flex', gap: 7, minWidth: 0, paddingRight: 52 }}>
-        <span style={{ color: tierColor(data.tier), fontSize: 19, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {ticker}
+    <div className="screener-card-head" style={{ pointerEvents: 'auto' }}>
+      <span style={{ color: tierColor(data.tier), flexShrink: 0, fontSize: 17, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
+        {ticker}
+      </span>
+      <span style={tierBadgeStyle(data.tier)}>{data.tier}</span>
+      {data.sector_etf ? (
+        <span style={{ alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, height: 15, lineHeight: 1, padding: '0 4px' }}>
+          {data.sector_etf}
         </span>
-        <span style={tierBadgeStyle(data.tier)}>{data.tier}</span>
-        {data.sector_etf ? (
-          <span style={{ alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, height: 15, lineHeight: 1, padding: '0 4px' }}>
-            {data.sector_etf}
-          </span>
-        ) : null}
-        <span style={{ color: 'var(--text-faint)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-          {asOfDate(data.candles)}
-        </span>
-      </div>
+      ) : null}
 
-      {/* Row 2 — weekly / monthly read, then price + daily change on the right */}
-      <div style={{ alignItems: 'center', display: 'flex', gap: 10, minWidth: 0 }}>
+      {/* The weekly / monthly read — shrinks first (minWidth 0 + overflow) */}
+      <div style={{ alignItems: 'center', display: 'flex', flex: '0 1 auto', gap: 8, marginLeft: 3, minWidth: 0, overflow: 'hidden' }}>
         {hasHtf ? (
           <>
             <TimeframeCell tf="W" stage2={data.htf_w_stage2} trendState={data.htf_w_trend_state} inConsol={data.htf_w_in_consol} phase={data.htf_w_phase} reaccum={data.htf_w_reaccum} nested={data.htf_w_daily_nested} />
-            <span style={{ alignSelf: 'stretch', background: 'var(--border-color)', width: 1 }} />
+            <span style={{ alignSelf: 'stretch', background: 'var(--border-color)', flexShrink: 0, margin: '2px 0', width: 1 }} />
             <TimeframeCell tf="M" stage2={data.htf_m_stage2} trendState={data.htf_m_trend_state} inConsol={data.htf_m_in_consol} phase={data.htf_m_phase} reaccum={data.htf_m_reaccum} nested={data.htf_m_daily_nested} />
           </>
         ) : (
-          <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>Daily setup</span>
+          <span style={{ color: 'var(--text-faint)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Daily setup</span>
         )}
-        <span style={{ alignItems: 'baseline', display: 'flex', gap: 6, marginLeft: 'auto' }}>
-          <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700 }}>
-            ${fx(data.price, 2)}
-          </span>
-          {changePct != null && (
-            <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700 }}>
-              {fmtSignedPctFrac(changePct, 1)}
-            </span>
-          )}
-        </span>
       </div>
+
+      <span style={{ ...monoFaint, flexShrink: 0, marginLeft: 'auto' }}>
+        {asOfDate(data.candles)}
+      </span>
+      <span style={{ alignItems: 'baseline', display: 'flex', flexShrink: 0, gap: 6 }}>
+        <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+          ${fx(data.price, 2)}
+        </span>
+        {changePct != null && (
+          <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            {fmtSignedPctFrac(changePct, 1)}
+          </span>
+        )}
+      </span>
+      <span style={{ display: 'flex', flexShrink: 0, gap: 4, marginLeft: 2 }}>
+        <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
+        <LikeButton active={liked} onToggle={() => onToggleLike(ticker)} />
+      </span>
     </div>
   );
 }
+
+// The chart well, locked to the card's WIDTH (2026-10-02): a 1.9:1 aspect from
+// index.css, so the card draws a setup in the same proportions on every monitor
+// instead of taking its height from the viewport. Shared by both card kinds.
+const chartWellStyle = {
+  aspectRatio: 'var(--card-chart-aspect)',
+  display: 'flex',
+  flexShrink: 0,
+  minHeight: 'var(--card-chart-min-h)',
+  position: 'relative',
+};
 
 // Quiet full-width drill affordance, only on ETF-universe cards (when onDrilldown
 // is passed). Visually separate from the card's open-the-chart click, and it
@@ -259,23 +263,25 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, l
       ticker={ticker}
       watchlisted={watchlisted}
     />
-    <div className="screener-card-well" style={{ display: 'flex', height: 'var(--card-chart-h)', position: 'relative' }}>
+    <div className="screener-card-well" style={chartWellStyle}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
+    {/* ONE row of chips (2026-10-02); what does not fit folds into TagRow's +N,
+        whose tooltip lists the rest — a chip is shown whole or not at all. */}
     <TagRow
       data={data}
       compact
       maxTags="auto"
-      rows={2}
+      rows={1}
       style={{
-        alignContent: 'flex-start',
+        alignContent: 'center',
         background: 'var(--bg-main)',
         borderTop: '1px solid var(--border-color)',
+        flexShrink: 0,
         flexWrap: 'wrap',
-        height: 52,
+        height: 28,
         overflow: 'hidden',
-        padding: '7px 8px',
-        rowGap: 5,
+        padding: '5px 8px',
       }}
     />
     {onDrilldown && (
@@ -313,11 +319,13 @@ function StateChip({ state }) {
         border: `1px solid ${meta.decision ? 'var(--border-strong)' : 'var(--border-color)'}`,
         borderRadius: 'var(--radius-pill)',
         color: meta.decision ? 'var(--text-main)' : 'var(--text-muted)',
+        flexShrink: 0,
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 12,
         fontWeight: 700,
         letterSpacing: '0.01em',
-        padding: '4px 11px',
+        lineHeight: 1.2,
+        padding: '2px 10px', // fits the 30px one-row header (was 4px 11px)
         whiteSpace: 'nowrap',
       }}
     >
@@ -353,27 +361,19 @@ const HealthCard = React.memo(({ ticker, data, onDrilldown }) => (
       event.currentTarget.style.background = 'var(--bg-panel)';
     }}
   >
-    {/* Header re-balanced to mirror the firing card's height so nothing jumps
-        between tabs: identity on the left, the state chip in the verdict slot. */}
+    {/* Header mirrors the firing card's ONE-row shell (2026-10-02) so nothing
+        jumps between tabs: ticker and name on one line (the name gives way),
+        the state chip in the verdict slot. */}
     <div
-      style={{
-        alignItems: 'center',
-        background: 'rgba(20, 23, 33, 0.98)',
-        borderBottom: '1px solid rgba(255,255,255,0.055)',
-        display: 'flex',
-        gap: 8,
-        justifyContent: 'space-between',
-        minHeight: 34,
-        overflow: 'hidden',
-        padding: '6px 10px',
-      }}
+      className="screener-card-head"
+      style={{ background: 'rgba(20, 23, 33, 0.98)', justifyContent: 'space-between', overflow: 'hidden' }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <span style={{ color: 'var(--text-main)', fontSize: 18, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ alignItems: 'baseline', display: 'flex', gap: 7, minWidth: 0 }}>
+        <span style={{ color: 'var(--text-main)', flexShrink: 0, fontSize: 17, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
           {ticker}
         </span>
         {data.name ? (
-          <span style={{ color: 'var(--text-faint)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span title={data.name} style={{ color: 'var(--text-faint)', fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {data.name}
           </span>
         ) : null}
@@ -381,7 +381,7 @@ const HealthCard = React.memo(({ ticker, data, onDrilldown }) => (
       <StateChip state={data.state} />
     </div>
 
-    <div style={{ display: 'flex', height: 'var(--card-chart-h)', position: 'relative' }}>
+    <div style={chartWellStyle}>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
 

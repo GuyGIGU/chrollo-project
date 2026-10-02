@@ -157,7 +157,10 @@ The nightly backup snapshots the **irreplaceable** local data:
 - `calibration_frames\` — the frozen bars each operator mark was drawn on, bound
   by `frame_digest`. **The least replaceable thing here:** a live re-fetch returns
   different bars, so a lost frame cannot be re-derived at any price. ~3 MB, rides every
-  snapshot whole.
+  snapshot whole. Since 2026-10-02 it is also what the Calibration chart draws from when
+  the vendor no longer serves a ticker (SKYT, delisted, refused from 2026-08-28): the
+  `/calibration/chart` lookup falls back to the frozen window and says so ("preserved
+  copy"), so every saved setup stays loadable, markable and testable.
 - `cache_meta*.json` and `market_context*.json` — small state files, all universes.
 
 Deliberately **not** backed up: the `market_data_cache_5y*.parquet` price caches. They

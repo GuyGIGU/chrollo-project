@@ -9,9 +9,12 @@ import {
   GRID_CHROME_PX,
   CARD_MIN_PX,
   CARD_GAP_PX,
+  MAX_CARD_COLS,
   clampScale,
   screenerColumnsAt,
   computeAutoFitScale,
+  monitorId,
+  storageKeyFor,
 } from './uiScale.js';
 
 test('screenerColumnsAt: the operator 1536px viewport shows 3 cards at 100%', () => {
@@ -47,11 +50,30 @@ test('computeAutoFitScale: stays at 100% when shrinking would not add a column',
   assert.equal(computeAutoFitScale(1280), 1);
 });
 
-test('computeAutoFitScale: on a wide monitor shrinks only as far as the next column needs', () => {
-  // 1920px reaches a 4th card at 95% — take that step, but no further down.
-  assert.equal(screenerColumnsAt(1, 1920), 3);
-  assert.equal(screenerColumnsAt(0.95, 1920), 4);
-  assert.equal(computeAutoFitScale(1920), 0.95);
+test('never more than three cards per row, on any screen at any step', () => {
+  // Operator 2026-10-02: "When using Chrollo on my main monitor the scale breaks
+  // and the clean 3 Charts per row rule gets ignored". His main screen is
+  // 2560x1440 at 100%, where the uncapped grid drew five 493px cards.
+  for (const width of [1920, 2560, 3440, 3840]) {
+    for (const s of SCALE_STEPS) {
+      assert.ok(screenerColumnsAt(s, width) <= MAX_CARD_COLS, `${width}px at ${s} gave ${screenerColumnsAt(s, width)}`);
+    }
+  }
+  assert.equal(screenerColumnsAt(1, 2560), 3);
+});
+
+test('computeAutoFitScale: both of his screens stay at 100% - three already fit', () => {
+  // Shrinking can no longer buy a fourth card, so auto-fit has nothing to chase.
+  assert.equal(computeAutoFitScale(1920), 1);
+  assert.equal(computeAutoFitScale(2560), 1);
+});
+
+test('monitorId names the screen by its CSS size, and degrades to one shared id', () => {
+  assert.equal(monitorId({ width: 2560, height: 1440 }), '2560x1440');
+  assert.equal(monitorId({ width: 1536.0, height: 864 }), '1536x864');
+  assert.equal(monitorId(undefined), 'default');
+  assert.equal(monitorId({ width: 0, height: 900 }), 'default');
+  assert.equal(storageKeyFor('2560x1440'), 'chrollo:ui-scale@2560x1440');
 });
 
 test('computeAutoFitScale: never enlarges past 1', () => {
@@ -93,6 +115,7 @@ const preNum = (re) => {
 const preSteps = () => JSON.parse(preScript.match(/STEPS\s*=\s*(\[[^\]]*\])/)[1]);
 
 test('index.html pre-paint constants match uiScale.js', () => {
+  assert.equal(preNum(/MAX_COLS\s*=\s*(\d+)/), MAX_CARD_COLS);
   assert.equal(preNum(/CHROME\s*=\s*(\d+)/), GRID_CHROME_PX);
   assert.equal(preNum(/CARD\s*=\s*(\d+)/), CARD_MIN_PX);
   assert.equal(preNum(/GAP\s*=\s*(\d+)/), CARD_GAP_PX);
@@ -103,13 +126,14 @@ test('index.html pre-paint auto-fit reproduces computeAutoFitScale across widths
   const CHROME = preNum(/CHROME\s*=\s*(\d+)/);
   const CARD = preNum(/CARD\s*=\s*(\d+)/);
   const GAP = preNum(/GAP\s*=\s*(\d+)/);
+  const MAX_COLS = preNum(/MAX_COLS\s*=\s*(\d+)/);
   const STEPS = preSteps();
   const prePaintAutoFit = (V) => {
     let best = 1;
     let bestCols = 0;
     for (const s of STEPS) {
       if (s > 1) continue;
-      const cols = Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP)));
+      const cols = Math.min(MAX_COLS, Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP))));
       if (cols > bestCols || (cols === bestCols && s > best)) {
         bestCols = cols;
         best = s;
@@ -140,9 +164,9 @@ test('the card minimum is identical at all five sites', () => {
   // finds an unrelated 150px grid first and the test would be red on arrival.
   const sites = [
     ['index.html pre-paint', readRepo('index.html'), /var CHROME = \d+, CARD = (\d+)/],
-    ['ScreenerGrid gridStyle', readRepo('src/features/screener/components/ScreenerGrid.jsx'), /gridStyle\s*=\s*\{[\s\S]*?minmax\((\d+)px, 1fr\)/],
-    ['HealthBoard gridStyle', readRepo('src/features/screener/components/HealthBoard.jsx'), /gridStyle\s*=\s*\{[\s\S]*?minmax\((\d+)px, 1fr\)/],
-    ['index.css .wl-card-grid', readRepo('src/index.css'), /\.wl-card-grid\s*\{[^}]*minmax\((\d+)px, 1fr\)/],
+    ['ScreenerGrid gridStyle', readRepo('src/features/screener/components/ScreenerGrid.jsx'), /gridStyle\s*=\s*\{[\s\S]*?minmax\(max\((\d+)px, calc\(\(100% - 28px\) \/ (\d+) - 1px\)\), 1fr\)/],
+    ['HealthBoard gridStyle', readRepo('src/features/screener/components/HealthBoard.jsx'), /gridStyle\s*=\s*\{[\s\S]*?minmax\(max\((\d+)px, calc\(\(100% - 28px\) \/ (\d+) - 1px\)\), 1fr\)/],
+    ['index.css .wl-card-grid', readRepo('src/index.css'), /\.wl-card-grid\s*\{[^}]*minmax\(max\((\d+)px, calc\(\(100% - 28px\) \/ (\d+) - 1px\)\), 1fr\)/],
   ];
   for (const [label, text, pattern] of sites) {
     const match = text.match(pattern);
@@ -152,6 +176,11 @@ test('the card minimum is identical at all five sites', () => {
       CARD_MIN_PX,
       `${label} says ${match[1]}px but uiScale.CARD_MIN_PX is ${CARD_MIN_PX}. All five must move together: uiScale.js, index.html, ScreenerGrid, HealthBoard, .wl-card-grid — HealthBoard renders inside ScreenerGrid's own wrapper, so a split makes one ScreenerMiniChart frame the same window at two densities in one pane.`,
     );
+    // The grid sites also carry the three-card ceiling (the pre-paint carries it
+    // as MAX_COLS, pinned above). Without it a wide screen draws five cards.
+    if (match[2] != null) {
+      assert.equal(Number(match[2]), MAX_CARD_COLS, `${label}: the track divides by ${match[2]}, not MAX_CARD_COLS`);
+    }
   }
 });
 
@@ -165,13 +194,14 @@ test('the index.html pre-paint script RUNS and agrees with computeAutoFitScale',
   assert.ok(body, 'index.html: the pre-paint <script> block is gone');
   assert.match(body[1], /chrollo:ui-scale/, 'the pre-paint script no longer touches the scale key');
 
-  const runPrePaint = (clientWidth, stored = null) => {
+  const runPrePaint = (clientWidth, stored = null, screen = { width: clientWidth, height: 1080 }, storedFor = null) => {
     let applied = null;
     let calls = 0;
     let saved;
+    const key = storedFor ?? storageKeyFor(monitorId(screen));
     const context = {
-      localStorage: { getItem: () => stored, setItem: (_k, v) => { saved = v; } },
-      window: { innerWidth: clientWidth },
+      localStorage: { getItem: (k) => (k === key ? stored : null), setItem: (_k, v) => { saved = v; } },
+      window: { innerWidth: clientWidth, screen },
       document: {
         documentElement: {
           clientWidth,
@@ -184,15 +214,22 @@ test('the index.html pre-paint script RUNS and agrees with computeAutoFitScale',
   };
 
   for (const width of [900, 1150, 1280, 1440, 1536, 1707, 1920, 2560, 3840]) {
-    const { applied, calls } = runPrePaint(width);
+    const { applied, calls, saved } = runPrePaint(width);
     assert.equal(calls >= 1, true, `pre-paint never applied a scale at ${width}px`);
     assert.equal(applied, computeAutoFitScale(width), `pre-paint scale disagrees with computeAutoFitScale at ${width}px`);
+    assert.equal(saved, undefined, `auto-fit at ${width}px was saved - auto must stay live, never stored`);
   }
 
-  // A stored value is honoured verbatim and NOT re-saved...
-  const stored = runPrePaint(1536, '1.15');
+  // THIS screen's stored choice is honoured verbatim and NOT re-saved...
+  const stored = runPrePaint(2560, '1.15', { width: 2560, height: 1440 });
   assert.equal(stored.applied, 1.15);
   assert.equal(stored.saved, undefined);
+  // ...the OTHER screen's choice does not leak onto this one...
+  const other = runPrePaint(2560, '0.85', { width: 2560, height: 1440 }, 'chrollo:ui-scale@1920x1080');
+  assert.equal(other.applied, computeAutoFitScale(2560));
+  // ...nor does the retired single key...
+  const legacy = runPrePaint(2560, '0.85', { width: 2560, height: 1440 }, 'chrollo:ui-scale');
+  assert.equal(legacy.applied, computeAutoFitScale(2560));
   // ...but a garbage one falls through to auto-fit.
   const garbage = runPrePaint(1536, '9');
   assert.equal(garbage.applied, computeAutoFitScale(1536));

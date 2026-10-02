@@ -19,6 +19,12 @@ an artifact is present.
 Run of record: `output/screener_data.json`, scan 2026-09-01, 230 setups, 231–300 daily candles
 carried per setup (median 300 ≈ 14 months).
 
+> **Revised 2026-10-02** — the card and the glance now cap the base at 0.45 (the modal stays at
+> 0.35), the card's price band is 88% of a well locked to 1.9:1 by width, and the census lives at
+> `tools/research/chart_framing_census.mjs`. Everything above the
+> [2026-10-02 revision](#2026-10-02-revision--the-close-up-on-his-two-screens) is the 2026-09-02
+> record and is left as measured.
+
 ---
 
 ## The complaint
@@ -271,3 +277,94 @@ measurably wrong. Pinning the card to a fixed px-per-day, in the same 687px plot
 
 Density is a legibility budget; the **span** is the invariant. Matching his TradingView px/bar in a
 half-width pane matches the wrong thing — he reads at that density *because his pane is 1389px wide*.
+
+---
+
+## 2026-10-02 revision — the close-up, on his two screens
+
+> *"I'm still interested in increasing the real state each setup gets in the mini chart cards
+> (look at the screenshot) + I want more close up on the setups themselves (meaning in exchange of
+> some information from the left side) + Very important to keep an ACCURATE view of how each setup
+> looks in the big advanced chart/trading view/finviz or other websites and tools"* — operator,
+> 2026-10-02, circling the card's two-row header.
+
+This is his explicit **close-up** ask, not a box-height target: the retired vertical trim stays
+retired. The window is still the setup's (`ceil((rest + pad) / baseWidthCap)`); it is just framed
+closer, and nothing deletes trading days to make a box look taller. The same day the card grid was
+capped at three per row on every monitor (his main screen is 2560x1440 and had been drawing five
+493px cards) — see [`decisions.md`](decisions.md) 2026-10-02.
+
+Reproduce: `node tools/research/chart_framing_census.mjs` (section "2026-10-02 — the close-up").
+Run of record: the live artifact of 2026-10-02, 109 setups, 208–300 candles (median 300). Plot
+widths are the card less its borders and the ~53px price scale: **563px** for the 618px three-up
+card at 1920x1080 and **776px** for the 831px card at 2560x1440 (the 2026-09-02 figures above are at
+435px, 1536 effective). "The big chart" is the modal's daily pane at 1920x1080, measured at
+**1318x672px**.
+
+### The model, revised
+
+| profile | minWindowBars | ceiling | baseWidthCap | ceilingYieldShare | minContextBars | price band (margins) | volume from |
+|---|---|---|---|---|---|---|---|
+| `mini` | 55 | 220 | **0.45** (was 0.35) | 0.75 | 18 | **88%** (0.04 / 0.08; was 80%, 0.06 / 0.14) | **0.92** (was 0.86) |
+| `modal` | 252 | 300 | 0.35 (unchanged) | 0.60 | 25 | 78% (unchanged) | 0.84 |
+| `popover` | 55 | 105 | **0.45** (was 0.35) | 1 | 14 | 77% (unchanged) | 0.88 |
+
+`baseWidthCap` is **no longer identical** across the three: the card and its preview (the glance)
+agree, and the modal may frame wider but never closer — the card is the close-up, the modal is the
+stock. 0.45 stays below the 0.50 tail knee measured above. At 0.45 `minWindowBars` is no longer
+inert: it binds on rests under 20 trading days.
+
+### The well is width-locked now
+
+The 2026-09-02 well was keyed to the viewport's **height** (`clamp(200px, 26vh / scale, 300px)`).
+That made the card's shape a property of the **screen**: 281px tall in a 618px card at 1920, but
+capped at 300px in a card of any width at 1440 tall — so on his main screen the same setup drew in
+different proportions than on his secondary. The well is now **`aspect-ratio: 1.9`** of the card's
+own width (`--card-chart-aspect`, floor `--card-chart-min-h` 200px, which never binds at the 480px
+card minimum): **324px at 1920, 436px at 2560**, "slightly more a cube like" (2026-09-02) than the
+~2.2:1 well it replaces. A ratio is unitless, so the UI-scale `zoom` scales it with its card and the
+whole correction paragraph above no longer applies. The header and the tag strip fold to one row
+each (30px and 28px), so at 1920 the card stays ~384px tall (was 390) while the well grows 15%.
+
+### Before → after (live 109)
+
+| | BEFORE (cap 0.35, band 80%, 26vh well) | AFTER (cap 0.45, band 88%, 1.9:1 well) |
+|---|---|---|
+| window, trading days | med **106** · p90 212 | med **83** · p90 165 |
+| base % of card WIDTH | med **30.2** · p90 32.5 | med **38.8** · p90 41.8 |
+| bases over 45% / 60% of width | 5 / 1 | 5 / 1 |
+| boxes cropped off-pane | 0 | 0 |
+| **1920 three-up** — well | 281px | **324px** |
+| median box drawn (w x h) | 170 x 48 px | **218 x 70 px** |
+| squareness vs the big chart, median | 0.58 | **0.65** |
+| px per trading day, median | 5.31 | 6.78 |
+| cards under 3 px per trading day | 14 | **7** |
+| **2560 three-up** — well | 300px (capped) | **436px** |
+| median box drawn (w x h) | 234 x 51 px | 301 x 94 px |
+| squareness vs the big chart, median | 0.45 | **0.64** |
+| 2560 **five-up** (before the three-card cap) | 493px card, squareness **0.80** | — |
+
+**Squareness** is the box's height/width on the card divided by the same box's height/width on the
+big chart; 1.00 is the same shape. The card still draws boxes flatter than the big chart, but less
+than before — so the closer view is **not** a tighter-looking view. And it is now the same shape on
+both monitors (0.65 / 0.64), where before it was 0.58 on the 1920 three-up card and 0.80 on the 2560
+five-up one: **the shape no longer depends on the monitor.**
+
+**Order inversion, with a pixel tolerance.** Strict, it goes 1 → 38 of 5,772 pairs (0.7%). Almost
+all of that is the cap's `ceil()` step: a 32-day rest earns an 83-day window and a 31-day rest 80, so
+the longer one is drawn ~1.1px narrower at 563px (~1.5px at 776). No eye sees it. Counted only when
+the longer rest is drawn more than **1px** narrower: 1 → **15** (1920) and 1 → **27** (2560); more
+than **2px**: **1 → 1** on both. The one real inversion is TTC (171 days) against FLNG (136), the
+monster-tail yield, and it was there before.
+
+**The glance** moves with the card (med base share 30.5% → 38.8%; over 60% unchanged at 9; glances
+under 3 px/day unchanged at 5). **The modal** is untouched (median 252 days, base share med 12.7%).
+
+### Found on the way: the one-row chip strip needed an honest fit
+
+`TagRow` decides how many chips fit before its `+N` by comparing chip widths from
+`getBoundingClientRect` — screen px, already multiplied by the `--ui-scale` zoom — against the
+row's `clientWidth`, which is layout px and **includes its padding**. On the old two-row strip the
+error hid in the second row; on one row it lets the last chip or the `+N` wrap out of sight. Both
+sides are now layout px inside the padding. Swept over 205 grid widths on the live cards: the old
+measure spilled at **31 widths at Scale 1 and 163 at 0.85**; the fixed one at **0 and 0**.
