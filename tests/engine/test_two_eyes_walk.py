@@ -1640,8 +1640,9 @@ def test_flg_tells_the_same_boxes_the_night_after_its_window_lost_its_first_tren
     "KNOWN LIMIT, found by the core's blind check on Sun 27/09/2026 and narrowed by the rebuild of Thu 01/10/2026. "
     "The reader has no memory: it reads the boxes from the first trend end its two-year window holds, and the "
     "window's left edge moves a day a night. So the OLDEST boxes it records, those of the window's first months, "
-    "are told differently on some nights no box took another's place (134 of 2,120 replayed nights on his 37 and "
-    "the junk, Fri 02/10/2026; before the rebuild 738 of 8,350). The last three earlier boxes were told differently on none of "
+    "are told differently on some nights no box took another's place (94 of 2,240 replayed nights on his 40 "
+    "and the junk, Fri 02/10/2026, beside 98 on which the window had only moved on past the oldest box; before "
+    "the rebuild 738 of 8,350 by an older count). The last three earlier boxes were told differently on none of "
     "those nights, and the box SHOWN moved only on a hand-over's own night. The earlier boxes are the story's "
     "(task 12b): they are made independent of the window's edge before the story reads them, and that day this "
     "mark comes off deliberately."))

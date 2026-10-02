@@ -262,11 +262,13 @@ default as ours.
    a reader standing on any day tells the same history up to that day as one standing
    later. The window's left edge moves a day a night, and the OLDEST boxes of the record,
    those of the window's first months, can be told differently on a night with no hand-over
-   (measured Fri 02/10/2026 on his 37 and the 16 junk charts, forty nights each: on 134 of
-   2,120 nights; the last three earlier boxes were told the same on every one of them, and
-   the box SHOWN moved on 88 nights, 6 of them a place given back, each the night the
-   read itself says so). Until the earlier boxes are made independent of the window's edge the story
-   does not read them (ours).
+   (measured Fri 02/10/2026 on his 40 and the 16 junk charts, forty nights each, 2,240
+   nights: with the same box shown, the earlier boxes were not the same list as the night
+   before on 192 nights, on 98 of them only because the window had moved on past the
+   oldest box, on 94 because the oldest boxes were told differently; the last three
+   earlier boxes were the same on every one of them, and the box SHOWN moved on 94 nights,
+   7 of them a place given back, each the night the read itself says so). Until the earlier
+   boxes are made independent of the window's edge the story does not read them (ours).
    Measured on his 40 on his last receding day (Fri 02/10/2026, the standard following the
    three setups he drew on the evening of Thu 01/10/2026: SGHT, WAT and NET): the reader's
    box is his to the cent on 25, both lines within half a daily range of his on 11, another

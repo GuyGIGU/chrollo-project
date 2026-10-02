@@ -24,9 +24,11 @@ His sentences, and where each lives:
    (``UNFIT_WHOLE_MOVE``; the move before is read on the bars, ``move_began``).
 5. *The first pair tried is the climax and its reaction; if the bars do not come back to both rails, one pair to
    the right*; his answer: *"only if a swing connects between them, we cannot allow for dismemberd anchor
-   paring"* — every pair is two ends a swing connects (``connects``): from the first to the second bar the top
-   is the highest high and the low the lowest low. The pairs are listed in the order they open, from the first
-   trend end on.
+   paring"* — every pair is two ends a swing connects: from the first to the second bar the top is the highest
+   high and the low the lowest low. ``pairs_from`` holds to it as it lists (an end is paired only while no bar
+   has gone past it, and only with the running extreme of the other side); ``connects`` says the same of one
+   pair, and the tests hold the list to it. The pairs are listed in the order they open, from the first trend
+   end on.
 6. *Come back*; his answer: *"if by "Come back" to be counted as respect to the respective rail that bar is
    closest too then yes"* — each end of a bar counts for the rail it is closest to, within the rail's area
    (``rail_of``, ``bar_respects``). On the pictures (Thu 01/10/2026): *"Silc supposed to work due the much
@@ -295,7 +297,8 @@ class Pair:
 
 def connects(high, low, first: End, second: End) -> bool:
     """A swing connects the two ends: from the first bar to the second the top is the highest high and the low
-    the lowest low — his *"we cannot allow for dismemberd anchor paring"*."""
+    the lowest low — his *"we cannot allow for dismemberd anchor paring"*. The rule said of ONE pair: the reader
+    lists by ``pairs_from``, which walks the same rule, and the tests hold its list to this."""
     top, bottom = (first, second) if first.kind == "peak" else (second, first)
     span = slice(first.bar, second.bar + 1)
     return bool(high[span].max() <= top.price and low[span].min() >= bottom.price)
