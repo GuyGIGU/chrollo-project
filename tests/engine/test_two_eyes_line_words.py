@@ -605,10 +605,16 @@ def test_the_reader_names_his_upthrust_before_the_spring():
     11.8 on bar 6 (1.4 ranges, a pause the thrust walks through), then the swing that breaches climbs to 16.2 on bar
     9 and crashes back to 10.8 on bar 11; after a bounce to 12.7 on bar 12 the spring digs to 8.3 on bar 15 and
     recovers (12.9 on bar 19, itself a push off the tip, then a higher low 11.1 on bar 22); the last push climbs to
-    15.2 on bar 26, after the spring. The upthrust is marked from the dip on bar 6, not from the run's own start on bar 0."""
+    15.2 on bar 26, after the spring. The upthrust is marked from the dip on bar 6, not from the run's own start on bar 0.
+    Since build task 12b the box opens five trading days before the frame's first bar, so the breach tops on the
+    box's fifteenth day: a push that tops sooner is the trend still ending (his ALB word, Thu 01/10/2026), and the
+    same read with the box opening on bar 0 names no upthrust."""
     path = np.interp(np.arange(27), [0, 4, 6, 9, 11, 12, 15, 19, 22, 26],
                      [10.0, 13.0, 12.0, 16.0, 11.0, 12.5, 8.5, 12.7, 11.3, 15.0])
-    rec = W.read_line_words(_frame(path + 0.2, path - 0.2), _Box(start_bar=0, R=14.0, S=10.5), 1.0)
+    frame = _frame(path + 0.2, path - 0.2)
+    assert W.read_line_words(frame, _Box(start_bar=0, R=14.0, S=10.5), 1.0)["the_upthrust"] is None, \
+        "a breach topping on the box's tenth day is the trend still ending"
+    rec = W.read_line_words(frame, _Box(start_bar=-5, R=14.0, S=10.5), 1.0)
     assert rec["phase_c"]["tip_bar"] == 15
     assert [(t["launch_bar"], t["swing_bar"], t["top_bar"]) for t in rec["thrusts"]] == [(0, 6, 9), (15, 15, 19), (22, 22, 26)]
     ut = rec["the_upthrust"]

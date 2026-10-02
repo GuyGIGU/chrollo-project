@@ -28,10 +28,8 @@ import pandas as pd
 
 # The originals, frozen. Imported HERE and in the frozen tests only: this file is the one place the two
 # meet, because comparing them is its whole job.
-from engine_alpha.structure.narrative import bricks as old_bricks
 from engine_alpha.structure.phases import climax as old_climax
 from engine_alpha.structure.metrics import indicators as old_indicators
-from engine_alpha.structure.events import line_words as old_words
 from engine_alpha.structure.events import market_structure as old_market_structure
 from engine_alpha.structure.metrics import pivots as old_pivots
 
@@ -170,151 +168,16 @@ def test_the_run_reader_copy_finds_the_same_runs_on_every_fixture_frame():
     assert runs_seen > 0, "no fixture frame produced a run; the pin would be vacuous"
 
 
-def test_the_word_rules_copy_reads_the_same_words_on_his_drawings():
-    c = _copies()
-    named = minis = 0
-    for ticker, df, box, lps in _his_drawings():
-        df = _with_atr(df, old_indicators.calculate_atr)
-        unit = _unit(df)
-        # The mini rule reads only when handed an inner box, which his drawings do not carry: both sides get
-        # the old engine's own, the one input the copy is not compared on.
-        whole = SimpleNamespace(**vars(box), base_len=len(df) - box.start_bar, box_width=(box.R - box.S) / box.S)
-        for inner in (None, old_bricks.find_inner_box(df, whole, unit)):
-            old = old_words.read_line_words(df, box, unit, lps=lps, inner=inner)
-            new = c.line_words.read_line_words(df, box, unit, lps=lps, inner=inner)
-            assert old == new, f"{ticker}: the words differ"
-            minis += old["mini"] is not None
-        named += old["the_sos"] is not None
-    assert named >= 20, f"THE SOS was named on only {named} drawings; the pin would be too thin"
-    assert minis >= 1, "no drawing read a mini; the mini rule was never compared"
+#: The word rules' copy was pinned equal to its original here, on his drawings, until build task 12b (Fri
+#: 02/10/2026). That task changed the copy on purpose (the upthrust on his ALB word of Thu 01/10/2026), and the
+#: two pins that compared the words (this one, and "each chain whole") left in the same commit, as the copy's own
+#: header said they would. The copy's rules are now held by tests/engine/test_two_eyes_line_words.py (its copied
+#: pure tests) and tests/engine/test_two_eyes_story.py (his own marked bars).
 
 
 # --------------------------------------------------------------------------- #
 # The chains, whole                                                           #
 # --------------------------------------------------------------------------- #
-def test_each_chain_whole_reads_the_same_on_his_drawings():
-    """Each side stamps its OWN daily range and reads its OWN words on it. The piece-by-piece pins hand both
-    sides one column; only this one exercises the daily-range copy as the input the rest actually consume."""
-    c = _copies()
-    for ticker, raw_df, box, lps in _his_drawings():
-        old_df = _with_atr(raw_df, old_indicators.calculate_atr)
-        new_df = _with_atr(raw_df, c.daily_range.calculate_atr)
-        old_unit, new_unit = _unit(old_df), _unit(new_df)
-        assert old_unit == new_unit, ticker
-        # The line itself is no longer pinned here: the copy changed on purpose at task 8 (the new leg's
-        # extreme, the wide first bar), and tests/engine/test_two_eyes_line.py guards it now. The run
-        # reader is pinned on the old line in its own test above. The box-end copy was RETIRED at task 11:
-        # the box's life is read from the walk's own pairs (engine_alpha/two_eyes/walk.py, stage 4), with no
-        # close anywhere, so there is no copy left to compare.
-        assert old_words.read_line_words(old_df, box, old_unit, lps=lps) == \
-            c.line_words.read_line_words(new_df, box, new_unit, lps=lps), ticker
-
-
-def test_the_copies_import_nothing_from_the_old_engine_when_they_run():
-    """A runtime check beside the static one: the leaf guard reads import statements, and an import it
-    does not recognise — a relative one, a `from engine_alpha import structure`, one made through another
-    module — would slip past it. Here the copies run, in a fresh interpreter, and then no module of the
-    old chart reader may be loaded at all."""
-    import subprocess
-    import sys
-    import textwrap
-    from pathlib import Path
-
-    root = str(REPO_ROOT)
-    probe = textwrap.dedent(f"""
-        import sys
-        sys.path.insert(0, {str(root)!r})
-        import numpy as np, pandas as pd
-        from engine_alpha.two_eyes import daily_range, line_words, runs, swing_line
-        from types import SimpleNamespace as NS
-        n = 60
-        rng = np.random.default_rng(7)
-        close = 100 + np.cumsum(rng.normal(0, 1, n))
-        df = pd.DataFrame({{"Open": close, "High": close + 1, "Low": close - 1, "Close": close}},
-                          index=pd.bdate_range("2026-01-05", periods=n))
-        df["ATR_10"] = daily_range.calculate_atr(df, 10)
-        unit = float(df["ATR_10"].iloc[-6])
-        line = swing_line.turn_line(df["High"].to_numpy(), df["Low"].to_numpy(),
-                                    swing_line.turn_line_floors(df, unit))
-        runs.runs_on_the_line(line)
-        swing_line.label_market_structure([(b, k, p) for (b, k, p, _) in line])
-        box = NS(start_bar=5, R=float(df["High"].max()), S=float(df["Low"].min()), r_anchor_bar=6, s_anchor_bar=5)
-        line_words.read_line_words(df, box, unit)
-        old = sorted(m for m in sys.modules if m.split(".")[:2] in (
-            ["engine_alpha", "structure"], ["engine_alpha", "evaluation"], ["engine_alpha", "scoring"],
-            ["engine_alpha", "freeze"], ["engine_alpha", "stability"]))
-        print("OLD:" + ",".join(old))
-    """)
-    done = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=180)
-    assert "OLD:" in done.stdout, done.stderr[-1500:]
-    loaded = done.stdout.split("OLD:")[1].strip()
-    assert loaded == "", f"running the copies loaded the old chart reader: {loaded}"
-
-
-def test_the_window_rule_copy_cuts_the_same_frame_on_every_fixture_frame():
-    """Stage 1 (task 8) copied the old engine's window rule so the two readers see the same two years;
-    pinned once, like the pieces, on the 88 frames at the window the reader uses."""
-    from engine_alpha import frames as old_frames
-    from engine_alpha.two_eyes import frame as new_frame
-    from engine_alpha.two_eyes import method_numbers
-
-    cut = 0
-    for name, raw in _all_fixture_frames().items():
-        old = old_frames._trim_to_period(raw, method_numbers.READ_WINDOW)
-        new = new_frame._trim_to_period(raw, method_numbers.READ_WINDOW)
-        pd.testing.assert_frame_equal(old, new, obj=name)
-        cut += len(new) < len(raw)
-    assert cut > 0, "no fixture frame was longer than the window; the pin never cut anything"
-
-
-def test_the_copies_read_no_shared_setting():
-    """The copies' numbers are their own (engine_alpha/two_eyes/method_numbers.py). Were a copy to read
-    `config.settings`, tuning a shared knob for the new reader would move the frozen original with it — and
-    the freeze guard, which watches FILES, could not see a settings value change."""
-    import ast
-    import os
-
-    root = str(REPO_ROOT)
-    package = os.path.join(root, "engine_alpha", "two_eyes")
-    names = sorted(f[:-3] for f in os.listdir(package) if f.endswith(".py"))
-    assert {"daily_range", "swing_line", "runs", "line_words", "method_numbers"} <= set(names)
-    for name in names:
-        path = os.path.join(package, f"{name}.py")
-        with open(path, encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-        imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
-        named = [a.name for n in imports if isinstance(n, ast.Import) for a in n.names] + \
-                [n.module or "" for n in imports if isinstance(n, ast.ImportFrom)]
-        assert not any(m == "config" or m.startswith("config.") for m in named), f"{name} imports config"
-        assert not any(isinstance(n, ast.Name) and n.id == "settings" for n in ast.walk(tree)), \
-            f"{name} reads `settings`"
-
-
-def test_word_recall_measures_the_copies_and_reaches_the_old_engine_only_through_the_door():
-    """The instrument that reports his words (THE SOS 23 of 25, Phase C 10 of 10 on his rails, measured on
-    Mon 21/09/2026: identical to the original, all 130 of its rows) reads the new reader's copies from task 7
-    on, so it is the one that will say when they first read differently. The block that measures the OLD
-    engine's election asks the door. No piece of the old chart reader is imported directly."""
-    import ast
-    import os
-
-    root = str(REPO_ROOT)
-    with open(os.path.join(root, "tools", "calibration", "word_recall.py"), encoding="utf-8") as f:
-        tree = ast.parse(f.read())
-    named = []
-    for n in ast.walk(tree):
-        if isinstance(n, ast.ImportFrom) and n.module:
-            named += [n.module] + [f"{n.module}.{a.name}" for a in n.names]
-        elif isinstance(n, ast.Import):
-            named += [a.name for a in n.names]
-    old = [m for m in named if m.startswith(("engine_alpha.structure", "engine_alpha.evaluation",
-                                             "engine_alpha.scoring"))
-           or m == "engine_alpha.structure"]
-    assert not old, f"word_recall imports the old chart reader: {old}"
-    assert "engine_alpha.two_eyes.line_words" in named or "engine_alpha.two_eyes" in named
-
-
-
 def test_the_copies_numbers_start_at_the_values_the_originals_read():
     """Pinned once, like the pieces: each number the copies read from `method_numbers` starts at the value its
     original reads from the shared settings. The copied pure tests bracket some of them only loosely (the

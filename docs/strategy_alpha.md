@@ -306,7 +306,11 @@ default as ours.
    resistance area is named by the swing after it and by where it sits: THE upthrust, one
    per box, in Phase B, *"similar to a Spring but in reverse being a Resistance based
    event swing"* — price climbs quickly out of the structure, then crashes back into the
-   range; in Phase D a push that may be THE SOS, *"a push
+   range. The crash may take more than one swing, as long as the price is back under the
+   resistance area before it makes a higher top; and a run past resistance in the box's
+   first fourteen days is the trend still ending, never an upthrust (his ALB, Thu
+   01/10/2026: the run of Tue 20/01 to Tue 27/01/2026 *"is not an upthrust in fact there is
+   a later on 25/02/2026"*; the form of both clauses is ours). In Phase D a push that may be THE SOS, *"a push
    that's like a paradigm shift it signals local buyer strength"*; a deep correction after
    a breach of resistance in Phase D is the last supper, written only in hindsight. Phase D
    opens at the first right-side evidence after the middle of the box, never at or before

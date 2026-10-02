@@ -1,4 +1,12 @@
-"""COPIED from engine_alpha/structure/events/line_words.py at cd87fcc (two-eyes-reader task 7): the word rules — THE SOS, the upthrust, the last supper, Phase C and its spring test, Phase D, the mini, and the reader `read_line_words`; NOT the old engine's flag plumbing (`_WORDS_BY_FLAG`, `any_word_enabled`, `emitted`), which is how the old engine emitted words, not a rule for reading one.
+"""The word rules of the two-eyes reader. They CHANGED ON PURPOSE at build task 12b (Fri 02/10/2026): the
+upthrust follows his word of Thu 01/10/2026 on ALB ("that breach is not an upthrust in fact there is a later on
+25/02/2026 ... that movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place where the
+trend ends"): crashing back may take more than one swing (``_crashes_back``), and a push that tops before the
+box's fifteenth day is the trend still ending, never an upthrust (``_upthrust_printed``, the ONE predicate both
+the upthrust and the spring's "the range ran on" read). Everything else is as copied. What follows is the copy's
+own header, kept for the record.
+
+COPIED from engine_alpha/structure/events/line_words.py at cd87fcc (two-eyes-reader task 7): the word rules — THE SOS, the upthrust, the last supper, Phase C and its spring test, Phase D, the mini, and the reader `read_line_words`; NOT the old engine's flag plumbing (`_WORDS_BY_FLAG`, `any_word_enabled`, `emitted`), which is how the old engine emitted words, not a rule for reading one.
 
 Verbatim, function for function, but for this: every number it reads (the LINE_WORD_* values) comes from the new reader's own
 `method_numbers` instead of the SHARED settings, with the same values; and the line is the
@@ -53,7 +61,8 @@ SOS sitting):
                the middle (his ANRO: "the last Clear Up swing before the LPS"); with no push after the middle, none.
   upthrust     ONE per box, his words: of the thrusts (the SOS's shape and floor) topping in Phase B (before the
                Phase C tip, else at or before the middle of the box) more than LINE_WORD_UPTHRUST_MIN_POKE_ATR over
-               the resistance, whose next line valley crashes back under the resistance area, the one that climbed
+               the resistance, that crash back under the resistance area (task 12b: a later line valley under
+               it before any higher top; and topping no sooner than the box's fifteenth day), the one that climbed
                furthest out. What is marked is the swing that breached: from the line valley right before the top,
                never the whole run up from support with its dips. Named in hindsight, its knowable_bar is that
                valley's commit. The floor is mine, placed between the breach he crossed out (his UNF, Fri
@@ -174,7 +183,35 @@ def pick_the_sos(th, lps_low_bar, after=None, *, line, highs, start, read_bar, u
     return {**(breaking or late)[-1], "in_progress": lps_low_bar is None}
 
 
-def the_upthrust(th, line, R, unit, pc, start, read_bar):
+def _crashes_back(line, k, R, unit):
+    """Where the push topping at the line peak ``line[k]`` crashes back into the range: the first later line
+    valley under the resistance area, before any line peak over its top. It may take more than one swing (his ALB,
+    Wed 25/02/2026: the next low still holds over the area). The index of that valley, or None while the price
+    has not crashed back (or went on to a higher top first)."""
+    area, top = _area(unit), line[k][2]
+    for j in range(k + 1, len(line)):
+        _, kind, price, _ = line[j]
+        if kind == "peak" and price > top:
+            return None
+        if kind == "valley" and price < R - area:
+            return j
+    return None
+
+
+def _upthrust_printed(line, k, R, unit, fifteenth=None):
+    """ONE predicate for "an upthrust printed" on the line peak ``line[k]``, read by THE upthrust and by the
+    spring's "the range ran on": it climbs more than LINE_WORD_UPTHRUST_MIN_POKE_ATR ranges over the resistance,
+    it tops no sooner than the box's fifteenth day when that day is given (before it the trend is still ending:
+    his ALB, the run of Tue 20/01 to Tue 27/01/2026, "is not an upthrust"), and it crashes back
+    (``_crashes_back``). The index of the valley it crashed back to, or None."""
+    if (line[k][2] - R) / unit <= M.LINE_WORD_UPTHRUST_MIN_POKE_ATR:
+        return None
+    if fifteenth is not None and line[k][0] < fifteenth:
+        return None
+    return _crashes_back(line, k, R, unit)
+
+
+def the_upthrust(th, line, R, unit, pc, start, read_bar, fifteenth=None):
     """THE upthrust, one per box. His words Tue 15/09/2026: "an Event that belongs in Phase B, it is kind of a
     'Reverse' Spring where price climbs quickly out of the structure then crashes back into the trading range" (his
     UNF, Thu 11/06/2026), tweaked Wed 16/09/2026: "not every small false breach of Resistance is one or a candidate
@@ -183,26 +220,27 @@ def the_upthrust(th, line, R, unit, pc, start, read_bar):
     major/devolped one rather then tiny hiccups in resistance."
 
     Of the thrusts topping in Phase B (before the Phase C tip when the box has one, else at or before the middle of
-    the box) whose top climbs more than LINE_WORD_UPTHRUST_MIN_POKE_ATR ranges over the resistance and whose next
-    line valley crashes back under the resistance area, the one that climbed furthest out; the earlier one when two
-    climb the same. It is marked from the swing that breached (the line valley right before the top), never the run
+    the box) for which an upthrust printed (``_upthrust_printed``: the climb over the resistance, the box's
+    fifteenth day ``fifteenth`` when given, the crash back under the resistance area), the one that climbed
+    furthest out; the earlier one when two climb the same. It is marked from the swing that breached (the line valley right before the top), never the run
     up from support with its dips; that run stays in the record as ``launch_bar``/``launch_price``, data and never
     the mark, and ``candidates`` counts how many pushes reached the pick, so his "usually only one" can be read
     from the measurement. A word read in hindsight: ``knowable_bar`` is the commit of the valley it crashed back to
     (None while that valley forms)."""
-    area, half = _area(unit), _middle(start, read_bar)
+    half = _middle(start, read_bar)
     at = {(t[0], t[1]): k for k, t in enumerate(line)}
     best, seen = None, 0
     for t in th:
         p = t["top_bar"]
         in_b = p < pc["tip_bar"] if pc is not None else p <= half
         k = at.get((p, "peak"))
+        if not in_b or k is None:
+            continue
+        back = _upthrust_printed(line, k, R, unit, fifteenth)
+        if back is None:
+            continue
         poke = (t["top_price"] - R) / unit
-        if not in_b or poke <= M.LINE_WORD_UPTHRUST_MIN_POKE_ATR or k is None or k + 1 >= len(line):
-            continue
-        back_bar, _, back_price, know = line[k + 1]
-        if back_price >= R - area:
-            continue
+        back_bar, _, back_price, know = line[back]
         seen += 1
         if best is None or poke > best[0]:
             # line[k - 1] is the valley the thrust's last swing starts at: the swing that actually breached.
@@ -297,10 +335,10 @@ def _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar):
     return min(opens) if opens else None
 
 
-def _range_ran_on(line, i, R, S, unit, open_bar, half):
+def _range_ran_on(line, i, R, S, unit, open_bar, half, fifteenth=None):
     """After the dip at line[i], before the right side opened, the box went back up to the R area and then down
-    under the support area again, or an upthrust printed (a top at or before the middle of the box, more than
-    LINE_WORD_UPTHRUST_MIN_POKE_ATR over R, whose next line valley is back under the R area; a later one is a push in
+    under the support area again, or an upthrust printed (a top at or before the middle of the box for which
+    ``_upthrust_printed`` holds; a later one is a push in
     Phase D): the range was still running, so the dip was Phase B. His VIK (Sat
     19/09/2026): the dip of Wed 29/04/2026 is "No" spring, his upthrust of Thu 14/05/2026 came after it."""
     area, back_at_r = _area(unit), False
@@ -310,15 +348,14 @@ def _range_ran_on(line, i, R, S, unit, open_bar, half):
             return False
         if kind == "peak" and p >= R - area:
             back_at_r = True
-            if b <= half and (p - R) / unit > M.LINE_WORD_UPTHRUST_MIN_POKE_ATR and k + 1 < len(line) \
-                    and line[k + 1][2] < R - area:
+            if b <= half and _upthrust_printed(line, k, R, unit, fifteenth) is not None:
                 return True
         elif kind == "valley" and back_at_r and p < S - area:
             return True
     return False
 
 
-def phase_c(line, highs, start, S, unit, R, lps_start, read_bar):
+def phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=None):
     """One Phase C per box, the spring: the deepest dip that recovered by the swing and after which the range
     did not run on (back to the R area, then under the support area again, before the right side opened)."""
     at = {(t[0], t[1]): k for k, t in enumerate(line)}
@@ -328,7 +365,7 @@ def phase_c(line, highs, start, S, unit, R, lps_start, read_bar):
     for d in recovered:
         i = at[(d["tip_bar"], "valley")]
         opens = _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar)
-        if not _range_ran_on(line, i, R, S, unit, opens, half):
+        if not _range_ran_on(line, i, R, S, unit, opens, half, fifteenth):
             return d
     return None
 
@@ -415,11 +452,13 @@ def read_line_words(df, box, unit, *, lps=None, inner=None):
     start, R, S = int(box.start_bar), float(box.R), float(box.S)
     lps_start = int(lps.start_bar) if lps is not None else None
     lps_low_bar = int(lps.low_bar) if lps is not None else None
+    fifteenth = start + M.BOX_DAYS - 1
     th = thrusts(line, start, R, unit)
-    pc = phase_c(line, highs, start, S, unit, R, lps_start, n - 1)
+    pc = phase_c(line, highs, start, S, unit, R, lps_start, n - 1, fifteenth=fifteenth)
     sos = pick_the_sos(th, lps_low_bar, after=pc["tip_bar"] if pc is not None else None,
                        line=line, highs=highs, start=start, read_bar=n - 1, unit=unit)
-    rec.update(thrusts=th, the_sos=sos, the_upthrust=the_upthrust(th, line, R, unit, pc, start, n - 1),
+    rec.update(thrusts=th, the_sos=sos,
+               the_upthrust=the_upthrust(th, line, R, unit, pc, start, n - 1, fifteenth=fifteenth),
                last_suppers=last_suppers(th, lows, unit, lps_start, R=R, pc=pc, start=start, read_bar=n - 1),
                phase_c=pc, spring_tests=spring_tests(line, pc, S, unit),
                phase_d=phase_d(line, start, R, S, unit, pc, sos, lps_start, n - 1),
