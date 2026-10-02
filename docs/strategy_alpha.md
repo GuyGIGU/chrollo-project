@@ -265,10 +265,17 @@ default as ours.
    (measured Fri 02/10/2026 on his 40 and the 16 junk charts, forty nights each, 2,240
    nights: with the same box shown, the earlier boxes were not the same list as the night
    before on 192 nights, on 98 of them only because the window had moved on past the
-   oldest box, on 94 because the oldest boxes were told differently; the last three
-   earlier boxes were the same on every one of them, and the box SHOWN moved on 94 nights,
-   7 of them a place given back, each the night the read itself says so). Until the earlier
-   boxes are made independent of the window's edge the story does not read them (ours).
+   oldest box, on 94 because the oldest boxes were told differently; on those nights the
+   last three earlier boxes were the same on every one, and the box SHOWN moved on 94
+   nights, 7 of them a place given back, each the night the read itself says so). The
+   chain of boxes is a function of the first box it starts from, and nothing makes two
+   chains meet: on a wider sample even the third box before the shown one was told
+   differently on two nights (FRPH, read Tue 12/11/2024 and Wed 13/11/2024), the box shown
+   and the box just before it unchanged. Three ways of telling the same earlier boxes
+   whichever night tells them were measured and none holds on charts nobody chose (the
+   Tested-DEAD record of Fri 02/10/2026). So the earlier boxes of a read are that night's
+   own telling, not a record of what an earlier night showed, and the story reads the box
+   shown and no earlier box (ours). The record of what each night showed is the archive's.
    Measured on his 40 on his last receding day (Fri 02/10/2026, the standard following the
    three setups he drew on the evening of Thu 01/10/2026: SGHT, WAT and NET): the reader's
    box is his to the cent on 25, both lines within half a daily range of his on 11, another

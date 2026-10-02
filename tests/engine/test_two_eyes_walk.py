@@ -1643,9 +1643,10 @@ def test_flg_tells_the_same_boxes_the_night_after_its_window_lost_its_first_tren
     "are told differently on some nights no box took another's place (94 of 2,240 replayed nights on his 40 "
     "and the junk, Fri 02/10/2026, beside 98 on which the window had only moved on past the oldest box; before "
     "the rebuild 738 of 8,350 by an older count). The last three earlier boxes were told differently on none of "
-    "those nights, and the box SHOWN moved only on a hand-over's own night. The earlier boxes are the story's "
-    "(task 12b): they are made independent of the window's edge before the story reads them, and that day this "
-    "mark comes off deliberately."))
+    "those nights, and the box SHOWN moved only on a hand-over's own night. Three ways to tell the same earlier "
+    "boxes whichever night tells them were measured on Fri 02/10/2026 and none holds on charts nobody chose (the "
+    "Tested-DEAD record), so the story (task 12b) reads the box shown and no earlier box. This mark comes off the "
+    "day a telling of the earlier boxes holds on every night, deliberately."))
 def test_the_oldest_boxes_of_the_record_are_the_same_boxes_the_night_after():
     thursday, friday = _flg_on_two_nights()
     assert thursday[:-1] == friday[:-1], \
