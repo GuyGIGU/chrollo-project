@@ -38,6 +38,34 @@ from engine_alpha.two_eyes_roles import ROLE_EARLIER, ROLE_MINI, ROLE_PARENT, RO
 NO_LINES = "no lines"
 READ_FAILED = "no lines, the read failed"
 
+#: The ten words a chart can carry on the screen: ONE closed table, and each word's one home. The table is the
+#: builder's (final method, point 22), approved inside his "Go!" of Sun 13/09/2026; three of its words answer
+#: his own: a chart with lines and no LPS still shows ("Yes"), the buy day ("we can go with nothing"), a refused
+#: chart ("lets go with not scanned"). The old engine keeps its own copy in a frozen file this package may not
+#: import; a test outside the package holds the two equal. ``READ_FAILED`` is never one of them.
+FIRED = "fired"
+CROSSED = "crossed"
+LINES_NO_LPS = "lines, no LPS yet"
+FORMING = "forming N of 15"
+ROOT_CANDIDATE = "root candidate, unconfirmed"
+BEYOND_R = "beyond R, undetermined"
+UNDER_S = "under S, undetermined"
+BROKE_DOWN = "broke down"
+NOT_SCANNED = "not scanned"
+STATE_WORDS = (FIRED, CROSSED, LINES_NO_LPS, FORMING, ROOT_CANDIDATE, BEYOND_R, UNDER_S, BROKE_DOWN,
+               NOT_SCANNED, NO_LINES)
+
+#: The words of the story (stage 5): what the drawing did against the box and its two lines. A closed set; each
+#: word is his. Not here: the LPS (it is ``Read.lps``), the mini (a second box), the shakeout (parked by him,
+#: Sun 13/09/2026: "we can stick with Phase C only for now").
+SPRING = "spring"               # his "Phase C = Spring btw." (Mon 14/09/2026)
+SPRING_TEST = "spring test"
+UPTHRUST = "upthrust"
+SOS = "SOS"
+LAST_SUPPER = "last supper"
+PHASE_D = "Phase D"
+EVENT_KINDS = (SPRING, SPRING_TEST, UPTHRUST, SOS, LAST_SUPPER, PHASE_D)
+
 
 def _as_day(value):
     """A plain day, or None.
@@ -113,6 +141,34 @@ class Step:
 
 
 @dataclass(frozen=True)
+class Event:
+    """One word of the story, as a fact: which word, the day it points at and the price there (a spring's tip, an
+    upthrust's or a push's top, the day the right side opens), and around it the first day of the swing that
+    makes it and its last day. Days and prices only: a bar index never leaves the reader. ``committed`` is
+    False while the swing it stands on, or the swing that answers it, is still forming; ``known_day`` is the
+    day it could first be said. Nothing that decides a fire reads an event."""
+    kind: str
+    day: dt.date
+    price: float
+    first_day: Optional[dt.date] = None
+    last_day: Optional[dt.date] = None
+    #: How big, in the unit the words are read in (a spring's depth under support, a climb over resistance,
+    #: the ground a push covered, a last supper's drop). A fact for the grade, never a gate.
+    size: Optional[float] = None
+    committed: bool = False
+    known_day: Optional[dt.date] = None
+    note: str = ""
+
+    def __post_init__(self):
+        if self.kind not in EVENT_KINDS:
+            raise ValueError(f"unknown event {self.kind!r}; expected one of {EVENT_KINDS}")
+        for name in ("day", "first_day", "last_day", "known_day"):
+            object.__setattr__(self, name, _as_day(getattr(self, name)))
+        if self.day is None:
+            raise TypeError("an event points at a day")
+
+
+@dataclass(frozen=True)
 class Read:
     """One chart, read once, as of one day.
 
@@ -133,6 +189,12 @@ class Read:
     # stand-in (the resistance line was the first one) quietly regrades the
     # outcome of every fire. None until a frame has been read.
     close: Optional[float] = None
+    # The story (stage 5): the events the drawing printed against the box shown. Empty until the story is read,
+    # and empty again when it could not be: a word never costs a fire, so `fired` does not read this.
+    events: tuple = ()
+    # The number that rides BESIDE a state word that counts days ("forming N of 15": N; a run of days beyond a
+    # line: its length). Never written into the word, which is one of the closed ten.
+    state_days: Optional[int] = None
 
     def __post_init__(self):
         # Frozen, but a list slipped in through `boxes` or `trail` would make
@@ -140,6 +202,7 @@ class Read:
         # annotated (object.__setattr__ is how a frozen dataclass does this).
         object.__setattr__(self, "boxes", tuple(self.boxes))
         object.__setattr__(self, "trail", tuple(self.trail))
+        object.__setattr__(self, "events", tuple(self.events))
         object.__setattr__(self, "as_of", _as_day(self.as_of))
 
     @property
@@ -153,7 +216,7 @@ class Read:
 
     @property
     def fired(self) -> bool:
-        """A read only fires when it has a box AND a buy to go with it."""
+        """A read only fires when it has a box AND a buy to go with it. It reads no event and no state word."""
         return self.parent is not None and self.lps is not None \
             and self.lps.trigger_price is not None and not self.failed
 

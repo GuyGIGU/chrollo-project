@@ -85,16 +85,13 @@ from typing import Optional
 import numpy as np
 
 from engine_alpha.two_eyes import method_numbers as M
-from engine_alpha.two_eyes.record import NO_LINES, ROLE_EARLIER, ROLE_PARENT, Box, Line, Step
+from engine_alpha.two_eyes.record import LINES_NO_LPS, NO_LINES, ROLE_EARLIER, ROLE_PARENT, Box, Line, Step
 from engine_alpha.two_eyes.runs import _cmp
 
 __all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
            "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lives", "measure", "move_began",
            "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD",
            "LIVE_TREND", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
-
-#: The screen's word for a chart with a box and no LPS yet (his ten-word table; the LPS is stage 6).
-LINES_NO_LPS = "lines, no LPS yet"
 
 #: Why a listed pair can never be a box.
 UNFIT_TALL = "under one daily range tall"

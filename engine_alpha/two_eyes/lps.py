@@ -42,17 +42,15 @@ from typing import Optional
 import numpy as np
 
 from engine_alpha.two_eyes import method_numbers as M
-from engine_alpha.two_eyes.record import ROLE_PARENT, Lps, Step
+from engine_alpha.two_eyes.record import CROSSED, FIRED, LINES_NO_LPS, ROLE_PARENT, Lps, Step
 from engine_alpha.two_eyes.walk import known_by
 
 __all__ = ["Pullback", "read", "record", "recedes", "run_top", "window_top", "sellers_rising", "share_under",
            "swing_top", "SENTENCES", "SELLERS_RISING", "SLICE", "UNDER_SUPPORT", "OVER_RESISTANCE",
            "FIRED", "CROSSED", "LINES_NO_LPS"]
 
-#: The screen's words this stage decides (three of his ten).
-FIRED = "fired"
-CROSSED = "crossed"
-LINES_NO_LPS = "lines, no LPS yet"
+#: The screen's words this stage decides are three of the ten in ``record.STATE_WORDS``: FIRED, CROSSED and
+#: LINES_NO_LPS, imported above from their one home.
 
 #: His four sentences, in the order he said them. Nothing else refuses an LPS.
 SELLERS_RISING = "the pullback is increasing with sellers"

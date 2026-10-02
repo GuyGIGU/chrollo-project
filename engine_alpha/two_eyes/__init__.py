@@ -35,12 +35,15 @@ from engine_alpha.two_eyes.frame import DAILY_RANGE, FrameRefused, check as chec
 from engine_alpha.two_eyes.line import SwingLine, Turn, build as build_line
 from engine_alpha.two_eyes.record import _as_day
 from engine_alpha.two_eyes.record import (
+    EVENT_KINDS,
     NO_LINES,
     READ_FAILED,
     ROLE_EARLIER,
     ROLE_MINI,
     ROLE_PARENT,
+    STATE_WORDS,
     Box,
+    Event,
     Line,
     Lps,
     Read,
@@ -48,7 +51,7 @@ from engine_alpha.two_eyes.record import (
     crashed,
 )
 
-__all__ = ["read", "Read", "Box", "Line", "Lps", "Step", "crashed",
+__all__ = ["read", "Read", "Box", "Event", "Line", "Lps", "Step", "crashed", "STATE_WORDS", "EVENT_KINDS",
            "FrameRefused", "check_frame", "prepare", "build_line", "SwingLine", "Turn",
            "NO_LINES", "READ_FAILED",
            "ROLE_PARENT", "ROLE_MINI", "ROLE_EARLIER"]
