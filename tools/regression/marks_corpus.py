@@ -195,12 +195,23 @@ _ALLOWED_KEYS = frozenset({
     # are the ground truth the rewrite's OWN lines are scored against; they are
     # deliberately NOT part of setup_digest (see there).
     "box", "anchors", "first_rail", "trigger_price", "mini",
+    # His other drawn events (carried since 2026-10-02, build task 12b): every
+    # SOS, spring (Phase C), spring test and last supper he drew, each a span of
+    # days. They are the ground truth the two-eyes reader's WORDS are held to,
+    # and like his box and anchors they are deliberately NOT part of
+    # setup_digest: a word never moves the window the engine must fire in.
+    "sos", "phase_c", "spring_test", "last_supper",
     # Guided List graduation provenance: the frozen as-drawn basis. A setup
     # carrying frame_digest freezes from calibration_frames/ by digest (the
     # exact bars the operator marked), never from a live re-fetch.
     "as_of", "frame_digest", "knowable_from",
 })
 _DATE_SPAN_KEYS = ("lps", "lps2", "box")
+#: His drawn events beside the LPS and the mini, named as his marks DB names them
+#: (calibration_mark_events.event_type). Each is a LIST of [first day, last day]
+#: spans, because he draws two of a kind on one chart (EWTX's SOS, BODI's spring
+#: tests). The export and the loader share this one tuple.
+DRAWN_EVENT_KEYS = ("sos", "phase_c", "spring_test", "last_supper")
 _DATE_SCALAR_KEYS = ("trigger", "as_of", "knowable_from")
 _RAILS = ("resistance", "support")
 
@@ -325,6 +336,26 @@ def validate_setup(raw: dict, ctx: str) -> None:
                              f"trigger_price={price!r} — his buy is a day AND a price")
         if price is not None and not _positive(price):
             raise ValueError(f"marks corpus: {ctx}.trigger_price is {price!r}")
+
+    # His drawn events: a kind and its spans of days, nothing else. A setup
+    # without one simply carries no key (a missing drawing is never his "no").
+    for key in DRAWN_EVENT_KEYS:
+        if key not in raw:
+            continue
+        spans = raw[key]
+        if not (isinstance(spans, list)
+                and all(isinstance(s, list) and len(s) == 2 for s in spans)):
+            raise ValueError(f"marks corpus: {ctx}.{key} must be a list of "
+                             "[first day, last day] spans")
+        if not spans:
+            raise ValueError(f"marks corpus: {ctx}.{key} carries no span — a setup "
+                             "with no such event drawn carries no key at all")
+        days = [tuple(_parse_date(v, f"{ctx}.{key}") for v in s) for s in spans]
+        if any(lo > hi for lo, hi in days):
+            raise ValueError(f"marks corpus: {ctx}.{key} start after end")
+        if days != sorted(days):
+            raise ValueError(f"marks corpus: {ctx}.{key} spans must be in the order "
+                             "of their first day")
 
     mini = raw.get("mini")
     if mini is not None:

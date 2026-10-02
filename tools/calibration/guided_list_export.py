@@ -114,6 +114,7 @@ def export() -> str:
         # nothing. Overwriting is now the point — the ratchet's memory lives in
         # tests/baselines/marks_corpus_baseline.json, keyed per mark, not in
         # this file's immutability.
+        from tools.regression.marks_corpus import DRAWN_EVENT_KEYS
 
         setups: list[dict] = []
         no_buy: list[str] = []
@@ -193,6 +194,15 @@ def export() -> str:
                     "band": {"R": float(mini.band_high), "S": float(mini.band_low)},
                     "span": [str(mini.start_date), str(mini.end_date)],
                 }
+            # His other drawn events (build task 12b): every SOS, spring
+            # (Phase C), spring test and last supper, each as its span of days,
+            # in the order of their first day. The two-eyes reader's words are
+            # held to these by tests; a setup with none drawn carries no key.
+            for kind in DRAWN_EVENT_KEYS:
+                spans = sorted([str(e.start_date), str(e.end_date)]
+                               for e in m.events if e.event_type == kind)
+                if spans:
+                    setup[kind] = spans
             if len(lps_events) > 1:
                 setup["lps2"] = [str(lps_events[1].start_date), str(lps_events[1].end_date)]
             if m.knowable_from_date:

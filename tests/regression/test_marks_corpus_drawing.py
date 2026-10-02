@@ -211,6 +211,16 @@ def test_the_minis_he_drew_ride_the_standard():
     ("a mini that ends before it starts",
      {"mini": {"band": {"R": 10.0, "S": 9.0}, "span": ["2026-03-25", "2026-03-20"]}},
      "start after end"),
+    # His drawn events (task 12b): each kind is a LIST of spans, because he draws two on one chart.
+    ("an SOS written as one span, not a list of spans", {"sos": ["2026-03-20", "2026-03-25"]},
+     "must be a list of [first day, last day] spans"),
+    ("an empty list of last suppers", {"last_supper": []},
+     "carries no span"),
+    ("a spring that ends before it starts", {"phase_c": [["2026-03-25", "2026-03-20"]]},
+     "start after end"),
+    ("spring tests out of order",
+     {"spring_test": [["2026-04-01", "2026-04-02"], ["2026-03-01", "2026-03-02"]]},
+     "in the order of their first day"),
 ])
 def test_the_loader_refuses_a_malformed_drawing(what, broken, says):
     """A malformed drawing fails the load LOUDLY — never silently skipped.
@@ -251,9 +261,44 @@ def test_carrying_his_drawing_does_not_void_a_pinned_verdict():
         ("first_rail", "support"),
         ("trigger_price", 999.0),
         ("mini", {"band": {"R": 2.0, "S": 1.0}, "span": ["2026-01-02", "2026-01-03"]}),
+        ("sos", [["2026-01-02", "2026-01-05"]]),
+        ("phase_c", [["2026-01-02", "2026-01-05"]]),
+        ("spring_test", [["2026-01-02", "2026-01-05"]]),
+        ("last_supper", [["2026-01-02", "2026-01-05"]]),
     ):
         moved = dict(base)
         moved[field] = value
         assert marks_corpus.setup_digest(moved) == before, (
             f"{field} entered the verdict digest — every pinned verdict would be "
             "voided at once")
+
+
+# --------------------------------------------------------------------------- #
+# His drawn events (task 12b, Fri 02/10/2026)                                 #
+# --------------------------------------------------------------------------- #
+#: What he had drawn beside the LPS and the mini when the standard was last exported (Fri 02/10/2026, 22:18
+#: local): the spans, and the setups that carry at least one. A written-down expectation, not a live read: when
+#: he draws or deletes an event these move in the SAME change as the re-export. A drawn event is a kind and a
+#: span of days and nothing else; a setup without one is not his "no".
+_HIS_DRAWN_EVENTS = {"sos": (29, 28), "phase_c": (11, 11), "spring_test": (5, 4), "last_supper": (8, 8)}
+
+
+def test_his_drawn_events_ride_the_standard():
+    """His SOS, his springs (Phase C), his spring tests and his last suppers are in the standard, each a span of
+    days, so a word rule can be held to HIS marked bars by a test (his rule of Sat 26/09/2026)."""
+    setups = marks_corpus.load_corpus()
+    assert set(marks_corpus.DRAWN_EVENT_KEYS) == set(_HIS_DRAWN_EVENTS)
+    for kind, (spans, charts) in _HIS_DRAWN_EVENTS.items():
+        carried = [s for s in setups if kind in s]
+        assert (sum(len(s[kind]) for s in carried), len(carried)) == (spans, charts), kind
+        for s in carried:
+            days = [(_iso(a, kind), _iso(b, kind)) for a, b in s[kind]]
+            assert all(a <= b for a, b in days) and days == sorted(days), (s["ticker"], kind)
+    by = {marks_corpus.setup_key(s): s for s in setups}
+    assert by["SYRE:2026-02-19"]["phase_c"] == [["2026-01-02", "2026-01-05"]]
+    assert by["SYRE:2026-02-19"]["sos"] == [["2026-02-11", "2026-02-13"]]
+    assert by["VIK:2026-06-11"]["sos"] == [["2026-05-21", "2026-05-28"]]
+    assert by["VIK:2026-06-11"]["last_supper"] == [["2026-05-29", "2026-06-03"]]
+    assert by["PBT:2026-05-11"]["sos"] == [["2026-05-01", "2026-05-05"]]
+    # He draws two of a kind on one chart: two SOS on EWTX, two spring tests on BODI.
+    assert len(by["EWTX:2026-03-31"]["sos"]) == 2 and len(by["BODI:2026-04-21"]["spring_test"]) == 2
