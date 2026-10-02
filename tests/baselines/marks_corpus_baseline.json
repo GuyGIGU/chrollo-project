@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-10-01T17:39:04+00:00",
+  "captured_at": "2026-10-02T10:53:41+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "94296f1948989587e65b7c5c20f639e1208ba91e059bc7359d9e76d91fa73e0c",
+  "corpus_sha256": "44ee37f1ae5dd86494bfe73e30db6141c4d112a3d1af7c14fafe25ad98ac1766",
   "population": "guided-list",
-  "marks_fingerprint": "a3d0eeb00046de5b193a1494e8561aa4ab40050d44c6056a0209f578516775d1",
+  "marks_fingerprint": "ebfe0f0191269ee29d6b80e9d17ff24a34feae53da985ab6d71aa898c8e438b8",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "eb47261ba142bed2c51464894ebb6861e97b2e294ce4fc00f6fa89bbe77ce0cb",
+  "engine_config_version": "d22a4760271fda6c58a4e847fb6c043ced74bcdb293edea1385c64314478aa06",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -299,6 +299,22 @@
       "tier": "S"
     },
     {
+      "key": "NET:2026-09-15",
+      "ticker": "NET",
+      "status": "hit",
+      "setup_digest": "62272e04f3594b20d45ea1876fa3cbfef3cd46eb1c150a1b96974a31b6800cd0",
+      "windows": [
+        [
+          "2026-09-01",
+          "2026-09-15"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-09-01",
+      "tier": "C"
+    },
+    {
       "key": "NGL:2026-01-20",
       "ticker": "NGL",
       "status": "hit",
@@ -458,6 +474,22 @@
       "tier": "B"
     },
     {
+      "key": "SGHT:2026-09-24",
+      "ticker": "SGHT",
+      "status": "hit",
+      "setup_digest": "f6b43dbfbd2d73ab0d35d20cc4a25044f440918b9556242b21f4fa3cd88eed04",
+      "windows": [
+        [
+          "2026-09-11",
+          "2026-09-24"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "first_fire": "2026-09-15",
+      "tier": "A"
+    },
+    {
       "key": "SILC:2026-04-13",
       "ticker": "SILC",
       "status": "hit",
@@ -566,6 +598,22 @@
       "bars": 617,
       "first_fire": "2026-07-07",
       "tier": "A"
+    },
+    {
+      "key": "WAT:2026-09-24",
+      "ticker": "WAT",
+      "status": "hit",
+      "setup_digest": "144436d125526d01325b6cf36a09c322eda54a40f927f0098e7439fb52b980dc",
+      "windows": [
+        [
+          "2026-09-11",
+          "2026-09-24"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "first_fire": "2026-09-11",
+      "tier": "S"
     },
     {
       "key": "WTS:2026-06-12",

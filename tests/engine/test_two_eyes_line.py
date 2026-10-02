@@ -1,7 +1,7 @@
 """Stage 1 of the two-eyes reader: the swing line and the far view, causal by construction.
 
 Task 8 of the two-eyes-reader build. The plan's Done-when, property by property, on every fixture frame
-(his 35 drawings, the 37-ticker fleet, the 16 junk charts — 88 charts):
+(his drawings — 35 when the task was built, 40 on Fri 02/10/2026 — the 37-ticker fleet, the 16 junk charts):
 
 1. the far view is the fine line COLLAPSED: nested (every far turn is a fine turn), strictly alternating,
    each far turn with the day it became knowable, never earlier than the fine turn's;
@@ -182,8 +182,8 @@ def test_the_readers_own_path_is_causal_too(prepared_frames):
             expect = [(t.day, t.kind, t.price, t.knowable_day) for t in whole.turns if keep(t, settled)]
             assert got == expect, f"{name} cut {days} day(s): the reader's own path moved a committed turn"
             assert got, f"{name} cut {days} day(s): nothing compared"
-            far_settled = max(part_df.index[RESYNC_BARS_FAR], whole_df.index[RESYNC_BARS_FAR]).date()
             for floor in FAR_FLOORS:
+                far_settled = max(part_df.index[RESYNC_BARS_FAR[floor]], whole_df.index[RESYNC_BARS_FAR[floor]]).date()
                 got_far = [(t.day, t.kind, t.price, t.knowable_day) for t in part.far(floor) if keep(t, far_settled)]
                 expect_far = [(t.day, t.kind, t.price, t.knowable_day) for t in whole.far(floor) if keep(t, far_settled)]
                 assert got_far == expect_far, f"{name} cut {days} day(s), far view at {floor}: a far turn moved"
@@ -199,8 +199,12 @@ def _shift(t: Turn, by: int) -> tuple:
     return (t.bar + by, t.kind, t.price, know, t.size_ranges)
 
 
-RESYNC_BARS = 40       # the fine line; measured worst on the 88 charts: 28 bars (fleet:TNC), median 2
-RESYNC_BARS_FAR = 80   # the far views; measured worst: 20 at 1.5 (marks:JAZZ), 69 at 2.5 and 3.0 (marks:ALB); medians 4, 9.5, 11
+RESYNC_BARS = 40       # the fine line; measured worst on the 93 charts: 28 bars (fleet:TNC), median 1
+#: The far views, floor by floor. The reader's own floor (1.5, placed by the listing gate) is held tightest: measured
+#: worst 20 bars (marks:JAZZ, fleet:TNC). The two floors the gate tried and did not place need longer, the bigger
+#: the floor: 69 bars at 2.5 (marks:ALB) and 94 at 3.0 (marks:SGHT, the day he drew it, Thu 01/10/2026; before it
+#: 69, marks:ALB). Medians 4, 9 and 11.
+RESYNC_BARS_FAR = {1.5: 40, 2.5: 80, 3.0: 110}
 
 
 def _resync(trimmed_turns, whole_turns, by: int):
@@ -225,8 +229,10 @@ def test_trimming_20_days_off_the_left_changes_nothing(prepared_frames):
     a stretch covers the floor twice over, the two lines read those bars in opposite order until a narrower
     bar breaks the phase. Then they are the same line, turn for turn, to the end — and so is every far view,
     which needs longer the bigger its floor (its opening is decided from the new edge's own extremes).
-    Measured on the 88 charts: the fine line's worst stretch is 28 bars (fleet:TNC, median 1); the far views'
-    20, 69 and 69 bars at 1.5, 2.5 and 3.0 ranges (medians 4, 9.5 and 11). The bounds here carry a margin."""
+    Measured on the 93 charts (Fri 02/10/2026): the fine line's worst stretch is 28 bars (fleet:TNC, median 1); the
+    far views' 20, 69 and 94 bars at 1.5, 2.5 and 3.0 ranges (medians 4, 9 and 11). The bounds here carry a margin,
+    and the floor the reader reads at is the one held tightest."""
+    assert RESYNC_BARS_FAR[M.FAR_VIEW_FLOOR_RANGES] == min(RESYNC_BARS_FAR.values()) == RESYNC_BARS
     worst_bars = 0
     for name, df in prepared_frames.items():
         whole = build(df)
@@ -240,8 +246,9 @@ def test_trimming_20_days_off_the_left_changes_nothing(prepared_frames):
         for floor in FAR_FLOORS:
             kk = _resync(trimmed.far(floor), whole.far(floor), 20)
             assert kk is not None, f"{name} at {floor}: the trimmed far view never found the whole one again"
-            assert trimmed.far(floor)[kk].bar <= RESYNC_BARS_FAR, \
-                f"{name} at {floor}: the far view depends on where its left edge falls"
+            assert trimmed.far(floor)[kk].bar <= RESYNC_BARS_FAR[floor], \
+                f"{name} at {floor}: the far view depends on where its left edge falls for " \
+                f"{trimmed.far(floor)[kk].bar} bars"
     assert worst_bars > 0, "no chart needed a single bar to find the line again; the property was not exercised"
 
 

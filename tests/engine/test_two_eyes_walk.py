@@ -959,7 +959,7 @@ def his_reads() -> list:
                     "ranges": prepared[frame_module.DAILY_RANGE].to_numpy(dtype=float),
                     "r_bar": r_bar, "s_bar": s_bar, "first_bar": min(r_bar, s_bar), "last_bar": last,
                     "buy_bar": buy, "result": result, "on_buy": on_buy, "his_pair": his_pair})
-    assert len(out) == 37      # the population follows his drawings (his ruling, Tue 08/09/2026)
+    assert len(out) == 40      # the population follows his drawings (his ruling, Tue 08/09/2026)
     return out
 
 
@@ -1054,7 +1054,7 @@ def test_his_own_drawings_keep_his_rule_of_the_end_points(his_reads):
     """His ruling of Mon 28/09/2026, measured on his own drawings by bars alone, no reader in the way: each of
     his lines sits on a swing's end (every resistance anchor but the one named; every support anchor but the
     two named), and every one of his boxes opens on the END of the swing before it, the other line on the counter
-    move — 34 on resistance after a rise, 3 on support after a fall."""
+    move — 37 on resistance after a rise, 3 on support after a fall."""
     opens_on_support = []
     for row in his_reads:
         setup, days, highs, lows = row["setup"], row["days"], row["high"], row["low"]
@@ -1081,9 +1081,10 @@ _HIS_SLOW_COUNTER_MOVE = {}
 #: and his boxes the price stood well over (1.25 daily ranges and more) in their first fifteen days, in daily
 #: ranges. He kept all of them: a run past a rail never unmakes a pair by itself (sentence 8). On ALB he said the
 #: breach "is not an upthrust in fact there is a later on 25/02/2026 its just that those pairs could be used to fit
-#: the box" (Thu 01/10/2026).
-_HIS_FIRST_LINE_PASSED_FIRST = ("ALB:2026-04-13",)
-_HIS_EARLY_RUN_PAST_RESISTANCE = {"ALB:2026-04-13": 2.04, "MTLS:2026-09-04": 2.20}
+#: the box" (Thu 01/10/2026). NET, drawn by him that evening, is the third: the price ran on over his resistance of
+#: Wed 05/08/2026 (305.00) for seven days, to 332.22 on Thu 13/08/2026, before a bar came back to either line.
+_HIS_FIRST_LINE_PASSED_FIRST = ("ALB:2026-04-13", "NET:2026-09-15")
+_HIS_EARLY_RUN_PAST_RESISTANCE = {"ALB:2026-04-13": 2.04, "MTLS:2026-09-04": 2.20, "NET:2026-09-15": 1.80}
 
 
 def _first_bar(values, line: float, area: float, start: int, stop: int, how: str):
@@ -1102,8 +1103,8 @@ def test_his_own_drawings_say_how_the_root_swing_behaves(his_reads):
     counter move is quick and at least a daily range tall: its end is within four trading days of the first
     anchor on every drawing. The bars come back to BOTH his lines (a bar's high within the area
     of his resistance, a bar's low within the area of his support) on every one. They do so before the price goes
-    on past his FIRST line on 36 of 37, and in the box's first fifteen days the price is 1.25 ranges or more over
-    his resistance on 2: both are TENDENCIES with his own exceptions named, never a rule that drops a pair. Under
+    on past his FIRST line on 38 of 40, and in the box's first fifteen days the price is 1.25 ranges or more over
+    his resistance on 3: both are TENDENCIES with his own exceptions named, never a rule that drops a pair. Under
     his support it dips more than a full range on ten, and he kept the line."""
     from engine_alpha.two_eyes import method_numbers as M
 
@@ -1155,9 +1156,12 @@ _HIS_PAIR_NOT_LISTED = {
 #: a shelf resting on his resistance, none back at his support. MATX: the same shelf on his resistance, a box on
 #: his last receding day. ROIV (redrawn Thu 01/10/2026): his pair is a box on Thu 23/04/2026; from Tue 21/04/2026
 #: to Mon 11/05/2026, fifteen days, no bar came back to his resistance, and the lower box of the March dip takes
-#: its place.
+#: its place. NET (drawn Thu 01/10/2026): his resistance is the top of Wed 05/08/2026, and the rise ran on to 332.22
+#: on Thu 13/08/2026; by his own anchor rule as the reader reads it, a top inside a rise that had not ended, and
+#: the pair of the rise's first foot (the top of Fri 07/08/2026 and the low after it) takes its place.
 _HIS_BOX_GIVES_WAY_BEFORE_HIS_BUY = {"BODI:2026-04-21": (10.36, 9.30), "EWTX:2026-03-31": (31.29, 29.46),
-                                     "MATX:2026-07-01": (197.63, 190.16), "ROIV:2026-06-17": (28.39, 27.12)}
+                                     "MATX:2026-07-01": (197.63, 190.16), "NET:2026-09-15": (324.73, 290.49),
+                                     "ROIV:2026-06-17": (28.39, 27.12)}
 
 
 def test_his_own_pair_is_a_pair_the_rule_lists_and_a_box_by_it_on_his_drawings(his_reads):
@@ -1233,13 +1237,14 @@ _THE_BOX_CHANGES_ON_HIS_BUY_DAY = {
 _READS_HIS_BOX = (
     "ANRO:2026-08-12", "AVT:2026-04-08", "DSGN:2026-03-31", "EGBN:2026-01-15", "EWTX:2026-03-31", "JAZZ:2026-02-24",
     "MRK:2026-08-10", "MS:2026-06-04", "NGL:2026-01-20", "NGL:2026-04-20", "NKTR:2026-04-10", "NOK:2026-02-17",
-    "NTCT:2026-03-04", "PBT:2026-05-11", "SILC:2026-04-13", "SKYT:2026-04-13", "ST:2026-04-17", "SYRE:2026-02-19",
-    "UNF:2026-07-10", "VIK:2026-06-11", "VLO:2026-07-08", "WTS:2026-06-12", "YPF:2026-05-18")
+    "NTCT:2026-03-04", "PBT:2026-05-11", "SGHT:2026-09-24", "SILC:2026-04-13", "SKYT:2026-04-13", "ST:2026-04-17",
+    "SYRE:2026-02-19", "UNF:2026-07-10", "VIK:2026-06-11", "VLO:2026-07-08", "WAT:2026-09-24", "WTS:2026-06-12",
+    "YPF:2026-05-18")
 #: CLOSE: both lines within half a daily range of his.
 _READS_CLOSE_TO_HIS = (
     "ALB:2026-04-13", "BWA:2026-05-05", "DLX:2026-04-13", "DRTS:2026-04-15", "FOSL:2026-02-18", "MDT:2026-07-24",
     "MSGS:2026-05-22", "ORMP:2026-04-13", "PKE:2026-04-07", "RGR:2026-03-19", "ROIV:2026-06-17")
-#: ANOTHER BOX, and why, each measured on the bars. All three fire on his day at his trigger (the core board): his
+#: ANOTHER BOX, and why, each measured on the bars. All four fire on his day at his trigger (the core board): his
 #: bar of Thu 01/10/2026 — "as long as the engine understand that there is a setup there I'm happy".
 _READS_ANOTHER_BOX = {
     "BODI:2026-04-21": "the reader shows the first pair of the December base, 12.22 (Mon 08/12/2025) / 11.14 (Tue "
@@ -1255,6 +1260,12 @@ _READS_ANOTHER_BOX = {
                        "lies across the shown support and never takes its place. Before the rule of the hanging "
                        "bars the reader hopped to the pair of the July run on a day the price was far under it, and "
                        "from there to a pair on his lines (6.78 / 6.36)",
+    "NET:2026-09-15": "the reader shows the top of Fri 07/08/2026 and the low after it, 324.73 / 290.49, a box on Thu "
+                      "27/08/2026: 1.3 and 0.68 of a daily range over his 305.00 (Wed 05/08/2026) / 280.13 (Thu "
+                      "06/08/2026). His own pair is a box by the rule on Tue 25/08/2026, but its support lies 3.5 "
+                      "under the resistance area of the July box shown then (291.00 / 261.73), across it, so it never "
+                      "takes its place; and his resistance is a top inside the rise that ran on to 332.22 (Thu "
+                      "13/08/2026). He kept 305.00: the bars met it on six later days and his support on eight",
 }
 
 
@@ -1273,7 +1284,7 @@ def test_the_readers_box_against_his_own_on_each_of_his_drawings(his_reads):
             got["OTHER"].append(row["key"])
     assert sorted(got["OTHER"]) == sorted(_READS_ANOTHER_BOX)
     assert sorted(got["CLOSE"]) == sorted(_READS_CLOSE_TO_HIS)
-    assert sorted(got["HIS"]) == sorted(_READS_HIS_BOX) and len(got["HIS"]) == 23
+    assert sorted(got["HIS"]) == sorted(_READS_HIS_BOX) and len(got["HIS"]) == 25
 
 
 def test_silc_and_drts_as_he_said_them_on_the_pictures(his_reads):

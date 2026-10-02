@@ -147,13 +147,14 @@ default as ours.
    end of the climax's level in its run: a later high that pokes a little over his top does
    not move his line (his PBT: 22.71 five days after his 22.65) (ours). Each line is ONE
    anchor day's high or low, to the cent.
-   His own drawings keep the rule (37 of them on Thu 01/10/2026; the standard follows what
-   he draws): every one opens on the end of the swing before it, 34 on resistance after a
-   rise, 3 on support after a fall. His own two anchors are a pair the rule lists on 32 of
-   the 37; on the other five one of his anchors is one of two near-equal highs or lows a few
+   His own drawings keep the rule (40 of them on Fri 02/10/2026; the standard follows what
+   he draws): every one opens on the end of the swing before it, 37 on resistance after a
+   rise, 3 on support after a fall. His own two anchors are a pair the rule lists on 35 of
+   the 40; on the other five one of his anchors is one of two near-equal highs or lows a few
    cents apart, or the climax bar's own low, and on all five the reader's box is within
-   half a daily range of his. The anchor is not always the climax: on 11 of the 37
-   it is a swing later, and on 4 both lines are one wide bar's own high and low.
+   half a daily range of his. The anchor is not always the climax: on 11 of the 37 he had
+   drawn by Thu 01/10/2026 it is a swing later, and on 4 of the 40 both lines are one wide
+   bar's own high and low.
 3. **Answered and alive.** A pair of lines is the box when the bars come back to BOTH lines:
    *"were looking for the first instance that a consolidation is respected!"* (Sun
    06/09/2026).
@@ -266,11 +267,18 @@ default as ours.
    the box SHOWN moved on 88 nights, 6 of them a place given back, each the night the
    read itself says so). Until the earlier boxes are made independent of the window's edge the story
    does not read them (ours).
-   Measured on his 37 on his last receding day (Fri 02/10/2026, the standard following his
-   redrawn ROIV): the reader's box is his to the cent on 23, both lines within half a daily
-   range of his on 11, another box on 3 (BODI, MATX, MTLS; the reader before the rebuild: 9,
-   15 and 13), and the read fires on his day at his trigger on 32, the three with another
-   box among them. No close is read anywhere: a close-dated
+   Measured on his 40 on his last receding day (Fri 02/10/2026, the standard following the
+   three setups he drew on the evening of Thu 01/10/2026: SGHT, WAT and NET): the reader's
+   box is his to the cent on 25, both lines within half a daily range of his on 11, another
+   box on 4 (BODI, MATX, MTLS, NET; on the 37 before them 23, 11 and 3; the reader before
+   the rebuild: 9, 15 and 13 of 37), and the read fires on his day at his trigger on 35, the
+   four with another box among them. On three of those four (MATX, MTLS, NET) his own pair
+   is a box by the rule and lies across a rail of the box shown when it became one, so it
+   never takes its place (ours). On NET his resistance is the top of Wed 05/08/2026
+   (305.00); the price ran on over it for seven days, to 332.22, and came back, and from
+   then the bars met his resistance on six days and his support on eight. He kept the line.
+   The reader anchors on the run's first top instead (324.73, Fri 07/08/2026): his ROIV
+   logic again, a rail is the price the bars keep coming back to. No close is read anywhere: a close-dated
    hand-over is Tested-DEAD. Until a new box is born the parent keeps its lines, and a
    pullback resting above resistance is the parent's own LPS. A range price left long ago is
    no candidate because the hand-over follows the price to the box where it trades (his

@@ -1,5 +1,5 @@
 """Stage 6 of the two-eyes reader (task 12a): the LPS and its trigger on the reader's own box — his words first,
-then the rule on hand-built bars, then his drawn windows (40 on Tue 29/09/2026) and the junk he named.
+then the rule on hand-built bars, then his drawn windows (43 on Fri 02/10/2026) and the junk he named.
 
 His words that these pin:
 
@@ -519,7 +519,7 @@ def his_windows() -> list:
                         "span": (_date(span[0]), _date(span[1])), "days": days, "high": high, "low": low,
                         "on_his_lines": on_his_lines, "raw": raw,
                         "read": two_eyes.read(setup["ticker"], cut)})
-    assert len(out) == 40      # 37 drawings, three of them with two windows (ALB, PBT, SYRE)
+    assert len(out) == 43      # 40 drawings, three of them with two windows (ALB, PBT, SYRE)
     return out
 
 
@@ -550,13 +550,15 @@ def test_none_of_his_windows_is_refused_by_any_of_his_four_sentences_on_his_own_
 
 def test_the_window_opens_where_he_shades_it_on_most_of_his_windows(his_windows):
     """His shading starts on the top day (30 of 37 when he ruled it) or the day after ("Lets go with the day
-    after"); the seven that differ carry a bounce day inside his drawing, which by his MRK answer is a buy."""
+    after"); the seven that differ carry a bounce day inside his drawing, which by his MRK answer is a buy. WAT,
+    drawn by him on Thu 01/10/2026, is one more: he shades Fri 18/09 to Wed 23/09/2026, and Tue 22/09 made a higher
+    high inside it."""
     his = [row for row in his_windows if row["key"] not in _LAST_DAY_ADVANCES]
     same = [row["key"] for row in his
             if row["span"][0] in (row["days"][row["on_his_lines"].top_bar], row["days"][row["on_his_lines"].start_bar])]
     other = sorted(set(row["key"] for row in his) - set(same))
     assert other == ["FOSL:2026-02-18", "MRK:2026-08-10", "MS:2026-06-04", "MSGS:2026-05-22", "ORMP:2026-04-13",
-                     "SILC:2026-04-13"], other
+                     "SILC:2026-04-13", "WAT:2026-09-24"], other
     # JAZZ, the run he trimmed: six receding days, read on the last five bars, open where he opens it.
     jazz = next(row for row in his if row["key"] == "JAZZ:2026-02-24")
     assert jazz["days"][jazz["on_his_lines"].start_bar] == dt.date(2026, 2, 6) == jazz["span"][0]
@@ -611,13 +613,13 @@ def test_the_reader_fires_on_his_last_receding_day_at_his_trigger_on_its_own_box
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
     for key in _REFUSED_ON_THE_READERS_BOX:
         assert lps.OVER_RESISTANCE in silent[key], silent[key]
-    assert len(fired) == 39       # of his 40 windows: all but YPF, whose last day advances
+    assert len(fired) == 42       # of his 43 windows: all but YPF, whose last day advances
 
 
 #: His buy days that made a lower low as well as crossing his trigger: the cross was his buy, and the pullback
 #: goes on with that day's high as its trigger.
 _BUY_DAY_RECEDES = ("DLX:2026-04-13", "MTLS:2026-09-04", "RGR:2026-03-19", "SKYT:2026-04-13", "UNF:2026-07-10",
-                    "VIK:2026-06-11")
+                    "VIK:2026-06-11", "WAT:2026-09-24")
 
 
 def test_on_his_buy_day_the_read_says_crossed_and_shows_no_fire(his_windows):
@@ -639,7 +641,7 @@ def test_on_his_buy_day_the_read_says_crossed_and_shows_no_fire(his_windows):
             continue
         assert read.state == lps.CROSSED and read.fired is False and read.lps is None, f"{row['key']}: {read.state}"
         crossed.append(row["key"])
-    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 30
+    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 32
 
 
 # --------------------------------------------------------------------------- #
@@ -832,7 +834,7 @@ def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_or_is_named
                 silent.append(row["key"])
     assert not_scanned == _THE_DOOR_REFUSES
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
-    assert len(fired) == 32 and len(fired) + len(silent) + len(not_scanned) == 37
+    assert len(fired) == 35 and len(fired) + len(silent) + len(not_scanned) == 40
 
 
 def test_the_universe_door_stands_before_the_read_and_a_refused_chart_is_not_scanned():

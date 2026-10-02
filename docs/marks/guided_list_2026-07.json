@@ -1,12 +1,12 @@
 {
-  "_about": "The Guided List \u2014 the operator's curated engine-test standard (37 setups / 36 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
+  "_about": "The Guided List \u2014 the operator's curated engine-test standard (40 setups / 39 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
   "_provenance": {
     "population": "guided-list",
-    "marks_fingerprint": "a3d0eeb00046de5b193a1494e8561aa4ab40050d44c6056a0209f578516775d1",
-    "engine_config_version": "eb47261ba142bed2c51464894ebb6861e97b2e294ce4fc00f6fa89bbe77ce0cb",
+    "marks_fingerprint": "ebfe0f0191269ee29d6b80e9d17ff24a34feae53da985ab6d71aa898c8e438b8",
+    "engine_config_version": "d22a4760271fda6c58a4e847fb6c043ced74bcdb293edea1385c64314478aa06",
     "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-    "exported_at": "2026-10-01T17:35:29+00:00",
-    "n_setups": 37
+    "exported_at": "2026-10-02T10:51:05+00:00",
+    "n_setups": 40
   },
   "setups": [
     {
@@ -502,6 +502,32 @@
       }
     },
     {
+      "ticker": "NET",
+      "setup": "2026-09-15",
+      "source": "operator",
+      "as_of": "2026-09-15",
+      "frame_digest": "e79eb68e609285a05026b1f9ebd911fa8d4cf2040aca90f8954632da1caeb91f",
+      "box": [
+        "2026-08-05",
+        "2026-09-14"
+      ],
+      "anchors": {
+        "R": "2026-08-05",
+        "S": "2026-08-06"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-09-10",
+        "2026-09-11"
+      ],
+      "trigger": "2026-09-14",
+      "trigger_price": 315.98,
+      "rails_drawn": {
+        "R": 305.0,
+        "S": 280.1300048828125
+      }
+    },
+    {
       "ticker": "NGL",
       "setup": "2026-01-20",
       "source": "operator",
@@ -766,6 +792,32 @@
       }
     },
     {
+      "ticker": "SGHT",
+      "setup": "2026-09-24",
+      "source": "operator",
+      "as_of": "2026-09-24",
+      "frame_digest": "f41b43f26fdf074b92cb8983288ab3c949d9d0abd6386252fac7a2466e3199be",
+      "box": [
+        "2026-08-13",
+        "2026-09-24"
+      ],
+      "anchors": {
+        "R": "2026-08-13",
+        "S": "2026-08-17"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-09-22",
+        "2026-09-23"
+      ],
+      "trigger": "2026-09-24",
+      "trigger_price": 8.61,
+      "rails_drawn": {
+        "R": 8.600000381469727,
+        "S": 7.889999866485596
+      }
+    },
+    {
       "ticker": "SILC",
       "setup": "2026-04-13",
       "source": "operator",
@@ -949,6 +1001,32 @@
       "rails_drawn": {
         "R": 258.42999267578125,
         "S": 235.69000244140625
+      }
+    },
+    {
+      "ticker": "WAT",
+      "setup": "2026-09-24",
+      "source": "operator",
+      "as_of": "2026-09-24",
+      "frame_digest": "7155bc3ad639c8c6426d6e87518d3a3708eeaf2859225c5a03279e1329d3890a",
+      "box": [
+        "2026-08-13",
+        "2026-09-24"
+      ],
+      "anchors": {
+        "R": "2026-08-13",
+        "S": "2026-08-18"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-09-18",
+        "2026-09-23"
+      ],
+      "trigger": "2026-09-24",
+      "trigger_price": 430.0,
+      "rails_drawn": {
+        "R": 420.260009765625,
+        "S": 400.8999938964844
       }
     },
     {
