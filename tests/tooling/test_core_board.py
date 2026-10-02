@@ -147,3 +147,28 @@ def test_the_pages_draw_bars_and_never_candles_and_one_is_written_per_chart(rows
     sheet = core_board.write_contact_sheet(his_pages, junk_pages, str(tmp_path))
     text = open(sheet, encoding="utf-8").read()
     assert "Your 2 drawings" in text and "The 1 junk charts" in text and "his_SYRE_2026-02-19.png" in text
+
+
+def test_the_board_prints_the_story_against_his_drawn_events(rows):
+    """Build task 12b: the board scores the reader's own story on his last receding day against the events he
+    drew, by reading the events off the record (it types no rule of its own), and tallies the state words."""
+    from tools.calibration import core_board
+
+    got = list(rows.values())
+    hits = core_board.story_hits(rows["SYRE:2026-02-19"]["setup"], rows["SYRE:2026-02-19"]["raw"],
+                                 rows["SYRE:2026-02-19"]["on_last"]["read"])
+    assert [(kind, hit) for kind, _, hit in hits] == [("sos", True), ("phase_c", True)]
+    # A read with no events lands nothing: the hits come off Read.events and nowhere else.
+    import dataclasses
+    bare = dataclasses.replace(rows["SYRE:2026-02-19"]["on_last"]["read"], events=())
+    assert not any(hit for _, _, hit in core_board.story_hits(rows["SYRE:2026-02-19"]["setup"],
+                                                              rows["SYRE:2026-02-19"]["raw"], bare))
+    board = core_board.format_story(got)
+    # The fixture holds a handful of his drawings; the line of each word is the count of its hits among them.
+    every = [h for r in got for h in core_board.story_hits(r["setup"], r["raw"], r["on_last"]["read"])]
+    for kind, name in (("sos", "THE SOS"), ("phase_c", "the spring"), ("last_supper", "the last supper")):
+        mine = [hit for k, _, hit in every if k == kind]
+        assert f"{name}: {sum(mine)} of {len(mine)}" in board, (name, board)
+    assert sum(1 for k, _, _ in every if k == "sos") >= 3
+    assert "could not be read on: 0 of" in board
+    assert "state words, his drawings: " in board

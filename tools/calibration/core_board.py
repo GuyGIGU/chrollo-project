@@ -194,6 +194,67 @@ def format_board(rows: list) -> str:
     return "\n".join(out)
 
 
+# --------------------------------------------------------------------------- #
+# The story (stage 5) and the state word, against what he drew                #
+# --------------------------------------------------------------------------- #
+#: His drawn event kinds (as the standard names them) and the reader's word for each.
+_HIS_EVENTS = (("sos", two_eyes.record.SOS, "THE SOS"), ("phase_c", two_eyes.record.SPRING, "the spring"),
+               ("last_supper", two_eyes.record.LAST_SUPPER, "the last supper"),
+               ("spring_test", two_eyes.record.SPRING_TEST, "the spring test (listed, never scored)"))
+
+
+def story_hits(setup: dict, raw, read) -> list:
+    """Each drawn word of his on this setup against the read's own events: ``(his kind, his day, hit)``. His day
+    is the day his drawing points at: the last day of his SOS span (the last one drawn before his last LPS window
+    ends), the lowest low of a spring or spring-test span, the highest high of a last-supper span. A hit is the
+    reader's word within ONE trading day of it. The board re-types no rule: it reads ``Read.events``."""
+    last = his_last_lps_day(setup)
+    view = raw.loc[:pd.Timestamp(last)]
+    days = [d.date() for d in view.index]
+    at = {d: i for i, d in enumerate(days)}
+    high, low = view["High"].to_numpy(dtype=float), view["Low"].to_numpy(dtype=float)
+
+    def near(word, target):
+        return any(e.kind == word and e.day in at and abs(at[e.day] - target) <= 1 for e in read.events)
+
+    out = []
+    for kind, word, _ in _HIS_EVENTS:
+        spans = [s for s in setup.get(kind, []) if _date(s[0]) in at]
+        if kind == "sos":
+            spans = [s for s in spans if _date(s[1]) <= last][-1:]
+        for first, end in spans:
+            a, b = at[_date(first)], at.get(_date(end), len(days) - 1)
+            target = b if kind == "sos" else a + int((high[a:b + 1].argmax() if kind == "last_supper"
+                                                      else low[a:b + 1].argmin()))
+            out.append((kind, days[target], near(word, target)))
+    return out
+
+
+def format_story(rows: list, junk: Optional[list] = None) -> str:
+    out = ["", f"THE STORY ON HIS {len(rows)} — the reader's own words against his drawn events, on his last "
+               "receding day (a hit: within one trading day of his)"]
+    scored = {r["key"]: story_hits(r["setup"], r["raw"], r["on_last"]["read"]) for r in rows}
+    for kind, _, name in _HIS_EVENTS:
+        got = [(key, day, hit) for key, hits in scored.items() for k, day, hit in hits if k == kind]
+        misses = ", ".join(f"{key.split(':')[0]} ({_day(day)})" for key, day, hit in got if not hit) or "none"
+        out.append(f"  {name}: {sum(hit for _, _, hit in got)} of {len(got)} · misses: {misses}")
+    named = [(r["ticker"], e.day) for r in rows for e in r["on_last"]["read"].events
+             if e.kind == two_eyes.record.UPTHRUST]
+    out.append("  THE upthrust is named on: " + (", ".join(f"{t} {_day(d)}" for t, d in named) or "none"))
+    tally = {}
+    for r in rows:
+        tally[r["on_last"]["read"].state] = tally.get(r["on_last"]["read"].state, 0) + 1
+    out.append("  state words, his drawings: " + " · ".join(f"{w} {n}" for w, n in sorted(tally.items())))
+    if junk:
+        last = [(row["reads"][-1]["read"].state) for row in junk if row["reads"]]
+        out.append("  state words, the junk charts on their last day: " +
+                   " · ".join(f"{w} {last.count(w)}" for w in sorted(set(last))))
+    reads = [r["on_last"]["read"] for r in rows] + [x["read"] for row in (junk or []) for x in row["reads"]]
+    failed = sum(1 for read in reads for s in read.trail if s.stage in ("story", "state") and "could not be" in s.saying)
+    out.append(f"  the story or the state word could not be read on: {failed} of {len(reads)} reads (must be 0)")
+    return "\n".join(out)
+
+
 def format_junk(rows: list) -> str:
     firing = [r for r in rows if r["fires"]]
     out = ["", f"THE JUNK — charts that fire on any day of their window: {len(firing)} of {len(rows)} "
@@ -312,6 +373,31 @@ def _render(plt, draw_bars, row: dict, path: str, title: str, words: str, his: O
     for mark in marks or []:
         if at(mark["day"]) is not None:
             ax.plot([at(mark["day"])], [mark["price"]], marker="v", ms=9, color=_LPS, zorder=7)
+    # The story: each word the reader names, in the reader's colour at its day and price (lighter while it is
+    # provisional); his drawn spans as red strokes along the top, each with his word.
+    short = {two_eyes.record.SPRING: "spring", two_eyes.record.SPRING_TEST: "test", two_eyes.record.UPTHRUST: "UT",
+             two_eyes.record.SOS: "SOS", two_eyes.record.LAST_SUPPER: "LS", two_eyes.record.PHASE_D: "D opens"}
+    over = (two_eyes.record.UPTHRUST, two_eyes.record.SOS, two_eyes.record.LAST_SUPPER)
+    for n, event in enumerate(read.events):
+        if at(event.day) is None:
+            continue
+        up = event.kind in over
+        ax.annotate(short[event.kind], (at(event.day), event.price), xytext=(0, (12 + 9 * (n % 2)) * (1 if up else -1)),
+                    textcoords="offset points", color=_BOX, fontsize=8, ha="center", va="bottom" if up else "top",
+                    alpha=1.0 if event.committed else 0.45, fontweight="bold", zorder=8,
+                    arrowprops={"arrowstyle": "-", "color": _BOX, "lw": 0.6, "alpha": 0.6})
+    if his is not None:
+        names = (("sos", "your SOS"), ("phase_c", "your spring"), ("spring_test", "your test"),
+                 ("last_supper", "your last supper"))
+        for level, (kind, name) in enumerate(names):
+            for first, end in his.get(kind, []):
+                a, b = at(_date(first)), at(_date(end))
+                if a is None or b is None:
+                    continue
+                y = 0.965 - 0.03 * level
+                ax.plot([a - .4, b + .4], [y, y], color=_HIS, lw=3, solid_capstyle="butt", zorder=6,
+                        transform=ax.get_xaxis_transform())
+                ax.annotate(name, (b + .6, y), xycoords=ax.get_xaxis_transform(), color=_HIS, fontsize=7, va="center")
     n = len(view)
     step = max(1, n // 12)
     ax.set_xticks(range(0, n, step))
@@ -328,7 +414,10 @@ def _words(read, door: Optional[str]) -> str:
     box = next((s.saying for s in read.trail if s.stage == "box"), "")
     said = next((s.saying for s in read.trail if s.stage == "LPS"), "")
     closed = f"  The universe door refuses the day ({door}): not scanned." if door else ""
-    return f"The box: {box}.  {said[:1].upper()}{said[1:]}.{closed}"
+    story = next((s.saying for s in read.trail if s.stage == "story"), "")
+    told = f"  {story[:1].upper()}{story[1:]}." if story else ""
+    beside = "" if read.state_days is None else f" ({read.state_days} days)"
+    return f"The box: {box}.  {said[:1].upper()}{said[1:]}.{told}  State: {read.state}{beside}.{closed}"
 
 
 def render_pages(rows: list, junk: list, out_dir: str) -> tuple:
@@ -415,6 +504,7 @@ def main() -> int:
     rows = run_board(setups, frames)
     junk = junk_rows()
     print(format_board(rows))
+    print(format_story(rows, junk))
     print(format_junk(junk))
     print(f"\n  {len(rows)} drawings and {len(junk)} junk charts read in {time.perf_counter() - started:.1f}s")
     if args.pages:
