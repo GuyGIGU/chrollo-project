@@ -686,3 +686,95 @@ def test_the_junk_charts_that_ran_on_past_their_box_say_so():
         said[key] = (read.state, read.state_days)
     undetermined = {k: v for k, v in said.items() if v[0] in (record.BEYOND_R, record.UNDER_S)}
     assert undetermined == _JUNK_RIGHT_EDGE, said
+
+
+# --------------------------------------------------------------------------- #
+# "After the middle is a must": the four comparisons, each on its own line    #
+# --------------------------------------------------------------------------- #
+# His ruling (Mon 14/09/2026): Phase D opens only after the middle of the box: "Yes its a must". The middle is
+# measured from the box's first day to the read day. Resistance 14, support 10, the area half a range, the box
+# from bar 0: a turn ON the middle is not after it.
+_P, _V = "peak", "valley"
+
+
+def test_the_right_side_opens_only_after_the_middle_of_the_box():
+    """The round trip: after the dip to 8.5 the price reaches the resistance area (13.8) and the next low holds
+    the support area on bar 10. Read on bar 19 the middle is 9.5 and the right side opens on bar 10; read on bar
+    20 the middle IS bar 10 and nothing has opened."""
+    trip = [(0, _P, 13.0, 0), (2, _V, 8.5, 3), (6, _P, 13.8, 7), (10, _V, 10.2, 11), (12, _P, 12.0, 13)]
+    assert LW._right_side_opens(trip, 1, 0, 14.0, 10.0, 1.0, None, 19) == 10
+    assert LW._right_side_opens(trip, 1, 0, 14.0, 10.0, 1.0, None, 20) is None
+    # The staircase near resistance: two lows over the box's middle price, the second higher (12.2 then 12.6 on
+    # bar 12), a top in the resistance area between them. A lower low after the dip rules the round trip out.
+    stairs = [(0, _P, 13.0, 0), (2, _V, 8.5, 3), (3, _P, 9.4, 4), (4, _V, 8.0, 5), (6, _P, 13.0, 7),
+              (8, _V, 12.2, 9), (10, _P, 13.8, 11), (12, _V, 12.6, 13), (14, _P, 13.2, 15)]
+    assert LW._right_side_opens(stairs, 1, 0, 14.0, 10.0, 1.0, None, 23) == 12
+    assert LW._right_side_opens(stairs, 1, 0, 14.0, 10.0, 1.0, None, 24) is None
+
+
+def test_an_upthrust_on_the_middle_day_is_still_phase_b():
+    """The spring's "the range ran on": an upthrust at or before the middle of the box means the dip before it
+    was Phase B. A top ON the middle (bar 6, the middle 6.0) still counts; half a day past it, it is a push of
+    the right side and the dip keeps its word."""
+    line = [(0, _P, 13.0, 0), (2, _V, 8.5, 3), (6, _P, 16.0, 7), (8, _V, 11.0, 9)]
+    assert LW._range_ran_on(line, 1, 14.0, 10.0, 1.0, None, 6.0) is True
+    assert LW._range_ran_on(line, 1, 14.0, 10.0, 1.0, None, 5.5) is False
+
+
+def test_phase_d_takes_the_first_staircase_after_the_middle():
+    """Two staircases near resistance, their second lows on bar 10 and on bar 16. Read on bar 19 (the middle 9.5)
+    Phase D opens on bar 10; read on bar 20 the middle IS bar 10, so that one opens nothing and Phase D opens on
+    bar 16."""
+    line = [(0, _P, 13.0, 0), (2, _V, 12.2, 3), (5, _P, 13.8, 6), (10, _V, 12.6, 11), (13, _P, 13.9, 14),
+            (16, _V, 12.9, 17), (18, _P, 13.5, 19)]
+    assert LW.phase_d(line, 0, 14.0, 10.0, 1.0, None, None, None, 19)["open_bar"] == 10
+    assert LW.phase_d(line, 0, 14.0, 10.0, 1.0, None, None, None, 20)["open_bar"] == 16
+
+
+# --------------------------------------------------------------------------- #
+# Committed or provisional, night after night                                 #
+# --------------------------------------------------------------------------- #
+def test_on_his_buy_day_the_words_of_the_fire_day_are_still_told(his_last_receding_day):
+    """The buy day says ``crossed`` and shows no LPS, but the story still leans on the pullback that was bought:
+    THE SOS and the spring named on the fire day are named on the buy day too, on the same days. (Without it the
+    three words that lean on the LPS would vanish the day he buys.) One chart moves, by the rules' own reasons and
+    toward his drawing: ORMP, where on his buy day the spring is read on Mon 09/03/2026, the day he drew it."""
+    kept = checked = 0
+    moved = {}
+    for key, (s, raw) in _standard().items():
+        fire = his_last_receding_day[key]
+        if not s.get("trigger") or not fire.fired:
+            continue
+        buy = two_eyes.read(s["ticker"], raw.loc[:pd.Timestamp(s["trigger"])])
+        if buy.state != record.CROSSED or buy.parent != fire.parent:
+            continue
+        checked += 1
+        then = {(e.kind, e.day) for e in fire.events if e.kind in (record.SOS, record.SPRING) and e.committed}
+        now = {(e.kind, e.day) for e in buy.events}
+        if then <= now:
+            kept += 1
+        else:
+            moved[key] = {e.kind: e.day for e in buy.events if e.kind in (record.SOS, record.SPRING)}
+    assert (checked, kept) == (31, 30), (checked, kept, sorted(moved))
+    assert moved == {"ORMP:2026-04-13": {record.SPRING: dt.date(2026, 3, 9), record.SOS: dt.date(2026, 3, 17)}}
+
+
+def test_vik_night_by_night_the_middle_moves_his_upthrust_into_place():
+    """VIK, the reader's own read (its box is his to the cent), from his last receding day to his as-of day. The
+    middle of the box is measured to the read day, so it moves a half day a night: on Mon 08/06/2026 his push of
+    Thu 14/05/2026 sits past the middle and is read as THE SOS, with the dip of Wed 29/04/2026 as the spring; once
+    the middle has passed it, it is THE upthrust and that dip is no spring: his own reading. A name moves; the
+    days and the prices of the swings never do."""
+    s, raw = _standard()["VIK:2026-06-11"]
+    told = {}
+    for night in raw.loc[pd.Timestamp("2026-06-08"):pd.Timestamp(s["as_of"])].index:
+        read = two_eyes.read("VIK", raw.loc[:night])
+        told[night.date()] = {e.kind: (e.day, round(e.price, 2)) for e in read.events
+                              if e.kind in (record.SPRING, record.UPTHRUST, record.SOS)}
+    first, last = told[dt.date(2026, 6, 8)], told[max(told)]
+    assert first.get(record.SOS, (None,))[0] == dt.date(2026, 5, 14) and record.UPTHRUST not in first
+    assert first.get(record.SPRING, (None,))[0] == dt.date(2026, 4, 29)
+    assert last.get(record.UPTHRUST, (None,))[0] == dt.date(2026, 5, 14), last
+    assert last.get(record.SPRING, (None,))[0] != dt.date(2026, 4, 29), "his: No for the spring"
+    # The swing is the same swing under either name: the same top, to the cent.
+    assert first[record.SOS][1] == last[record.UPTHRUST][1] == 92.0

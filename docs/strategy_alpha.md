@@ -315,7 +315,14 @@ default as ours.
    that's like a paradigm shift it signals local buyer strength"*; a deep correction after
    a breach of resistance in Phase D is the last supper, written only in hindsight. Phase D
    opens at the first right-side evidence after the middle of the box, never at or before
-   it. A word is either committed or provisional, and no word ever blocks a fire: *"The up
+   it. A word is either committed or provisional (ours): committed when the swing it stands
+   on, and the swing that answers it, have committed on the line; provisional while one of
+   them is still forming. Committed says the SWING is settled, its day and its price; the
+   NAME is the reading of the box as it stands tonight, and it can move to another swing:
+   there is one spring, one upthrust and one SOS per box, the middle of the box moves
+   right every day, and three words lean on the pullback of the day. On his 40, over the
+   ten nights up to his last receding day and on to his as-of day, committed names moved
+   166 times in 470 pairs of nights, most often Phase D and THE SOS (Fri 02/10/2026). And no word ever blocks a fire: *"The up
    thrust isn't even all that important, we just got to nail down our core for detecting
    consolidations and an LPS. the rest is a nice little bonus."* The story is read after
    the LPS, because three of its words lean on the pullback, and it reads the box shown
