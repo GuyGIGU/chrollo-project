@@ -275,7 +275,8 @@ default as ours.
    whichever night tells them were measured and none holds on charts nobody chose (the
    Tested-DEAD record of Fri 02/10/2026). So the earlier boxes of a read are that night's
    own telling, not a record of what an earlier night showed, and the story reads the box
-   shown and no earlier box (ours). The record of what each night showed is the archive's.
+   shown, no earlier box and not the mini (ours). The record of what each night showed is
+   the archive's.
    Measured on his 40 on his last receding day (Fri 02/10/2026, the standard following the
    three setups he drew on the evening of Thu 01/10/2026: SGHT, WAT and NET): the reader's
    box is his to the cent on 25, both lines within half a daily range of his on 11, another
@@ -296,10 +297,17 @@ default as ours.
    refusals that keep it from firing; the state word only says where the price is, it
    keeps nothing from firing. The mini consolidation is a box
    inside the parent's right side with its own two lines, and it never replaces the parent:
-   *"both boxes live, they are a part of the same setup"* (Sun 20/09/2026). What tells a
-   mini from a new box is ours, and it is the same line as above: a pair whose bottom sits
-   under the parent's resistance area is a mini; one that rests on it or above it is a new
-   box once the bars no longer come back to the parent's two lines.
+   *"both boxes live, they are a part of the same setup"* (Sun 20/09/2026); *"like a small
+   box, same as the regular consolidation"* (Wed 26/08/2026). It is read with the same rule of
+   the pair: among the pairs that became boxes after the parent did and sit inside or across
+   it (not beyond it — beyond is a new box's business, the line above), the first to become a
+   box is the inner box, and it gives way inside the parent exactly as the parent would. That
+   inner box is THE mini when it is a small box inside the parent at the top: its bottom over
+   the parent's support area, not the parent's own two lines again, its top at or over the
+   parent's resistance area (ours, built Sat 03/10/2026 to the shape of the two minis he
+   stands behind and the three he deleted; "at the top" is one predicate and is his question).
+   The parent's half-range area is the only width. The record carries the live mini only; the
+   story and the state word read the parent.
 5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
    beyond the support area is a Phase C candidate until the swing after its tip recovers it
    (a high back in the area, then a higher low) or fails it (a lower low first); one Phase
@@ -378,7 +386,13 @@ default as ours.
    its LPS, and the universe door stands before every read: a fire is a box, an LPS and a
    trigger on a chart the door admits (ours). The mini may carry the read: *"the LPS read
    can be against it if it is inside/near it/resting on it and the trigger is always read
-   against the LPS by itself"* (Sat 12/09/2026).
+   against the LPS by itself"* (asked Sat 12/09/2026, answered Sun 13/09/2026). Built: the
+   pullback's low in the mini's own area — inside the band clear of both lines (in), inside
+   and within the area of a line (on), outside and within the area of a line (near) — is read
+   against the mini's lines and the record says which box and how; away from the mini, or a
+   mini that became a box only after the pullback ended, or a fault on the mini's side: the
+   parent's read (ours). The window and the trigger are the bars' and never move; the two
+   position sentences read the lines of the box named.
 7. **The grade, the state word, the screen.** *"grade is built from a few important traits:
    Consolidation tightness (Consolidation width + Spread Profile), Event Map, base age
    dosen't matter to me"* (Sat 12/09/2026). Height is counted in daily ranges, never in
