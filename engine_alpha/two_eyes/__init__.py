@@ -29,6 +29,7 @@ built against; `frame.py` is what a chart must be before it is read.
 from __future__ import annotations
 
 from engine_alpha.two_eyes import lps
+from engine_alpha.two_eyes import mini
 from engine_alpha.two_eyes import state as state_word
 from engine_alpha.two_eyes import story
 from engine_alpha.two_eyes import method_numbers as M
@@ -106,6 +107,22 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         found = walk.elect(line.committed, [t for t in far if t.committed], ranges, high, low,
                            days=days, read_bar=len(prepared) - 1)
         boxes, trail, state = walk.record(found, keep_listing=keep_listing)
+        # The mini (task 13): a second box inside the parent's right side, read
+        # with the walk's own functions and put on the record LAST, after the
+        # walk's (earlier..., parent). Its guard is the INVERSE of the story's:
+        # a fault here leaves the parent-only read standing with a step that
+        # says why, never `crashed`, because by his ruling the LPS may be read
+        # against the mini (stage 6), so a bug in the mini must never cost a
+        # fire.
+        mini_box = None
+        if found.winner is not None:
+            try:
+                history = mini.find(found, high, low, len(prepared) - 1)
+                if history:
+                    mini_box, step = mini.record(found, history)
+                    boxes, trail = boxes + (mini_box,), trail + (step,)
+            except Exception as exc:                  # the parent-only read stands; the trail says why
+                mini_box, trail = None, trail + mini.could_not_be_read(exc)
         # Stage 6 (task 12a): the last run of receding days against the box
         # shown, its trigger at the last day's high, refused only by his four
         # sentences. Read on the bars' highs and lows: no close decides it.

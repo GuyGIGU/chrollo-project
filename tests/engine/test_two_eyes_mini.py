@@ -31,7 +31,8 @@ def _walk_on_his_last_day(setup: dict):
 
     frames, _ = load_sealed_fixture()
     raw = fixture_frame(frames, setup_key(setup), setup["ticker"])
-    prepared = prepare(raw.loc[:pd.Timestamp(his_last_lps_day(setup))])
+    cut = raw.loc[:pd.Timestamp(his_last_lps_day(setup))]
+    prepared = prepare(cut)
     line = build_line(prepared)
     far = line.far(M.FAR_VIEW_FLOOR_RANGES)
     ranges = prepared[DAILY_RANGE].to_numpy(dtype=float)
@@ -39,7 +40,7 @@ def _walk_on_his_last_day(setup: dict):
     days = [d.date() for d in prepared.index]
     found = walk.elect(line.committed, [t for t in far if t.committed], ranges, high, low, days=days,
                        read_bar=len(prepared) - 1)
-    return found, days, prepared
+    return found, days, prepared, cut
 
 
 @pytest.fixture(scope="module")
@@ -51,8 +52,9 @@ def his_minis() -> list:
     for setup in load_corpus():
         if not setup.get("mini"):
             continue
-        found, days, prepared = _walk_on_his_last_day(setup)
-        out.append({"key": setup_key(setup), "setup": setup, "found": found, "days": days, "prepared": prepared})
+        found, days, prepared, cut = _walk_on_his_last_day(setup)
+        out.append({"key": setup_key(setup), "setup": setup, "found": found, "days": days, "prepared": prepared,
+                    "raw": cut})
     assert {m["setup"]["ticker"] for m in out} == {"DSGN", "MSGS"}     # the standard's own list, kept there
     return out
 
@@ -134,7 +136,7 @@ def test_the_lps_stage_stamps_the_box_and_the_word_it_is_handed(his_minis):
                                                                              plain.trigger_price)
     assert "against the mini" in steps[0].saying and ", in" in steps[0].saying
     # The fire reads which box, the trigger and failure only: never the word.
-    whole = read_chart("DSGN", prepared)
+    whole = read_chart("DSGN", m["raw"])
     assert whole.fired
     restamped = dataclasses.replace(whole, lps=dataclasses.replace(whole.lps, read_against=ROLE_MINI, how="near"))
     assert restamped.fired == whole.fired
@@ -150,8 +152,8 @@ def his_40() -> dict:
 
     out = {}
     for setup in load_corpus():
-        found, days, prepared = _walk_on_his_last_day(setup)
-        out[setup_key(setup)] = {"setup": setup, "found": found, "days": days, "prepared": prepared,
+        found, days, prepared, cut = _walk_on_his_last_day(setup)
+        out[setup_key(setup)] = {"setup": setup, "found": found, "days": days, "prepared": prepared, "raw": cut,
                                 "high": prepared["High"].to_numpy(dtype=float),
                                 "low": prepared["Low"].to_numpy(dtype=float)}
     assert len(out) == 40
@@ -281,3 +283,66 @@ def test_the_charts_of_his_40_with_a_mini_are_exactly_these(his_40):
     assert set(named) == set(_MINIS_ON_HIS_40), sorted(named)
     for ticker, lines in _MINIS_ON_HIS_40.items():
         assert named[ticker] == pytest.approx(lines, abs=0.005), ticker
+
+
+# --------------------------------------------------------------------------- #
+# S4. The mini stage wired into the read, inside its own guard                #
+# --------------------------------------------------------------------------- #
+def _read_his(his_40: dict, ticker: str):
+    from engine_alpha.two_eyes import read as read_chart
+
+    row = _row(his_40, ticker)
+    return row, read_chart(ticker, row["raw"])
+
+
+def test_the_read_carries_the_mini_beside_the_parent(his_40):
+    """DSGN through the one public way in, on his last receding day: the mini is on the record LAST in the boxes,
+    after the walk's own (earlier..., parent); the parent, the LPS and the fire are byte for byte what they were;
+    the trail says the mini after the box and before the LPS."""
+    from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT, walk
+
+    row, read = _read_his(his_40, "DSGN")
+    assert read.failed is False and read.fired and read.lps.trigger_price == pytest.approx(10.70, abs=0.005)
+    assert read.lps.read_against == ROLE_PARENT and read.lps.how is None      # stage 6 reads the parent until S5
+    assert read.mini is not None and read.mini.role == ROLE_MINI and read.boxes[-1] is read.mini
+    assert (read.mini.resistance.price, read.mini.support.price) == pytest.approx((10.97, 9.66), abs=0.005)
+    assert read.mini.opened_day == dt.date(2026, 1, 23) and read.mini.end_day is None
+    walked, _, _ = walk.record(row["found"])
+    assert read.boxes[:-1] == walked and read.parent == walked[-1]
+    stages = [s.stage for s in read.trail]
+    assert stages.index("mini") == stages.index("box") + 1 < stages.index("LPS")
+
+
+def test_a_fault_in_the_mini_leaves_the_parent_only_read_standing(his_40, monkeypatch):
+    """The guard is the inverse of the story's: by his ruling the LPS may be read against the mini, so a bug in
+    the mini must never cost a fire — the read stands on the parent alone, with a step that says why, never
+    `crashed`."""
+    from engine_alpha.two_eyes import mini
+
+    def falls_over(*args, **kwargs):
+        raise RuntimeError("the mini stage fell over on purpose")
+
+    monkeypatch.setattr(mini, "find", falls_over)
+    row, read = _read_his(his_40, "DSGN")
+    assert read.failed is False and read.fired and read.lps.trigger_price == pytest.approx(10.70, abs=0.005)
+    assert read.mini is None and read.boxes[-1] == read.parent
+    said = [s for s in read.trail if s.stage == "mini"]
+    assert len(said) == 1 and "could not be read" in said[0].saying and "on purpose" in said[0].saying
+
+
+def test_no_read_of_his_40_carries_the_minis_failure_step(his_40):
+    from engine_alpha.two_eyes import read as read_chart
+
+    for key, row in his_40.items():
+        read = read_chart(key.split(":")[0], row["raw"])
+        assert not any(s.stage == "mini" and "could not be read" in s.saying for s in read.trail), key
+        assert read.mini is None or read.boxes[-1] is read.mini
+
+
+def test_keep_listing_changes_words_only_with_a_mini(his_40):
+    from engine_alpha.two_eyes import read as read_chart
+
+    row = _row(his_40, "DSGN")
+    plain, listed = read_chart("DSGN", row["raw"]), read_chart("DSGN", row["raw"], keep_listing=True)
+    assert (plain.boxes, plain.lps, plain.state, plain.mini) == (listed.boxes, listed.lps, listed.state, listed.mini)
+    assert [s for s in plain.trail if s.stage == "mini"] == [s for s in listed.trail if s.stage == "mini"]

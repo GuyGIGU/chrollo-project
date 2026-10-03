@@ -1689,7 +1689,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `4a38adedc217312e20b6bc9c7f04bd9aa3f7a3109ef36eee6af62706de2d7401`_
+_engine_config_version: `d9ced320975ffc0924f3c2430d519e22055dc831b47f01543e36f1f8494ca588`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1790,7 +1790,7 @@ LPS_BUY_DAY_READS_HIGH_ENABLED = False
 LPS_REFUSALS_TO_GRADES_ENABLED = False
 LPS_SELLERS_RISING_FATAL_ENABLED = False
 TWO_EYES_READER_ENABLED = False
-TWO_EYES_RULESET = 'two-eyes-0.7.3-check'
+TWO_EYES_RULESET = 'two-eyes-0.8.0-mini'
 TURN_LINE_ENABLED = False
 TURN_LINE_TREND_ENABLED = False
 TURN_LINE_FLOOR_ATR = 0.75

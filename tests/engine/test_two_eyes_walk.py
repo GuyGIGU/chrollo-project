@@ -865,11 +865,12 @@ def test_the_record_carries_the_box_its_trail_and_the_state_and_keep_listing_add
 
 
 def test_read_fills_the_record_from_the_walk():
-    """The read is the walk's record, then stage 6 on the box it shows (the LPS, its step after the walk's
-    trail, and the state word: task 12a), then the story's one step and its events (stage 5, task 12b), which
-    change neither the boxes, the LPS nor the state word."""
+    """The read is the walk's record, then the mini (a second box inside the parent's right side, LAST in the
+    boxes, its one step: task 13), then stage 6 on the box it shows (the LPS, its step after the walk's trail,
+    and the state word: task 12a), then the story's one step and its events (stage 5, task 12b), which change
+    neither the boxes, the LPS nor the state word."""
     from engine_alpha import two_eyes
-    from engine_alpha.two_eyes import (frame as frame_module, line as line_module, lps, story, walk,
+    from engine_alpha.two_eyes import (frame as frame_module, line as line_module, lps, mini, story, walk,
                                        method_numbers as M)
     from core.calibration.replay import load_sealed_fixture
 
@@ -887,6 +888,10 @@ def test_read_fills_the_record_from_the_walk():
     boxes, trail, state = walk.record(result)
     assert state == "lines, no LPS yet"
     won = result.winner
+    inner = mini.find(result, high, low, len(prepared) - 1)
+    if inner:
+        mini_box, mini_step = mini.record(result, inner)
+        boxes, trail = boxes + (mini_box,), trail + (mini_step,)
     pullback = lps.read(high, low, ranges, line.committed, R=won.R, S=won.S, box_unit=won.unit,
                         born_bar=won.birth_bar)
     the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1)
