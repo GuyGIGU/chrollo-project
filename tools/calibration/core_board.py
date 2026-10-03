@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+from collections import Counter
 import os
 import textwrap
 import time
@@ -38,7 +39,7 @@ _ROOT = configure_path(backend=True)
 
 from engine_alpha import two_eyes  # noqa: E402
 from engine_alpha.evaluation import apply_baseline_filters_with_reason  # noqa: E402
-from engine_alpha.two_eyes import lps, walk  # noqa: E402
+from engine_alpha.two_eyes import lps, mini, walk  # noqa: E402
 from engine_alpha.two_eyes import method_numbers as M  # noqa: E402
 from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
@@ -82,9 +83,26 @@ def read_day(ticker: str, raw, day) -> dict:
     found = walk.elect(line.committed, [t for t in far if t.committed], ranges, high, low,
                        read_bar=len(prepared) - 1)
     won = found.winner
-    out.update(prepared=prepared, won=won, found=found, line=line,
-               pullback=lps.read(high, low, ranges, line.committed, R=won.R, S=won.S, box_unit=won.unit,
-                                 born_bar=won.birth_bar))
+    against = lps.read(high, low, ranges, line.committed, R=won.R, S=won.S, box_unit=won.unit, born_bar=won.birth_bar)
+    # The mini (task 13): the band drawn is the band that fired. The record says which box the LPS was read
+    # against; with no LPS on the record (crossed, refused) the reader's one chooser says which band the
+    # pullback's low sits in. Against the mini, the pullback is measured again on the mini's lines, as the read
+    # does, with the same fall-back to the parent.
+    history = mini.find(found, high, low, len(prepared) - 1)
+    mini_pair = history[-1].pair if history else None
+    if read.lps is not None:
+        role = read.lps.read_against
+    else:
+        role = mini.lps_box(against.low, mini_pair)[0] if against is not None else two_eyes.ROLE_PARENT
+    if role == two_eyes.ROLE_MINI and mini_pair is not None:
+        inner = lps.read(high, low, ranges, line.committed, R=mini_pair.R, S=mini_pair.S, box_unit=mini_pair.unit,
+                         born_bar=mini_pair.birth_bar)
+        if inner is not None and inner.end_bar >= inner.born_bar:
+            against = inner
+        else:
+            role = two_eyes.ROLE_PARENT
+    out.update(prepared=prepared, won=won, found=found, line=line, pullback=against, mini_pair=mini_pair,
+               lps_box=role)
     return out
 
 
@@ -185,6 +203,7 @@ def format_board(rows: list) -> str:
                f"day made a lower low too and the pullback goes on {len(goes_on)} ({_names(goes_on)})")
     seconds = sorted(r["on_last"]["seconds"] for r in rows)
     out.append(f"  the whole read: median {seconds[len(seconds) // 2]:.3f}s · worst {seconds[-1]:.3f}s (budget 0.2)")
+    out.extend(format_mini(rows))
     out.append("")
     out.append(f"  {'drawing':<18}{'box':<7}{'his day':<26}the reader's words")
     for r in misses_first(rows):
@@ -303,6 +322,45 @@ def format_name_moves(moves: dict) -> str:
         f"  committed names moved {total} times in {moves['same_box']} pairs of nights"])
 
 
+def mini_verdict(row: dict) -> str:
+    """His drawn mini against what the reader shows, in words: his band is two corner clicks (no anchor days),
+    so the yardstick is both lines within half the parent's range of his band."""
+    read, won = row["on_last"]["read"], row["on_last"]["won"]
+    band = row["setup"]["mini"]["band"]
+    half = 0.5 * won.unit
+    his = f"your band {band['R']:.2f} / {band['S']:.2f}"
+    if abs(won.R - band["R"]) <= half and abs(won.S - band["S"]) <= half:
+        return (f"the reader's box IS your mini ({won.R:.2f} / {won.S:.2f} against {his}); your parent "
+                f"{row['setup']['rails_drawn']['R']:.2f} / {row['setup']['rails_drawn']['S']:.2f} is a pair the rule "
+                "does not list — reported apart")
+    if read.mini is None:
+        return f"no mini drawn today ({his})"
+    r, s = read.mini.resistance.price, read.mini.support.price
+    fit = "within half a range of" if abs(r - band["R"]) <= half and abs(s - band["S"]) <= half else "another band than"
+    return f"the reader's mini {r:.2f} / {s:.2f} is {fit} {his}"
+
+
+def format_mini(rows: list) -> list:
+    """The mini's lines of the board, never counted in the headline above: the second box where the reader draws
+    one, his drawn minis against it, which box the LPS was read against and how, and the stage's failures."""
+    with_mini = [r for r in rows if r["on_last"]["read"].mini is not None]
+    said = ", ".join(f"{r['key']} {r['on_last']['read'].mini.resistance.price:.2f} / "
+                     f"{r['on_last']['read'].mini.support.price:.2f}" for r in with_mini) or "none"
+    out = [f"  THE MINI (never counted above): a second box inside the parent on {len(with_mini)} of {len(rows)}: {said}"]
+    for r in rows:
+        if r["setup"].get("mini"):
+            out.append(f"      your drawn mini on {r['key']}: {mini_verdict(r)}")
+    named = [r for r in rows if r["on_last"]["read"].lps is not None
+             and r["on_last"]["read"].lps.read_against == two_eyes.ROLE_MINI]
+    hows = Counter(r["on_last"]["read"].lps.how for r in named)
+    out.append(f"      the LPS read against the mini on {len(named)}"
+               + (" (" + " · ".join(f"{k} {v}" for k, v in sorted(hows.items())) + ")" if named else ""))
+    broken = [r for r in rows if any(s.stage == "mini" and "could not be read" in s.saying
+                                     for s in r["on_last"]["read"].trail)]
+    out.append(f"      the mini could not be read: {len(broken)}" + (f" ({_names(broken)})" if broken else ""))
+    return out
+
+
 def format_junk(rows: list) -> str:
     firing = [r for r in rows if r["fires"]]
     out = ["", f"THE JUNK — charts that fire on any day of their window: {len(firing)} of {len(rows)} "
@@ -416,6 +474,17 @@ def _render(plt, draw_bars, row: dict, path: str, title: str, words: str, his: O
         if earlier.end_day is not None and earlier.end_day >= shown[0]:
             _draw_box(ax, earlier, at, shown[0], None, _EARLIER, 1.2)
     _draw_box(ax, box, at, shown[0], at(row["day"]), _BOX, 1.7, "reader's")
+    # The mini (task 13): a second box inside the parent, thinner, from its own anchor days; his band dotted red
+    # over its own days (his mini has no anchor days: two corner clicks, a band and a span).
+    if read.mini is not None:
+        _draw_box(ax, read.mini, at, shown[0], at(row["day"]), _BOX, 1.0, "mini")
+    if his is not None and his.get("mini"):
+        band, span = his["mini"]["band"], his["mini"]["span"]
+        a, b = at(_date(span[0])), at(_date(span[1]))
+        if a is not None and b is not None:
+            for price, name in ((band["R"], "your mini R"), (band["S"], "your mini S")):
+                ax.plot([a - .4, b + .4], [price, price], color=_HIS, lw=1.2, ls=":", zorder=4)
+                ax.annotate(f"{name} {price:.2f}", (b + .6, price), color=_HIS, fontsize=7.5, va="center", zorder=5)
     if pullback is not None:
         _draw_pullback(ax, pullback, at, days, *pullback_look(row))
     for mark in marks or []:
@@ -464,8 +533,10 @@ def _words(read, door: Optional[str]) -> str:
     closed = f"  The universe door refuses the day ({door}): not scanned." if door else ""
     story = next((s.saying for s in read.trail if s.stage == "story"), "")
     told = f"  {story[:1].upper()}{story[1:]}." if story else ""
+    inner = next((s.saying for s in read.trail if s.stage == "mini"), "")
+    second = f"  {inner[:1].upper()}{inner[1:]}." if inner else ""
     beside = "" if read.state_days is None else f" ({read.state_days} days)"
-    return f"The box: {box}.  {said[:1].upper()}{said[1:]}.{told}  State: {read.state}{beside}.{closed}"
+    return f"The box: {box}.{second}  {said[:1].upper()}{said[1:]}.{told}  State: {read.state}{beside}.{closed}"
 
 
 def render_pages(rows: list, junk: list, out_dir: str) -> tuple:
@@ -525,7 +596,8 @@ def write_contact_sheet(his_pages: list, junk_pages: list, out_dir: str) -> str:
 </style>
 <h1>The core sitting — the reader's own box, its LPS and its trigger</h1>
 <p>OHLC bars. Blue dashed: the reader's box, each line from its own anchor day; pale blue: an earlier box, handed
- over, as this day's read tells it (the reader keeps no memory). Green band: the reader's LPS, from its top day to its last receding day, and the green line is
+ over, as this day's read tells it (the reader keeps no memory); thin blue dashed: the mini, a second box inside
+ the reader's box; red dotted: your mini band over its own days. Green band: the reader's LPS, from its top day to its last receding day, and the green line is
  its trigger, that day's high. Amber band: the LPS whose trigger the read day crossed, the buy day. Grey band: a
  pullback one of your four sentences refused (the words under the picture name the sentence). Red: your two lines, your LPS days (the bar along the bottom) and your buy (the
  triangle). Each chart is read on your last receding day. Misses first.</p>

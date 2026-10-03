@@ -102,6 +102,8 @@ def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
             assert (watch["state"] == "not scanned") == (on_last["door"] is not None), row["key"]
             assert on_last["door"] is None or watch["why"] == on_last["door"], row["key"]
             assert not on_last["fired"] or result["_trigger_price"] == on_last["read"].lps.trigger_price, row["key"]
+            # And the box the LPS was read against (task 13): the band the board draws is the band that fired.
+            assert not on_last["fired"] or result["_two_eyes_lps_read_against"] == on_last["lps_box"], row["key"]
 
 
 def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_one(tmp_path):
@@ -191,3 +193,29 @@ def test_the_board_counts_the_names_that_move_night_to_night():
     board = core_board.format_name_moves(moves)
     total = sum(moves["gone"].values()) + sum(moves["renamed"].values())
     assert f"committed names moved {total} times in {moves['same_box']} pairs of nights" in board
+
+
+def test_the_board_draws_the_mini_and_names_the_box_the_lps_was_read_against(tmp_path):
+    """DSGN (task 13): the mini thinner beside the parent and his band dotted red over its own days; the words
+    name the mini and which box the LPS was read against and how; the pullback drawn is the one measured against
+    the mini; the board's mini lines sit outside the strict headline."""
+    from engine_alpha import two_eyes
+    from tools.calibration import core_board
+    from tools.regression.marks_corpus import load_corpus, setup_key
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+
+    frames, _ = load_sealed_fixture()
+    setup = next(s for s in load_corpus() if s["ticker"] == "DSGN")
+    row = core_board.score_setup(setup, fixture_frame(frames, setup_key(setup), "DSGN"))
+    on_last = row["on_last"]
+    assert on_last["read"].mini is not None and on_last["lps_box"] == two_eyes.ROLE_MINI
+    assert on_last["pullback"].born_bar == on_last["mini_pair"].birth_bar
+    words = core_board._words(on_last["read"], on_last["door"])
+    assert "The mini: R 10.97" in words and "read against the mini, in" in words
+    pages, _ = core_board.render_pages([row], [], str(tmp_path))
+    assert len(pages) == 1 and os.path.getsize(pages[0][1]) > 20_000
+    board = core_board.format_board([row])
+    assert "FIRES ON HIS DAY AT HIS TRIGGER: 1 of 1" in board
+    assert "THE MINI (never counted above): a second box inside the parent on 1 of 1: DSGN:2026-03-31 10.97 / 9.66" in board
+    assert "your drawn mini on DSGN:2026-03-31: the reader's mini 10.97 / 9.66 is within half a range of your band 10.97 / 9.90" in board
+    assert "the LPS read against the mini on 1 (in 1)" in board and "the mini could not be read: 0" in board
