@@ -86,3 +86,55 @@ def test_the_walk_lists_the_mini_pair_he_drew(his_minis):
             assert any(days[p.birth_bar] == dt.date(2026, 2, 17) and abs(p.S - 9.82) < 0.005 for p in near)
         if m["setup"]["ticker"] == "MSGS":
             assert any(p.feet == found.winner.feet for p in near)      # his mini is the box the reader shows
+
+
+# --------------------------------------------------------------------------- #
+# S2. A place on the record for HOW the LPS sat against the mini              #
+# --------------------------------------------------------------------------- #
+def test_the_lps_record_carries_how_it_sat_against_the_mini():
+    """His three positions (Sun 13/09/2026): *"the LPS read can be against it if it is inside/near it/resting on
+    it"*. The record says WHICH box already (``read_against``); ``how`` says in, on or near, validated like a role,
+    and is said only of the mini (OURS): the parent's read carries no word."""
+    from engine_alpha.two_eyes import LPS_HOW, ROLE_MINI, ROLE_PARENT, Lps
+
+    assert LPS_HOW == ("in", "on", "near")
+    said = Lps(start_day=dt.date(2026, 3, 26), end_day=dt.date(2026, 3, 30), read_against=ROLE_MINI, trigger_price=10.70, how="in")
+    assert said.how == "in"
+    plain = Lps(start_day=dt.date(2026, 3, 26), end_day=dt.date(2026, 3, 30), read_against=ROLE_PARENT, trigger_price=10.70)
+    assert plain.how is None
+    with pytest.raises(ValueError):
+        Lps(start_day=dt.date(2026, 3, 26), end_day=dt.date(2026, 3, 30), read_against=ROLE_MINI, trigger_price=10.70, how="inside")
+    with pytest.raises(ValueError):
+        Lps(start_day=dt.date(2026, 3, 26), end_day=dt.date(2026, 3, 30), read_against=ROLE_PARENT, trigger_price=10.70, how="in")
+
+
+def test_the_lps_stage_stamps_the_box_and_the_word_it_is_handed(his_minis):
+    """``lps.record`` stamps the role and the word the caller hands it; called as today it says the parent and no
+    word, byte for byte (the LPS tests pin that). And the fire reads neither: the same pullback stamped as read
+    against the mini, in, fires the same."""
+    import dataclasses
+
+    from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT, lps, read as read_chart
+    from engine_alpha.two_eyes.frame import DAILY_RANGE
+    from engine_alpha.two_eyes import build_line
+
+    m = next(x for x in his_minis if x["setup"]["ticker"] == "DSGN")
+    prepared, found, days = m["prepared"], m["found"], m["days"]
+    line = build_line(prepared)
+    high, low = prepared["High"].to_numpy(dtype=float), prepared["Low"].to_numpy(dtype=float)
+    ranges = prepared[DAILY_RANGE].to_numpy(dtype=float)
+    won = found.winner
+    pullback = lps.read(high, low, ranges, line.committed, R=won.R, S=won.S, box_unit=won.unit,
+                        born_bar=won.birth_bar)
+    plain, _, word = lps.record(pullback, days, read_bar=len(days) - 1)
+    assert word == lps.FIRED and plain.read_against == ROLE_PARENT and plain.how is None
+    stamped, steps, word2 = lps.record(pullback, days, read_bar=len(days) - 1, read_against=ROLE_MINI, how="in")
+    assert word2 == word and stamped.read_against == ROLE_MINI and stamped.how == "in"
+    assert (stamped.start_day, stamped.end_day, stamped.trigger_price) == (plain.start_day, plain.end_day,
+                                                                             plain.trigger_price)
+    assert "against the mini" in steps[0].saying and ", in" in steps[0].saying
+    # The fire reads which box, the trigger and failure only: never the word.
+    whole = read_chart("DSGN", prepared)
+    assert whole.fired
+    restamped = dataclasses.replace(whole, lps=dataclasses.replace(whole.lps, read_against=ROLE_MINI, how="near"))
+    assert restamped.fired == whole.fired

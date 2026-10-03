@@ -114,13 +114,22 @@ class Box:
             raise ValueError(f"unknown box role {self.role!r}; expected one of {ROLES}")
 
 
+#: HOW the LPS sat against the mini, his three positions (Sun 13/09/2026: *"the
+#: LPS read can be against it if it is inside/near it/resting on it"*): its low
+#: inside the mini's band, resting on one of its lines, or near one from outside.
+#: Said only of the mini (ours): the parent's read carries no word.
+LPS_HOW = ("in", "on", "near")
+
+
 @dataclass(frozen=True)
 class Lps:
-    """The last run of receding days, and which box it receded inside."""
+    """The last run of receding days, which box it receded inside, and — when
+    that box is the mini — how its low sat against it."""
     start_day: dt.date
     end_day: dt.date
     read_against: str           # a box role; with two live boxes this is not optional
     trigger_price: Optional[float] = None
+    how: Optional[str] = None   # one of LPS_HOW when read against the mini; else None
 
     def __post_init__(self):
         object.__setattr__(self, "start_day", _as_day(self.start_day))
@@ -131,6 +140,10 @@ class Lps:
             raise ValueError(
                 f"the LPS was read against {self.read_against!r}; expected one "
                 f"of {ROLES}")
+        if self.how is not None and self.how not in LPS_HOW:
+            raise ValueError(f"the LPS sat {self.how!r} against its box; expected one of {LPS_HOW}")
+        if self.how is not None and self.read_against != ROLE_MINI:
+            raise ValueError(f"how the LPS sat is said of the mini only, not of {self.read_against!r}")
 
 
 @dataclass(frozen=True)

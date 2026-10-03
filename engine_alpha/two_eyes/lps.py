@@ -217,11 +217,13 @@ def _facts(days, pullback: Pullback) -> str:
             f"{_day(days, pullback.swing_top_bar)}, measured in a {pullback.unit:.2f} daily range")
 
 
-def record(pullback: Optional[Pullback], days, read_bar: int) -> tuple:
+def record(pullback: Optional[Pullback], days, read_bar: int, *, read_against: str = ROLE_PARENT,
+           how: Optional[str] = None) -> tuple:
     """The read's record of stage 6: ``(lps, steps, state)``. An LPS — a pullback none of his sentences refuses,
     its trigger still overhead, ended no earlier than the day the box became a box — fires. The day a later
     high crosses the trigger is the buy: ``crossed``, and nothing fires. ``(None, (), None)`` with no pullback
-    to read, which leaves the state to the stage before."""
+    to read, which leaves the state to the stage before. ``read_against`` and ``how`` are stamped as handed:
+    which box the pullback was measured against and, for the mini, how its low sat against it (task 13)."""
     if pullback is None:
         return None, (), None
     span, trigger = _span(days, pullback), f"{pullback.trigger:.2f}"
@@ -243,8 +245,9 @@ def record(pullback: Optional[Pullback], days, read_bar: int) -> tuple:
     also = "" if pullback.bought is None else (
         f"; that day's high crossed {pullback.bought:.2f}, the trigger of the day before, which was a buy, and the "
         "day made a lower low too, so the pullback goes on")
+    against = "" if how is None else f"; read against the mini, {how}"
     said = (f"the LPS: the pullback {span}; the trigger is {trigger}, the high of {_day(days, pullback.end_bar)}; "
-            f"{_facts(days, pullback)}{also}")
-    found = Lps(start_day=days[pullback.start_bar], end_day=days[pullback.end_bar], read_against=ROLE_PARENT,
-                trigger_price=pullback.trigger)
+            f"{_facts(days, pullback)}{also}{against}")
+    found = Lps(start_day=days[pullback.start_bar], end_day=days[pullback.end_bar], read_against=read_against,
+                trigger_price=pullback.trigger, how=how)
     return found, (Step("LPS", said),), FIRED
