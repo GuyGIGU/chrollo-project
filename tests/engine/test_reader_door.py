@@ -271,6 +271,7 @@ def test_the_switch_is_read_in_exactly_one_place():
               "tests/contracts/test_inert_contract.py",
               "tests/engine/test_reader_door.py", "tests/engine/test_two_eyes_adapter.py",
               "tests/engine/test_two_eyes_skeleton.py", "tests/engine/test_two_eyes_lps.py",
+              "tests/engine/test_two_eyes_mini.py",
               "tests/tooling/test_core_board.py",
               "tests/tooling/test_yardstick.py", "tools/calibration/yardstick.py"}
     assert files == {"engine_alpha/reader.py"}, (

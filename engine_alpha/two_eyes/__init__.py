@@ -139,6 +139,7 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         # ended, or a fault on the mini's side: the parent's read, with a
         # sentence — never "no LPS", never a crashed read.
         against, how, extra = ROLE_PARENT, None, ()
+        parent_pullback = pullback
         if pullback is not None and mini_pair is not None:
             against, how = mini.lps_box(pullback.low, mini_pair)
             if against == ROLE_MINI:
@@ -158,6 +159,15 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                                          f"{exc}; read against the parent"),)
                     against, how = ROLE_PARENT, None
         the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1, read_against=against, how=how)
+        # The archive tie (deferred from build task 6): "mini" is said only
+        # with a stored mini. The mini's pair and its box are set together, so
+        # this cannot happen by construction; if it ever does, the parent's
+        # read stands, with a sentence — inside the guard, never a raise on
+        # the record or in the adapter, which the door calls unguarded.
+        if the_lps is not None and the_lps.read_against == ROLE_MINI and not any(b.role == ROLE_MINI for b in boxes):
+            the_lps, said, word = lps.record(parent_pullback, days, read_bar=len(prepared) - 1)
+            extra = extra + (Step("LPS", "the LPS was read against the mini but no mini box is on the record: "
+                                         "read against the parent"),)
         trail, state = trail + said + extra, word or state
         # Stage 5 (task 12b): the story, the words the drawing printed against the box shown. It runs AFTER the
         # fire is decided and inside its own guard: a word never costs a fire, a bug in a word rule included.

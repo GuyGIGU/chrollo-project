@@ -474,3 +474,71 @@ def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
     assert named == set(_MINIS_ON_HIS_40), sorted(named)
     assert against["DSGN"] == (ROLE_MINI, "in")
     assert all(how is None for role, how in against.values() if role == ROLE_PARENT)
+
+
+# --------------------------------------------------------------------------- #
+# S6. The archive tie, and his drawing through the door                        #
+# --------------------------------------------------------------------------- #
+_MINI_KEYS = ("r_price", "r_anchor_date", "s_price", "s_anchor_date", "opened_date", "end_date", "daily_range")
+
+
+def test_dsgn_crosses_the_adapter_with_both_boxes_one_trigger(his_40):
+    """The adapter already carries a second box under the archive family's own names (build task 6): with the
+    mini on the record, DSGN's row says both pairs, the parent's lines as the setup's, one trigger, the LPS
+    against the mini, and the mini flag 1 — with no adapter change."""
+    from engine_alpha.two_eyes_adapter import to_result
+
+    _, read = _read_his(his_40, "DSGN")
+    row = to_result(read)
+    assert (round(row["_R"], 2), round(row["_S"], 2)) == (10.31, 9.00) and row["_trigger_price"] == pytest.approx(10.70)
+    assert row["_two_eyes_lps_read_against"] == "mini" and row["_two_eyes_has_mini"] == 1
+    assert all(f"_two_eyes_mini_{k}" in row for k in _MINI_KEYS)
+    assert (round(row["_two_eyes_mini_r_price"], 2), row["_two_eyes_mini_r_anchor_date"]) == (10.97, "2026-01-23")
+    assert (round(row["_two_eyes_mini_s_price"], 2), row["_two_eyes_mini_s_anchor_date"]) == (9.66, "2026-01-26")
+    assert row["_two_eyes_mini_opened_date"] == "2026-01-23" and row["_two_eyes_mini_end_date"] is None
+    assert row["_two_eyes_parent_r_anchor_date"] == "2025-12-05"
+
+
+def test_an_lps_read_against_a_mini_that_is_not_on_the_record_falls_back_to_the_parent(his_40, monkeypatch):
+    """The tie deferred from build task 6: 'mini' is said only with a stored mini. Inside the read's guard, never
+    a raise on the record or in the adapter (the door calls the adapter unguarded): a mini stage that put no box
+    with the role mini on the record cannot have the LPS read against it — the parent's read stands, with a
+    sentence, and the row says parent and no mini."""
+    import dataclasses
+
+    from engine_alpha.two_eyes import ROLE_PARENT, mini
+    from engine_alpha.two_eyes_adapter import to_result
+
+    real = mini.record
+
+    def wrong_role(found, history):
+        box, step = real(found, history)
+        return dataclasses.replace(box, role=ROLE_PARENT), step
+
+    monkeypatch.setattr(mini, "record", wrong_role)
+    _, read = _read_his(his_40, "DSGN")
+    assert read.failed is False and read.fired and read.mini is None
+    assert read.lps.read_against == ROLE_PARENT and read.lps.how is None
+    assert any("no mini box is on the record" in s.saying for s in read.trail if s.stage == "LPS")
+    row = to_result(read)
+    assert row["_two_eyes_lps_read_against"] == "parent" and row["_two_eyes_has_mini"] == 0
+
+
+def test_dsgn_through_the_one_door_carries_the_mini():
+    """DSGN on his last receding day through `reader.evaluate_ticker` under the switch (tests only; the switch
+    stays dark): one row, the parent's lines, one trigger, the LPS against the mini, the mini's seven keys."""
+    from engine_alpha import reader
+    from core.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture
+    from tools.regression.marks_corpus import load_corpus, setup_key
+
+    setup = next(s for s in load_corpus() if s["ticker"] == "DSGN")
+    frames, _ = load_sealed_fixture()
+    raw = fixture_frame(frames, setup_key(setup), "DSGN")
+    watch, stamp = {}, {}
+    with flag_capture(TWO_EYES_READER_ENABLED=True):
+        row = reader.evaluate_ticker("DSGN", raw.loc[:pd.Timestamp("2026-03-30")], watch=watch, stamp=stamp)
+    assert stamp == {"reader": reader.READER_NEW} and isinstance(row, dict)
+    assert (round(row["_R"], 2), round(row["_S"], 2)) == (10.31, 9.00) and row["_trigger_price"] == pytest.approx(10.70)
+    assert row["_two_eyes_lps_read_against"] == "mini" and row["_two_eyes_has_mini"] == 1
+    assert (round(row["_two_eyes_mini_r_price"], 2), round(row["_two_eyes_mini_s_price"], 2)) == (10.97, 9.66)
+    assert watch["state"] == "fired" and watch["read"].mini is not None

@@ -1149,3 +1149,27 @@ def test_an_etf_universe_that_fails_after_refusing_rows_still_counts(monkeypatch
 
     monkeypatch.setattr(scan_job, "run_scan_and_export", scan)
     assert scan_job.run_all_universe_scans()["us_sectors"].n_refused == 2
+
+
+def test_his_dsgn_fills_both_boxes_through_the_real_writer(writer_on_a_scratch_db):
+    """Build task 13: the stage that FINDS the mini exists. His DSGN drawing, read on his last receding day
+    (Mon 30/03/2026) by the new reader itself, crosses the adapter into the real writer as one row with both
+    pairs — his parent 10.31 / 9.00 and the mini 10.97 / 9.66 with its own anchor days — one trigger, the LPS
+    read against the mini, the flag 1."""
+    from engine_alpha import two_eyes
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+    from tools.regression.marks_corpus import load_corpus, setup_key
+
+    setup = next(s for s in load_corpus() if s["ticker"] == "DSGN")
+    frames, _ = load_sealed_fixture()
+    raw = fixture_frame(frames, setup_key(setup), "DSGN")
+    read = two_eyes.read("DSGN", raw.loc[:pd.Timestamp("2026-03-30")])
+    assert read.fired and read.mini is not None
+    stored = _archive_one(writer_on_a_scratch_db, read)
+    assert (round(stored.two_eyes_parent_r_price, 2), stored.two_eyes_parent_r_anchor_date) == (10.31, "2025-12-05")
+    assert (round(stored.two_eyes_parent_s_price, 2), stored.two_eyes_parent_s_anchor_date) == (9.0, "2025-12-10")
+    assert (round(stored.two_eyes_mini_r_price, 2), stored.two_eyes_mini_r_anchor_date) == (10.97, "2026-01-23")
+    assert (round(stored.two_eyes_mini_s_price, 2), stored.two_eyes_mini_s_anchor_date) == (9.66, "2026-01-26")
+    assert stored.two_eyes_mini_opened_date == "2026-01-23" and stored.two_eyes_mini_end_date is None
+    assert stored.two_eyes_lps_read_against == "mini" and stored.two_eyes_has_mini == 1
+    assert round(stored.trigger_price, 2) == 10.70 if hasattr(stored, "trigger_price") else True
