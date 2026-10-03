@@ -141,9 +141,9 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         against, how, extra = ROLE_PARENT, None, ()
         parent_pullback = pullback
         if pullback is not None and mini_pair is not None:
-            against, how = mini.lps_box(pullback.low, mini_pair)
-            if against == ROLE_MINI:
-                try:
+            try:                                      # the chooser is the mini's side too (verify-13, P2)
+                against, how = mini.lps_box(pullback.low, mini_pair)
+                if against == ROLE_MINI:
                     inner = lps.read(high, low, ranges, line.committed, R=mini_pair.R, S=mini_pair.S,
                                      box_unit=mini_pair.unit, born_bar=mini_pair.birth_bar)
                     if inner is None or inner.end_bar < inner.born_bar:
@@ -154,11 +154,18 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                         against, how = ROLE_PARENT, None
                     else:
                         pullback = inner
-                except Exception as exc:              # the parent's read stands; the trail says why
-                    extra = (Step("LPS", f"the mini's side of the LPS could not be read: {type(exc).__name__}: "
+            except Exception as exc:                  # the parent's read stands; the trail says why
+                extra = (Step("LPS", f"the mini's side of the LPS could not be read: {type(exc).__name__}: "
+                                     f"{exc}; read against the parent"),)
+                against, how, pullback = ROLE_PARENT, None, parent_pullback
+        try:
+            the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1, read_against=against, how=how)
+        except Exception as exc:
+            if against != ROLE_MINI:                  # stage 6's own record: as before the mini, not guarded here
+                raise
+            the_lps, said, word = lps.record(parent_pullback, days, read_bar=len(prepared) - 1)
+            extra = extra + (Step("LPS", f"the LPS record against the mini could not be made: {type(exc).__name__}: "
                                          f"{exc}; read against the parent"),)
-                    against, how = ROLE_PARENT, None
-        the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1, read_against=against, how=how)
         # The archive tie (deferred from build task 6): "mini" is said only
         # with a stored mini. The mini's pair and its box are set together, so
         # this cannot happen by construction; if it ever does, the parent's

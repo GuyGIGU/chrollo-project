@@ -306,8 +306,9 @@ default as ours.
    the parent's support area, not the parent's own two lines again, its top at or over the
    parent's resistance area (ours, built Sat 03/10/2026 to the shape of the two minis he
    stands behind and the three he deleted; "at the top" is one predicate and is his question).
-   The parent's half-range area is the only width. The record carries the live mini only; the
-   story and the state word read the parent.
+   The parent's half-range area is the only width. The record carries the live mini only. The
+   state word reads the parent; the story reads the parent's lines and the LPS as the record
+   carries it, against whichever box the LPS named, so its LPS days are the fire's own.
 5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
    beyond the support area is a Phase C candidate until the swing after its tip recovers it
    (a high back in the area, then a higher low) or fails it (a lower low first); one Phase

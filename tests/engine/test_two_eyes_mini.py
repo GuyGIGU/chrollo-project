@@ -428,6 +428,43 @@ def test_a_fault_on_the_minis_side_of_the_lps_falls_back_to_the_parent(his_40, m
     assert any("on purpose" in s.saying for s in read.trail if s.stage == "LPS")
 
 
+def test_a_fault_in_the_chooser_falls_back_to_the_parent(his_40, monkeypatch):
+    """The verifier's find (verify-13, P2): the chooser (`mini.lps_box`, and `mini.where` through it) ran before
+    the guard, so a fault there crashed the whole read and lost the parent's fire. It is a mini-side fault like
+    any other: the parent's read stands, the mini stays on the record, the trail says why."""
+    from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT, mini
+
+    def falls_over(low, band):
+        raise RuntimeError("the chooser fell over on purpose")
+
+    monkeypatch.setattr(mini, "lps_box", falls_over)
+    _, read = _read_his(his_40, "DSGN")
+    assert read.failed is False and read.fired and read.lps.trigger_price == pytest.approx(10.70, abs=0.005)
+    assert read.lps.read_against == ROLE_PARENT and read.lps.how is None
+    assert read.mini is not None and read.boxes[-1].role == ROLE_MINI          # the mini stage itself stood
+    assert any("could not be read" in s.saying and "on purpose" in s.saying for s in read.trail if s.stage == "LPS")
+
+
+def test_a_fault_in_the_minis_lps_record_falls_back_to_the_parents_record(his_40, monkeypatch):
+    """The same find, the other side of the chooser: the record stamped for the mini raising must give the
+    parent's record, not a crashed read. A fault in the parent's own record stays what it was before the mini
+    (stage 6's own business, not guarded here)."""
+    from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT, lps
+
+    real = lps.record
+
+    def mini_side_falls_over(pullback, days, read_bar, **kwargs):
+        if kwargs.get("read_against") == ROLE_MINI:
+            raise RuntimeError("the record on the mini's side fell over on purpose")
+        return real(pullback, days, read_bar, **kwargs)
+
+    monkeypatch.setattr(lps, "record", mini_side_falls_over)
+    _, read = _read_his(his_40, "DSGN")
+    assert read.failed is False and read.fired and read.lps.trigger_price == pytest.approx(10.70, abs=0.005)
+    assert read.lps.read_against == ROLE_PARENT and read.lps.how is None
+    assert any("could not be made" in s.saying and "on purpose" in s.saying for s in read.trail if s.stage == "LPS")
+
+
 #: The junk chart on which the mini's read would RESCUE a pullback the parent's ceiling refuses: read against the
 #: mini whenever one stands (his condition dropped), KWR gains two fire days. His condition is the rule.
 _KWR_DAYS_AS_BUILT = ("2026-06-22", "2026-06-23", "2026-06-24")
