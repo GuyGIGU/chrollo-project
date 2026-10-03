@@ -14,8 +14,8 @@ the pair, the same hand-overs, inside the subset — and the box that life shows
 story and the state word keep reading the parent; the LPS may be read against the mini (stage 6, on his
 condition). A mini never costs a fire: the read calls this stage inside its own guard.
 
-The four layers (all OURS, no new number — the parent's own area, half its frozen range, is the only width; his
-and frozen):
+The three layers (OURS, no new number — the parent's own area, half its frozen range, is the only width; his and
+frozen):
 
 1. **the parent's right side** — the pair opened after the parent BECAME a box (its birth, not its opening: a pair
    that opened between the parent's opening and its birth is the parent's own counter move, not a rest inside it);
@@ -23,17 +23,17 @@ and frozen):
    resistance area, its resistance over the parent's support area (otherwise it is a new box's candidate, the
    parent's business);
 3. **a small box inside it** — its bottom not under the parent's support area (never wrapping the parent; the
-   standard's own ``S < bottom``), and not the parent again (not both lines within the parent's own line areas);
-4. **at the top** — its top at or over the parent's resistance area: the shape his two kept minis share (DSGN's
-   top 0.93 ranges over the parent's; MSGS's IS the top) and his chain says (an SOS that reaches the resistance,
-   the contraction, then the LPS); the three minis he deleted (ANRO, ROIV, ST) fall out here or at layer 3. This
-   layer is fitted to two drawings and three deletions and sits against one word of his (Sun 23/08/2026: a mini
-   "found at the top" is "slightly higher quality", which implies minis elsewhere): it is ONE predicate so the
-   pictures can be shown both ways, and it is question 1 of the task for him.
+   standard's own ``S < bottom``), and not the parent again (not both lines within the parent's own line areas).
 
-Measured on his 40 on his last receding day (Sat 03/10/2026): the four layers leave 5 (DSGN, EWTX, RGR, VIK, VLO);
-without layer 4, 11; without layers 3 and 4, 22, two of them minis he had deleted (ST to the cent, ROIV within
-0.15 of a range).
+Where the mini sits in the parent is NOT a layer. The build of Sat 03/10/2026 had a fourth, "at the top" (its top
+at or over the parent's resistance area, fitted to his two kept minis and three deletions) and asked him; his
+answer the same evening: *"what is "at the top" rule? that mini consolidation can only appear at the top of a
+consolidation? I don't think we should rule it to be that way we should gate mini consolidation by their
+structure its just a semi smaller base inside/in the vicinity of a bigger one"*. The layer is gone: ST's deleted
+mini 35.41 / 33.77 (a small box inside, its top under the parent's resistance area) is a mini again, by structure.
+
+Measured on his 40 on his last receding day (Sat 03/10/2026): the three layers leave 11; with the fourth, 5 (DSGN,
+EWTX, RGR, VIK, VLO); without layer 3 as well, 22.
 """
 from __future__ import annotations
 
@@ -42,14 +42,14 @@ from typing import Optional
 from engine_alpha.two_eyes.record import ROLE_MINI, ROLE_PARENT, Box, Step
 from engine_alpha.two_eyes.walk import Life, Pair, Walk, _box_record, lives
 
-__all__ = ["STAGE", "a_small_box_inside", "at_the_top", "candidates", "could_not_be_read", "find",
-           "inside_or_across", "is_a_mini", "lps_box", "on_the_right_side", "record", "where"]
+__all__ = ["STAGE", "a_small_box_inside", "candidates", "could_not_be_read", "find", "inside_or_across",
+           "is_a_mini", "lps_box", "on_the_right_side", "record", "where"]
 
 STAGE = "mini"
 
 
 # --------------------------------------------------------------------------- #
-# The four layers, each one predicate                                         #
+# The three layers, each one predicate                                        #
 # --------------------------------------------------------------------------- #
 def on_the_right_side(pair: Pair, parent: Pair) -> bool:
     """Layer 1: the pair opened after the parent became a box."""
@@ -68,11 +68,6 @@ def a_small_box_inside(pair: Pair, parent: Pair) -> bool:
     return pair.S >= parent.S - parent.area and not twin
 
 
-def at_the_top(pair: Pair, parent: Pair) -> bool:
-    """Layer 4 (ours, loudly): its top at or over the parent's resistance area."""
-    return pair.R >= parent.R - parent.area
-
-
 def candidates(found: Walk) -> list:
     """Every pair of the walk's listing that became a box inside the parent's right side (layers 1 and 2), in the
     order they open: the inner boxes the walk's own life is run over."""
@@ -85,8 +80,9 @@ def candidates(found: Walk) -> list:
 
 
 def is_a_mini(pair: Pair, parent: Pair) -> bool:
-    """Layers 3 and 4 on the inner box the walk's life shows: a small box inside the parent, at the top."""
-    return a_small_box_inside(pair, parent) and at_the_top(pair, parent)
+    """Layer 3 on the inner box the walk's life shows: a small box inside the parent — its structure, not where
+    it sits (his ruling of Sat 03/10/2026)."""
+    return a_small_box_inside(pair, parent)
 
 
 # --------------------------------------------------------------------------- #
@@ -95,7 +91,7 @@ def is_a_mini(pair: Pair, parent: Pair) -> bool:
 def find(found: Walk, high, low, read_bar: int) -> tuple:
     """The mini's life on the read day: ``walk.lives`` over the inner boxes (layers 1 and 2) — the first to
     become a box is shown, and inside the subset it gives way exactly as the parent would. The last life is THE
-    mini when the box it shows is a small box inside the parent at the top (layers 3 and 4); the lives before it
+    mini when the box it shows is a small box inside the parent (layer 3); the lives before it
     are the chain the read tells (words only). Empty when there is none, or when the inner box the walk shows is
     not a mini (a twin of the parent, a band under its support area, a rest under its top)."""
     chosen = candidates(found)

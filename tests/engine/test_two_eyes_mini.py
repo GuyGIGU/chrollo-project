@@ -174,9 +174,17 @@ def _find(row: dict):
 
 
 #: The charts of his 40 the stage draws a mini on, read on his last receding day, and the mini's two lines
-#: (float32 on the record: compared with approx). A change is a named change.
-_MINIS_ON_HIS_40 = {"DSGN": (10.97, 9.66), "EWTX": (31.29, 28.19), "RGR": (38.98, 37.47), "VIK": (86.90, 82.66),
-                    "VLO": (265.61, 253.38)}
+#: (float32 on the record: compared with approx). A change is a named change. By his ruling of Sat 03/10/2026 the
+#: mini is gated by its structure alone (a small box inside the parent); the build's "at the top" layer, which
+#: left five, is gone — ST's deleted mini is among the eleven.
+_MINIS_ON_HIS_40 = {"ALB": (173.00, 157.27), "DSGN": (10.97, 9.66), "EWTX": (31.29, 28.19), "FOSL": (3.88, 3.52),
+                    "NGL": (11.94, 11.32), "RGR": (38.98, 37.47), "SILC": (20.50, 18.83), "ST": (35.41, 33.77),
+                    "SYRE": (34.21, 31.53), "VIK": (86.90, 82.66), "VLO": (265.61, 253.38)}
+#: Of the eleven, the charts whose pullback's low sits in, on or near the mini on his last receding day, and how:
+#: the LPS is read against the mini on these eight; on NGL, SILC and ST the low is away from the mini (ST's LPS
+#: low 38.19 sits 1.30 ranges over the parent's resistance, far over the mini's 35.41), so against the parent.
+_LPS_AGAINST_THE_MINI_ON_HIS_40 = {"ALB": "on", "DSGN": "in", "EWTX": "in", "FOSL": "on", "RGR": "on", "SYRE": "near",
+                                   "VIK": "near", "VLO": "in"}
 
 
 def test_on_dsgn_the_stage_names_the_mini_he_drew(his_40):
@@ -204,26 +212,25 @@ def test_on_dsgn_the_stage_names_the_mini_he_drew(his_40):
 @pytest.mark.parametrize("ticker,why", [
     ("MSGS", "the box the reader shows IS his mini, and no pair inside it opened after its birth"),
     ("ANRO", "no pair inside the parent opened after its birth; his old twelve-day band was never a box"),
-    ("ST", "the pair 35.41 / 33.77 — the mini he deleted on Sun 20/09/2026 — tops 0.67 ranges under the parent's "
-           "resistance area: a small box inside, but not at the top"),
     ("ROIV", "29.64 / 28.67 is the parent's twin, both lines within the parent's own line areas"),
 ])
 def test_the_stage_names_no_mini_where_he_drew_none(his_40, ticker, why):
     assert not _find(_row(his_40, ticker)), f"{ticker}: {why}"
 
 
-def test_the_deleted_st_mini_is_a_small_box_inside_refused_only_at_the_top(his_40):
-    """The ONE predicate that is ours and loudly so (layer 4: the top at or over the parent's resistance area):
-    without it ST's deleted mini 35.41 / 33.77 would be named again, to the cent at the top."""
-    from engine_alpha.two_eyes import mini
+def test_the_deleted_st_mini_is_a_mini_by_its_structure(his_40):
+    """His ruling (Sat 03/10/2026, on question 1): "we should gate mini consolidation by their structure its just a
+    semi smaller base inside/in the vicinity of a bigger one" — not by where it sits in the parent. ST's pair
+    35.41 / 33.77 (the mini he deleted on Mon 21/09/2026) is a small box inside the parent 36.14 / 33.95, its top
+    0.67 ranges under the parent's resistance area: by structure it is the mini the walk's life shows."""
+    from engine_alpha.two_eyes import ROLE_MINI, mini
 
     row = _row(his_40, "ST")
-    parent = row["found"].winner
-    small = [p for p in row["found"].pairs.values() if p.birth_bar is not None and p.feet != parent.feet
-             and mini.on_the_right_side(p, parent) and mini.inside_or_across(p, parent)
-             and mini.a_small_box_inside(p, parent)]
-    assert any((p.R, p.S) == pytest.approx((35.41, 33.77), abs=0.005) for p in small)
-    assert not any(mini.at_the_top(p, parent) for p in small if (p.R, p.S) == pytest.approx((35.41, 33.77), abs=0.005))
+    history = _find(row)
+    assert history, "no mini on ST"
+    assert (history[-1].pair.R, history[-1].pair.S) == pytest.approx((35.41, 33.77), abs=0.005)
+    box, step = mini.record(row["found"], history)
+    assert box.role == ROLE_MINI and "35.41" in step.saying and "33.77" in step.saying
 
 
 #: The walk's own box 80 / 70 (its first fourteen points), then a rest at the top: the bars swing between 84 and
@@ -267,9 +274,10 @@ def test_the_boxs_own_legs_and_pokes_are_no_mini_on_the_walks_poke_chart():
 
 
 def test_the_charts_of_his_40_with_a_mini_are_exactly_these(his_40):
-    """The ratchet: on his last receding day the stage draws a mini on these five of his 40 and no other, each
-    with these lines. Four of the five he never drew (his eye on the pictures decides, question 1 of the task);
-    DSGN is his. Every candidate opened after the parent became a box (the parent's right side)."""
+    """The ratchet: on his last receding day the stage draws a mini on these eleven of his 40 and no other, each
+    with these lines. DSGN is his to the cent at the top; ST is the mini he deleted, back by his ruling on the
+    structure; the other nine he never drew (his eye on the pictures). Every candidate opened after the parent
+    became a box (the parent's right side)."""
     from engine_alpha.two_eyes import mini
 
     named = {}
@@ -281,6 +289,8 @@ def test_the_charts_of_his_40_with_a_mini_are_exactly_these(his_40):
         if parent is not None:
             assert all(p.opening_bar > parent.birth_bar for p in mini.candidates(row["found"]))
     assert set(named) == set(_MINIS_ON_HIS_40), sorted(named)
+    for ticker, lines in _MINIS_ON_HIS_40.items():
+        assert named[ticker] == pytest.approx(lines, abs=0.005), ticker
     for ticker, lines in _MINIS_ON_HIS_40.items():
         assert named[ticker] == pytest.approx(lines, abs=0.005), ticker
 
@@ -497,9 +507,10 @@ def test_his_condition_keeps_the_junk_where_it_is_and_the_mini_would_rescue_kwr(
 
 
 def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
-    """On his last receding day the five charts with a mini all have their pullback's low in, on or near it, so
-    the LPS is read against the mini on exactly those five; on the other thirty-five, against the parent. Fires
-    on his day are the LPS tests' business (35 of 40, unchanged)."""
+    """On his last receding day the LPS is read against the mini on exactly the eight charts whose pullback's low
+    sits in, on or near it, each as pinned; on the three other charts with a mini (NGL, SILC, ST) the low is away,
+    and on the twenty-nine without one, against the parent. Fires on his day are the LPS tests' business (35 of
+    40, unchanged)."""
     from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT, read as read_chart
 
     against = {}
@@ -507,8 +518,9 @@ def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
         read = read_chart(key.split(":")[0], row["raw"])
         if read.lps is not None:
             against[key.split(":")[0]] = (read.lps.read_against, read.lps.how)
-    named = {t for t, (role, _) in against.items() if role == ROLE_MINI}
-    assert named == set(_MINIS_ON_HIS_40), sorted(named)
+    named = {t: how for t, (role, how) in against.items() if role == ROLE_MINI}
+    assert named == _LPS_AGAINST_THE_MINI_ON_HIS_40, sorted(named.items())
+    assert set(named) < set(_MINIS_ON_HIS_40) and set(_MINIS_ON_HIS_40) - set(named) == {"NGL", "SILC", "ST"}
     assert against["DSGN"] == (ROLE_MINI, "in")
     assert all(how is None for role, how in against.values() if role == ROLE_PARENT)
 

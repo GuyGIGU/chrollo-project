@@ -302,11 +302,11 @@ default as ours.
    the pair: among the pairs that became boxes after the parent did and sit inside or across
    it (not beyond it — beyond is a new box's business, the line above), the first to become a
    box is the inner box, and it gives way inside the parent exactly as the parent would. That
-   inner box is THE mini when it is a small box inside the parent at the top: its bottom over
-   the parent's support area, not the parent's own two lines again, its top at or over the
-   parent's resistance area (ours, built Sat 03/10/2026 to the shape of the two minis he
-   stands behind and the three he deleted; "at the top" is one predicate and is his question).
-   The parent's half-range area is the only width. The record carries the live mini only. The
+   inner box is THE mini when it is a small box inside the parent: its bottom over the
+   parent's support area, not the parent's own two lines again. Where it sits in the parent
+   is not a rule — his ruling of Sat 03/10/2026, on the build's "at the top" question: *"we
+   should gate mini consolidation by their structure its just a semi smaller base inside/in
+   the vicinity of a bigger one"*. The parent's half-range area is the only width. The record carries the live mini only. The
    state word reads the parent; the story reads the parent's lines and the LPS as the record
    carries it, against whichever box the LPS named, so its LPS days are the fire's own.
 5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
