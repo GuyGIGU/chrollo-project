@@ -325,7 +325,13 @@ default as ours.
    that movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place
    where the trend ends"*; the form of both clauses is ours). In Phase D a push that may be THE SOS, *"a push
    that's like a paradigm shift it signals local buyer strength"*; a deep correction after
-   a breach of resistance in Phase D is the last supper, written only in hindsight. Phase D
+   a breach of resistance in Phase D is the last supper, written only in hindsight, and a
+   box carries one: *"a last supper is a noticeable deep correction that happens *usually
+   only once either pre or post break out"* (Sat 03/10/2026). When several corrections
+   qualify, the box's last supper is the one off its highest top, and two tops that fall
+   into one low are one correction (ours, measured on his eight: the highest is his
+   wherever two or more qualify; every one of his eight tops over resistance after the box
+   was first breached, so no correction under resistance is named). Phase D
    opens at the first right-side evidence after the middle of the box, never at or before
    it. A word is either committed or provisional (ours): committed when the swing it stands
    on, and the swing that answers it, have committed on the line; provisional while one of

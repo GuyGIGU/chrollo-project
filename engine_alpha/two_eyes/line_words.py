@@ -252,16 +252,24 @@ def the_upthrust(th, line, R, unit, pc, start, read_bar, fifteenth=None):
 
 
 def last_suppers(th, lows, unit, lps_start, *, R, pc, start, read_bar):
-    """The last suppers, in hindsight: off a thrust whose top breaches resistance (any poke over R, his words Sat
-    19/09/2026: "every poke over resistance is a breach even small ones count"),
-    after the Phase C tip when there is one and after the middle of the box (the Phase D test here is those two
-    clauses, not the Phase D word). The drop is sought only on the days before a later LPS window opens, so a last
-    supper and that LPS never share a day (MRK: his drop ends Thu 30/07/2026, price digs on into his LPS window's
-    first day, Mon 03/08). A drop straight into the LPS window is that LPS, not a last supper."""
+    """The last supper, in hindsight, ONCE per box (his word, Sat 03/10/2026: "a last supper is a noticeable deep
+    correction that happens *usually only once either pre or post break out").
+
+    The corrections that qualify: off a thrust whose top breaches resistance (any poke over R, his words Sat
+    19/09/2026: "every poke over resistance is a breach even small ones count"), after the Phase C tip when there is
+    one and after the middle of the box (the Phase D test here is those two clauses, not the Phase D word), whose
+    deepest low within four trading days digs the floor. The drop is sought only on the days before a later LPS
+    window opens, so a last supper and that LPS never share a day (MRK: his drop ends Thu 30/07/2026, price digs on
+    into his LPS window's first day, Mon 03/08). A drop straight into the LPS window is that LPS, not a last supper.
+
+    Of the corrections, the box carries the one off its HIGHEST top (ours: on his eight the highest is his wherever
+    two or more qualify; the deepest loses VIK, the last MRK, the first four). So two tops falling into ONE low are
+    one correction, named from the higher top (SILC, NTCT, WTS: THE SOS's top and his a day or three later). The
+    later top wins an exact tie of price. A list of at most one."""
     if lps_start is None:
         return []
     half = _middle(start, read_bar)
-    out = []
+    best = None
     for t in th:
         p = t["top_bar"]
         if t["top_price"] <= R or p <= half or (pc is not None and p <= pc["tip_bar"]):
@@ -272,10 +280,10 @@ def last_suppers(th, lows, unit, lps_start, *, R, pc, start, read_bar):
         k = int(np.argmin(lows[p + 1:end + 1]))
         low_bar = p + 1 + k
         dig = (t["top_price"] - float(lows[low_bar])) / unit
-        if dig >= M.LINE_WORD_SUPPER_DIG_ATR:
-            out.append({"top_bar": p, "low_bar": low_bar, "dig_ranges": round(float(dig), 3),
-                        "days": low_bar - p})
-    return out
+        if dig >= M.LINE_WORD_SUPPER_DIG_ATR and (best is None or (t["top_price"], p) >= best[0]):
+            best = ((t["top_price"], p), {"top_bar": p, "low_bar": low_bar, "dig_ranges": round(float(dig), 3),
+                                          "days": low_bar - p})
+    return [] if best is None else [best[1]]
 
 
 def dips(line, highs, start, S, unit):

@@ -331,6 +331,42 @@ def test_a_last_supper_follows_a_breach_of_resistance(R, named, u):
         "the top must poke over the resistance"
 
 
+#: Two pushes over R on the right side, each digging over the floor within four days into its OWN low: the first
+#: tops 14.5 (bar 5) and digs to 12.8 (bar 8); the second tops 15.2 (bar 10) and digs to 13.1 (bar 13).
+_TWO_SUPPERS_HIGHS = np.array([10, 11, 12, 13, 14, 14.5, 14, 13.4, 13.2, 14.0, 15.2, 14.6, 13.9, 13.5, 14.0, 14.2])
+_TWO_SUPPERS_LOWS = np.array([9.6, 10.6, 11.6, 12.6, 13.6, 14.1, 13.6, 13.0, 12.8, 13.6, 14.8, 14.2, 13.4, 13.1,
+                              13.6, 13.8])
+
+
+@UNITS
+def test_a_box_carries_one_last_supper_the_giveback_of_its_highest_top(u):
+    """HIS, Sat 03/10/2026: "you mark LS to every pull back above resistance in phase D which is in correct, a last
+    supper is a noticeable deep correction that happens *usually only once either pre or post break out." Two
+    corrections qualify as built; the box carries ONE, off the highest top (ours: on his eight the highest is his
+    on every chart where two or more qualify; the deepest loses VIK, the last MRK, the first four)."""
+    th = [{"top_bar": 5, "launch_bar": 0, "top_price": 14.5 * u}, {"top_bar": 10, "launch_bar": 8, "top_price": 15.2 * u}]
+    named = W.last_suppers(th, _TWO_SUPPERS_LOWS * u, u, 15, R=13.0 * u, pc=None, start=0, read_bar=9)
+    assert [(s["top_bar"], s["low_bar"]) for s in named] == [(10, 13)], "once: the higher top's correction"
+    assert named[0]["dig_ranges"] == pytest.approx(2.1)
+    lower_second = [th[0], {"top_bar": 10, "launch_bar": 8, "top_price": 14.4 * u}]
+    lows = _TWO_SUPPERS_LOWS.copy(); lows[10:14] = [14.0, 13.6, 13.2, 12.9]
+    named = W.last_suppers(lower_second, lows * u, u, 15, R=13.0 * u, pc=None, start=0, read_bar=9)
+    assert [s["top_bar"] for s in named] == [5], "the highest top wins whichever comes first"
+
+
+@UNITS
+def test_two_tops_falling_into_one_low_are_one_correction(u):
+    """NTCT, SILC, WTS: THE SOS's top and his drawn top a day or three later bottom on the SAME low — one
+    correction, named once, from its higher top. On NTCT the higher top is the later one (his Fri 20/02/2026 at
+    30.36 over THE SOS's Tue 17/02 at 30.23); on SILC the earlier (THE SOS's Wed 25/03/2026 at 23.10 over his
+    Thu 26/03 at 22.59). Both orders, one name."""
+    lows = np.array([9.6, 10.6, 11.6, 12.6, 13.6, 14.1, 13.9, 13.2, 12.5, 13.0, 13.4, 13.6]) * u
+    for first, second, named_top in ((14.3, 14.5, 6), (14.5, 14.3, 5)):
+        th = [{"top_bar": 5, "launch_bar": 0, "top_price": first * u}, {"top_bar": 6, "launch_bar": 5, "top_price": second * u}]
+        named = W.last_suppers(th, lows, u, 11, R=13.0 * u, pc=None, start=0, read_bar=9)
+        assert [(s["top_bar"], s["low_bar"]) for s in named] == [(named_top, 8)], (first, second)
+
+
 def test_a_last_supper_sits_in_phase_d():
     th = [{"top_bar": 5, "launch_bar": 0, "top_price": 14.5}]
     lows = _SUPPER_HIGHS - 0.4

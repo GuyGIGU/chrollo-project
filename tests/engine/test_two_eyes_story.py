@@ -522,6 +522,27 @@ def test_the_reader_lands_his_drawn_words_and_every_miss_is_named(his_last_reced
     assert len(missed["spring_test"]) <= 4
 
 
+#: His seven landed last suppers, the day the reader's ONE last supper tops on his last receding day: his top to the
+#: day on five; on SILC THE SOS's top of the same correction one trading day before his (one low, two tops, named
+#: from the higher), on VIK the line's peak one day before his bar's high.
+_HIS_LAST_SUPPERS_NAMED = {"EWTX": "2026-03-17", "MRK": "2026-07-28", "NGL": "2026-03-25", "NTCT": "2026-02-20",
+                           "SILC": "2026-03-25", "VIK": "2026-05-28", "WTS": "2026-05-28"}
+
+
+def test_a_box_carries_one_last_supper_and_on_his_charts_it_is_his(his_last_receding_day):
+    """HIS, Sat 03/10/2026: "you mark LS to every pull back above resistance in phase D which is in correct, a last
+    supper is a noticeable deep correction that happens *usually only once either pre or post break out." On his
+    last receding day no chart of his 40 carries two; where he drew one and the reader lands it, the one named is
+    his. As built the reader named 60 on 26 charts (six on DSGN and VLO); once, 26 on the same 26 — 19 where he drew
+    none, the pictures for his eye."""
+    per_chart = {key: _named(read, record.LAST_SUPPER) for key, read in his_last_receding_day.items()}
+    assert max(len(v) for v in per_chart.values()) == 1, sorted(k for k, v in per_chart.items() if len(v) > 1)
+    assert sum(len(v) for v in per_chart.values()) == 26
+    named = {key.split(":")[0]: str(v[0].day) for key, v in per_chart.items()
+             if v and key.split(":")[0] in _HIS_LAST_SUPPERS_NAMED}
+    assert named == _HIS_LAST_SUPPERS_NAMED
+
+
 @pytest.mark.xfail(strict=True, reason=(
     'KNOWN MISS, his own words against the moving middle. VIK (Sat 19/09/2026): "No for the spring" on the dip of '
     "Wed 29/04/2026, and his upthrust is Thu 14/05/2026. The upthrust belongs in Phase B, read as at or before the "
