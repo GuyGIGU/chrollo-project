@@ -303,7 +303,7 @@ def test_the_read_carries_the_mini_beside_the_parent(his_40):
 
     row, read = _read_his(his_40, "DSGN")
     assert read.failed is False and read.fired and read.lps.trigger_price == pytest.approx(10.70, abs=0.005)
-    assert read.lps.read_against == ROLE_PARENT and read.lps.how is None      # stage 6 reads the parent until S5
+    assert read.lps.read_against == ROLE_MINI and read.lps.how == "in"       # stage 6 reads the mini (S5)
     assert read.mini is not None and read.mini.role == ROLE_MINI and read.boxes[-1] is read.mini
     assert (read.mini.resistance.price, read.mini.support.price) == pytest.approx((10.97, 9.66), abs=0.005)
     assert read.mini.opened_day == dt.date(2026, 1, 23) and read.mini.end_day is None
@@ -346,3 +346,131 @@ def test_keep_listing_changes_words_only_with_a_mini(his_40):
     plain, listed = read_chart("DSGN", row["raw"]), read_chart("DSGN", row["raw"], keep_listing=True)
     assert (plain.boxes, plain.lps, plain.state, plain.mini) == (listed.boxes, listed.lps, listed.state, listed.mini)
     assert [s for s in plain.trail if s.stage == "mini"] == [s for s in listed.trail if s.stage == "mini"]
+
+
+# --------------------------------------------------------------------------- #
+# S5. The LPS against the mini, on his condition                              #
+# --------------------------------------------------------------------------- #
+def test_where_a_low_sits_against_the_mini_in_its_own_area():
+    """His three positions, measured in the mini's own area (half its frozen range): inside the band and clear of
+    both lines is ``in``; inside and within the area of a line is ``on`` (resting on it, a slight poke included);
+    outside and within the area of a line is ``near``; anything else is away, and the parent is read."""
+    from engine_alpha.two_eyes import mini
+
+    class Band:
+        R, S, area = 10.0, 8.0, 0.3
+
+    assert mini.where(9.0, Band) == "in"
+    assert mini.where(8.2, Band) == "on" and mini.where(9.8, Band) == "on"
+    assert mini.where(7.8, Band) == "near" and mini.where(10.2, Band) == "near"
+    assert mini.where(7.5, Band) == "away" and mini.where(10.5, Band) == "away"
+    assert mini.lps_box(7.5, Band) == ("parent", None) and mini.lps_box(9.0, Band) == ("mini", "in")
+    assert mini.lps_box(9.0, None) == ("parent", None)
+
+
+def test_on_dsgn_the_lps_is_read_against_the_mini_in_it(his_40):
+    """DSGN on his last receding day: the pullback of Thu 26/03 to Mon 30/03/2026, its low 10.30, sits inside the
+    mini 10.97 / 9.66 clear of both lines: read against the mini, ``in``; the trigger is still 10.70, the high of
+    Mon 30/03/2026; it fires; the LPS step names the mini and the word."""
+    from engine_alpha.two_eyes import ROLE_MINI
+
+    row, read = _read_his(his_40, "DSGN")
+    assert read.fired and read.lps.read_against == ROLE_MINI and read.lps.how == "in"
+    assert read.lps.trigger_price == pytest.approx(10.70, abs=0.005)
+    assert (read.lps.start_day, read.lps.end_day) == (dt.date(2026, 3, 26), dt.date(2026, 3, 30))
+    step = next(s for s in read.trail if s.stage == "LPS")
+    assert "against the mini" in step.saying and ", in" in step.saying
+
+
+def test_a_mini_born_after_the_pullback_ended_falls_back_to_the_parent(his_40, monkeypatch):
+    """A mini that became a box only after the pullback's last day cannot be the box the pullback receded
+    inside: the parent's read stands, with a trail sentence; never "no LPS". On his last receding day the
+    pullback ends on the read day itself, so the case is read on his buy day (Tue 31/03/2026), where the pullback
+    of Thu 26/03 to Mon 30/03/2026 ended the day before and the day crossed its trigger."""
+    import dataclasses
+
+    from engine_alpha.two_eyes import lps, mini, prepare, read as read_chart
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+    from tools.regression.marks_corpus import setup_key
+
+    row = _row(his_40, "DSGN")
+    frames, _ = load_sealed_fixture()
+    buy = fixture_frame(frames, setup_key(row["setup"]), "DSGN").loc[:pd.Timestamp("2026-03-31")]
+    real = mini.find(row["found"], row["high"], row["low"], len(row["days"]) - 1)
+    as_built = read_chart("DSGN", buy)
+    assert as_built.state == lps.CROSSED and as_built.mini is not None
+    read_bar = len(prepare(buy)) - 1          # the read's own window, not the long frame's length
+    late_pair = dataclasses.replace(real[-1].pair, birth_bar=read_bar)
+    late = (dataclasses.replace(real[-1], pair=late_pair),)
+    monkeypatch.setattr(mini, "find", lambda *a, **k: late)
+    read = read_chart("DSGN", buy)
+    assert read.failed is False and read.state == lps.CROSSED and read.mini is not None
+    said = [s.saying for s in read.trail if s.stage == "LPS"]
+    assert any("the mini became a box only on" in s and "read against the parent" in s for s in said)
+
+
+def test_a_fault_on_the_minis_side_of_the_lps_falls_back_to_the_parent(his_40, monkeypatch):
+    from engine_alpha.two_eyes import ROLE_PARENT, lps
+
+    calls = []
+    real = lps.read
+
+    def second_call_falls_over(*args, **kwargs):
+        calls.append(kwargs.get("R"))
+        if len(calls) == 2:
+            raise RuntimeError("the mini side fell over on purpose")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(lps, "read", second_call_falls_over)
+    _, read = _read_his(his_40, "DSGN")
+    assert len(calls) == 2 and read.failed is False
+    assert read.fired and read.lps.read_against == ROLE_PARENT and read.lps.how is None
+    assert any("on purpose" in s.saying for s in read.trail if s.stage == "LPS")
+
+
+#: The junk chart on which the mini's read would RESCUE a pullback the parent's ceiling refuses: read against the
+#: mini whenever one stands (his condition dropped), KWR gains two fire days. His condition is the rule.
+_KWR_DAYS_AS_BUILT = ("2026-06-22", "2026-06-23", "2026-06-24")
+_KWR_RESCUE_DAYS = ("2026-06-26", "2026-06-29")
+
+
+def _junk_fire_days(ticker: str) -> tuple:
+    from core.calibration.replay import fired_window_sessions
+    from engine_alpha.two_eyes import read as read_chart
+    from tools.regression import negative_corpus
+
+    frames, meta = negative_corpus._load_fixture()
+    case = next(c for c in meta["cases"] if c.get("key", c["ticker"]) == ticker)
+    raw = frames[case.get("key", case["ticker"])]
+    sessions, _ = fired_window_sessions(raw, raw.index[-1], [])
+    return tuple(str(ts.date()) for ts in sessions if read_chart(ticker, raw.loc[:ts]).fired)
+
+
+def test_his_condition_keeps_the_junk_where_it_is_and_the_mini_would_rescue_kwr(monkeypatch):
+    """The LPS is read against the mini only when its low is in, on or near it. Without that condition KWR's
+    pullbacks of Fri 26/06 and Mon 29/06/2026 — over the parent's ceiling, under the mini's — would fire: that
+    is his rule working (a mini whose top stands over the parent's resistance CAN carry the fire), and on today's
+    junk it fires nowhere under his condition."""
+    from engine_alpha.two_eyes import mini
+
+    assert _junk_fire_days("KWR") == _KWR_DAYS_AS_BUILT
+    monkeypatch.setattr(mini, "lps_box", lambda low, band: ("parent", None) if band is None else
+                        ("mini", mini.where(low, band) if mini.where(low, band) != mini.AWAY else mini.NEAR))
+    assert _junk_fire_days("KWR") == _KWR_DAYS_AS_BUILT + _KWR_RESCUE_DAYS
+
+
+def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
+    """On his last receding day the five charts with a mini all have their pullback's low in, on or near it, so
+    the LPS is read against the mini on exactly those five; on the other thirty-five, against the parent. Fires
+    on his day are the LPS tests' business (35 of 40, unchanged)."""
+    from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT, read as read_chart
+
+    against = {}
+    for key, row in his_40.items():
+        read = read_chart(key.split(":")[0], row["raw"])
+        if read.lps is not None:
+            against[key.split(":")[0]] = (read.lps.read_against, read.lps.how)
+    named = {t for t, (role, _) in against.items() if role == ROLE_MINI}
+    assert named == set(_MINIS_ON_HIS_40), sorted(named)
+    assert against["DSGN"] == (ROLE_MINI, "in")
+    assert all(how is None for role, how in against.values() if role == ROLE_PARENT)

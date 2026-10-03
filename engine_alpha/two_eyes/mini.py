@@ -39,11 +39,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from engine_alpha.two_eyes.record import ROLE_MINI, Box, Step
+from engine_alpha.two_eyes.record import ROLE_MINI, ROLE_PARENT, Box, Step
 from engine_alpha.two_eyes.walk import Life, Pair, Walk, _box_record, lives
 
 __all__ = ["STAGE", "a_small_box_inside", "at_the_top", "candidates", "could_not_be_read", "find",
-           "inside_or_across", "is_a_mini", "on_the_right_side", "record"]
+           "inside_or_across", "is_a_mini", "lps_box", "on_the_right_side", "record", "where"]
 
 STAGE = "mini"
 
@@ -137,6 +137,36 @@ def record(found: Walk, history: tuple) -> tuple:
         chain = ", ".join(f"{h.pair.R:.2f} / {h.pair.S:.2f} (ended {_when(found, h.ended_bar)})" for h in history[:-1])
         said += f"; before it, inside the parent: {chain}"
     return _box_record(found, pair, ROLE_MINI), Step(STAGE, said)
+
+
+# --------------------------------------------------------------------------- #
+# The LPS against the mini: his three positions                               #
+# --------------------------------------------------------------------------- #
+IN, ON, NEAR, AWAY = "in", "on", "near", "away"
+
+
+def where(low: float, band) -> str:
+    """Where a pullback's low sits against the mini, in the mini's OWN area (half its frozen range; his area, the
+    only width): ``in`` — inside the band and clear of both lines; ``on`` — inside and within the area of a line
+    (resting on it, a slight poke included: *"whenever they are slightly poking out or not does not matter one
+    bit"*, Sat 26/09/2026); ``near`` — outside the band and within the area of a line; ``away`` — anything else.
+    ``band`` is anything with ``R``, ``S`` and ``area``."""
+    low, R, S, a = float(low), float(band.R), float(band.S), float(band.area)
+    if S + a < low < R - a:
+        return IN
+    if S - a <= low <= R + a:
+        return ON if S <= low <= R else NEAR
+    return AWAY
+
+
+def lps_box(low: float, band) -> tuple:
+    """Which box the LPS is read against, and how (his sentence of Sun 13/09/2026: *"the LPS read can be against
+    it if it is inside/near it/resting on it"*): ``("mini", word)`` when the low is in, on or near the mini;
+    ``("parent", None)`` with no mini or a low away from it. ONE chooser, so the board draws the band that fired."""
+    if band is None:
+        return ROLE_PARENT, None
+    word = where(low, band)
+    return (ROLE_PARENT, None) if word == AWAY else (ROLE_MINI, word)
 
 
 def could_not_be_read(exc: Exception) -> tuple:

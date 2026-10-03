@@ -114,15 +114,16 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         # says why, never `crashed`, because by his ruling the LPS may be read
         # against the mini (stage 6), so a bug in the mini must never cost a
         # fire.
-        mini_box = None
+        mini_box = mini_pair = None
         if found.winner is not None:
             try:
                 history = mini.find(found, high, low, len(prepared) - 1)
                 if history:
                     mini_box, step = mini.record(found, history)
+                    mini_pair = history[-1].pair
                     boxes, trail = boxes + (mini_box,), trail + (step,)
             except Exception as exc:                  # the parent-only read stands; the trail says why
-                mini_box, trail = None, trail + mini.could_not_be_read(exc)
+                mini_box, mini_pair, trail = None, None, trail + mini.could_not_be_read(exc)
         # Stage 6 (task 12a): the last run of receding days against the box
         # shown, its trigger at the last day's high, refused only by his four
         # sentences. Read on the bars' highs and lows: no close decides it.
@@ -130,8 +131,34 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         if found.winner is not None:
             pullback = lps.read(high, low, ranges, line.committed, R=found.winner.R, S=found.winner.S,
                                 box_unit=found.winner.unit, born_bar=found.winner.birth_bar)
-        the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1)
-        trail, state = trail + said, word or state
+        # The LPS against the mini (task 13), on his condition: when the
+        # pullback's low is in, on or near the mini (the mini's own area), it
+        # is measured again against the mini's lines and stamped with which
+        # box and how; its window and trigger are the bars' and do not move.
+        # Away from the mini, a mini that became a box only after the pullback
+        # ended, or a fault on the mini's side: the parent's read, with a
+        # sentence — never "no LPS", never a crashed read.
+        against, how, extra = ROLE_PARENT, None, ()
+        if pullback is not None and mini_pair is not None:
+            against, how = mini.lps_box(pullback.low, mini_pair)
+            if against == ROLE_MINI:
+                try:
+                    inner = lps.read(high, low, ranges, line.committed, R=mini_pair.R, S=mini_pair.S,
+                                     box_unit=mini_pair.unit, born_bar=mini_pair.birth_bar)
+                    if inner is None or inner.end_bar < inner.born_bar:
+                        extra = (Step("LPS", f"the pullback's low {pullback.low:.2f} sits {how} the mini "
+                                             f"{mini_pair.R:.2f} / {mini_pair.S:.2f}, but the mini became a box "
+                                             f"only on {days[mini_pair.birth_bar]:%a %d/%m/%Y}, after the pullback "
+                                             f"ended: read against the parent"),)
+                        against, how = ROLE_PARENT, None
+                    else:
+                        pullback = inner
+                except Exception as exc:              # the parent's read stands; the trail says why
+                    extra = (Step("LPS", f"the mini's side of the LPS could not be read: {type(exc).__name__}: "
+                                         f"{exc}; read against the parent"),)
+                    against, how = ROLE_PARENT, None
+        the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1, read_against=against, how=how)
+        trail, state = trail + said + extra, word or state
         # Stage 5 (task 12b): the story, the words the drawing printed against the box shown. It runs AFTER the
         # fire is decided and inside its own guard: a word never costs a fire, a bug in a word rule included.
         # It reads the whole line (the forming turn is what makes a word provisional), the box shown and no
