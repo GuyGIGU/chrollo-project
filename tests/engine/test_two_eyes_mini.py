@@ -138,3 +138,146 @@ def test_the_lps_stage_stamps_the_box_and_the_word_it_is_handed(his_minis):
     assert whole.fired
     restamped = dataclasses.replace(whole, lps=dataclasses.replace(whole.lps, read_against=ROLE_MINI, how="near"))
     assert restamped.fired == whole.fired
+
+
+# --------------------------------------------------------------------------- #
+# S3. The mini stage, pure: which pairs may be a mini, and which one is        #
+# --------------------------------------------------------------------------- #
+@pytest.fixture(scope="module")
+def his_40() -> dict:
+    """Every drawing of his, the walk on his last receding day, keyed by the drawing (NGL has two)."""
+    from tools.regression.marks_corpus import load_corpus, setup_key
+
+    out = {}
+    for setup in load_corpus():
+        found, days, prepared = _walk_on_his_last_day(setup)
+        out[setup_key(setup)] = {"setup": setup, "found": found, "days": days, "prepared": prepared,
+                                "high": prepared["High"].to_numpy(dtype=float),
+                                "low": prepared["Low"].to_numpy(dtype=float)}
+    assert len(out) == 40
+    return out
+
+
+def _row(his_40: dict, ticker: str) -> dict:
+    """The one drawing of a ticker (none of the tickers asked for here has two)."""
+    rows = [r for k, r in his_40.items() if k.split(":")[0] == ticker]
+    assert len(rows) == 1, ticker
+    return rows[0]
+
+
+def _find(row: dict):
+    from engine_alpha.two_eyes import mini
+
+    return mini.find(row["found"], row["high"], row["low"], len(row["days"]) - 1)
+
+
+#: The charts of his 40 the stage draws a mini on, read on his last receding day, and the mini's two lines
+#: (float32 on the record: compared with approx). A change is a named change.
+_MINIS_ON_HIS_40 = {"DSGN": (10.97, 9.66), "EWTX": (31.29, 28.19), "RGR": (38.98, 37.47), "VIK": (86.90, 82.66),
+                    "VLO": (265.61, 253.38)}
+
+
+def test_on_dsgn_the_stage_names_the_mini_he_drew(his_40):
+    """DSGN:2026-03-31, read Mon 30/03/2026: his mini 10.97 / 9.90 over Fri 23/01 to Tue 24/03/2026. The stage
+    names 10.97 (Fri 23/01/2026) / 9.66 (Mon 26/01/2026), a box on Thu 12/02/2026: his top to the cent, his bottom
+    within half his parent's range; a box with the role ``mini``, live, measured in its own frozen range."""
+    from engine_alpha.two_eyes import ROLE_MINI, mini
+
+    row = _row(his_40, "DSGN")
+    history = _find(row)
+    assert history, "no mini on DSGN"
+    life = history[-1]
+    days = row["days"]
+    assert (life.pair.R, life.pair.S) == pytest.approx((10.97, 9.66), abs=0.005)
+    assert days[life.pair.opening_bar] == dt.date(2026, 1, 23) and days[life.pair.s_bar] == dt.date(2026, 1, 26)
+    assert days[life.pair.birth_bar] == dt.date(2026, 2, 12)
+    band = row["setup"]["mini"]["band"]
+    assert abs(life.pair.R - band["R"]) < 0.005 and abs(life.pair.S - band["S"]) <= 0.5 * row["found"].winner.unit
+    box, step = mini.record(row["found"], history)
+    assert box.role == ROLE_MINI and box.end_day is None and box.daily_range == pytest.approx(life.pair.unit)
+    assert box.opened_day == dt.date(2026, 1, 23) and box.resistance.anchor_day == dt.date(2026, 1, 23)
+    assert step.stage == "mini" and "10.97" in step.saying and "9.66" in step.saying
+
+
+@pytest.mark.parametrize("ticker,why", [
+    ("MSGS", "the box the reader shows IS his mini, and no pair inside it opened after its birth"),
+    ("ANRO", "no pair inside the parent opened after its birth; his old twelve-day band was never a box"),
+    ("ST", "the pair 35.41 / 33.77 — the mini he deleted on Sun 20/09/2026 — tops 0.67 ranges under the parent's "
+           "resistance area: a small box inside, but not at the top"),
+    ("ROIV", "29.64 / 28.67 is the parent's twin, both lines within the parent's own line areas"),
+])
+def test_the_stage_names_no_mini_where_he_drew_none(his_40, ticker, why):
+    assert not _find(_row(his_40, ticker)), f"{ticker}: {why}"
+
+
+def test_the_deleted_st_mini_is_a_small_box_inside_refused_only_at_the_top(his_40):
+    """The ONE predicate that is ours and loudly so (layer 4: the top at or over the parent's resistance area):
+    without it ST's deleted mini 35.41 / 33.77 would be named again, to the cent at the top."""
+    from engine_alpha.two_eyes import mini
+
+    row = _row(his_40, "ST")
+    parent = row["found"].winner
+    small = [p for p in row["found"].pairs.values() if p.birth_bar is not None and p.feet != parent.feet
+             and mini.on_the_right_side(p, parent) and mini.inside_or_across(p, parent)
+             and mini.a_small_box_inside(p, parent)]
+    assert any((p.R, p.S) == pytest.approx((35.41, 33.77), abs=0.005) for p in small)
+    assert not any(mini.at_the_top(p, parent) for p in small if (p.R, p.S) == pytest.approx((35.41, 33.77), abs=0.005))
+
+
+#: The walk's own box 80 / 70 (its first fourteen points), then a rest at the top: the bars swing between 84 and
+#: 76 for weeks, two ranges over the box's resistance and two under it, never back at the box's support.
+_BOX_WITH_A_REST_AT_THE_TOP = [(0, 58), (1, 52), (2, 56), (3, 50), (5, 60), (6, 55), (8, 70), (9, 66), (11, 80),
+                               (14, 70), (17, 79.5), (20, 70.6), (23, 78.8), (26, 70.4), (29, 84), (32, 76),
+                               (35, 84), (38, 76), (41, 84), (44, 76), (47, 84), (50, 76), (53, 83.5), (56, 76.5)]
+
+
+def test_a_rest_at_the_top_of_the_box_is_the_mini_on_a_hand_built_chart():
+    """The box 80 / 70 (born on bar 25) keeps its place — the rest 84 / 76 lies across its resistance, never
+    beyond it — and that rest is the mini: a small box inside the parent's right side, at the top, the first inner
+    box to become one (bar 43), shown from that day with the parent still live."""
+    from test_two_eyes_walk import _chart, _elect
+    from engine_alpha.two_eyes import mini, walk
+
+    chart = _chart(_BOX_WITH_A_REST_AT_THE_TOP)
+    found = _elect(chart)
+    assert (found.winner.R, found.winner.S) == (80.0, 70.0) and len(found.lives) == 1
+    history = mini.find(found, chart["high"], chart["low"], chart["n"] - 1)
+    assert history and (history[-1].pair.R, history[-1].pair.S) == (84.0, 76.0)
+    assert history[-1].pair.birth_bar == 43 and history[-1].shown_bar == 43 and history[-1].why == walk.FIRST_BOX
+    box, step = mini.record(found, history)
+    assert box.role == "mini" and box.end_day is None and "84.00" in step.saying and "76.00" in step.saying
+
+
+def test_the_boxs_own_legs_and_pokes_are_no_mini_on_the_walks_poke_chart():
+    """The walk's poke specimen (`tests/engine/test_two_eyes_walk.py`): the box 80 / 70 and two pokes to 84 that
+    come back. The first inner box to become one is 79.2 / 70.4 — the parent's twin, both lines within its own
+    line areas — and nothing inside takes its place, so the chart carries no mini: the poke pair 84 / 72 is the
+    box's own event, as the walk already says."""
+    from test_two_eyes_walk import _BOX_WITH_POKES, _chart, _elect
+    from engine_alpha.two_eyes import mini
+
+    chart = _chart(_BOX_WITH_POKES)
+    found = _elect(chart)
+    assert (found.winner.R, found.winner.S) == (80.0, 70.0)
+    inner = mini.candidates(found)
+    assert any((p.R, p.S) == (84.0, 72.0) for p in inner)
+    assert not mini.find(found, chart["high"], chart["low"], chart["n"] - 1)
+
+
+def test_the_charts_of_his_40_with_a_mini_are_exactly_these(his_40):
+    """The ratchet: on his last receding day the stage draws a mini on these five of his 40 and no other, each
+    with these lines. Four of the five he never drew (his eye on the pictures decides, question 1 of the task);
+    DSGN is his. Every candidate opened after the parent became a box (the parent's right side)."""
+    from engine_alpha.two_eyes import mini
+
+    named = {}
+    for key, row in his_40.items():
+        history = _find(row)
+        if history:
+            named[key.split(":")[0]] = (history[-1].pair.R, history[-1].pair.S)
+        parent = row["found"].winner
+        if parent is not None:
+            assert all(p.opening_bar > parent.birth_bar for p in mini.candidates(row["found"]))
+    assert set(named) == set(_MINIS_ON_HIS_40), sorted(named)
+    for ticker, lines in _MINIS_ON_HIS_40.items():
+        assert named[ticker] == pytest.approx(lines, abs=0.005), ticker
