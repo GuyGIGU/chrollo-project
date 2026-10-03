@@ -36,11 +36,16 @@ LINE_WORD_UPTHRUST_MIN_POKE_ATR = 1.25
 #: ranges (SGHT, Mon 21/09 to Tue 22/09/2026); the floor sits 0.20 on his side of it (1.70 as first placed).
 LINE_WORD_SOS_MIN_GROUND_ATR = 1.13
 
-#: A last supper digs this far; a pause this deep ends a push. His shallowest drawn last supper digs 1.52 of the
-#: box's ranges (SILC), and the pause before his PBT push of Tue 05/05/2026 is 1.24: the number sits 0.21 under
-#: that pause, so his push is read as he drew it, and 0.49 on his side of his shallowest supper (1.5 as first
-#: placed).
+#: A pause this deep ends a push (and a last supper digs at least this far). His shallowest drawn last supper digs
+#: 1.52 of the box's ranges (SILC), and the pause before his PBT push of Tue 05/05/2026 is 1.24: the number sits
+#: 0.21 under that pause, so his push is read as he drew it, and 0.49 on his side of his shallowest supper (1.5 as
+#: first placed).
 LINE_WORD_SUPPER_DIG_ATR = 1.03
+
+#: A last supper is NAMED only when it digs this far: "a noticeable deep correction" (his word, Sat 03/10/2026).
+#: His shallowest drawn last supper (SILC, 1.52 of the box's ranges) less the 0.2 margin the floors keep; the
+#: push-ending floor above stays where his PBT push needs it.
+LINE_WORD_SUPPER_NAMED_DIG_ATR = 1.32
 
 #: His longest last supper, in trading days.
 LINE_WORD_SUPPER_MAX_DAYS = 4

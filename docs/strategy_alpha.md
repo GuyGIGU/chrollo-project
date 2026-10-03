@@ -327,11 +327,14 @@ default as ours.
    that's like a paradigm shift it signals local buyer strength"*; a deep correction after
    a breach of resistance in Phase D is the last supper, written only in hindsight, and a
    box carries one: *"a last supper is a noticeable deep correction that happens *usually
-   only once either pre or post break out"* (Sat 03/10/2026). When several corrections
-   qualify, the box's last supper is the one off its highest top, and two tops that fall
-   into one low are one correction (ours, measured on his eight: the highest is his
-   wherever two or more qualify; every one of his eight tops over resistance after the box
-   was first breached, so no correction under resistance is named). Phase D
+   only once either pre or post break out"* (Sat 03/10/2026). It is named only when it
+   digs as deep as his shallowest drawn last supper less the margin the floors keep; a
+   shallower pause still ends a push. When several corrections qualify, the box's last
+   supper is the one off its highest top, and two tops that fall into one low are one
+   correction (ours, measured on his eight: the one named is his, or on SILC THE SOS's top
+   of the same correction one trading day before his; every one of his eight tops over
+   resistance after the box was first breached, so no correction under resistance is
+   named). Phase D
    opens at the first right-side evidence after the middle of the box, never at or before
    it. A word is either committed or provisional (ours): committed when the swing it stands
    on, and the swing that answers it, have committed on the line; provisional while one of

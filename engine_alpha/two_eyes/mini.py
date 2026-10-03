@@ -93,7 +93,7 @@ def find(found: Walk, high, low, read_bar: int) -> tuple:
     become a box is shown, and inside the subset it gives way exactly as the parent would. The last life is THE
     mini when the box it shows is a small box inside the parent (layer 3); the lives before it
     are the chain the read tells (words only). Empty when there is none, or when the inner box the walk shows is
-    not a mini (a twin of the parent, a band under its support area, a rest under its top)."""
+    not a mini (a twin of the parent, a band under its support area)."""
     chosen = candidates(found)
     if not chosen:
         return ()

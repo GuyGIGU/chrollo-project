@@ -31,6 +31,7 @@ def _the_numbers_these_charts_were_drawn_at(monkeypatch):
     from engine_alpha.two_eyes import method_numbers
     monkeypatch.setattr(method_numbers, "LINE_WORD_SOS_MIN_GROUND_ATR", 1.70)
     monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_DIG_ATR", 1.5)
+    monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_NAMED_DIG_ATR", 1.5)
 
 
 RECORD_KEYS = {"basis", "thrusts", "the_sos", "the_upthrust", "last_suppers", "phase_c", "spring_tests", "phase_d",
@@ -365,6 +366,19 @@ def test_two_tops_falling_into_one_low_are_one_correction(u):
         th = [{"top_bar": 5, "launch_bar": 0, "top_price": first * u}, {"top_bar": 6, "launch_bar": 5, "top_price": second * u}]
         named = W.last_suppers(th, lows, u, 11, R=13.0 * u, pc=None, start=0, read_bar=9)
         assert [(s["top_bar"], s["low_bar"]) for s in named] == [(named_top, 8)], (first, second)
+
+
+def test_a_pause_that_ends_a_push_is_not_named_a_last_supper_unless_it_is_deep(monkeypatch):
+    """"a noticeable deep correction" (Sat 03/10/2026): the push-ending floor and the naming floor are two numbers.
+    A 1.2-range drop off a top over R ends a push at 1.03 but is no last supper at 1.32; a 1.4-range drop is one."""
+    from engine_alpha.two_eyes import method_numbers
+    monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_DIG_ATR", 1.03)
+    monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_NAMED_DIG_ATR", 1.32)
+    th = [{"top_bar": 5, "launch_bar": 0, "top_price": 14.5}]
+    shallow = np.array([9.6, 10.6, 11.6, 12.6, 13.6, 14.1, 13.8, 13.5, 13.3, 13.6, 13.8, 13.9])
+    assert _suppers(th, shallow, 1.0, lps_start=11) == [], "1.2 ranges: a pause, not a noticeable deep correction"
+    deep = shallow.copy(); deep[8] = 13.1
+    assert [s["dig_ranges"] for s in _suppers(th, deep, 1.0, lps_start=11)] == [1.4]
 
 
 def test_a_last_supper_sits_in_phase_d():

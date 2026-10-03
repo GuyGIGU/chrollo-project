@@ -394,6 +394,10 @@ def test_a_last_supper_digs_no_deeper_and_lasts_no_longer_than_his_own():
     shallowest = suppers[0]
     assert shallowest[2] == "SILC" and shallowest[0] == pytest.approx(1.52, abs=0.01)
     assert M.LINE_WORD_SUPPER_DIG_ATR <= shallowest[0] - 0.2
+    # "a noticeable deep correction" (Sat 03/10/2026): a last supper is NAMED only when it digs as deep as his
+    # shallowest, less the margin the floors keep — 1.32. The push-ending floor above stays where his PBT push needs it.
+    assert M.LINE_WORD_SUPPER_NAMED_DIG_ATR == pytest.approx(shallowest[0] - 0.2, abs=0.01)
+    assert M.LINE_WORD_SUPPER_NAMED_DIG_ATR > M.LINE_WORD_SUPPER_DIG_ATR
     assert max(days for _, days, _ in suppers) == 4 == M.LINE_WORD_SUPPER_MAX_DAYS, "his longest: MATX, four days"
 
 
@@ -533,11 +537,13 @@ def test_a_box_carries_one_last_supper_and_on_his_charts_it_is_his(his_last_rece
     """HIS, Sat 03/10/2026: "you mark LS to every pull back above resistance in phase D which is in correct, a last
     supper is a noticeable deep correction that happens *usually only once either pre or post break out." On his
     last receding day no chart of his 40 carries two; where he drew one and the reader lands it, the one named is
-    his. As built the reader named 60 on 26 charts (six on DSGN and VLO); once, 26 on the same 26 — 19 where he drew
-    none, the pictures for his eye."""
+    his, or THE SOS's top of the same correction one trading day before his (SILC). As built the reader named 60 on
+    26 charts (six on DSGN and VLO); once, 26 on the same 26; once and as deep as his shallowest less the margin
+    (1.32 ranges), 23 — 16 where he drew none, the pictures for his eye."""
     per_chart = {key: _named(read, record.LAST_SUPPER) for key, read in his_last_receding_day.items()}
     assert max(len(v) for v in per_chart.values()) == 1, sorted(k for k, v in per_chart.items() if len(v) > 1)
-    assert sum(len(v) for v in per_chart.values()) == 26
+    assert sum(len(v) for v in per_chart.values()) == 23
+    assert min(e.size for v in per_chart.values() for e in v) >= M.LINE_WORD_SUPPER_NAMED_DIG_ATR
     named = {key.split(":")[0]: str(v[0].day) for key, v in per_chart.items()
              if v and key.split(":")[0] in _HIS_LAST_SUPPERS_NAMED}
     assert named == _HIS_LAST_SUPPERS_NAMED
