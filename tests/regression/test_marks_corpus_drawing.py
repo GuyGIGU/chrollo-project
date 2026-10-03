@@ -161,17 +161,22 @@ def test_the_minis_he_drew_ride_the_standard():
         assert b_start <= m_start and m_end <= b_end, (
             f"{what}: the mini {m_start}..{m_end} is not inside the box "
             f"{b_start}..{b_end}")
-        # His four drawn minis, measured Sun 20/09/2026: every BOTTOM sits well
-        # inside the parent (0.18 to 0.69 of the box height up from support),
-        # while two of the four TOPS poke above resistance — DSGN's by half a
-        # box height, MSGS's by two cents. So a mini is not "a band inside the
-        # rails"; it is a band whose bottom comes back under the parent's
-        # resistance. That is the rule the rewrite will use to tell a mini from
-        # a new box, and these four are what it is scored against.
+        # Where his drawn bottom sits against his rails is REPORTED, never
+        # asserted: the standard records what he drew, and the rule that tells
+        # a mini from a new box is the engine's, recorded in docs/decisions.md
+        # (build task 13, Sat 03/10/2026). Until then this test refused any
+        # mini whose bottom held above his resistance — and he has named that
+        # shape twice ("a mini consolidation that rests on the resistance",
+        # Sat 29/08/2026; a rest above R "evolves to be a mini consolidation",
+        # Sun 13/09/2026), so our rule must never refuse his drawing. Measured
+        # on the two he stands behind today: DSGN's bottom 9.90 sits 0.41 under
+        # his resistance 10.31, MSGS's 325.50 sits 19.96 under 345.46; both
+        # above his support.
         R, S = s["rails_drawn"]["R"], s["rails_drawn"]["S"]
-        assert S < lo < R, (
-            f"{what}: the mini's bottom {lo} is not inside his rails {S}..{R} — "
-            "a band that HOLDS above resistance is a new box, not a mini")
+        where = ("inside his rails" if S < lo < R else
+                 "above his resistance" if lo >= R else "under his support")
+        print(f"{what}: the mini's bottom {lo:.2f} sits {where} ({S:.2f} .. {R:.2f}); "
+              f"its top {hi:.2f} {'over' if hi > R else 'under'} his resistance")
 
 
 @pytest.mark.parametrize("what,broken,says", [
