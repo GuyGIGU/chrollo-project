@@ -41,6 +41,273 @@ The live structure reader is now chronological: one left-to-right daily-chart na
 
 ---
 
+## The philosophy — what Chrollo is for, and the theory behind the reading
+
+*(Stated by the operator 2026-10-02 and 2026-10-03, and written here at his request, so this
+file carries "our base philosophy for the engine and the theory that sits behind my
+explanations". The Reading Model below is the chart language; this section is why that
+language exists and where it sits in his decision. Each part says whether it is built. A part
+marked not built is theory, and the engine must not be read as doing it.)*
+
+### What Chrollo is for
+
+Chrollo helps the operator **discover and prioritize strong stocks with constructive setups**
+for his own review. He decides and trades by hand; Chrollo finds, measures and shows. Every
+score means **observable evidence, never certainty**: not proof that accumulation is
+happening, not a promise that a breakout will hold. His influences are Minervini, David Ryan,
+Dan Zanger, Mark Ritchie II and Qullamaggie, and their methods differ. Never treat them as one
+system, and never argue a change from "the book says" alone, the same rule as for Wyckoff
+([minervini_oneil_canon.md](minervini_oneil_canon.md)).
+
+His selection frame runs in one order: **a leading stock → constructive price and volume → a
+well-formed base → a valid breakout → sustained follow-through.** It is a frame for choosing,
+not a promised sequence. The principles under it, and where Chrollo stands on each:
+
+| His principle | What it asks of a stock | Where Chrollo stands (2026-10-03) |
+|---|---|---|
+| Leaders, not cheap stocks | strength against the whole market comes first | the RS rating, ranked against every stock scanned; shown, never graded |
+| Price leads | an uptrend, well-formed bases, orderly pullbacks, support that holds, a convincing breakout | the universe door's trend floor, and the whole Reading Model below |
+| Volume is read with price, never alone | volume expanding on advances, drying up on pullbacks; heavy volume on a sharp decline is a caution | today the volume dry-up in the base earns points; in the method (dark) volume is a fact on every event that never refuses, never elects and carries no points; the base's up and down volume is owed as a shown, archived read |
+| Accumulation is evidence, not proof | sideways trading alone is not accumulation; a base can hold distribution or stay unresolved | today a box's age earns points (Wyckoff's "cause"); the method's grade (dark) reads tightness and the event map, and age weighs nothing |
+| No falling knives | strength → an orderly pullback → renewed strength → entry | the door's trend floor; the LPS is a pullback inside strength, and the buy is its high crossed |
+| Group leadership is context | a strong stock can reveal a strong group, never prove one | owed: the industry and a count of peers also leading, shown only |
+| Respect liquidity | the position fits what the stock trades | the 50-day dollar volume, shown, with no dollar floor until he names a size; a fire under $300M market cap leaves the scan (ruled 2026-10-03) |
+| Let new listings build a record | a stock earns its place by its behaviour | the door's 200 trading days of history holds young listings out |
+| Stay objective | no favourite deserves capital whatever the evidence | every chart is read fresh each scan; his stars and likes are recorded beside the read and never change it |
+
+### Two reads, kept apart: the stock and the setup
+
+**The stock** (is it a leader, and where is it in its life?) and **the setup** (is this a
+tight base with a live LPS, and how good is the read?) are two questions with two reads. The
+Reading Model below is the setup read, all of it. The stock read is the leadership read: the
+RS rating, the trend template, the distance above the 52-week low, the 200-day average's
+direction, the dollar volume, the market cap and the fundamentals (earnings and sales growth,
+shown and archived from 2026-10-03); later the group.
+
+His plan (2026-10-03): **two grades, one per read, built apart and used together at the end**
+to find a market leader with a good setup. The stock grade is to be defined from measurement,
+once a few weeks of fires carry the leadership and fundamentals reads; until then the stock
+read scores and tiers nothing. Two places hold a stock trait hard: the universe door (price,
+history, share volume, a close above the 50-day and 200-day averages, a one-year return of
+-20% or better) and the $300M market-cap floor, checked on the fires after the read. The trend
+template is context, never a hard filter (his words, the same day). The setup grade still carries two stock traits as points, the 52-week proximity
+and ADR; the grade ledger (step 12 below, dark) takes them to zero, which completes the
+separation. RS and the uptrend already weigh zero, by measurement (the decisions record).
+
+So every design question starts with **which read it belongs to**. A stock trait never enters
+the setup's grade, and a chart-reading trait never enters the leadership read.
+
+### The life cycle: the four stages
+
+A stock lives through stages (Minervini, after Weinstein), and nearly every big winner made its
+gain in the second:
+
+1. **Neglect.** Sideways for months or years around a flat 200-day average, on light volume,
+   often after a decline. Dead money: no buying.
+2. **Advance (accumulation).** Higher highs and higher lows, the price above a rising 200-day
+   average, big up weeks on volume against quiet pullbacks. Bases form *inside* the uptrend,
+   and this is where he buys.
+3. **Top (distribution).** Progress slows and turns erratic: wide, volatile, choppy ranges.
+4. **Decline (capitulation).** Lower lows, often on heavy volume.
+
+**No bottom picking.** A stock bought near its low sits in stage 4 or stage 1 with no momentum,
+often for months. The aim is not the cheapest price but the right one, as the stock is ready
+to move, so he waits for stage 2 to confirm: the price above the 150-day and 200-day averages,
+the 150-day above the 200-day, the 200-day turned up, higher highs and higher lows, big up
+weeks on volume against quiet pullbacks, and a rally of at least 25 to 30% off the 52-week low
+before calling it stage 2. Buying later and higher, once the evidence is in, is the point.
+
+His marks on the book's charts (2026-10-03) show where his setups live: boxes on **bases inside
+stage 2**, an LPS on the late stage-1 base right at the turn into stage 2, and an X on the
+wide, choppy stage-3 range. The base in an uptrend (re-accumulation) is his core setup, the
+transition base is a second kind, and a wide choppy range late in a move is not a setup.
+
+*Status: the stage is shown, never a gate.* Measured on the archive's fires, the seven-point
+stage-2 checklist did not separate the moves that reached +25% (all seven 12.9%, four or fewer
+13.6%), and fires taken while the 200-day still fell did as well (13.3%). The distance above
+the 52-week low did separate, but only among volatile movers, and it is RS by another name,
+which is Tested-DEAD to score. The transition base has its own dark lane; he has said "not yet"
+to raising it, and it waits for him.
+
+#### Bases inside stage 2, and counting them
+
+Stage 2 does not rise in a straight line. It climbs in waves: a run, then a pause where the
+stock goes sideways and builds a base, then the next run, stair-stepping from base to base. A
+base inside stage 2 is a rest in an uptrend, never a return to stage 1; most last about 5 to 26
+weeks. **Counting the bases** (O'Neil and David Ryan, through Minervini; sent 2026-10-03) says
+how far along the advance is. The first and second bases, often coming out of a market
+correction, are the best; the third is more obvious but usually still tradable; by the fourth
+or fifth the trend is plain to everyone and bases fail more often. The count gives perspective
+and never calls a top on its own.
+
+His observation on the book's AMGN weekly chart (1987 to 1994, five bases marked): *"notice how
+the bases get wider and wider along the stage 2 advance"*, and what he means by wider: *"the
+bases structure gets to be the opposite of tight, the spread of the bars is increasing rapidly
+as well as seller strength"*. Measured off that picture: each week's bar and volume lifted from
+the image, the bars inside each drawn box, read at three darkness cutoffs and quoted as the
+spread across them (the chart's price scale is linear, so a dollar of height means less as the
+price rises):
+
+| | Weeks | Height, % of price | Height, weekly ranges | Typical weekly bar, % of price | Down weeks against up weeks: bar size / volume |
+|---|---|---|---|---|---|
+| Base 1 | 27 | 26-29% | 3.7-4.8 | 6-8% | 1.0-1.7x / 1.0x |
+| Base 2 | 20 | 23-30% | 4.0-4.9 | 5-8% | 0.5-1.2x / 1.4x |
+| Base 3 | 30 | 28% | 4.0-5.9 | 6-8% | 1.0-1.8x / 1.1-1.3x |
+| Base 4 | 20 | 19-21% | 3.0-4.3 | 5-8% | 0.4-1.1x / 0.9-1.0x |
+| Base 5, the stage-3 top | 50 | 30-33% | 5.6-6.8 | 6-7% | 1.2-1.6x / 1.2x |
+
+- **In dollars the bases do widen** (from about $0.40 high to about $3.50), as the eye sees on a
+  linear chart.
+- **The single bars do not widen.** The top's typical weekly bar is the same size as the
+  stage-2 bases' in proportion to price, or smaller.
+- **The top is the biggest base in its own ranges at every cutoff**, about one and a half times
+  the stage-2 bases, and about twice as long.
+- **Sellers show in the top.** It is the one base whose down weeks are bigger than its up weeks
+  at every cutoff, on about 1.2 times the volume, with about half its weeks down. It is not
+  unique on every count: base 2's down weeks carried even more volume (1.4x).
+
+So on this chart "the opposite of tight" is the base as a whole (bigger in its own range,
+longer, and sellers taking the weeks), not wider weekly bars. A weekly bar can hide daily
+chop: a week of wide, overlapping days can still print a normal-sized weekly bar, so the bar
+texture he describes is a daily read. It is one chart, read from a picture: an idea to test on
+the daily bars of real bases, not a rule.
+
+*Status: not built.* Chrollo's base count reads 1 on every archived fire (it counts inside the
+latest short up-leg, never from the start of stage 2), so it is not shown. A real count needs
+the start of the advance, which the weekly bigger-picture read below is to supply; comparing a
+base with the stock's own earlier bases needs the same.
+
+### The bigger picture: one process on every timeframe
+
+His phrase **"bigger picture"** means *"the use of process in bigger time frames"*: the same
+reading (rails, events, SOS, LPS, the buy) done on the weekly and monthly charts, so a daily
+setup is seen as one piece of a bigger story. The setups he values most are **complete**: the
+daily base is a step in the weekly's story, and the weekly's is a step in the monthly's. His
+example is MTLS (2026-10-03):
+
+- **Daily:** a clean base in an uptrend (re-accumulation), and its LPS.
+- **Weekly:** price breaks up through a bigger, older base with strength and rising volume,
+  then pulls back and contracts into a tighter base, which is the daily base.
+- **Monthly:** all of it is the right side of a base begun in 2023. The daily uptrend and base
+  are the monthly's SOS and LPS, in the upper half of the range, before the breakout: *"truly a
+  perfect scenario"*.
+
+The structure is fractal: the daily box, the weekly's tight base and the monthly's LPS are one
+place on three charts. What carries across every timeframe:
+
+1. **One grammar.** The words, the rails as areas, the events and the definition of a fire are
+   the same on every chart; only the bar changes.
+2. **Height in the chart's own range, never in percent of price** (ruled 2026-10-03: *"the
+   reason I don't like the % rule it's because it's based on raw pricing which can scale up
+   percentages quickly in the monthly chart"*). Measured on MTLS, the monthly base is 1.33
+   monthly ranges high (43% of price) and the weekly base 1.21 weekly ranges (10% of price):
+   the same size in the stock's own terms. This carries his Q7 of 12/09/2026 (no height gate in
+   any unit; height is graded) to the weekly and monthly charts. The old engine keeps its
+   percent caps until the method's step 7 switch goes live with steps 10 and 11.
+3. **The weekly chart is the main bigger picture** (his suggestion 2026-10-03, taken: *"we can
+   probably figure most of this from the weekly chart as minnervini lists his "stage" traits
+   from weekly charts"*). Five years of prices hold about 260 weekly bars but only 60 monthly
+   ones, so the monthly is shown when it reads and is never required.
+
+*Open: how a count in trading days converts.* A rule counted in days (the fifteen-day minimum,
+the LPS's last days) is time, and counted as bars it stretches: on the weekly chart the
+fifteen-day minimum became fifteen weeks, and the read of MTLS's tight base came months late.
+
+The bigger picture is **context for the daily setup**: is the stock in stage 2, on the right
+side of its bigger base, in the upper half, after a breakout through an older base? It enters
+measure-first like every read: shown and archived, then measured against outcomes and his
+drawings before it weighs anything. Scoring the old weekly and monthly read is Tested-DEAD;
+that verdict belongs to that read, and a new read earns or loses weight on its own
+measurement. What the bigger picture can rule *out* is unknown until he draws the trades he
+passed on because of it.
+
+*Status (2026-10-03): not built.* The engine's weekly and monthly read today is the old daily
+engine run on weekly and monthly bars, measure-only, and it sees no base on MTLS on either
+chart. The bigger picture is to be built on the new reader of the final method (approved
+02/10/2026), which, run unchanged on MTLS's monthly bars, already fires at his buy. MTLS's
+weekly and monthly charts are its first test; the standard is his own drawings of trades he
+takes and trades he passes, within the five years of prices the cache holds.
+
+### The evidence: the archive and the calibration setups
+
+Two bodies of evidence teach the engine. **The archive** holds every setup the engine fired, with
+what happened afterwards: the population, what the engine finds. **The calibration setups** are
+his own drawn setups (his rails, the box's dates, his trigger), 40 of them on 2026-10-03, kept
+even when the vendor loses the chart: the target, what the engine should find. His ruling
+(2026-10-03): *"treat calibrated setups as archived ones as well! since they are essentially
+modeled archived setups made for studying high quality structures that our engine needs to
+master!"*
+
+So a calibration setup is an archived setup too, and **every study run on the archive reads the
+calibration setups as well**, reported as their own group beside the engine's fires. They stay a
+separate group because they were chosen for quality: blended into the fires' averages they would
+flatter the engine, and side by side they show the gap between what the engine finds and what
+he would take. A first instance is the base-length row of the comparison below.
+
+*Status (2026-10-03): the ruling is recorded; the code half is not built.* Today the calibration
+setups live apart from the archive, and none of the archive's studies (its outcomes, its report
+card, its screen) reads them.
+
+### How it all ties to the engine: the comparison
+
+*(Written 2026-10-03 at his request, "how it all ties to our current engine, by comparing".
+"Today" is the live engine; "the method" is the final method below, built and dark until his
+approval sitting; "not built" is theory only.)*
+
+**The life cycle against Wyckoff and against Chrollo.** Minervini's four stages are Wyckoff's
+cycle under other names, and Chrollo reads one part of it:
+
+| Minervini | Wyckoff | Chrollo today | Ruled or planned |
+|---|---|---|---|
+| Stage 1, neglect | accumulation after a markdown (a selling climax and its automatic rally open it) | mostly kept out by the door's trend floor; the selling-climax pair is reserved for the end of a main downtrend | the transition base: its own lane, dark, waiting on his word |
+| Stage 2, advance | markup, with re-accumulation ranges along the way | **the core.** The box's climax is the top of an up-run (the buying climax and its automatic reaction), and the box, its LPS and its buy are a stage-2 base; the trend template and the stage cells are shown | base on base (the chain grammar below, dark); the base count needs the advance's start (not built) |
+| Stage 3, top | distribution | not named: the distribution side was deliberately left (the Wyckoff companion); a wide range is refused today by the width cap in percent of price | the method grades height in ranges instead of refusing (dark); the late-stage tell is an idea from one picture (not built) |
+| Stage 4, decline | markdown | kept out by the door's trend floor | a box that fails reads "broke down", one of the method's state words (dark) |
+
+**His sequences against the Reading Model's events.** The event chain is the same story his
+selection summary tells:
+
+| His sequence | The same story in the Reading Model |
+|---|---|
+| Base formation → evidence of accumulation → supply less available → upward breakout | the rails elected → turns at the rails, a spring if any, the SOS → the contraction (the LPS's receding days, the mini at the top) → the trigger crossed |
+| Strength → an orderly pullback → renewed strength → entry | the SOS → the LPS → the cross of the LPS's high → the fire |
+| Leading stock → constructive price and volume → well-formed base → valid breakout → sustained follow-through | the leadership read → volume facts on every event → the box and its grade → the fire → the follow-through the archive measures afterwards |
+
+**The book's measures against Chrollo's:**
+
+| Theory | In Chrollo | Status |
+|---|---|---|
+| Stage-2 criteria: price above the 150-day and 200-day, the 150 above the 200, the 200 turned up | the trend template's seven criteria, counted and shown ("7/7"), with the 200-day's one-month change | shown; measured, does not separate the +25% moves among fires |
+| 25 to 30% off the 52-week low before stage 2 | "Off 52-week low" | shown; separates only among volatile movers, and is RS by another name (Tested-DEAD to score) |
+| Big up weeks on volume against quiet pullbacks; more up weeks than down weeks on volume | today the base's volume dry-up earns points; the method makes volume a fact only | measured (criteria 5 and 6): does not separate; the up and down volume in the base is owed as a shown read |
+| VCP: two to six contractions, each tighter, the last one tight | today the contraction count and the last contraction's depth (in percent) earn points | the method weighs the count at zero and grades the LPS window's bar spread in ranges (dark) |
+| "Tight": weekly closes in a narrow range | the box's height in daily ranges and the bar texture inside the box and the LPS window, on the daily chart | today and the method both read it; the method never in percent of price |
+| Buy at the right price, as the stock is ready to move | the buy is the cross of the LPS's high; nothing fires without an LPS | today |
+| Bases in stage 2 last about 5 to 26 weeks | the engine's boxes, one per base in the archive: median 46 trading days (about 9 weeks); 85% run 5 weeks or more, about 5% past 26. His 40 calibration setups, box start to his trigger: median 40 trading days (8 weeks); 90% run 5 weeks or more, none past 26 | today: both are base-sized, and the 20-day minimum (15 in the method) sits at the low end; the engine has a long tail his setups do not |
+| Count the bases: 1 and 2 best, 3 tradable, 4 and 5 late | a base count, and a ratio of the box's width to the base before it | **broken:** the count reads 1 on every archived fire, and the ratio is empty on all 15,606 archived rows (it rides the same walk, and it compares in percent of price) |
+| Weekly charts for the stage | the old engine's weekly and monthly read on resampled bars, measure-only | sees no base on MTLS; scoring it is Tested-DEAD; the bigger picture is to be rebuilt on the new reader (not built) |
+| RS leadership | the RS rating, ranked across the scanned universe | shown; scoring it is Tested-DEAD |
+| Group leadership | none | owed: the industry and a count of peers also leading |
+
+**What the comparison shows.** The setup side lines up well: Chrollo's box, LPS and buy are
+the stage-2 base and its entry, the events tell his accumulation sequence, and the boxes are
+base-sized. The gaps are on the stock and the bigger picture: no read of where the stock is in
+its stage-2 run (the base count is broken and the bigger picture is not built), no shown read
+of volume through the base, no group read, and no read of the late stage. Every gap is a
+display read first, measure-first, never a gate.
+
+### For whoever designs a change
+
+- Name the read first: the stock or the setup.
+- Every size in a structure is measured in the chart's own range, on every timeframe; no
+  percent-of-price threshold decides a structure.
+- A trait from the books enters as a shown, archived fact, and weighs something only after it
+  separates outcomes in the archive.
+- The test standard is his drawings: the calibration setups, the trades he takes and the ones he
+  passes on. A study on the archive reads the calibration setups too, as their own group.
+
+---
+
 ## The Reading Model — the operator's chart language
 
 Everything in this document implements ONE reading procedure — the operator's (stated
