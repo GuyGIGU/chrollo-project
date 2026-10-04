@@ -15,25 +15,10 @@ export default function ArchiveHeader({
           {stats ? `${stats.total_setups} setups archived - ${stats.with_forward_returns} with forward returns` : 'Loading...'}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <HeaderButton onClick={onOpenHistory} title="Recent scan runs.">Scan History</HeaderButton>
-          <HeaderButton onClick={() => onOpenAnalysis(false)} title="Run the archive analysis report in-app.">Analysis</HeaderButton>
-          <HeaderButton onClick={onAddSetup}>+ Add Setup</HeaderButton>
-          <button
-            disabled={updating}
-            onClick={onUpdateReturns}
-            style={{
-              background: updating ? 'var(--bg-hover)' : 'var(--accent-active)',
-              border: 'none',
-              borderRadius: '6px',
-              color: updating ? 'var(--text-muted)' : 'var(--myth-ink)',
-              cursor: updating ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit',
-              fontSize: '12px',
-              fontWeight: '600',
-              padding: '8px 16px',
-              transition: 'all 0.2s',
-            }}
-          >
+          <button type="button" className="btn" onClick={onOpenHistory} title="Recent scan runs.">Scan History</button>
+          <button type="button" className="btn" onClick={() => onOpenAnalysis(false)} title="Run the archive analysis report in-app.">Analysis</button>
+          <button type="button" className="btn" onClick={onAddSetup}>+ Add Setup</button>
+          <button type="button" className="btn btn-primary" disabled={updating} onClick={onUpdateReturns}>
             {updating ? 'Updating Returns...' : 'Update Forward Returns'}
           </button>
         </div>
@@ -154,29 +139,6 @@ const statusTone = (status) => ({
   watch: { border: 'rgba(var(--warning-rgb), 0.35)', color: 'var(--warning)' },
   critical: { border: 'rgba(var(--danger-rgb), 0.40)', color: 'var(--danger)' },
 }[status] || { border: 'var(--border-color)', color: 'var(--text-muted)' });
-
-function HeaderButton({ children, onClick, title }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        background: 'transparent',
-        border: '1px solid var(--border-color)',
-        borderRadius: '6px',
-        color: 'var(--text-main)',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '12px',
-        fontWeight: '600',
-        padding: '8px 16px',
-        transition: 'all 0.2s',
-      }}
-    >
-      {children}
-    </button>
-  );
-}
 
 function UpdateMessage({ message }) {
   return (

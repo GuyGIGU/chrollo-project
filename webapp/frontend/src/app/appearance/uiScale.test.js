@@ -9,7 +9,6 @@ import {
   GRID_CHROME_PX,
   CARD_MIN_PX,
   CARD_GAP_PX,
-  MAX_CARD_COLS,
   clampScale,
   screenerColumnsAt,
   computeAutoFitScale,
@@ -17,12 +16,27 @@ import {
   storageKeyFor,
 } from './uiScale.js';
 
-test('screenerColumnsAt: the operator 1536px viewport shows 3 cards at 100%', () => {
-  // THREE-up at the original 480px minimum. Briefly 620 (two-up) on 2026-09-02
-  // and put back the same day: two-up made the chart wide and short, so the whole
-  // stock was squeezed into a strip. The card's room was vertical, not horizontal.
-  assert.equal(screenerColumnsAt(1, 1536), 3);
-  assert.equal(screenerColumnsAt(0.9, 1536), 3);
+// The width of one card when `cols` cards share a grid `gridWidth` px wide.
+const cardWidth = (gridWidth, cols) => (gridWidth - (cols - 1) * CARD_GAP_PX) / cols;
+// How many cards a grid `gridWidth` px wide holds (the CSS auto-fill rule).
+const colsIn = (gridWidth) => Math.floor((gridWidth + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX));
+
+test('one card size on both of his screens: three at 1920, four at 2560', () => {
+  // Operator 2026-10-03, after a day of three 831px cards on the 2560 screen:
+  // "I want them to retain the original size so the scaling looks the same, with
+  // the extra monitor space I could just ... see more of the website".
+  const at1920 = screenerColumnsAt(1, 1920);
+  const at2560 = screenerColumnsAt(1, 2560);
+  assert.equal(at1920, 3);
+  assert.equal(at2560, 4);
+  const w1920 = cardWidth(1920 - GRID_CHROME_PX, at1920);
+  const w2560 = cardWidth(2560 - GRID_CHROME_PX, at2560);
+  assert.ok(Math.abs(w1920 - w2560) < 5, `the card is ${w1920.toFixed(0)}px at 1920 but ${w2560.toFixed(0)}px at 2560`);
+  // The Watchlist grid is 32px narrower (no full-bleed wrapper), measured live
+  // 2026-10-03: 1850px at 1920 and 2490px at 2560. It must keep three and four.
+  assert.equal(colsIn(1850), 3);
+  assert.equal(colsIn(2490), 4);
+  assert.ok(Math.abs(cardWidth(1850, 3) - cardWidth(2490, 4)) < 10);
 });
 
 test('screenerColumnsAt: never returns fewer than one column', () => {
@@ -36,9 +50,11 @@ test('screenerColumnsAt: more columns as the scale shrinks (monotonic)', () => {
   }
 });
 
-test('computeAutoFitScale: stays at 100% for the 1536px monitor — 3 cards already fit', () => {
-  // No step down to 85% reaches a 4th 480px card at this width, so auto-fit must
-  // not shrink his text to chase one.
+test('computeAutoFitScale: stays at 100% in a 1536px window — no step reaches a third card', () => {
+  // Two 590px cards at 100%, and still two at 85% (2.95 cards' room), so
+  // auto-fit must not shrink his text for nothing.
+  assert.equal(screenerColumnsAt(1, 1536), 2);
+  assert.equal(screenerColumnsAt(0.85, 1536), 2);
   assert.equal(computeAutoFitScale(1536), 1);
 });
 
@@ -50,20 +66,19 @@ test('computeAutoFitScale: stays at 100% when shrinking would not add a column',
   assert.equal(computeAutoFitScale(1280), 1);
 });
 
-test('never more than three cards per row, on any screen at any step', () => {
-  // Operator 2026-10-02: "When using Chrollo on my main monitor the scale breaks
-  // and the clean 3 Charts per row rule gets ignored". His main screen is
-  // 2560x1440 at 100%, where the uncapped grid drew five 493px cards.
+test('a wider screen gets more cards, never bigger ones', () => {
+  // The 2026-10-02 three-card ceiling drew three 831px cards at 2560; with it
+  // gone the card stays within the 590px minimum and the stretch to fill a row.
   for (const width of [1920, 2560, 3440, 3840]) {
-    for (const s of SCALE_STEPS) {
-      assert.ok(screenerColumnsAt(s, width) <= MAX_CARD_COLS, `${width}px at ${s} gave ${screenerColumnsAt(s, width)}`);
-    }
+    const cols = screenerColumnsAt(1, width);
+    const card = cardWidth(width - GRID_CHROME_PX, cols);
+    assert.ok(card >= CARD_MIN_PX && card < 700, `${width}px drew ${cols} cards of ${card.toFixed(0)}px`);
   }
-  assert.equal(screenerColumnsAt(1, 2560), 3);
 });
 
-test('computeAutoFitScale: both of his screens stay at 100% - three already fit', () => {
-  // Shrinking can no longer buy a fourth card, so auto-fit has nothing to chase.
+test('computeAutoFitScale: both of his screens stay at 100%', () => {
+  // No step down to 85% buys another 590px card at 1920 (3.7 cards' room) or at
+  // 2560 (4.95), so auto-fit has nothing to chase.
   assert.equal(computeAutoFitScale(1920), 1);
   assert.equal(computeAutoFitScale(2560), 1);
 });
@@ -115,7 +130,6 @@ const preNum = (re) => {
 const preSteps = () => JSON.parse(preScript.match(/STEPS\s*=\s*(\[[^\]]*\])/)[1]);
 
 test('index.html pre-paint constants match uiScale.js', () => {
-  assert.equal(preNum(/MAX_COLS\s*=\s*(\d+)/), MAX_CARD_COLS);
   assert.equal(preNum(/CHROME\s*=\s*(\d+)/), GRID_CHROME_PX);
   assert.equal(preNum(/CARD\s*=\s*(\d+)/), CARD_MIN_PX);
   assert.equal(preNum(/GAP\s*=\s*(\d+)/), CARD_GAP_PX);
@@ -126,14 +140,13 @@ test('index.html pre-paint auto-fit reproduces computeAutoFitScale across widths
   const CHROME = preNum(/CHROME\s*=\s*(\d+)/);
   const CARD = preNum(/CARD\s*=\s*(\d+)/);
   const GAP = preNum(/GAP\s*=\s*(\d+)/);
-  const MAX_COLS = preNum(/MAX_COLS\s*=\s*(\d+)/);
   const STEPS = preSteps();
   const prePaintAutoFit = (V) => {
     let best = 1;
     let bestCols = 0;
     for (const s of STEPS) {
       if (s > 1) continue;
-      const cols = Math.min(MAX_COLS, Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP))));
+      const cols = Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP)));
       if (cols > bestCols || (cols === bestCols && s > best)) {
         bestCols = cols;
         best = s;
@@ -164,9 +177,11 @@ test('the card minimum is identical at all five sites', () => {
   // finds an unrelated 150px grid first and the test would be red on arrival.
   const sites = [
     ['index.html pre-paint', readRepo('index.html'), /var CHROME = \d+, CARD = (\d+)/],
-    ['ScreenerGrid gridStyle', readRepo('src/features/screener/components/ScreenerGrid.jsx'), /gridStyle\s*=\s*\{[\s\S]*?minmax\(max\((\d+)px, calc\(\(100% - 28px\) \/ (\d+) - 1px\)\), 1fr\)/],
-    ['HealthBoard gridStyle', readRepo('src/features/screener/components/HealthBoard.jsx'), /gridStyle\s*=\s*\{[\s\S]*?minmax\(max\((\d+)px, calc\(\(100% - 28px\) \/ (\d+) - 1px\)\), 1fr\)/],
-    ['index.css .wl-card-grid', readRepo('src/index.css'), /\.wl-card-grid\s*\{[^}]*minmax\(max\((\d+)px, calc\(\(100% - 28px\) \/ (\d+) - 1px\)\), 1fr\)/],
+    // A plain minmax(<card>px, 1fr): a ceiling expression in the track (the
+    // 2026-10-02 `max(480px, calc(.../ 3 ...))`) no longer matches, and fails here.
+    ['ScreenerGrid gridStyle', readRepo('src/features/screener/components/ScreenerGrid.jsx'), /gridStyle\s*=\s*\{[^}]*?gridTemplateColumns: 'repeat\(auto-fill, minmax\((\d+)px, 1fr\)\)'/],
+    ['HealthBoard gridStyle', readRepo('src/features/screener/components/HealthBoard.jsx'), /gridStyle\s*=\s*\{[^}]*?gridTemplateColumns: 'repeat\(auto-fill, minmax\((\d+)px, 1fr\)\)'/],
+    ['index.css .wl-card-grid', readRepo('src/index.css'), /\.wl-card-grid\s*\{[^}]*grid-template-columns: repeat\(auto-fill, minmax\((\d+)px, 1fr\)\);/],
   ];
   for (const [label, text, pattern] of sites) {
     const match = text.match(pattern);
@@ -176,12 +191,41 @@ test('the card minimum is identical at all five sites', () => {
       CARD_MIN_PX,
       `${label} says ${match[1]}px but uiScale.CARD_MIN_PX is ${CARD_MIN_PX}. All five must move together: uiScale.js, index.html, ScreenerGrid, HealthBoard, .wl-card-grid — HealthBoard renders inside ScreenerGrid's own wrapper, so a split makes one ScreenerMiniChart frame the same window at two densities in one pane.`,
     );
-    // The grid sites also carry the three-card ceiling (the pre-paint carries it
-    // as MAX_COLS, pinned above). Without it a wide screen draws five cards.
-    if (match[2] != null) {
-      assert.equal(Number(match[2]), MAX_CARD_COLS, `${label}: the track divides by ${match[2]}, not MAX_CARD_COLS`);
-    }
   }
+});
+
+test('the big charts hold their 1920 size on a bigger screen', () => {
+  // Operator 2026-10-03, "same goes for the big charts": the lens's chart band
+  // and the Watchlist D/W/M band are capped at the size they have on his
+  // 1920x1080 screen, so the 2560 screen draws every setup at the same size.
+  // The lens itself fills the screen's height and its read panel takes the
+  // rest ("make that block stretch more down so we could see more").
+  const css = readRepo('src/index.css');
+  const modal = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-shell"[\s\S]*?style=\{\{([\s\S]*?)\}\}/);
+  assert.ok(modal, 'ScreenerModal: the lens shell style not found');
+  assert.match(modal[1], /maxWidth: 1760,/, 'the lens is no longer held at its 1920 width');
+  assert.doesNotMatch(modal[1], /maxHeight/, 'the lens shell is height-capped again — the read panel loses the room below the chart');
+  const lensBand = css.match(/\n\.screener-modal-chart-row\s*\{([^}]*)\}/);
+  assert.ok(lensBand, 'index.css: the desktop .screener-modal-chart-row rule not found');
+  assert.match(lensBand[1], /max-height: 567px;/, 'the lens chart band is no longer held at its 1920 height');
+  // The cap alone holds nothing: a fixed or missing height leaves the band short of it.
+  assert.match(lensBand[1], /height: calc\(100% - min\(32vh, 300px\)\);/, 'the lens chart band lost its height budget — it no longer reaches its 567px cap');
+  const narrowBand = css.match(/@media \(max-width: 760px\)[\s\S]*?\n {2}\.screener-modal-chart-row\s*\{([^}]*)\}/);
+  assert.ok(narrowBand, 'index.css: the 760px .screener-modal-chart-row override not found');
+  assert.match(narrowBand[1], /height: auto;/, 'the stacked lens band keeps the desktop height budget again');
+  assert.match(narrowBand[1], /max-height: none;/, 'the stacked lens band keeps the desktop cap again');
+  const row = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-chart-row" style=\{\{([^}]*)\}\}/);
+  assert.ok(row, 'ScreenerModal: the chart band style not found');
+  assert.match(row[1], /flex: '0 0 auto'/, 'the chart band flexes again — it would grow past its cap or take the read panel\'s room');
+  const panel = css.match(/\n\.stock-lens\s*\{([^}]*)\}/);
+  assert.ok(panel, 'index.css: .stock-lens not found');
+  assert.match(panel[1], /flex: 1 1 auto;/, 'the read panel no longer takes the room the chart band leaves');
+  assert.doesNotMatch(panel[1], /max-height/, 'the read panel is capped again — the 2560 screen would show a void under it');
+  const band = css.match(/\.wl-top\s*\{([^}]*)\}/);
+  assert.ok(band, 'index.css: .wl-top not found');
+  assert.match(band[1], /max-height: 805px;/, 'the Watchlist chart band is no longer held at its 1920 height');
+  assert.match(band[1], /height: calc\(100% - 40px\);/, 'the Watchlist chart band lost its height — it no longer reaches its 805px cap');
+  assert.match(band[1], /max-width: 1850px;/, 'the Watchlist chart band is no longer held at its 1920 width');
 });
 
 test('the index.html pre-paint script RUNS and agrees with computeAutoFitScale', () => {

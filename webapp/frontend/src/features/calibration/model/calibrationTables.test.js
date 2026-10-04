@@ -4,6 +4,7 @@ import {
   buildCoverageRows, sortCoverageRows, buildMarkRows, sortMarkRows,
   buildSetupRows, sortSetupRows,
   SETUPS_PER_PAGE, filterSetupRows, pageCount, pageSlice, pageOfKey, setupDateLabel,
+  adjacentSetupRow,
 } from './calibrationTables.js';
 
 // A small marks population across three tickers: AGCO has a box + a negative,
@@ -375,6 +376,20 @@ test('pageOfKey: the 1-based page holding a key, null when it is not listed', ()
   assert.equal(pageOfKey(rows, 'T40|2026-01-02'), 3);
   assert.equal(pageOfKey(rows, 'NOPE|2026-01-02'), null);
   assert.equal(pageOfKey([], 'T00|2026-01-02'), null);
+});
+
+test('adjacentSetupRow walks the shown list and wraps', () => {
+  const rows = manyRows(5);
+  const at = (key, step) => adjacentSetupRow(rows, key, step)?.ticker;
+  assert.equal(at('T01|2026-01-02', 1), 'T02');
+  assert.equal(at('T01|2026-01-02', -1), 'T00');
+  assert.equal(at('T04|2026-01-02', 1), 'T00'); // wraps past the bottom...
+  assert.equal(at('T00|2026-01-02', -1), 'T04'); // ...and past the top
+  // Nothing loaded (or the loaded setup filtered out): down starts at the top, up at the bottom.
+  assert.equal(at(null, 1), 'T00');
+  assert.equal(at('NOPE|x', -1), 'T04');
+  assert.equal(adjacentSetupRow([], 'T00|2026-01-02', 1), null);
+  assert.equal(rows.length, 5);
 });
 
 test('setupDateLabel: day, month and two-digit year; empty is the em-dash', () => {

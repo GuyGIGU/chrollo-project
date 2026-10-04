@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ScreenerModal from '../../../shared/setup/ScreenerModal';
-import BridgeOut from './BridgeOut';
 import useWatchlist from '../../watchlist/hooks/useWatchlist';
 import { tierColor } from '../../../shared/presentation/theme';
 import { formatScore } from '../../../shared/formatting/scoreFormat';
-import { fmtScanTime, scanStatusColor } from '../../../shared/formatting/appFormat';
+import { fmtScanTime, scanIsStale, scanStatusColor } from '../../../shared/formatting/appFormat';
 import { nearTriggerFrac, triggerFired } from '../../../shared/setup/triggerProximity.js';
 import {
   actionCenterReadiness,
@@ -29,18 +28,7 @@ const STOP_FLAG = {
 };
 const FRESH_MAX = 8;
 
-// "stale" = the data these claims are made from was produced on a PRIOR
-// calendar day. Keyed off the ARTIFACT's own timestamp, never the latest run's:
-// a failed run stamps a fresh finished_at while the chips below still read
-// yesterday's artifact, which would read as maximum freshness.
-// (Re-homed from the deleted FreshSetupsZone — this header is the surface making
-// claims from that scan, so it carries the freshness statement in ALL its states.)
-function ranOnPriorDay(timestamp) {
-  if (!timestamp) return false;
-  const dt = new Date(timestamp);
-  if (Number.isNaN(dt.getTime())) return false;
-  return dt.toDateString() !== new Date().toDateString();
-}
+// Freshness = shared scanIsStale (appFormat) on the payload's stale_after: one rule with the screener stamp.
 
 // A terminal run that did NOT produce a good artifact. The chips below are then
 // computed from an OLDER scan, so the header says so in danger tone.
@@ -67,7 +55,7 @@ function scanFreshness(scanStatus, screenerData, ordered) {
       color: scanStatusColor(status),
     };
   }
-  const stale = ranOnPriorDay(screenerData?.scanned_at);
+  const stale = scanIsStale(screenerData?.stale_after);
   const zero = screenerData && ordered.length === 0;
   return {
     text: `scanned ${fmtScanTime(scanStatus.finished_at)}${stale ? ' · stale' : ''}${zero ? ' · 0 matched' : ''}`,
@@ -218,7 +206,6 @@ export default function ActionCenter({
           data={chartData[peek]}
           scanIdentity={screenerData?.scan_identity ?? null}
           onClose={() => setPeek(null)}
-          footer={<BridgeOut ticker={peek} />}
         />
       )}
     </section>

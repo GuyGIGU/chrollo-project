@@ -52,7 +52,7 @@ function MarketRegimeDetailModal({ symbol, trend, meta, reasons, onClose }) {
             </div>
             <span style={summaryStyle}>{meta.summary}</span>
           </div>
-          <button type="button" onClick={onClose} style={closeButtonStyle} title="Close" aria-label="Close">✕</button>
+          <button type="button" className="btn btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
         </header>
 
         <div style={modalBodyStyle}>
@@ -173,11 +173,6 @@ const modalHeaderStyle = {
 
 const modalTitleStyle = { alignItems: 'center', display: 'flex', fontSize: 20, gap: 8, marginTop: 5 };
 const summaryStyle = { color: 'var(--text-muted)', display: 'block', fontSize: 12, marginTop: 4 };
-
-const closeButtonStyle = {
-  background: 'transparent', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-muted)',
-  cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, height: 32, width: 34, flexShrink: 0,
-};
 
 const modalBodyStyle = { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, overflowY: 'auto' };
 

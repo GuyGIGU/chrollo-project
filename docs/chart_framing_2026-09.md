@@ -368,3 +368,26 @@ row's `clientWidth`, which is layout px and **includes its padding**. On the old
 error hid in the second row; on one row it lets the last chip or the `+N` wrap out of sight. Both
 sides are now layout px inside the padding. Swept over 205 grid widths on the live cards: the old
 measure spilled at **31 widths at Scale 1 and 163 at 0.85**; the fixed one at **0 and 0**.
+
+## 2026-10-03 revision — one card size, one big-chart size, on both screens
+
+> *"Okay now cards look huge, I want them to retain the original size so the scaling looks the
+> same, with the extra monitor space I could just you know..... see more of the website. same goes
+> for the big charts"* — operator, 2026-10-03, with a screenshot of three 831px cards at 2560.
+
+The 2026-10-02 three-card ceiling read "the clean 3 Charts per row" as a COUNT; his rule was the
+1920 card. The grid is now `minmax(590px, 1fr)` with no ceiling: **three 618px cards at 1920, four
+620px cards at 2560** (Watchlist: 607 and 612). The well is still 1.9:1 of the card's width, so the
+card, its ~563px plot and every setup drawn in it are now the same on both screens — the
+"1920 three-up" rows above describe the 2560 screen too, and the "2560 three-up" rows are history.
+On the 2560 screen 12 cards sit above the fold instead of ~6.
+
+The big charts hold their 1920 size the same way: the lens's chart band at **567px** tall (its
+daily pane **1318x566** on both screens, where the 2560 screen had drawn it 1318x926, every setup
+64% taller), and the Watchlist D/W/M band at **1850x805** (daily pane 1247x770 on both, against
+1714x1130 at 2560), with the card grid rising into view below it. The lens first went in as a
+centered 1760x921 box; the same day he asked for it to *"strech more down so we could see more,
+even put the entire big chart higher"*, so it fills the screen's height again from the top and
+its read panel takes the room the band no longer does (300px at 1920, 660px at 2560 — the whole
+read without scrolling). No framing knob moved: `CHART_FRAMING` is unchanged and the window is
+still the setup's. Measured live at 1920x945 and 2560x1305; pinned in `uiScale.test.js`.

@@ -60,19 +60,6 @@ export const titleMetaStyle = {
   marginLeft: 8,
 };
 
-export const closeButtonStyle = {
-  background: 'transparent',
-  border: '1px solid var(--border-color)',
-  borderRadius: 6,
-  color: 'var(--text-muted)',
-  cursor: 'pointer',
-  fontSize: 16,
-  fontWeight: 900,
-  height: 30,
-  lineHeight: 1,
-  width: 30,
-};
-
 export const cockpitGridStyle = {
   display: 'grid',
   gap: 8,
@@ -151,18 +138,6 @@ export const saveMessageStyle = (message) => ({
   color: message === 'Saved' ? 'var(--success)' : 'var(--danger)',
   fontSize: 11,
   fontWeight: 700,
-});
-
-export const saveButtonStyle = (disabled) => ({
-  background: disabled ? 'rgba(79, 207, 196, 0.35)' : 'var(--accent-active)',
-  border: 'none',
-  borderRadius: 6,
-  color: 'var(--myth-ink)',
-  cursor: disabled ? 'default' : 'pointer',
-  fontSize: 12,
-  fontWeight: 800,
-  minWidth: 76,
-  padding: '8px 13px',
 });
 
 export const labelStyle = {

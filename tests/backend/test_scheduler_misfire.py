@@ -67,6 +67,37 @@ def test_last_slot_from_a_monday_morning_boot_is_friday():
         2026, 7, 3, 18, 0, tzinfo=NY)
 
 
+# ---- next_weekday_slot (pure) — the mirror, for the scan-date stamp ----
+def test_next_slot_is_today_before_todays_slot():
+    assert scheduler_mod.next_weekday_slot(BEFORE_SLOT, 18, 0) == datetime(
+        2026, 7, 2, 18, 0, tzinfo=NY)
+
+
+def test_next_slot_is_tomorrow_once_todays_slot_has_passed():
+    # Exactly AT the slot counts as passed: a scan stamped 18:00:00 is that slot's.
+    at_slot = datetime(2026, 7, 2, 18, 0, tzinfo=NY)
+    assert scheduler_mod.next_weekday_slot(at_slot, 18, 0) == datetime(
+        2026, 7, 3, 18, 0, tzinfo=NY)
+    assert scheduler_mod.next_weekday_slot(AFTER_SLOT, 18, 0) == datetime(
+        2026, 7, 3, 18, 0, tzinfo=NY)
+
+
+def test_next_slot_after_a_friday_or_weekend_write_is_monday():
+    friday_night = datetime(2026, 7, 3, 21, 30, tzinfo=NY)
+    for when in (friday_night, SATURDAY, SUNDAY):
+        assert scheduler_mod.next_weekday_slot(when, 18, 0) == datetime(
+            2026, 7, 6, 18, 0, tzinfo=NY)
+
+
+def test_next_slot_keeps_new_york_wall_clock_across_dst():
+    # US daylight saving ends Sun 2026-11-01: Friday 30 Oct's 17:00 is EDT
+    # (21:00 UTC), Monday 2 Nov's is EST (22:00 UTC).
+    friday = datetime(2026, 10, 30, 17, 20, tzinfo=NY)
+    slot = scheduler_mod.next_weekday_slot(friday, 17, 0)
+    assert (slot.hour, slot.minute, slot.date().isoformat()) == (17, 0, "2026-11-02")
+    assert slot.utcoffset().total_seconds() == -5 * 3600
+
+
 # ---- _missed_last_weekday_slot (pure decision) ----
 def test_missed_when_no_run_was_ever_recorded():
     assert scheduler_mod._missed_last_weekday_slot(AFTER_SLOT, [], 18, 0) is True

@@ -7,8 +7,6 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
   const [setups, setSetups] = useState([]);
   const [stats, setStats] = useState(null);
   const [health, setHealth] = useState(null);
-  const [calibration, setCalibration] = useState(null);
-  const [equityCurve, setEquityCurve] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [updateMsg, setUpdateMsg] = useState(null);
@@ -22,18 +20,14 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
       if (typeFilter !== 'ALL') params.set('setup_type', typeFilter);
       if (sourceParam) params.set('source', sourceParam);
 
-      const [setupsRes, statsRes, healthRes, calRes, eqRes] = await Promise.all([
+      const [setupsRes, statsRes, healthRes] = await Promise.all([
         fetch(`${API_BASE}/archive/episodes?${params.toString()}`),
         fetch(`${API_BASE}/archive/stats`),
         fetch(`${API_BASE}/archive/health`),
-        fetch(`${API_BASE}/archive/calibration`),
-        fetch(`${API_BASE}/archive/calibration/equity-curve`),
       ]);
       if (setupsRes.ok) setSetups(await setupsRes.json());
       if (statsRes.ok) setStats(await statsRes.json());
       if (healthRes.ok) setHealth(await healthRes.json());
-      if (calRes.ok) setCalibration(await calRes.json());
-      if (eqRes.ok) setEquityCurve(await eqRes.json());
     } catch (error) {
       console.error('Failed to fetch archive data:', error);
     } finally {
@@ -126,8 +120,6 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
   }, []);
 
   return {
-    calibration,
-    equityCurve,
     fetchAll,
     health,
     loading,

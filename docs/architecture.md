@@ -162,7 +162,7 @@ Outside the domains:
 
 | Path | Owns |
 |---|---|
-| `app/` | `App.jsx` (the route table), the shell (`components/`), appearance and UI scale. |
+| `app/` | `App.jsx` (the route table), the shell (`components/`), appearance and UI scale, the top nav's last-place memory (`navigation/lastPlace.js`), and the keyboard key list (`keyboard/keyMap.js`, what the "?" sheet shows). |
 | `features/<name>/` | One screen each: `home`, `screener`, `watchlist`, `journal` (the `/dashboard` route), `options`, `portfolio`, `archive`, `calibration`, plus `ibkr` (status and controls used by the shell). Each has a `<Name>Route.jsx` where it is a page, and `components/`, `hooks/`, `model/` (pure logic) and `presentation/` (labels and formatting) as needed. |
 | `shared/` | Only code used by unrelated features: `charts/`, `components/`, `formatting/` (the one null guard `fx` is in `shared/formatting/format.js`; `portfolioFormat.js`, the portfolio money format the journal also uses), `hooks/` (`screenerStore.js`, the scan data cache the screener, home and watchlist read), `navigation/`, `presentation/`, `setup/` (the setup card, lens and chip catalog `tagCatalog.js`). |
 | `api/base.js` | `API_BASE`, the one backend URL. |

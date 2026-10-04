@@ -70,15 +70,13 @@ class ErrorBoundary extends React.Component {
               : this.state.error?.message || 'An unexpected error occurred.'}
           </div>
           <button
+            type="button"
+            className="btn"
             onClick={() => {
               if (staleChunk) window.location.reload();
               else this.setState({ hasError: false, error: null });
             }}
-            style={{
-              marginTop: '1rem', padding: '6px 16px', borderRadius: '6px',
-              border: '1px solid #3f3f52', background: '#2b2b36',
-              color: '#f0f0f0', cursor: 'pointer', fontSize: '12px'
-            }}
+            style={{ marginTop: '1rem' }}
           >
             {staleChunk ? 'Reload' : 'Retry'}
           </button>

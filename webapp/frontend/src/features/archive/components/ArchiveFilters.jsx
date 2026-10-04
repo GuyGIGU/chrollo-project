@@ -95,6 +95,7 @@ function SortControl({ filters, setAndReset }) {
         {filters.sortDir === 'desc' ? 'Down' : 'Up'}
       </button>
       <input
+        data-page-search
         type="text"
         placeholder="Search ticker..."
         value={filters.searchTerm}

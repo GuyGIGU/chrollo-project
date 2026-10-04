@@ -1,19 +1,18 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import useArchiveAddSetup from '../hooks/useArchiveAddSetup';
+import useArchiveAnalytics from '../hooks/useArchiveAnalytics';
 import useArchiveChart from '../hooks/useArchiveChart';
 import useArchiveData from '../hooks/useArchiveData';
 import useArchiveGrid from '../hooks/useArchiveGrid';
 import useArchiveMaintenance from '../hooks/useArchiveMaintenance';
+import { readAnalyticsOpen, writeAnalyticsOpen } from '../model/analyticsFold';
 import AddSetupModal from './AddSetupModal';
-import ArchiveCalibrationPanels from './ArchiveCalibrationPanels';
-import ArchiveEquityCurve from './ArchiveEquityCurve';
+import ArchiveAnalytics from './ArchiveAnalytics';
 import ArchiveFilters from './ArchiveFilters';
 import ArchiveHeader from './ArchiveHeader';
-import ArchiveReweightingStrip from './ArchiveReweightingStrip';
 import ArchiveSummary from './ArchiveSummary';
 import ArchiveTable from './ArchiveTable';
-import ArchiveTierCards from './ArchiveTierCards';
 import { ArchiveAnalysisModal } from './ArchiveMaintenanceModals';
 import { NARRATIVE_WIRE_FIELDS } from '../../../shared/setup/narrativeRead';
 import ScreenerModal from '../../../shared/setup/ScreenerModal';
@@ -28,15 +27,27 @@ export default function ArchiveTab() {
   const [sourceFilter, setSourceFilter] = useState('curated');
   const [sortBy, setSortBy] = useState('scan_date');
   const [sortDir, setSortDir] = useState('desc');
+  const [analyticsOpen, setAnalyticsOpen] = useState(readAnalyticsOpen);
   const data = useArchiveData({ sortBy, sortDir, sourceFilter, tierFilter, typeFilter });
+  const analytics = useArchiveAnalytics(analyticsOpen);
   const maintenance = useArchiveMaintenance();
-  const addSetup = useArchiveAddSetup(data.fetchAll);
+  // Add Setup computes forward returns server-side, so the analytics can move too.
+  const addSetup = useArchiveAddSetup(async () => {
+    await data.fetchAll();
+    await analytics.refresh();
+  });
   const grid = useArchiveGrid(data.setups);
   const chart = useArchiveChart();
 
-  if (data.loading && data.setups.length === 0) {
-    return <div style={{ color: 'var(--text-muted)', padding: '2rem', textAlign: 'center' }}>Loading archive...</div>;
-  }
+  const toggleAnalytics = (open) => {
+    setAnalyticsOpen(open);
+    writeAnalyticsOpen(open);
+  };
+
+  const updateReturns = async () => {
+    await data.updateReturns();
+    await analytics.refresh();
+  };
 
   const filters = {
     searchTerm: grid.searchTerm,
@@ -74,20 +85,17 @@ export default function ArchiveTab() {
         onAddSetup={addSetup.openModal}
         onOpenAnalysis={maintenance.openAnalysis}
         onOpenHistory={onOpenScanRegistry}
-        onUpdateReturns={data.updateReturns}
+        onUpdateReturns={updateReturns}
         stats={data.stats}
         updateMsg={data.updateMsg}
         updating={data.updating}
       />
       <ArchiveModals addSetup={addSetup} maintenance={maintenance} />
-      <ArchiveTierCards performance={data.calibration?.tier_performance} />
-      <ArchiveCalibrationPanels calibration={data.calibration} />
-      <ArchiveReweightingStrip data={data.calibration?.suggested_weights} basis={data.calibration?.weights_basis} />
-      {data.equityCurve && <ArchiveEquityCurve data={data.equityCurve} />}
       <ArchiveFilters filters={filters} resetPage={grid.resetPage} setFilters={setFilters} />
       <ArchiveTable
         currentPage={grid.currentPage}
         filteredSetups={grid.filteredSetups}
+        loading={data.loading && data.setups.length === 0}
         onLabelChange={data.updateSetupLabel}
         onOpenChart={chart.openChart}
         onReviewReasonChange={data.markReviewReason}
@@ -99,6 +107,7 @@ export default function ArchiveTab() {
         sortDir={sortDir}
         totalPages={grid.totalPages}
       />
+      <ArchiveAnalytics analytics={analytics} onToggle={toggleAnalytics} open={analyticsOpen} />
     </div>
   );
 }
@@ -157,8 +166,6 @@ function ChartViewer({ chart }) {
       data={merged}
       footer={<ArchiveSummary setup={chart.chartSetup} linkedTrades={chart.linkedTrades} />}
       onClose={chart.closeChart}
-      onNext={() => {}}
-      onPrev={() => {}}
       scanIdentity={scanIdentity}
       ticker={chart.chartTicker}
     />

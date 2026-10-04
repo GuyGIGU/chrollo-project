@@ -6,6 +6,7 @@ import { healthStateMeta } from './healthStateData';
 import { tierColor, signColor } from '../presentation/theme';
 import { fx, fmtSignedPctFrac } from '../formatting/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from './screenerCardData';
+import { dialogOpenOutside, hasCommandModifier } from '../navigation/keyboardGuard';
 
 export function WatchlistButton({ active, onToggle }) {
   return (
@@ -214,6 +215,7 @@ const drillButtonStyle = {
 const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, liked, onToggleLike, onClick, onDrilldown }) => (
   <div
     className="screener-card"
+    data-ticker={ticker}
     role="button"
     tabIndex={0}
     aria-label={`Open ${ticker} chart, tier ${data.tier}. Press W to ${watchlisted ? 'remove from' : 'save to'} watchlist, L to ${liked ? 'unlike' : 'like'}.`}
@@ -225,6 +227,12 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, l
       // keep the per-card engagement a like depends on — a deliberate
       // alternative to mass-marking a whole page at once.
       if (event.target !== event.currentTarget) return;
+      // Stand down under the big chart (it keeps its own W/L for the chart on
+      // screen; this card stays focused behind it) and for Ctrl+L and the like.
+      if (hasCommandModifier(event) || dialogOpenOutside(event.currentTarget)) return;
+      // A held key does not repeat, as in the lens: holding W must not flicker the
+      // star and send one watchlist write per auto-repeat.
+      if (event.repeat) return;
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         onClick(ticker);

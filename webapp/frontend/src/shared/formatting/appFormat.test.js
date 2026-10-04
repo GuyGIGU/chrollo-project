@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildHealthPill, buildScanStatusText, failingChecks, scanStatusColor } from './appFormat.js';
+import {
+  buildHealthPill, buildScanStatusText, failingChecks, scanIsStale, scanStatusColor,
+} from './appFormat.js';
 import {
   RUN_STATUS_LABELS, RUN_VERDICT_LABELS, RUN_VERDICT_TONES,
 } from '../presentation/wireVocabulary.js';
@@ -198,4 +200,50 @@ test('the registry leads with the verdict on both of its surfaces', () => {
   assert.ok(src.includes('verdict={run.verdict}'));
   assert.ok(src.includes('verdict={health?.verdict}'));
   assert.ok(src.includes('RUN_VERDICT_LABELS[verdict]'));
+});
+
+// ------------------------------------------------------------- freshness --
+//
+// The ONE freshness rule (Home Action Center + the screener's scan-date stamp).
+// WHEN a scan goes stale is the backend's verdict (the payload's stale_after);
+// this only compares it with the clock, so it holds in any time zone.
+
+// Stale from the due instant on, not a moment before.
+test('a scan is stale once its stale_after has passed, not before', () => {
+  const due = '2026-10-05T23:00:00+00:00';
+  assert.equal(scanIsStale(due, new Date('2026-10-05T22:59:00Z')), false);
+  assert.equal(scanIsStale(due, new Date('2026-10-05T23:00:00Z')), true);
+  assert.equal(scanIsStale(due, new Date('2026-10-06T09:00:00Z')), true);
+});
+
+// The weekend no longer reads stale: a Friday scan is due again only after
+// Monday's slot (the calendar-day rule this replaced said stale on Sunday).
+test('a Friday scan read on Sunday is not stale', () => {
+  assert.equal(scanIsStale('2026-10-05T23:00:00+00:00', new Date('2026-10-04T12:00:00Z')), false);
+});
+
+// No verdict (an older backend, or nothing scanned), or one that does not parse,
+// claims nothing.
+test('a missing or unparseable stale_after is never stale', () => {
+  assert.equal(scanIsStale(null), false);
+  assert.equal(scanIsStale(undefined), false);
+  assert.equal(scanIsStale('not a date'), false);
+});
+
+// The drift pin: both surfaces reach for the shared rule on the backend's
+// stale_after, and neither mints a private calendar-day comparison of its own.
+// It pins the CALL, not the words: ActionCenter has no test of its own, and a
+// comment there already says stale_after, so scanIsStale(screenerData?.scanned_at)
+// (always in the past: Home amber on every scan) would pass a words-only pin.
+test('Home and the screener stamp share the one freshness rule', () => {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const files = [
+    [['features', 'home', 'components', 'ActionCenter.jsx'], 'scanIsStale(screenerData?.stale_after)'],
+    [['features', 'screener', 'presentation', 'scanDateStamp.js'], 'scanIsStale(payload?.stale_after'],
+  ];
+  for (const [parts, call] of files) {
+    const src = fs.readFileSync(path.join(here, '..', '..', ...parts), 'utf8');
+    assert.ok(src.includes(call), `${parts.join('/')} no longer calls ${call}`);
+    assert.ok(!src.includes('toDateString'), parts.join('/'));
+  }
 });

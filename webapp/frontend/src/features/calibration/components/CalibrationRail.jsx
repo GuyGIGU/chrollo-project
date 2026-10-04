@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import InstrumentTable from '../../../shared/components/InstrumentTable';
 import CalibrationRailHeader from './CalibrationRailHeader';
 import {
+  adjacentSetupRow,
   buildSetupRows,
   filterSetupRows,
   pageCount,
@@ -10,6 +11,8 @@ import {
   setupDateLabel,
   sortSetupRows,
 } from '../model/calibrationTables';
+import { isMarkingKeystroke } from '../model/calibrationHotkeys';
+import { dialogOpen } from '../../../shared/navigation/keyboardGuard';
 
 // One-click engine test per setup: priority-ordered evidence, not a bare
 // pass/fail token — Box/R/S first (the top priority), then LPS, then the
@@ -102,10 +105,51 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
   const activeKey = activeTicker && activeAsOf ? `${activeTicker}|${activeAsOf}` : null;
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const navRef = useRef(null);
+  navRef.current = { activeKey, onPick };
   useEffect(() => {
     const holding = activeKey ? pageOfKey(rowsRef.current, activeKey) : null;
     if (holding != null) setPage(holding);
   }, [activeKey]);
+
+  // ↑/↓ walk the list as shown (search + sort applied) and LOAD the setup exactly like a row click; the marking keys'
+  // own guard, so typing in the lookup or this search never moves it, nor does a key pressed while a dialog (the
+  // unsaved-marks confirm) is up. The page follows via the effect above.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      if (!isMarkingKeystroke(e) || dialogOpen()) return;
+      const { activeKey: key, onPick: pick } = navRef.current;
+      const row = adjacentSetupRow(rowsRef.current, key, e.key === 'ArrowDown' ? 1 : -1);
+      if (!row) return;
+      e.preventDefault();
+      const focused = document.activeElement;
+      rowFocusRef.current = focused?.tagName === 'TR' && Boolean(railRef.current?.contains(focused));
+      pick(row.ticker, row.asOf);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Keep the loaded setup's row in the list's view as ↑/↓ (or a lookup) moves it.
+  // A clicked row keeps keyboard focus, so focus moves WITH the loaded row: left on
+  // the old row, Enter/Space there would reload the setup he just stepped away from
+  // (review 2026-10-03). Only a focused row moves; the search box keeps its focus.
+  // Across a page turn the row he pressed ↑/↓ on unmounts and focus falls to
+  // <body>; rowFocusRef (set by that keypress) carries it to the new row anyway.
+  const railRef = useRef(null);
+  const rowFocusRef = useRef(false);
+  useEffect(() => {
+    const activeRow = railRef.current?.querySelector('tr.active-row');
+    activeRow?.scrollIntoView({ block: 'nearest' });
+    const focused = document.activeElement;
+    const rowHeld = focused?.tagName === 'TR' && railRef.current.contains(focused);
+    const rowLost = rowFocusRef.current && focused === document.body;
+    if (activeRow && focused !== activeRow && (rowHeld || rowLost)) {
+      activeRow.focus({ preventScroll: true });
+    }
+    if (activeRow) rowFocusRef.current = false;
+  }, [activeKey, current]);
 
   const isActive = (row) => row.ticker === activeTicker && row.asOf === activeAsOf;
 
@@ -226,7 +270,7 @@ function CalibrationRail({ setups, activeTicker, activeAsOf, onPick,
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%' }}>
+    <div ref={railRef} style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '100%' }}>
       <CalibrationRailHeader
         shown={rows.length}
         total={allRows.length}

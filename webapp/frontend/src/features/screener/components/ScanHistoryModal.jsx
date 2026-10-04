@@ -23,7 +23,7 @@ export default function ScanHistoryModal({ open, runs, notice, loading, health, 
     <Modal onClose={onClose} overlayStyle={backdropStyle} contentClassName="glass-panel" contentStyle={panelStyle} contentProps={{ 'aria-label': 'Scan runs' }}>
       <div style={headerStyle}>
         <div style={{ fontWeight: 700 }}>🕒 Scan runs</div>
-        <button onClick={onClose} style={closeButtonStyle} aria-label="Close">✕</button>
+        <button type="button" className="btn btn-icon" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
       <div style={sectionLabelStyle}>What is wrong right now</div>
@@ -143,7 +143,6 @@ const noticeStyle = {
   color: 'var(--warning)', fontSize: '12px', lineHeight: 1.45, marginBottom: '14px',
 };
 const mutedTextStyle = { color: 'var(--text-muted)', fontSize: '12px' };
-const closeButtonStyle = { background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' };
 const tableStyle = { width: '100%', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace" };
 const leftCellStyle = { textAlign: 'left', padding: '4px 6px' };
 const rightCellStyle = { textAlign: 'right', padding: '4px 6px' };

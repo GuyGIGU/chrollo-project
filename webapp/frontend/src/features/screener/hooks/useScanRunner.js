@@ -5,7 +5,9 @@ import {
   activeStreamUrl,
   attachStreamUrl,
   cancelStreamUrl,
+  endJob,
   reattachTarget,
+  resultsStale,
   startStreamUrl,
 } from '../api/scanStream.js';
 
@@ -15,6 +17,7 @@ function useScanRunner(fetchScreener, universe) {
   const [scanProgress, setScanProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState('');
   const [scanError, setScanError] = useState(null);
+  const [awaitingResults, setAwaitingResults] = useState(false);
   const [marketDataStatus, setMarketDataStatus] = useState(null);
   const scanSourceRef = useRef(null);
   const lastJobRef = useRef('evaluation');
@@ -56,27 +59,30 @@ function useScanRunner(fetchScreener, universe) {
     let jobFinished = false;
     let jobHadError = false;
 
+    // awaitingResults: up in the tick that ends the job; down only once the store holds the new scan.
+    const endThisJob = (refetch) => endJob(refetch, {
+      holdDim: setAwaitingResults,
+      clearJob: () => {
+        setActiveJob(null);
+        setScanProgress(0);
+        setScanPhase('');
+      },
+      reloadStatus: fetchMarketDataStatus,
+      reloadResults: () => fetchScreener(universe),
+    });
+
     const revealResults = async () => {
       if (resultsRevealed || jobHadError) return;
       resultsRevealed = true;
-      setActiveJob(null);
-      setScanProgress(0);
-      setScanPhase('');
-      await fetchMarketDataStatus();
-      await fetchScreener(universe);
+      await endThisJob(true);
     };
 
     const finishJob = async () => {
       if (jobFinished) return;
       jobFinished = true;
       closeScanSource(scanSourceRef);
-      setActiveJob(null);
-      setScanProgress(0);
-      setScanPhase('');
-      await fetchMarketDataStatus();
-      if (job === 'evaluation' && !resultsRevealed && !jobHadError) {
-        await fetchScreener(universe);
-      }
+      const refetch = job === 'evaluation' && !resultsRevealed && !jobHadError;
+      await endThisJob(refetch);
     };
 
     eventSource.onmessage = async (event) => {
@@ -172,6 +178,7 @@ function useScanRunner(fetchScreener, universe) {
     isScanning: activeJob != null,
     isEvaluating: activeJob === 'evaluation',
     isDownloading: activeJob === 'download',
+    resultsStale: resultsStale(activeJob, awaitingResults),
     scanLogs,
     scanProgress,
     scanPhase,

@@ -8,10 +8,14 @@
 // screens are 2560x1440 and 1920x1080, both at Windows 100%, and one stored
 // value served both. A manual choice is now remembered per screen
 // (`chrollo:ui-scale@2560x1440`); a screen with no choice runs auto-fit against
-// its own viewport, live, and nothing auto is ever saved. The grid itself never
-// shows more than MAX_CARD_COLS cards per row (ScreenerGrid / HealthBoard /
-// .wl-card-grid cap their tracks at a third of the width), so a wide screen
-// gets three BIGGER cards, never a fourth or fifth.
+// its own viewport, live, and nothing auto is ever saved.
+//
+// ONE CARD SIZE ON EVERY SCREEN (operator 2026-10-03, after a day of three
+// 831px cards at 2560: "I want them to retain the original size so the scaling
+// looks the same, with the extra monitor space I could just ... see more of the
+// website"). The card keeps its 1920 size (~610-620px) and a wider screen fits
+// MORE of them: three per row at 1920, four at 2560. The 2026-10-02 three-card
+// ceiling is gone; it bought a fourth card's room back as a bigger card.
 //
 // The auto-fit heuristic mirrors the real layout. Keep these constants in sync
 // with ScreenerGrid.jsx (the full-bleed grid wrapper's side padding + the card
@@ -35,11 +39,15 @@ export const DEFAULT_SCALE = 1;
 // 86px app rail is gone — it became a horizontal top nav that costs height, not
 // width — so it no longer belongs in this budget.
 export const GRID_CHROME_PX = 32 + 6;
-export const CARD_MIN_PX = 480; // mirrored by ScreenerGrid/HealthBoard gridStyle and .wl-card-grid
+// 590 = the 1920 screen's card less some slack: three fit the screener's 1882px
+// grid (618px cards) and the Watchlist's 1850px grid (607px), four fit both at
+// 2560 (2522px -> 620px, 2490px -> 612px). The slack (52px on the narrower
+// Watchlist grid) keeps the third card when a scrollbar or a side panel eats
+// a little width. 1fr stretches the cards to fill the row, so between his two
+// screens (a window not maximized) a card can run up to ~790px before the next
+// column opens.
+export const CARD_MIN_PX = 590; // mirrored by ScreenerGrid/HealthBoard gridStyle and .wl-card-grid
 export const CARD_GAP_PX = 14;  // ScreenerGrid gap
-// "The clean 3 charts per row rule" (operator 2026-10-02) — the grids cap their
-// tracks at a third of the width, so this is a ceiling, never a target.
-export const MAX_CARD_COLS = 3;
 
 // Snap an arbitrary value to the nearest allowed step (defensive against a
 // stale/garbage stored value).
@@ -58,13 +66,14 @@ export function clampScale(value) {
 export function screenerColumnsAt(scale, viewportWidth) {
   const internalWidth = viewportWidth / scale - GRID_CHROME_PX;
   const cols = Math.floor((internalWidth + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX));
-  return Math.min(MAX_CARD_COLS, Math.max(1, cols));
+  return Math.max(1, cols);
 }
 
 // "Smart" pick: the least shrink (largest scale <= 1) that still reaches the most
 // screener columns achievable without shrinking past the smallest step. Density
 // is a shrink, so auto-fit never enlarges past 1 — zooming in is a manual call.
-// With the three-card ceiling this is 100% on any screen at least ~1506px wide.
+// On both of his screens this is 100%: no step down to 85% buys another
+// 590px card at 1920 or at 2560.
 export function computeAutoFitScale(viewportWidth) {
   const candidates = SCALE_STEPS.filter((s) => s <= 1);
   const maxCols = Math.max(...candidates.map((s) => screenerColumnsAt(s, viewportWidth)));

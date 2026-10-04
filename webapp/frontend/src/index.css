@@ -122,10 +122,12 @@
      the shape a property of the SCREEN — ~281px in a 618px card at 1920 but
      capped at 300px in an 831px card at 2560, so the bigger monitor drew every
      setup flatter. 1.9:1 is "slightly more a cube like" (operator 2026-09-02)
-     than the ~2.2:1 well it replaces: 618px card -> 324px well at 1920, 831px ->
-     436px at 2560. A ratio is unitless, so --ui-scale's `zoom` grows the well
+     than the ~2.2:1 well it replaces: a 618px card -> a 324px well at 1920.
+     Since 2026-10-03 the card itself is the same size on both screens (four of
+     620px at 2560, where 2026-10-02 drew three of 831px with 436px wells), so the
+     well is too. A ratio is unitless, so --ui-scale's `zoom` grows the well
      with its card and needs no correction. The 200px floor is a backstop for a
-     card under ~382px wide; it never binds at the 480px card minimum. Used by
+     card under ~382px wide; it never binds at the 590px card minimum. Used by
      ScreenerCard (firing + health) and WatchlistCardGrid's clean card. */
   --card-chart-aspect: 1.9;
   --card-chart-min-h: 200px;
@@ -406,6 +408,182 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 1.5rem 2rem;
+}
+
+/* BUTTONS — the one button kit (DESIGN.md §5 Buttons). A bare `.btn` is the
+   standard secondary: hairline, transparent, main ink, 30px. Variants:
+   .btn-primary (THE action), .btn-danger (destructive confirm, dark ink; white
+   measures 3.18:1), .btn-sm (dense rows), .btn-icon (30px square glyph, every
+   dialog's ✕). .btn-primary/.btn-danger stay STANDALONE rules:
+   inkContrast.test.js reads them. NOTE: `.calibration-page button` (0,1,1)
+   outranks a bare `.btn` (0,1,0); inside that page only the pager (scoped
+   `.pager .btn`) uses the kit. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--glow-active);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn-primary {
+  background: var(--accent-active);
+  border-color: var(--accent-active);
+  color: var(--myth-ink);
+  font-weight: 700;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--myth-bright);
+  border-color: var(--myth-bright);
+}
+/* A busy/blocked primary greys out instead of fading the mythril. */
+.btn-primary:disabled {
+  background: var(--bg-hover);
+  border-color: var(--bg-hover);
+  color: var(--text-muted);
+  opacity: 1;
+}
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--myth-ink);
+  font-weight: 700;
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  filter: brightness(1.1);
+}
+.btn-sm {
+  min-height: 24px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+.btn-icon {
+  width: 30px;
+  padding: 0;
+  font-size: 16px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.btn-icon:hover:not(:disabled) { color: var(--text-main); }
+
+/* LENS ACTIONS — the big chart's top bar (shared/setup/ScreenerModalToolbar.jsx).
+   The star and heart are .btn-icon toggles; pressed, they wear the gold the
+   card's like already wears (the operator's own marks, never a tier hue), and
+   keep it on hover: `.btn.lens-toggle[…]` (0,3,0) comes after the kit's hover
+   rules, so it wins the tie. ↗ TV is an <a> in the kit, so it drops the link
+   underline. The "12 / 37" counter is quiet mono ink. */
+.btn.lens-toggle[aria-pressed="true"] {
+  color: var(--accent-yellow);
+  border-color: var(--accent-yellow);
+  background: rgba(212, 175, 55, 0.16);
+}
+a.btn { text-decoration: none; }
+.lens-position {
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  min-width: 9ch;   /* "999 / 999": a digit more or less never shifts the star, heart and TV */
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* PAGER — shared/components/Pager.jsx. Seven fixed slots, each at least one
+   two-digit button wide (the gap too), so the pager never changes width and
+   Next never moves (to 99 pages). The current page is DESIGN.md's selected
+   state (mythril soft fill, mythril ink), never the solid primary fill. Scoped
+   `.pager .btn` (0,2,0) so the calibration page's `button` rule cannot restyle it. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.pager .btn {
+  min-width: 34px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.pager .btn[aria-current="page"] {
+  background: var(--myth-soft);
+  border-color: var(--accent-active);
+  color: var(--myth);
+  font-weight: 700;
+}
+.pager-gap {
+  min-width: 34px;
+  text-align: center;
+  color: var(--text-faint);
+}
+.pager-compact {
+  flex: 0 0 auto;
+  gap: 4px;
+}
+.pager-compact .btn {
+  min-width: 0;
+  min-height: 24px;
+  padding: 0 8px;
+}
+.pager-count {
+  min-width: 34px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* SKELETON — shared/components/Skeleton.jsx, promoted from Home's zone
+   skeleton: a placeholder the shape of what is coming; never a bare
+   "Loading…" line in a pane that will hold content. .skeleton-card is the card
+   grid's chart-well shape. */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skeleton-block {
+  border-radius: var(--radius-xs);
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.09), rgba(255,255,255,0.04));
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-row { height: 16px; }
+.skeleton-card {
+  aspect-ratio: var(--card-chart-aspect);
+  min-height: var(--card-chart-min-h);
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block { animation: none; }
 }
 
 /* STATS ROW — calm horizontal strip */
@@ -1141,6 +1319,19 @@ td {
   color: var(--accent-yellow);
 }
 
+/* The lens's chart band (W/M cubes + the daily pane) HOLDS ITS 1920 SIZE
+   (operator 2026-10-03): 567px is the band on his 1920x1080 screen, a 945px
+   Chrome viewport where the read panel's min(32vh, 300px) leaves the band
+   exactly this. Below that height the band is what the read panel leaves, as
+   before; above it (the 2560 screen) the band stops and the read panel below
+   takes every extra px — "make that block stretch more down so we could see
+   more". Without the cap the 2560 screen drew the daily pane 1318x926 against
+   1318x566, every setup 64% taller than on the other monitor. */
+.screener-modal-chart-row {
+  height: calc(100% - min(32vh, 300px));
+  max-height: 567px;
+}
+
 .screener-modal-chart-shell {
   background: #171922;
   border-bottom: 1px solid var(--border-color);
@@ -1227,13 +1418,17 @@ td {
    content box even on a maximized-Chrome viewport (~700px), where the previous
    34vh/320px pairing silently clipped: the 320px arm can only be selected above
    a 941px viewport, and the operator's screen is 864 in total. The axis rewrite
-   cut the panel 286 -> 200, so the rest of that give-back goes to the charts. */
+   cut the panel 286 -> 200, so the rest of that give-back goes to the charts.
+   Since 2026-10-03 that budget lives on the band (.screener-modal-chart-row's
+   height), and the panel FILLS whatever the band leaves: the same 300px on the
+   1920 screen, ~660px on the 2560 one, where the band holds its 1920 height. */
 .stock-lens {
+  align-content: start;
   background: #1d202b;
   display: grid;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   gap: 10px;
-  max-height: min(32vh, 300px);
+  min-height: 0;
   overflow-y: auto;
   padding: 12px 14px;
 }
@@ -1449,6 +1644,10 @@ td {
    =================================================================== */
 .screener-card {
   position: relative;
+  /* A card the lens hands back to (ScreenerGrid's landing effect) or the card
+     keys move to scrolls in clear of the scroller's edge, so its lock-on lift
+     and glow are not clipped. */
+  scroll-margin: 16px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.035),
     0 1px 2px rgba(0, 0, 0, 0.45);
@@ -1530,6 +1729,15 @@ td {
   .screener-card:focus-within { transform: none; }
 }
 
+/* Evaluate is re-reading the scan (operator 2026-10-03): the results on screen
+   are the last finished scan, kept in place (never blanked) and dimmed until the
+   new ones are fetched. The same element carries `inert`, so a dimmed card
+   cannot be opened, starred or liked. Opacity, not a grayscale filter: a filter
+   would make the wrapper the containing block for the position:fixed HoverGlass
+   / Weekly Review inside the watchlist panel. No transition: the dim lands on
+   the click. */
+.screener-stale { opacity: 0.45; }
+
 /* ===================================================================
    SCREENER — COMMAND BAND
    The three stacked control rows (universe / count + data-ops / filter
@@ -1563,6 +1771,24 @@ td {
 .screener-command-spacer {
   flex: 1 1 16px;
   min-width: 12px;
+}
+/* The scan-date stamp (ScanDateStamp.jsx): which close the cards on screen
+   read. First after the spacer, so its width change (" · stale") only shrinks
+   the spacer. Same padding in both states. */
+.screener-scan-date {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* A newer scan was due and is not on screen: the Home Action Center's rule
+   (appFormat.scanIsStale on the payload's stale_after). Caution, not alarm: never --danger. */
+.screener-scan-date.is-stale {
+  color: var(--warning);
+  background: var(--warning-bg);
 }
 
 /* ===================================================================
@@ -1855,20 +2081,6 @@ td {
   flex: 1 1 auto;
   min-width: 80px;
 }
-.cal-rail-pager {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.calibration-page .cal-rail-pager button { padding: 2px 8px; }
-.cal-rail-page {
-  min-width: 34px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
 /* One-click engine test control on a rail row: a quiet ghost at rest that locks
    on with mythril on hover (interactivity IS scarce, so the ONE actionable
    affordance per row earns it); the graded result renders as an inst-chip that
@@ -2024,6 +2236,10 @@ td {
        inline style, and a stylesheet rule loses to it. */
     flex: 0 0 auto !important;
     flex-direction: column;
+    /* ...and drops the desktop height budget (the band's 1920 cap) for the
+       same reason: sized by content. */
+    height: auto;
+    max-height: none;
   }
 
   .timeframe-mini-col {
@@ -2042,8 +2258,10 @@ td {
     min-height: 420px !important;
   }
 
+  /* Stacked, the panel is sized by its content and the body scrolls to it —
+     it must not shrink to fit (the desktop panel fills what the band leaves). */
   .stock-lens {
-    max-height: none;
+    flex: 0 0 auto;
   }
 
   .stock-lens-bottom {
@@ -2610,44 +2828,6 @@ td.cell-editable { overflow: hidden; }
   font-size: 12px;
 }
 
-.pager-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.pager-actions span {
-  color: var(--text-faint);
-  padding: 0 0.35rem;
-}
-
-.pager-actions button {
-  min-width: 58px;
-  height: 30px;
-  padding: 0 0.7rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.pager-actions button:hover:not(:disabled) {
-  color: var(--text-main);
-  border-color: var(--border-strong);
-  background: rgba(255, 255, 255, 0.055);
-}
-
-.pager-actions button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
 /* Two-line cell — top number bold, "→ value" muted below */
 .cell-stack { display: flex; flex-direction: column; gap: 2px; line-height: 1.2; }
 .cell-stack .secondary {
@@ -2786,21 +2966,7 @@ td.cell-editable { overflow: hidden; }
 .home-zone-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1; min-height: 0; }
 .home-zone-msg { color: var(--text-muted); font-size: 13px; padding: 6px 0; }
 
-/* Skeletons match the zone shape so nothing reflows as data lands. */
-.home-skeleton { display: flex; flex-direction: column; gap: 8px; }
-.home-skeleton-row {
-  height: 16px;
-  border-radius: var(--radius-xs);
-  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.09), rgba(255,255,255,0.04));
-  background-size: 200% 100%;
-  animation: home-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes home-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .home-skeleton-row,
   .scan-pulse-dot { animation: none; }
 }
 
@@ -3092,10 +3258,11 @@ td.cell-editable { overflow: hidden; }
 /* ===================================================================
    WATCHLIST PAGE — chart surface + card grid
    One selected ticker in three panes (M/W stacked left, big Daily
-   right) with the ticker rail on the right edge, filling one viewport;
-   below the fold, a full screener-style card grid of every starred
-   name. The PAGE scrolls vertically; the top block's height is a
-   CONSTANT (one viewport minus the grid head's peek), so starring,
+   right) with the ticker rail on the right edge, filling one viewport up
+   to its 1920 size (1850x805, 2026-10-03); below it, a full
+   screener-style card grid of every starred name. The PAGE scrolls
+   vertically; the top block's height is a CONSTANT (one viewport minus
+   the grid head's peek, capped at 805px), so starring,
    swapping the selected name, or toggling the overlay never moves a
    pane edge — the operator's spatial memory of where the rails sit is
    part of the read.
@@ -3110,14 +3277,24 @@ td.cell-editable { overflow: hidden; }
 }
 
 /* Sized against the page's definite height (NOT vh — vh lies under the
-   --ui-scale zoom): one viewport minus ~the grid head, so the card grid's
-   top edge peeks above the fold as the scroll affordance. */
+   --ui-scale zoom): one viewport minus ~the grid head, so on a screen up to
+   the 1920 one the card grid's top edge peeks above the fold as the scroll
+   affordance.
+   HELD AT ITS 1920 SIZE (operator 2026-10-03, "same goes for the big charts"):
+   1850x805 is this band on his 1920x1080 screen (a 945px Chrome viewport less
+   the 52px nav, the 48px of page padding and the 40px peek; 1920 less 64px of
+   padding and the 6px scrollbar), so on the 2560 screen the D/W/M charts draw
+   every setup at the same size and the card grid rises into view below them —
+   the first row of four, just whole at a 1305px viewport — instead of the
+   charts swelling to 2490x1165. It sits on the left edge the cards share. */
 .wl-top {
   display: grid;
   flex-shrink: 0;
   gap: 8px;
   grid-template-columns: minmax(0, 1fr) 132px;
   height: calc(100% - 40px);
+  max-height: 805px;
+  max-width: 1850px;
   min-height: 480px;
 }
 
@@ -3336,9 +3513,10 @@ td.cell-editable { overflow: hidden; }
   opacity: 0.7;
 }
 
-/* The card-grid zone below the fold: a quiet mono head line (its peek above
-   the fold is the scroll affordance) over the SAME responsive grid the
-   screener uses — as many ~480px cards per row as fit, stretched. */
+/* The card-grid zone below the chart band: a quiet mono head line (on the
+   1920 screen its peek above the fold is the scroll affordance) over the SAME
+   responsive grid the screener uses — as many cards of at least 590px per row
+   as fit, stretched (three at 1920, four at 2560). */
 .wl-grid-zone {
   flex-shrink: 0;
 }
@@ -3362,8 +3540,8 @@ td.cell-editable { overflow: hidden; }
 .wl-card-grid {
   display: grid;
   gap: 14px;
-  /* Same three-card ceiling as ScreenerGrid's gridStyle (uiScale.test.js pins it). */
-  grid-template-columns: repeat(auto-fill, minmax(max(480px, calc((100% - 28px) / 3 - 1px)), 1fr));
+  /* Same card size as ScreenerGrid's gridStyle (uiScale.test.js pins it). */
+  grid-template-columns: repeat(auto-fill, minmax(590px, 1fr));
   padding-bottom: 8px;
 }
 
@@ -3395,4 +3573,74 @@ td.cell-editable { overflow: hidden; }
   flex: 1;
   font-size: 12px;
   justify-content: center;
+}
+
+/* KEYBOARD KEYS — the "?" sheet (app/components/KeyCheatSheet.jsx). Above every
+   other overlay (the lens is z 5000). Section titles are sentence-case muted
+   text, not uppercase eyebrows. Last in the file, after .glass-panel, so the
+   sheet's own padding wins at equal specificity. */
+.key-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(8, 10, 15, 0.78);
+}
+.key-sheet {
+  width: min(560px, 94vw);
+  max-height: 82vh;
+  overflow: auto;
+  padding: 18px;
+}
+.key-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 700;
+}
+.key-sheet-section + .key-sheet-section { margin-top: 14px; }
+.key-sheet-title {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.key-sheet-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 3px 0;
+  color: var(--text-main);
+  font-size: 12px;
+}
+.key-sheet-keys {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.key-cap {
+  min-width: 20px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+.key-sheet-foot {
+  margin: 14px 0 0;
+  color: var(--text-faint);
+  font-size: 11px;
 }

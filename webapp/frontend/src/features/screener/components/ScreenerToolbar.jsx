@@ -2,6 +2,7 @@ import { TagLegend } from '../../../shared/setup/SetupTags';
 import { TAG_CATALOG } from '../../../shared/setup/tagCatalog';
 import UniverseSwitcher from './UniverseSwitcher';
 import Popover from './Popover';
+import ScanDateStamp from './ScanDateStamp';
 import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary';
 
 // The screener command band: the three control rows the toolbar used to stack
@@ -38,8 +39,10 @@ function ScreenerToolbar({
   // universe switch and the data ops stay live so an empty universe can be
   // evaluated into existence. Over the health board the filter cluster is
   // suppressed (hideFilters) — its "N matched" count and tier/tag filters are
-  // firing-grid concepts that would mislead across a full context board.
-  const showFilters = Boolean(screenerData) && !isEvaluating && !hideFilters;
+  // firing-grid concepts that would mislead across a full context board. The
+  // cluster stays up while Evaluate runs, because the dimmed cards below are
+  // still the filtered set and the active pills say which subset they are.
+  const showFilters = Boolean(screenerData) && !hideFilters;
   const advancedCount =
     (filters.setupFilter !== 'ALL' ? 1 : 0) +
     (filters.sortBy !== 'score' ? 1 : 0) +
@@ -71,6 +74,7 @@ function ScreenerToolbar({
           <input
             type="text"
             placeholder="Search ticker..."
+            data-page-search
             value={filters.searchTerm}
             onChange={(event) => {
               filters.setSearchTerm(event.target.value);
@@ -104,6 +108,8 @@ function ScreenerToolbar({
       )}
 
       <span className="screener-command-spacer" />
+
+      <ScanDateStamp screenerData={screenerData} />
 
       {showFilters && (
         <span style={matchedStyle}>{matchedCount} matched</span>

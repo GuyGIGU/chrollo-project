@@ -136,7 +136,16 @@ def get_screener_data(
     identity = payload.get("scan_identity")
     if identity is not None:
         ScanIdentity.model_validate(identity)
-    return {**payload, "universe": uni.key, "status": status, "scanned_at": scanned_at}
+    # stale_after: when this scan stops being the latest (the next New York slot
+    # plus the hang allowance) — the verdict behind the screener's scan-date stamp
+    # and Home's "· stale"; the frontend only compares it with the clock (EC-28).
+    return {
+        **payload,
+        "universe": uni.key,
+        "status": status,
+        "scanned_at": scanned_at,
+        "stale_after": scan_diagnosis.current_scan_stale_after(scanned_at),
+    }
 
 
 _TICKER_RE = re.compile(r"^[A-Z0-9.\-]{1,12}$")

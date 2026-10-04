@@ -253,6 +253,15 @@ export function pageOfKey(rows, key, size = SETUPS_PER_PAGE) {
   return index < 0 ? null : Math.floor(index / size) + 1;
 }
 
+// The row `step` places from the loaded setup in the (filtered, sorted) list: how ↑/↓ walk the rail.
+// Wraps at either end, like the watchlist rail; with no loaded setup in the list, ↓ starts at the top and ↑ at the bottom.
+export function adjacentSetupRow(rows, activeKey, step) {
+  if (!rows?.length) return null;
+  const index = rows.findIndex((row) => row.key === activeKey);
+  if (index < 0) return step > 0 ? rows[0] : rows[rows.length - 1];
+  return rows[(index + step + rows.length) % rows.length];
+}
+
 // The rail's Setup date WITH its year — "13 Apr 26" — so setups a year apart
 // on one symbol never read alike. Non-date strings pass through; empty is the
 // em-dash, like every other formatter in the app.

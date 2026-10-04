@@ -37,7 +37,9 @@ import {
   savedBoxesForFrame,
 } from '../model/calibrationFrame';
 import { HOTKEY_TOOLS, isMarkingKeystroke } from '../model/calibrationHotkeys';
+import { dialogOpen } from '../../../shared/navigation/keyboardGuard';
 import { armLeaveGuard, disarmLeaveGuard } from '../../../shared/navigation/leaveGuard';
+import useDocumentTitle from '../../../shared/hooks/useDocumentTitle';
 
 // The Calibration page (Calibration at Scale, Task 10): pull up ANY ticker at
 // ANY historical as-of date on Chrollo's own data. The chart is the
@@ -233,6 +235,12 @@ function CalibrationTab() {
   // It still never nags on a pristine page — including the very common case of a
   // saved mark auto-loaded for correction and not yet touched.
   const hasUnsavedDraft = !!chartData && draftHasUnsavedWork(marking);
+  // The tab names the frame ON SCREEN (chartData, not the half-typed lookup
+  // inputs) and carries the dot on the SAME condition that arms the leave
+  // guard below, so the dot and the 'Unsaved marks' prompt never disagree.
+  useDocumentTitle('Calibration',
+    chartData ? `${chartData.ticker} ${chartData.as_of_session}` : null,
+    { unsaved: hasUnsavedDraft });
   useEffect(() => {
     if (!hasUnsavedDraft) return undefined;
     const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
@@ -321,11 +329,13 @@ function CalibrationTab() {
 
   // Keyboard loop (skipped while typing in any field): tools b/r/s/x,
   // events c/l/t/o/m/u, Enter saves, Escape disarms, e toggles the engine peek.
+  // It stands down while any dialog is up: Enter on the 'Unsaved marks' confirm
+  // clicks Stay or Leave — it must never also save the draft he chose to drop.
   const keyDeps = useRef({});
   keyDeps.current = { save };
   useEffect(() => {
     const onKey = (e) => {
-      if (!isMarkingKeystroke(e)) return;
+      if (!isMarkingKeystroke(e) || dialogOpen()) return;
       const k = e.key.toLowerCase();
       const tool = HOTKEY_TOOLS[k];
       if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
