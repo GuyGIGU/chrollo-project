@@ -3042,6 +3042,9 @@ td.cell-editable { overflow: hidden; }
 .home-edge-tier-id { font-weight: 800; }
 .home-edge-tier-v { color: var(--text-main); text-align: right; }
 .home-edge-tier-w { color: var(--text-muted); text-align: right; }
+/* His calibration setups: their own line under the tiers, never a tier row. */
+.home-edge-cal { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; border-top: 1px solid var(--border-color); padding-top: 5px; }
+.home-edge-cal b { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-main); }
 .home-edge-foot { color: var(--text-faint); font-size: 10px; margin-top: auto; }
 
 /* ===================================================================

@@ -186,6 +186,7 @@ Rules that go with this layout:
 | Daily observation | One archive row per ticker per scan day per universe. | `core/archive/writer.py` writes it; `setup_archive` table |
 | Episode | A base re-flagged day after day, collapsed into one event. Every statistic should count episodes. | `core/archive/episodes.py` |
 | Outcome | Forward returns, MFE/MAE, trigger, barrier label, filled once a row is old enough. | `core/archive/forward_returns.py`, `core/archive/outcomes.py` |
+| Calibration setup | His drawn setup from the calibration tab, an archived setup too (ruling 2026-10-03): measured like a fire into its own table, read by every study as its own group. | `core/archive/calibration_outcomes.py`; `calibration_outcomes` table |
 | Analysis | The winner fingerprint and signal-edge read. | `python -m core.archive.analyze` (`analyze_features.py`, `analyze_stats.py` and `analyze_report.py` hold its columns, numbers and text) |
 | Backtest statistics | Edge report, null model, in-sample/out-of-sample split; the signal-edge layer (deflated Sharpe, event-study CAR, scaled-exit simulation) that only the `tools/research/backtest_*` harnesses read. Production code, not a scratch area. | `core/backtest/` |
 | Instruments | Census and study scripts that produce evidence. | `tools/research/` |

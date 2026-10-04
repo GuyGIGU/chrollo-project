@@ -244,9 +244,14 @@ separate group because they were chosen for quality: blended into the fires' ave
 flatter the engine, and side by side they show the gap between what the engine finds and what
 he would take. A first instance is the base-length row of the comparison below.
 
-*Status (2026-10-03): the ruling is recorded; the code half is not built.* Today the calibration
-setups live apart from the archive, and none of the archive's studies (its outcomes, its report
-card, its screen) reads them.
+*Status (built 2026-10-04, live once the backend restarts):* each calibration setup is measured
+like a fire, from the trading day before his trigger, with his trigger and with his support as
+the stop's rail, by the nightly outcome job; the report card, the Home edge tile and the Archive
+screen show them as their own group. A setup whose prices the vendor no longer serves (SKYT) stays
+unmeasured, never guessed. Measured on a copy of the archive (2026-10-04): 39 of his 40 measured;
+median best gain within 60 trading days +38.6% against +5.9% for the engine's fires, and 34 of the
+37 resolved hit +15% or 2.5R before the stop. They were drawn after the fact, so the gap is the
+target the engine reads toward, not an edge anyone can trade.
 
 ### How it all ties to the engine: the comparison
 

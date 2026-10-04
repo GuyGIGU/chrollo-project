@@ -40,6 +40,11 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   earnings surprise, naming the quarter. Next on his word (2026-10-03, "yes also for #3"): after a
   few weeks of archived fires, measure which leadership / fundamentals combination finds the
   winners, then define the stock grade from that. More grade work on both reads is planned.
+- **His calibration setups are archived setups too** (2026-10-03, his ruling; built 2026-10-04):
+  each is measured like a fire from the day before his trigger (`calibration_outcomes`, filled by the nightly outcome job as a contained passenger) and
+  shown as its own group, never pooled: report card section 7, a line on the Home edge tile, and
+  the Archive screen's "Calibration setups" filter. Live after `update_dashboard.bat` and the next
+  outcome run (or the Archive's Update Forward Returns button).
 - **Scoring:** tier comes from the TA grade against 62 / 52 / 42 / 32, with the
   `S_MAX_BOX_WIDTH` cap (0.15) on top (`config/scoring.py`). RS and uptrend weights are 0;
   the re-opened A/B recommends keeping them there, and the operator's answer is owed ([`asks.md`](asks.md)).

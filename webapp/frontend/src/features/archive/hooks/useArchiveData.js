@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE } from '../../../api/base';
 import { toast } from '../../../shared/components/feedback';
+import { archiveListPath, isCalibration } from '../model/calibrationList.js';
 import { SOURCE_FILTERS } from '../presentation/archiveTabUtils';
+
+// The engine's episodes and his calibration setups share no row shape, so rows
+// are served only to the list they were fetched for: right after a switch the
+// table is empty (the loading skeleton) until the new list arrives.
+const NO_ROWS = [];
 
 export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilter, typeFilter }) {
   const [setups, setSetups] = useState([]);
+  const [rowsPath, setRowsPath] = useState(null);
   const [stats, setStats] = useState(null);
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,18 +21,26 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '500', sort_by: sortBy, sort_dir: sortDir });
-      const sourceParam = SOURCE_FILTERS.find(([key]) => key === sourceFilter)?.[2];
-      if (tierFilter !== 'ALL') params.set('tier', tierFilter);
-      if (typeFilter !== 'ALL') params.set('setup_type', typeFilter);
-      if (sourceParam) params.set('source', sourceParam);
+      const params = new URLSearchParams({ sort_by: sortBy, sort_dir: sortDir });
+      // His calibration setups come from their own route, whole (tens of rows),
+      // and take no tier, type or source filter: those name the engine's fires.
+      if (!isCalibration(sourceFilter)) {
+        const sourceParam = SOURCE_FILTERS.find(([key]) => key === sourceFilter)?.[2];
+        params.set('limit', '500');
+        if (tierFilter !== 'ALL') params.set('tier', tierFilter);
+        if (typeFilter !== 'ALL') params.set('setup_type', typeFilter);
+        if (sourceParam) params.set('source', sourceParam);
+      }
 
       const [setupsRes, statsRes, healthRes] = await Promise.all([
-        fetch(`${API_BASE}/archive/episodes?${params.toString()}`),
+        fetch(`${API_BASE}${archiveListPath(sourceFilter)}?${params.toString()}`),
         fetch(`${API_BASE}/archive/stats`),
         fetch(`${API_BASE}/archive/health`),
       ]);
-      if (setupsRes.ok) setSetups(await setupsRes.json());
+      if (setupsRes.ok) {
+        setSetups(await setupsRes.json());
+        setRowsPath(archiveListPath(sourceFilter));
+      }
       if (statsRes.ok) setStats(await statsRes.json());
       if (healthRes.ok) setHealth(await healthRes.json());
     } catch (error) {
@@ -124,7 +139,7 @@ export default function useArchiveData({ sortBy, sortDir, sourceFilter, tierFilt
     health,
     loading,
     setSetups,
-    setups,
+    setups: rowsPath === archiveListPath(sourceFilter) ? setups : NO_ROWS,
     stats,
     markReviewReason,
     togglePassed,

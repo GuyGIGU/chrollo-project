@@ -1,3 +1,4 @@
+import { CALIBRATION_SORT_OPTIONS, isCalibration } from '../model/calibrationList.js';
 import {
   archiveButtonStyle,
   SETUP_TYPES,
@@ -33,18 +34,23 @@ export default function ArchiveFilters({
         value={filters.sourceFilter}
         onChange={sourceFilter => setAndReset({ sourceFilter })}
       />
-      <FilterButtons
-        label="Tier:"
-        options={TIERS.map(tier => [tier, tier === 'ALL' ? 'All' : tier])}
-        value={filters.tierFilter}
-        onChange={tierFilter => setAndReset({ tierFilter })}
-      />
-      <FilterButtons
-        label="Type:"
-        options={SETUP_TYPES.map(type => [type, type === 'ALL' ? 'All' : type])}
-        value={filters.typeFilter}
-        onChange={typeFilter => setAndReset({ typeFilter })}
-      />
+      {/* Tier and type name the engine's fires; a drawn calibration setup has neither. */}
+      {!isCalibration(filters.sourceFilter) && (
+        <>
+          <FilterButtons
+            label="Tier:"
+            options={TIERS.map(tier => [tier, tier === 'ALL' ? 'All' : tier])}
+            value={filters.tierFilter}
+            onChange={tierFilter => setAndReset({ tierFilter })}
+          />
+          <FilterButtons
+            label="Type:"
+            options={SETUP_TYPES.map(type => [type, type === 'ALL' ? 'All' : type])}
+            value={filters.typeFilter}
+            onChange={typeFilter => setAndReset({ typeFilter })}
+          />
+        </>
+      )}
       <SortControl filters={filters} setAndReset={setAndReset} />
     </div>
   );
@@ -85,7 +91,8 @@ function SortControl({ filters, setAndReset }) {
           padding: '5px 10px',
         }}
       >
-        {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        {(isCalibration(filters.sourceFilter) ? CALIBRATION_SORT_OPTIONS : SORT_OPTIONS)
+          .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
       <button
         onClick={() => setAndReset({ sortDir: filters.sortDir === 'asc' ? 'desc' : 'asc' })}

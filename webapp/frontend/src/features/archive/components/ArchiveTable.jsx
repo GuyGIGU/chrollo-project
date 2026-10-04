@@ -111,7 +111,7 @@ function ArchiveTable({
   );
 }
 
-function HeaderCell({ active, col, onSort, sortDir }) {
+export function HeaderCell({ active, col, onSort, sortDir }) {
   const sortable = col.sortable !== false;
   const arrow = active ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
   return (
@@ -231,7 +231,7 @@ const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTog
   );
 });
 
-function Cell({ align, children, color, muted }) {
+export function Cell({ align, children, color, muted }) {
   return (
     <td style={{
       color: color || (muted ? 'var(--text-muted)' : 'var(--text-main)'),

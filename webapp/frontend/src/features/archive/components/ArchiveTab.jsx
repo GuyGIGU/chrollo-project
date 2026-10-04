@@ -13,7 +13,9 @@ import ArchiveFilters from './ArchiveFilters';
 import ArchiveHeader from './ArchiveHeader';
 import ArchiveSummary from './ArchiveSummary';
 import ArchiveTable from './ArchiveTable';
+import CalibrationSetupsTable from './CalibrationSetupsTable';
 import { ArchiveAnalysisModal } from './ArchiveMaintenanceModals';
+import { defaultSortFor, isCalibration } from '../model/calibrationList.js';
 import { NARRATIVE_WIRE_FIELDS } from '../../../shared/setup/narrativeRead';
 import ScreenerModal from '../../../shared/setup/ScreenerModal';
 
@@ -62,7 +64,14 @@ export default function ArchiveTab() {
     if (patch.searchTerm !== undefined) grid.setSearchTerm(patch.searchTerm);
     if (patch.sortBy !== undefined) setSortBy(patch.sortBy);
     if (patch.sortDir !== undefined) setSortDir(patch.sortDir);
-    if (patch.sourceFilter !== undefined) setSourceFilter(patch.sourceFilter);
+    if (patch.sourceFilter !== undefined) {
+      setSourceFilter(patch.sourceFilter);
+      // His calibration setups and the engine's episodes sort on different keys.
+      if (isCalibration(patch.sourceFilter) !== isCalibration(sourceFilter)) {
+        setSortBy(defaultSortFor(patch.sourceFilter));
+        setSortDir('desc');
+      }
+    }
     if (patch.tierFilter !== undefined) setTierFilter(patch.tierFilter);
     if (patch.typeFilter !== undefined) setTypeFilter(patch.typeFilter);
   };
@@ -92,7 +101,19 @@ export default function ArchiveTab() {
       />
       <ArchiveModals addSetup={addSetup} maintenance={maintenance} />
       <ArchiveFilters filters={filters} resetPage={grid.resetPage} setFilters={setFilters} />
-      <ArchiveTable
+      {isCalibration(sourceFilter) ? (
+        <CalibrationSetupsTable
+          currentPage={grid.currentPage}
+          filteredSetups={grid.filteredSetups}
+          loading={data.loading && data.setups.length === 0}
+          onSort={handleSort}
+          pageSetups={grid.pageSetups}
+          setCurrentPage={grid.setCurrentPage}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          totalPages={grid.totalPages}
+        />
+      ) : <ArchiveTable
         currentPage={grid.currentPage}
         filteredSetups={grid.filteredSetups}
         loading={data.loading && data.setups.length === 0}
@@ -106,7 +127,7 @@ export default function ArchiveTab() {
         sortBy={sortBy}
         sortDir={sortDir}
         totalPages={grid.totalPages}
-      />
+      />}
       <ArchiveAnalytics analytics={analytics} onToggle={toggleAnalytics} open={analyticsOpen} />
     </div>
   );

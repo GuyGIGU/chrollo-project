@@ -1,4 +1,4 @@
-"""The archive report card's text: its six sections and their formatting.
+"""The archive report card's text: its seven sections and their formatting.
 
 Each ``section_*`` function appends lines to ``_LINES``; ``core.archive.analyze``
 clears the buffer, runs the sections in order and prints the joined report.
@@ -489,3 +489,47 @@ def _target_disagreement(edge: dict) -> None:
     emit("  gate drops. Where they split, the signal reaches further and holds")
     emit("  it worse — or one target sees value the other cannot. Rule which")
     emit("  one you are paid for BEFORE down-weighting anything above.")
+
+
+# ------------------------------------------------------------------
+# Section 7 - his calibration setups beside the engine's fires
+# ------------------------------------------------------------------
+def section_calibration(df: pd.DataFrame, calibration: pd.DataFrame) -> None:
+    """His calibration setups, archived setups too (operator ruling 2026-10-03),
+    as their own group beside the engine's fires: compared, never pooled."""
+    from core.backtest.edge_report import UNBIASED_SOURCE, edge_block
+
+    header("7. CALIBRATION SETUPS BESIDE THE ENGINE'S FIRES")
+    emit("His drawn setups from the calibration tab, measured like fires: from the")
+    emit("trading day before his trigger, with his trigger and his support as the")
+    emit("stop's rail. Chosen for quality, so they are compared, never pooled.")
+    if calibration is None or calibration.empty:
+        emit()
+        emit("No calibration setups in this archive yet.")
+        return
+    fires = df[df["source"] == UNBIASED_SOURCE] if "source" in df.columns else df
+    emit()
+    emit(f"{'group':<20}{'n':>5}{'measured':>10}{'med best':>10}"
+         f"{'>=25%':>8}{'>=40%':>8}{'win':>7}{'resolved':>10}")
+    emit("-" * 78)
+    emit(_cohort_line("engine fires", edge_block(fires)))
+    emit(_cohort_line("calibration setups", edge_block(calibration)))
+    emit()
+    emit("  med best = median best gain so far (mfe_to_date, up to 60 trading days);")
+    emit("  >=25% / >=40% = share whose best 20-day gain reached it; win = share of")
+    emit("  the resolved that hit +15% or 2.5R before the stop.")
+
+
+def _rate(value) -> str:
+    return "-" if value is None else f"{value * 100:.0f}%"
+
+
+def _cohort_line(label: str, block: dict) -> str:
+    bands = {round(b["threshold"], 2): b["rate"]
+             for b in (block.get("tail") or {}).get("bands", [])}
+    barrier = block.get("barrier") or {}
+    return (f"{label:<20}{block.get('n', 0):>5}{block.get('headline_mfe_n', 0):>10}"
+            f"{fmt(block.get('headline_mfe_median'), pct=True):>10}"
+            f"{_rate(bands.get(0.25)):>8}{_rate(bands.get(0.4)):>8}"
+            f"{_rate(barrier.get('win_rate')):>7}"
+            f"{_rate(barrier.get('resolution_rate')):>10}")
