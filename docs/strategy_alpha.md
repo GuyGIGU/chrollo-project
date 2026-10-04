@@ -67,7 +67,7 @@ not a promised sequence. The principles under it, and where Chrollo stands on ea
 |---|---|---|
 | Leaders, not cheap stocks | strength against the whole market comes first | the RS rating, ranked against every stock scanned; shown, never graded |
 | Price leads | an uptrend, well-formed bases, orderly pullbacks, support that holds, a convincing breakout | the universe door's trend floor, and the whole Reading Model below |
-| Volume is read with price, never alone | volume expanding on advances, drying up on pullbacks; heavy volume on a sharp decline is a caution | today the volume dry-up in the base earns points; in the method (dark) volume is a fact on every event that never refuses, never elects and carries no points; the base's up and down volume is owed as a shown, archived read |
+| Volume is read with price, never alone | volume expanding on advances, drying up on pullbacks; heavy volume on a sharp decline is a caution | today the LPS pullback's volume dry-up earns points and the pullback form requires it; in the method (dark) volume is a fact on every event that never refuses, never elects and carries no points. Measured 2026-10-04: the quiet LPS pullback is the one volume read that separates the +25% moves (about 2.5 times from the loudest quarter to the quietest, among volatile stocks too and at every base length); up versus down volume inside the base does not, and heavy-volume declines are base length by another name |
 | Accumulation is evidence, not proof | sideways trading alone is not accumulation; a base can hold distribution or stay unresolved | today a box's age earns points (Wyckoff's "cause"); the method's grade (dark) reads tightness and the event map, and age weighs nothing |
 | No falling knives | strength → an orderly pullback → renewed strength → entry | the door's trend floor; the LPS is a pullback inside strength, and the buy is its high crossed |
 | Group leadership is context | a strong stock can reveal a strong group, never prove one | owed: the industry and a count of peers also leading, shown only |
@@ -284,7 +284,7 @@ selection summary tells:
 |---|---|---|
 | Stage-2 criteria: price above the 150-day and 200-day, the 150 above the 200, the 200 turned up | the trend template's seven criteria, counted and shown ("7/7"), with the 200-day's one-month change | shown; measured, does not separate the +25% moves among fires |
 | 25 to 30% off the 52-week low before stage 2 | "Off 52-week low" | shown; separates only among volatile movers, and is RS by another name (Tested-DEAD to score) |
-| Big up weeks on volume against quiet pullbacks; more up weeks than down weeks on volume | today the base's volume dry-up earns points; the method makes volume a fact only | measured (criteria 5 and 6): does not separate; the up and down volume in the base is owed as a shown read |
+| Big up weeks on volume against quiet pullbacks; more up weeks than down weeks on volume | today the LPS pullback's volume dry-up earns points; the method makes volume a fact only | measured (criteria 5 and 6): does not separate; inside the base (2026-10-04) up versus down volume does not either, while the quiet LPS pullback does |
 | VCP: two to six contractions, each tighter, the last one tight | today the contraction count and the last contraction's depth (in percent) earn points | the method weighs the count at zero and grades the LPS window's bar spread in ranges (dark) |
 | "Tight": weekly closes in a narrow range | the box's height in daily ranges and the bar texture inside the box and the LPS window, on the daily chart | today and the method both read it; the method never in percent of price |
 | Buy at the right price, as the stock is ready to move | the buy is the cross of the LPS's high; nothing fires without an LPS | today |
@@ -297,9 +297,10 @@ selection summary tells:
 **What the comparison shows.** The setup side lines up well: Chrollo's box, LPS and buy are
 the stage-2 base and its entry, the events tell his accumulation sequence, and the boxes are
 base-sized. The gaps are on the stock and the bigger picture: no read of where the stock is in
-its stage-2 run (the base count is broken and the bigger picture is not built), no shown read
-of volume through the base, no group read, and no read of the late stage. Every gap is a
-display read first, measure-first, never a gate.
+its stage-2 run (the base count is broken and the bigger picture is not built), volume measured
+at its key points but not yet shown there (2026-10-04: of the Momentum Masters volume lines,
+only the quiet LPS pullback separates outcomes), no group read, and no read of the late stage.
+Every gap is a display read first, measure-first, never a gate.
 
 ### For whoever designs a change
 
