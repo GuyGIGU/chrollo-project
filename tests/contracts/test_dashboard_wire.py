@@ -184,6 +184,8 @@ BASE_WIRE_KEYS = (
     "tier", "traversal_density", "trigger",
     "volumes",
     "weekly_box", "weekly_candles", "weekly_volumes",
+    # Volume at key points (2026-10-04): the LPS pullback and the Phase C spring.
+    "lps_volume_ratio", "spring_volume_ratio",
 )
 
 
@@ -211,6 +213,36 @@ def test_wire_carries_the_fundamentals_and_market_cap(monkeypatch):
     assert chart["fund_eps_growth_yoy"] == 0.45
     assert chart["fund_quarter_end"] == "2026-06-30"
     assert chart["market_cap"] == 1.25e9
+
+
+def test_wire_carries_volume_at_key_points(monkeypatch):
+    # The LPS read's dry-up is 1 - (LPS volume / 50-day average): 0.38 -> 0.62x.
+    # The spring sits on the fixture's sixth day (2026-01-08): volume 1055.6
+    # against the 1027.8 average of the six days the frame holds up to it.
+    chart = _payload(monkeypatch, v2_overlay={
+        "_vol_contraction": 0.38, "_bin_c_event_date": "2026-01-08"})
+    assert chart["lps_volume_ratio"] == 0.62
+    assert chart["spring_volume_ratio"] == 1.03
+    bare = _payload(monkeypatch)
+    assert bare["lps_volume_ratio"] is None and bare["spring_volume_ratio"] is None
+
+
+def test_spring_volume_is_read_against_the_50_days_ending_on_it():
+    # 70 days: ten loud ones (10,000), then 59 at 100 and the spring at 250. The
+    # 50 days ending on the spring average (49 x 100 + 250) / 50 = 103, so the
+    # spring is 2.43x; a window reaching back to the loud days would read ~0.24x.
+    dates = pd.date_range("2026-01-01", periods=70, freq="B")
+    frame = pd.DataFrame({"Volume": [10_000.0] * 10 + [100.0] * 59 + [250.0]}, index=dates)
+    assert dashboard_module._volume_vs_50d(frame, str(dates[-1].date())) == 2.43
+    assert dashboard_module._volume_vs_50d(frame, "2025-01-01") is None   # not in the frame
+    assert dashboard_module._volume_vs_50d(frame, None) is None
+
+
+def test_lps_volume_ratio_is_one_minus_the_dry_up():
+    assert dashboard_module._lps_volume_ratio(0.38) == 0.62
+    assert dashboard_module._lps_volume_ratio(-0.25) == 1.25   # a loud pullback
+    assert dashboard_module._lps_volume_ratio(None) is None
+    assert dashboard_module._lps_volume_ratio(float("nan")) is None
 
 
 def test_dollar_volume_averages_the_last_50_trading_days():

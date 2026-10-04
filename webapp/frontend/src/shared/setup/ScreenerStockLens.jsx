@@ -22,6 +22,7 @@ import { EMPTY, fx, fmtDateShort, fmtDay, fmtPct } from '../formatting/format';
 import { triggerDistanceFrac } from './triggerProximity.js';
 import { leadershipCells, stageCells } from './leadershipRead';
 import { fundamentalsCells, fundamentalsNote, hasFundamentalsRead } from './fundamentalsRead';
+import { hasVolumeRead, volumeCells } from './volumeRead';
 
 const pct = (value, digits = 1) => {
   const fixed = fx(value, digits, null);
@@ -124,6 +125,13 @@ function LeadershipGrid({ data }) {
 function FundamentalsGrid({ data }) {
   if (!hasFundamentalsRead(data)) return null;
   return <LensGridSection title="Fundamentals" note={fundamentalsNote(data)} cells={fundamentalsCells(data)} />;
+}
+
+// Volume at key points (2026-10-04): the LPS pullback and the Phase C spring
+// against the 50-day average — his key points, read with price, never graded.
+function VolumeGrid({ data }) {
+  if (!hasVolumeRead(data)) return null;
+  return <LensGridSection title="Volume at key points" note="against the 50-day average" cells={volumeCells(data)} />;
 }
 
 function LensGridSection({ title, note, cells }) {
@@ -507,6 +515,7 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
           <LeadershipGrid data={data} />
           <FundamentalsGrid data={data} />
           <TechnicalReadGrid data={data} earnings={earnings} />
+          <VolumeGrid data={data} />
         </div>
         {showDailyStructure ? (
           <NarrativePanel

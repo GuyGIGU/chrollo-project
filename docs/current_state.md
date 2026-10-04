@@ -40,6 +40,10 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   earnings surprise, naming the quarter. Next on his word (2026-10-03, "yes also for #3"): after a
   few weeks of archived fires, measure which leadership / fundamentals combination finds the
   winners, then define the stock grade from that. More grade work on both reads is planned.
+- **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
+  panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
+  display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated
+  outcomes in the archive (decisions.md Nulls, 2026-10-04).
 - **His calibration setups are archived setups too** (2026-10-03, his ruling; built 2026-10-04):
   each is measured like a fire from the day before his trigger (`calibration_outcomes`, filled by the nightly outcome job as a contained passenger) and
   shown as its own group, never pooled: report card section 7, a line on the Home edge tile, and

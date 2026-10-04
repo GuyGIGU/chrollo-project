@@ -1268,6 +1268,19 @@ post-pass). Until that day it ranked only the firing set and sat behind
 `FUNDAMENTALS_ENABLED` (the 2026-07-26 note here named the wrong flags); no archived
 row ever carried the old meaning.
 
+**Volume at key points (live 2026-10-04, operator: display only).** The payload writer
+(`core/pipeline/screening/dashboard.py`) carries two ratios against the 50-day average
+volume: `lps_volume_ratio`, the LPS pullback's average volume (1 minus the LPS read's
+`vol_contraction`, so it is the same pullback the read elects), and `spring_volume_ratio`,
+the Phase C spring day's volume against the 50 days ending on it (`_bin_c_event_date`;
+None without a spring). The detail panel shows them as "Volume at key points". Neither is
+archived anew (the dry-up is already `setup_archive.vol_contraction`, the spring volume
+`bin_c_spring_vol_z`) and neither moves the grade, a gate or the election. Why these two:
+they are his key points (2026-09-13), and on 2026-10-04 the LPS dry-up was the one volume
+read that separated the +25% moves (decisions.md, Nulls). The breakout day's volume is not
+shown: a fire is read before its breakout; the outcome job records it per fire
+(`trigger_volume_ratio`).
+
 **The fundamentals (live 2026-10-03, operator: display and archive only).**
 `FUNDAMENTALS_ENABLED = True`: the conductor post-pass
 (`core/fundamentals/post_pass.py`) writes the four filing-gated metrics
