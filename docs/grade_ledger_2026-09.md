@@ -117,7 +117,13 @@ charts that fire in their window, on their first fire day (`python -m tools.cali
 | S0, the control: the median bar over the box's height | 0.35 / 0.45 / 0.52 / 0.64 / 0.89 | 0.36 / 0.50 / 0.66 / 0.81 / 0.88 | 0.664 | 0.666 |
 
 To survive, a measure had to beat 0.713 on separation AND 0.696 left out (the 95th percentile of the best of six
-under 2,000 shuffles of the labels). None does. The height runs the other way: the reader draws the junk's boxes
-narrow, at the one-range floor or near it, and their bars are tall against them. The tall bars come closest and
-mark down his own UNF (his lines; the median bar 89 percent of the box) as hard as FRPH (85 percent). No grade is
-built on these numbers; what the grade becomes is his ruling (the decisions record, 2026-10-05).
+under 2,000 shuffles of the labels). None of the six does. The height runs the other way: the reader draws the
+junk's boxes narrower (their median 1.28 ranges against his 1.50; six of the fourteen under 1.2, where his BODI,
+VIK, PBT and DRTS sit too), and their bars are tall against them. The tall bars come closest: they beat the
+family's chance on separation (0.732) and miss the left-out bar by 0.025, less than one junk chart's weight with
+fourteen, and they mark down his own UNF (his lines; the median bar 89 percent of the box) as hard as FRPH (85
+percent). No one measure puts all three of the bar's charts under A on every day they fire: BMRN stops the height,
+the tall bars and the story; COLM the zigzag and the volatile bars; COLM and FRPH the spread profile. The zigzag
+cannot read "no room to zigzag" on the narrowest boxes, where the two lines' areas nearly meet (0.05 ranges apart on
+COLM), so it says least exactly where the junk sits. No grade is built on these numbers: the grade carries no
+letter until a measure survives or he weights his traits by eye (the decisions record, 2026-10-05).

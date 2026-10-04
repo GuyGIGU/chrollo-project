@@ -164,8 +164,11 @@ def survivors(table: dict, junk: np.ndarray, bar_auc: float, bar_loco: float) ->
     passed = sorted((m for m, (a, l) in scored.items() if a > bar_auc and l > bar_loco),
                     key=lambda m: (-scored[m][1], -scored[m][0]))
     kept, dropped = [], []
+    sign = dict(MEASURES)
     for m in passed:
-        twin = next((k for k in kept if abs(rank_corr(table[m], table[k])) >= TOGETHER), None)
+        # "move together" as graded: each measure turned to its stated direction first, so two that rise apart
+        # (a correlation of -0.7 between two measures that both read the junk higher) are not twins
+        twin = next((k for k in kept if rank_corr(sign[m] * table[m], sign[k] * table[k]) >= TOGETHER), None)
         if twin is not None:
             dropped.append((m, twin))
         elif len(kept) < KEEP:
