@@ -1669,20 +1669,37 @@ td {
   box-shadow: inset 0 3px 7px -4px rgba(0, 0, 0, 0.7);
 }
 
-/* The header lip — ONE 30px row on every card kind (firing, health, the
+/* The header lip — the same 47px on every card kind (firing, health, the
    Watchlist's clean card), so their charts start at the same height in a mixed
-   row. Was two rows; the operator circled it as space the chart should get
-   (2026-10-02). Children decide what gives way; the row itself never wraps. */
+   row. TWO rows again since 2026-10-04: the stock and its price on top, the
+   reads under it. One row (2026-10-02, to give the chart the space) got too
+   crowded once the leadership read joined it — the weekly/monthly words were
+   ellipsizing on every card. Children decide what gives way; a row never wraps. */
 .screener-card-head {
-  align-items: center;
   background: rgba(20, 23, 33, 0.5);
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
   display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-  gap: 7px;
-  height: 30px;
+  gap: 2px;
+  height: 47px; /* 4 + 20 + 2 + 16 + 4, and the 1px rule under it */
+  justify-content: center;
   min-width: 0;
   padding: 4px 10px;
+}
+
+.screener-card-head-row {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  height: 20px;
+  min-width: 0;
+}
+
+/* The second row: the reads, a step quieter than the stock above them. */
+.screener-card-head-row.is-sub {
+  gap: 9px;
+  height: 16px;
 }
 
 /* Corner reticle — solid mythril L-brackets, one per corner, hidden until

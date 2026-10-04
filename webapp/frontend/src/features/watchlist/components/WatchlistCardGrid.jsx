@@ -83,33 +83,38 @@ function CleanCard({ ticker, card, onSelect, onRemove }) {
       onMouseEnter={hoverOn}
       onMouseLeave={hoverOff}
     >
-      {/* The scan card's ONE-row shell (2026-10-02): the state line is the part
-          that gives way, and an empty slot stands where the scan card's ♡ sits,
-          so the star column lines up across both card kinds in a mixed row. */}
+      {/* The scan card's two-row shell (2026-10-04): the stock and its price on
+          top, the state line under them (the part that gives way). An empty
+          slot stands where the scan card's ♡ sits, so the star column lines up
+          across both card kinds in a mixed row. */}
       <div className="screener-card-head">
-        <span style={{ color: 'var(--text-main)', flexShrink: 0, fontSize: 17, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
-          {ticker}
-        </span>
-        <span style={{ color: 'var(--text-faint)', fontSize: 11, marginLeft: 3, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={stateLine || undefined}>
-          {stateLine || 'price & volume only — no engine read'}
-        </span>
-        <span style={{ color: 'var(--text-faint)', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-          {asOfDate(candles)}
-        </span>
-        <span style={{ alignItems: 'baseline', display: 'flex', flexShrink: 0, gap: 6 }}>
-          <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
-            ${fx(lastClose, 2)}
+        <div className="screener-card-head-row">
+          <span style={{ color: 'var(--text-main)', flexShrink: 0, fontSize: 17, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
+            {ticker}
           </span>
-          {changePct != null && (
-            <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-              {fmtSignedPctFrac(changePct, 1)}
+          <span style={{ color: 'var(--text-faint)', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+            {asOfDate(candles)}
+          </span>
+          <span style={{ alignItems: 'baseline', display: 'flex', flexShrink: 0, gap: 6 }}>
+            <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              ${fx(lastClose, 2)}
             </span>
-          )}
-        </span>
-        <span style={{ display: 'flex', flexShrink: 0, gap: 4, marginLeft: 2 }}>
-          <WatchlistButton active onToggle={() => onRemove(ticker)} />
-          <span aria-hidden="true" style={{ width: 20 }} />
-        </span>
+            {changePct != null && (
+              <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                {fmtSignedPctFrac(changePct, 1)}
+              </span>
+            )}
+          </span>
+          <span style={{ display: 'flex', flexShrink: 0, gap: 4, marginLeft: 2 }}>
+            <WatchlistButton active onToggle={() => onRemove(ticker)} />
+            <span aria-hidden="true" style={{ width: 20 }} />
+          </span>
+        </div>
+        <div className="screener-card-head-row is-sub">
+          <span style={{ color: 'var(--text-faint)', fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={stateLine || undefined}>
+            {stateLine || 'price & volume only — no engine read'}
+          </span>
+        </div>
       </div>
       {/* Width-locked like the scan card's well (1.9:1, 2026-10-02), and free
           to GROW (flex 1 0 auto) when a taller scan card shares the row. */}

@@ -66,12 +66,14 @@ const barCount = (value) => {
 // the operator ruled that "way way too much" on a 24-day rest, and he is right:
 // a fixed span makes the window a property of the surface instead of a property
 // of the setup, which is the same mistake in the other direction. Now a 24-day
-// rest gets 65 days and a 33-day rest gets 85 on the card (cap 0.45).
+// rest gets 73 days and a 33-day rest gets 95 on the card (cap 0.40).
 // CLOSER (operator 2026-10-02, "I want more close up on the setups themselves
 // ... Very important to keep an ACCURATE view of how each setup looks in the big
-// advanced chart"): the card and the glance cap at 0.45, the modal stays at 0.35
-// because its job is the stock. Still below the measured 0.50 knee, and still a
-// window the SETUP sets — closer, never trimmed.
+// advanced chart"): the card and the glance went to 0.45, the modal stays at 0.35
+// because its job is the stock. Then a little way back (operator 2026-10-04,
+// "revert the mini chart card change but only slightly, we can zoom out a little
+// bit out of the base"): 0.40, half way. Still a window the SETUP sets — closer
+// than the modal, never trimmed.
 // The ceiling YIELDS to a base it cannot frame (monster zoom-out), and every
 // bound yields to the never-crop rule (2026-08-09: the box is the datum). The
 // 2026-07 sprawl failure — "~48 bars at ~10px/bar let a tight base sprawl
@@ -80,7 +82,7 @@ export const CHART_FRAMING = {
   mini: {
     minWindowBars: 55,           // the FLOOR, not a span: a very short rest still needs room
                                  // behind it. It exists so a 5-day rest cannot produce a
-                                 // 23-day window; at cap 0.45 it binds on rests under ~20 days.
+                                 // 23-day window; at cap 0.40 it binds on rests under 17 days.
     legibilityCeilingBars: 220,  // 563px plot / 220 = 2.56 px/bar at the very bottom — a hard
                                  // stop, not a target. It has to sit HIGH: a low ceiling makes
                                  // the window stop growing while the rest keeps growing, so a
@@ -91,11 +93,12 @@ export const CHART_FRAMING = {
                                  // 25,904, all rests of 130+ days). Measured 2026-09-02.
     ceilingYieldShare: 0.75,     // ...and it yields to a rest it cannot frame (operator
                                  // 2026-09-02, "for monster bases simply zoom out the base").
-    baseWidthCap: 0.45,          // the base + its right pad may never own more than 45% of
-                                 // the pane, so the context behind it is always >= 1.22x the
-                                 // base + pad. Was 0.35; raised for the close-up (operator
-                                 // 2026-10-02). The measured knee is 0.50 (2026-09-02: p90
-                                 // 43.2 -> 47.5, cards over 45% of width 17 -> 63) — stay below.
+    baseWidthCap: 0.40,          // the base + its right pad may never own more than 40% of
+                                 // the pane, so the context behind it is always >= 1.5x the
+                                 // base + pad. 0.35 until 2026-10-02, 0.45 for the close-up,
+                                 // 0.40 since 2026-10-04 ("zoom out a little bit"). The
+                                 // measured knee is 0.50 (2026-09-02: p90 43.2 -> 47.5, cards
+                                 // over 45% of width 17 -> 63) — stay below.
     minContextBars: 18,          // UNCHANGED — the 2026-08-09 approach-leg ruling.
     // The price band is 88% of the well (was 80%): volume is decoration on the
     // card — doctrine keeps it out of the read — so its strip, under the bars,
@@ -115,7 +118,8 @@ export const CHART_FRAMING = {
                                  // declared so every box-framed profile answers the same question.
     baseWidthCap: 0.35,          // DELIBERATELY at or below the card's: the card is the
                                  // close-up, the modal is the stock (2026-10-02). It was
-                                 // identical to the card's until the card went to 0.45; the
+                                 // identical to the card's until the card went to 0.45 (0.40
+                                 // since 2026-10-04); the
                                  // modal's span is one trading year either way, so this only
                                  // binds on a rest long enough to need more than the year.
     minContextBars: 25,
@@ -146,9 +150,10 @@ export const CHART_FRAMING = {
                                  // bases owning over 60% of the pane from 63 down to 48.
                                  // The glance is a RECOGNITION surface (ruled 2026-09-02), and
                                  // 1.1 px/day serves recognition worse than a wide base does.
-    baseWidthCap: 0.45,          // the CARD's cap — the glance is a preview of the card and
+    baseWidthCap: 0.40,          // the CARD's cap — the glance is a preview of the card and
                                  // keeps agreeing with it on base share even though it shows
-                                 // a different span (2026-10-02, moved with the card).
+                                 // a different span (moved with the card 2026-10-02 and
+                                 // again 2026-10-04).
     minContextBars: 14,
     scaleMargins: { top: 0.07, bottom: 0.16 },
     volumeScaleTop: 0.88,
@@ -302,8 +307,8 @@ export const miniFocusLogicalRange = (data, profile = CHART_FRAMING.mini) => {
   // HONEST NOTE (2026-09-02): since the ceiling learned to yield, this clamp is
   // REDUNDANT — swept over every base length x forward count x history depth on
   // all three box-framed profiles, it never once crops the box's open, because a
-  // base long enough to threaten its own leg now earns a window ~2.2x its own
-  // width (1 / the card's 0.45 cap; re-swept 2026-10-02). It does still bind on
+  // base long enough to threaten its own leg now earns a window ~2.5x its own
+  // width (1 / the card's 0.40 cap; re-swept 2026-10-04). It does still bind on
   // the glance's 14-day approach leg (the glance(100) fixture). It is
   // kept as a one-token backstop, not as a live guard: raise ceilingYieldShare
   // above 1 (i.e. turn the yield off) and it goes load-bearing again in the same

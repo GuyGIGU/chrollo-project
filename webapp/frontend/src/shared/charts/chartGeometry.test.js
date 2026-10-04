@@ -134,7 +134,7 @@ test('setupIndexes: baseEnd subtracts forward bars; baseStart clamps at 0', () =
 test('miniFocusLogicalRange: window adds real pre-base context', () => {
   const candles = makeCandles(60);
   // baseEnd = 60-1-2 = 57, baseStart = 46, rightPadding = clamp(2+5,5,9)=7 -> rightEdge 59.
-  // vb 12 + pad 7 over the 0.45 cap wants only 43 days, so the 55-day floor
+  // vb 12 + pad 7 over the 0.40 cap wants only 48 days, so the 55-day floor
   // takes over: from 59-55+1 = 5.
   const range = miniFocusLogicalRange({ candles, base_len: 12, forward_bars: 2 });
   assert.deepEqual(range, { from: 5, to: 59 });
@@ -200,22 +200,22 @@ test('miniFocusLogicalRange: single candle is a degenerate but valid range', () 
 test('miniFocusLogicalRange: the consolidation sets the window, not the surface', () => {
   // THE point of the model, and the correction the operator made to its first
   // cut: a fixed span for every setup is "way way too much" on a short rest. At
-  // the card's 0.45 cap (2026-10-02) a 20-day rest earns 56 days; a 40-day rest
-  // earns 100. Literal expectations — reading the answer off the profile would
+  // the card's 0.40 cap (2026-10-04) a 20-day rest earns 63 days; a 40-day rest
+  // earns 113. Literal expectations — reading the answer off the profile would
   // pin nothing.
   const candles = makeCandles(300);
   const short = miniFocusLogicalRange({ candles, base_len: 20, forward_bars: 0 });
   const long = miniFocusLogicalRange({ candles, base_len: 40, forward_bars: 0 });
-  assert.deepEqual(short, { from: 244, to: 299 });   // 56 days
-  assert.deepEqual(long, { from: 200, to: 299 });    // 100 days
+  assert.deepEqual(short, { from: 237, to: 299 });   // 63 days
+  assert.deepEqual(long, { from: 187, to: 299 });    // 113 days
   assert.ok(long.to - long.from > short.to - short.from, 'a longer rest earns a wider window');
 });
 
 test('miniFocusLogicalRange: a very short rest still gets room behind it', () => {
   // minWindowBars is a FLOOR, not a span. A 10-day rest asks for only
-  // ceil(15/0.45) = 34 days, which would leave almost no approach leg to judge
-  // it against, so the floor takes over at 55. At the card's 0.45 cap it binds
-  // on rests under 20 days (re-measured 2026-10-02).
+  // ceil(15/0.40) = 38 days, which would leave almost no approach leg to judge
+  // it against, so the floor takes over at 55. At the card's 0.40 cap it binds
+  // on rests under 17 days (re-measured 2026-10-04).
   const candles = makeCandles(300);
   const range = miniFocusLogicalRange({ candles, base_len: 10, forward_bars: 0 });
   assert.deepEqual(range, { from: 245, to: 299 });
@@ -224,10 +224,10 @@ test('miniFocusLogicalRange: a very short rest still gets room behind it', () =>
 
 test('miniFocusLogicalRange: the base never owns more than baseWidthCap of the pane', () => {
   const candles = makeCandles(300);
-  // base_len 30 asks for ceil((30+5)/0.45) = 78 days, inside the ceiling, so the
-  // cap is honoured exactly: the rest owns 30 of 78 days.
+  // base_len 30 asks for ceil((30+5)/0.40) = 88 days, inside the ceiling, so the
+  // cap is honoured exactly: the rest owns 30 of 88 days.
   const range = miniFocusLogicalRange({ candles, base_len: 30, forward_bars: 0 });
-  assert.deepEqual(range, { from: 222, to: 299 });
+  assert.deepEqual(range, { from: 212, to: 299 });
   const visibleBase = range.to - Math.max(range.from, 270) + 1;
   assert.ok(
     visibleBase / (range.to - range.from + 1) <= CHART_FRAMING.mini.baseWidthCap,
@@ -280,8 +280,8 @@ test('the box\'s open is NEVER cropped, at any base length, on any profile', () 
   // RULING 2026-08-09, as a property sweep rather than a fixture. It is proved
   // this way on purpose: since the ceiling learned to yield (2026-09-02) the
   // never-crop CLAMP in miniFocusLogicalRange is redundant — a base long enough
-  // to threaten its own leg now earns a window ~2.2x its own width (1 / the
-  // card's 0.45 cap, re-swept 2026-10-02) — so a
+  // to threaten its own leg now earns a window ~2.5x its own width (1 / the
+  // card's 0.40 cap, re-swept 2026-10-04) — so a
   // fixture aimed at the clamp would pass with the clamp deleted, i.e. would not
   // be a guard at all. This sweep instead pins the INVARIANT the ruling is
   // about, and goes red the moment any future constant re-opens the hole
@@ -356,14 +356,14 @@ test('miniFocusLogicalRange: the hover glance frames at its OWN span, not the ca
 
   // A short rest falls back on the floor (55).
   assert.deepEqual(glance(10), { from: 245, to: 299 });
-  // Under the ceiling the card's 0.45 cap sets it: ceil(45/0.45) = 100 days.
-  assert.deepEqual(glance(40), { from: 200, to: 299 });
+  // Under the ceiling the card's 0.40 cap sets it: ceil(40/0.40) = 100 days.
+  assert.deepEqual(glance(35), { from: 200, to: 299 });
   // Over the cap, under the yield: it holds at the ceiling (105).
   assert.deepEqual(glance(60), { from: 195, to: 299 });
   // A rest that does not FIT the pane yields to the window the cap wants,
-  // ceil(106/0.45) = 236 days — and the glance yields at 1, not at the card's
+  // ceil(106/0.40) = 265 days — and the glance yields at 1, not at the card's
   // 0.75, which is what keeps that a tail.
-  assert.deepEqual(glance(101), { from: 64, to: 299 });
+  assert.deepEqual(glance(101), { from: 35, to: 299 });
   // Just under the knee the never-crop clamp is what widens it, not the yield:
   // 114 bars is neither the ceiling nor a yielded window.
   assert.deepEqual(glance(100), { from: 186, to: 299 });
@@ -373,7 +373,8 @@ test('CHART_FRAMING: the glance agrees with the card, and the modal never frames
   // ONE rule about how much pane a base may own on the card and on its preview,
   // the hover glance (different spans, same share). The modal may frame wider
   // but never closer: the card is the close-up, the modal is the stock
-  // (operator 2026-10-02 — card and glance 0.45, modal 0.35).
+  // (operator 2026-10-02 — card and glance 0.45, modal 0.35; card and glance
+  // 0.40 since 2026-10-04).
   assert.equal(CHART_FRAMING.mini.baseWidthCap, CHART_FRAMING.popover.baseWidthCap);
   assert.ok(
     CHART_FRAMING.modal.baseWidthCap <= CHART_FRAMING.mini.baseWidthCap,

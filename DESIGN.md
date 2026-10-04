@@ -402,13 +402,17 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 - **Section labels:** 9px uppercase, faint, wide tracking.
 
 ### Signature — The Screener Card
-The triage unit of the product: a **one-row** header (tier-colored ticker + tier
-badge + sector ETF + the weekly/monthly read, then the as-of date, the live price
-and its daily %, and the watchlist star and the **like** heart inline at the far
-right), a mini price chart, and a **one-row** tag strip whose overflow folds into
-`+N`. The header was two rows until 2026-10-02, when the operator circled it as
-space the chart should get; on the narrowest (590px) card the weekly/monthly words are
-what ellipsize, never the price or the toggles. The setup label, score and
+The triage unit of the product: a **two-row** header (on top, the tier-colored
+ticker + tier badge + sector ETF, then the as-of date, the live price and its
+daily %, and the watchlist star and the **like** heart at the far right; under
+it, the leadership read and the weekly/monthly read), a mini price chart, and a
+**one-row** tag strip whose overflow folds into `+N`. The header was one row from
+2026-10-02 (the operator circled the old two rows as space the chart should get)
+until 2026-10-04, when the leadership read crowded the weekly/monthly words into
+ellipses on every card; the health card and the Watchlist's clean card share the
+same 47px shell, so every card's chart starts at the same height. If a card is
+ever too narrow, the weekly/monthly words are what ellipsize, never the price or
+the toggles. The setup label, score and
 sub-score pills live in the click-through modal, not on the card face — the card
 is for the chart.
 

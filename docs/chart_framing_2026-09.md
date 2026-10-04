@@ -24,6 +24,14 @@ carried per setup (median 300 ≈ 14 months).
 > `tools/research/chart_framing_census.mjs`. Everything above the
 > [2026-10-02 revision](#2026-10-02-revision--the-close-up-on-his-two-screens) is the 2026-09-02
 > record and is left as measured.
+>
+> **Revised again 2026-10-04** — half way back out: the card and the glance cap the base at **0.40**
+> (the modal stays 0.35; the 88% band and the 1.9:1 well stand). Operator: *"zoom out a little bit
+> out of the base shown in the card"*. Census on the live artifact of 2026-10-02 (82 setups, 1920
+> card): window med 85 -> **95** trading days, base share of width med 38.8% -> **34.7%**, median box
+> 219x68 -> **195x67 px**, squareness vs the big chart 0.67 -> **0.70**, inversions past 1px 18 ->
+> **0**. The census's "close-up" section now prints 0.35 -> 0.40. The card header went back to two
+> rows (47px) the same day. Record: [`decisions.md`](decisions.md) 2026-10-04.
 
 ---
 
