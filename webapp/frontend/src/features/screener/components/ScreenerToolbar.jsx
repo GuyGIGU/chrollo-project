@@ -226,6 +226,7 @@ function SortRow({ filters }) {
           ['score', 'Grade (high to low)'],
           ['base', 'Base age (old to new)'],
           ['trigger', 'Nearest to trigger'],
+          ['rs', 'RS rating (high to low)'],
         ]}
       />
     </div>

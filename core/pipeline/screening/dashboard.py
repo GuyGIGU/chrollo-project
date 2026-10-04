@@ -99,6 +99,15 @@ def _round_opt(value, digits):
     return None if value is None else round(float(value), digits)
 
 
+def _dollar_volume_50d(df):
+    """Average daily dollar volume (close x volume) over the last 50 trading
+    days — the liquidity half of the leadership read. Display only: it gates
+    nothing (the entry filter's floor is in shares). None when unreadable."""
+    traded = [float(v) for v in (df["Close"] * df["Volume"]).iloc[-50:]
+              if math.isfinite(v)]
+    return round(sum(traded) / len(traded)) if traded else None
+
+
 def _json_safe(obj):
     """Recursively coerce NumPy/Pandas scalars and replace NaN/Inf with None.
 
@@ -234,6 +243,20 @@ def _extract_chart_data(data, results_df, tickers):
                 'price': round(float(row['Current Price']), 2),
                 'trigger': round(float(row['_trigger_price']), 2),
                 'sub_scores': sub_payload,
+                # The leadership read (operator go-ahead 2026-10-02): the STOCK,
+                # kept apart from the setup's grade — none of it is scored or
+                # gated. The RS rating ranks twelve-month strength against every
+                # stock the scan read; the trend template is Minervini's seven
+                # price criteria passed (the archived count); the dollar volume
+                # is the 50-day liquidity. Two of the template's own measures
+                # ride along for the stage read (go-ahead 2026-10-03): the
+                # fraction above the 52-week low and the 200-day average's
+                # one-month change in percent (archive names, archive values).
+                'rs_rating': row.get('_rs_rating'),
+                'stage2_trend_pass_count': row.get('_stage2_trend_pass_count'),
+                'stage2_52w_low_pct': row.get('_stage2_52w_low_pct'),
+                'stage2_ma200_slope_1m_pct': row.get('_stage2_ma200_slope_1m_pct'),
+                'dollar_volume_50d': _dollar_volume_50d(df),
                 'phase_d_inner': bool(row.get('_phase_d_inner', False)),
                 # Volume-around-touches signature → drives no_supply /
                 # spring_strength / heavy_resistance tags on the card.
@@ -343,8 +366,11 @@ def _extract_chart_data(data, results_df, tickers):
                 'fund_sales_growth_yoy': row.get('_fund_sales_growth_yoy'),
                 'fund_eps_growth_accel': row.get('_fund_eps_growth_accel'),
                 'fund_earnings_surprise': row.get('_fund_earnings_surprise'),
+                'fund_quarter_end': row.get('_fund_quarter_end'),
                 'days_to_earnings': row.get('_days_to_earnings'),
-                'rs_rating': row.get('_rs_rating'),
+                # Stamped by the market-cap floor on the fires it kept (None
+                # when the lookup missed or the universe is ETFs).
+                'market_cap': row.get('_market_cap'),
                 'rs_line_latest': row.get('_rs_line_latest'),
                 'rs_line_new_high': row.get('_rs_line_new_high'),
                 # ── Technical Analysis Grade v2 block (task 9) — key-ABSENT

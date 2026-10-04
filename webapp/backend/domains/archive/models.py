@@ -459,6 +459,7 @@ class SetupArchive(Base):
     rs_line_new_high = Column(Integer, nullable=True)       # 1 if the RS line is at a trailing new high (leadership tell)
     sector_rank_pct = Column(Float, nullable=True)          # setup's SPDR-sector composite RS percentile (scan-wide)
     sector_rank_pos = Column(Integer, nullable=True)        # setup's sector rank position (1 = strongest sector this scan)
+    market_cap = Column(Float, nullable=True)               # dollars at the scan, from the market-cap floor's lookup (2026-10-03)
 
     # ── Engine provenance (frozen-config reproducibility) ────────
     # sha256 of the frozen engine-config manifest (engine_alpha/freeze/manifest.py) that

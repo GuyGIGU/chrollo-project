@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { resolveTags } from '../../../shared/setup/tagResolver';
 import { triggerDistanceFrac } from '../../../shared/setup/triggerProximity';
+import { finiteOrNull, numAsc } from '../../../shared/formatting/format';
 import {
   FILTER_DEFAULTS,
   dropUnshownFilters,
@@ -169,6 +170,8 @@ function sortTickers(tickers, sortBy, chartData) {
   const sorters = {
     base: (a, b) => (chartData[b].base_len || 0) - (chartData[a].base_len || 0),
     trigger: (a, b) => distanceToTrigger(chartData[a]) - distanceToTrigger(chartData[b]),
+    // Strongest first; an unrated stock sinks, and ties keep the grade order.
+    rs: (a, b) => numAsc(finiteOrNull(chartData[b].rs_rating), finiteOrNull(chartData[a].rs_rating)),
   };
   return sorted.sort(sorters[sortBy] || (() => 0));
 }

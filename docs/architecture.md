@@ -75,7 +75,7 @@ lives in `core/calibration/` and `webapp/backend/domains/calibration/grading.py`
 | `core/archive/` | The SQLite archive: writing rows, maturing outcomes, analysis, seeding, purging. | Production |
 | `core/backtest/` | The edge report and backtest statistics. The backend's edge tile and `core/archive/analyze_stats.py` import it. | Production |
 | `core/calibration/` | Replaying the engine on frozen calibration frames (`replay.py`) and the mark-agreement taxonomy (`agreement.py`), shared by the backend's workbench chips and the calibration tools. | Production |
-| `core/regime/`, `core/fundamentals/` | Relative strength, sector ranking and fundamentals. Dark behind flags (see [`flag_ledger.md`](flag_ledger.md)). | Production (dark) |
+| `core/regime/`, `core/fundamentals/` | Relative strength, sector ranking and fundamentals. The RS rating is live (display and archive, no flag, since 2026-10-02) and so are the fundamentals (display and archive, `FUNDAMENTALS_ENABLED`, since 2026-10-03); the RS line and sector ranking are dark behind flags (see [`flag_ledger.md`](flag_ledger.md)). | Production (RS rating and fundamentals live; the rest dark) |
 | `config/` | Every default setting, split by domain; `settings.py` is the one namespace. | Production |
 | `webapp/backend/` | The HTTP API, the database, the scheduler, the IBKR link. | Production |
 | `webapp/frontend/` | The React app. | Production |
@@ -121,7 +121,7 @@ results on.
 | `market_data/` | Providers; downloads (`downloads.py`, `fetch_data`'s cache state machine; `panel_fetch.py`, cold and incremental panel builds and their repairs; `yahoo_download.py`, Yahoo requests, retry and the shared rate limit; `price_regime.py`, as-traded vs adjusted prices); the parquet cache, freshness, the market calendar, rate limiting, the cache file lock, fetch health. |
 | `universe/` | Universe descriptors, ticker lists, ticker admission. |
 | `context/` | Market regime (`market_context.py`) and the sector health board. |
-| `screening/` | `screener.py` (`run_screener`: evaluate every ticker in a process pool), `scan_job.py` (scan, then payload, then archive; the nightly job), `dashboard.py` and `terminal.py` (the payload writers). |
+| `screening/` | `screener.py` (`run_screener`: evaluate every ticker in a process pool), `scan_job.py` (scan, then payload, then archive; the nightly job), `dashboard.py` and `terminal.py` (the payload writers), `market_cap_floor.py` (the $300M floor on the fires, after the read). |
 | `telemetry/` | Scan stage timings. |
 | `json_safety.py` | Making payloads safe for stdlib JSON. |
 

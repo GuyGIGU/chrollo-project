@@ -116,7 +116,7 @@ core/
                          seed.py, purge.py, episodes.py, outcomes.py
   calibration/         Engine replay on frozen calibration frames (workbench chips + calibration tools)
   backtest/            Edge report + backtest statistics (production: the edge tile uses it)
-  regime/, fundamentals/   Relative strength, sector ranking, fundamentals (dark lanes)
+  regime/, fundamentals/   Relative strength, sector ranking, fundamentals (RS rating + fundamentals live, display only)
 config/                Defaults by domain: engine.py (detection knobs), scoring.py (weights,
                          tiers), enrichment.py, archive.py, market_data.py,
                          market_context.py, runtime.py; settings.py = the one namespace code

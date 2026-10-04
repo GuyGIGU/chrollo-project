@@ -28,9 +28,9 @@ test('an empty address is the default view', () => {
 });
 
 test('every filter reads back from the address', () => {
-  const params = new URLSearchParams('tier=A&setup=VCP&tag=tight_box&tag=vcp_coil&sort=base&q=nv&p=3');
+  const params = new URLSearchParams('tier=A&setup=VCP&tag=tight_box&tag=vcp_coil&sort=rs&q=nv&p=3');
   assert.deepEqual(readFilterParams(params), {
-    tierFilter: 'A', setupFilter: 'VCP', tagIds: ['tight_box', 'vcp_coil'], sortBy: 'base', searchTerm: 'nv', page: 3,
+    tierFilter: 'A', setupFilter: 'VCP', tagIds: ['tight_box', 'vcp_coil'], sortBy: 'rs', searchTerm: 'nv', page: 3,
   });
   for (const search of ['p=0', 'p=-2', 'p=abc', 'p=']) {
     assert.equal(readFilterParams(new URLSearchParams(search)).page, 1, search);

@@ -110,20 +110,19 @@ DECLARED_ADDITIVE_FIELDS: dict[str, frozenset[str]] = {
         "_" + col for col in ELECTION_TRACE_COLUMN_SQL),
     "STRATEGY_READ_ENABLED": frozenset("_" + col for col in STRATEGY_COLUMN_SQL),
     # The advisory lanes add nothing in the evaluation (measured above); the
-    # scan conductor's post-pass adds these to the FIRING rows:
-    # core/fundamentals/post_pass.attach_fundamentals_post_pass (the four
-    # filing-gated metrics, days to earnings, the trailing return) and
-    # core/regime/scan_context.attach_rs_ratings (the RS rating). Measured
-    # offline on the shadow fixture's 34 fires with a provider that refuses
-    # every call: _rs_trailing_return + _rs_rating appear; the vendor keys
-    # need the network and are read from the code.
+    # scan conductor's post-pass
+    # (core/fundamentals/post_pass.attach_fundamentals_post_pass) adds these
+    # to the FIRING rows: the four filing-gated metrics and days to earnings.
+    # The vendor keys need the network and are read from the code. The RS
+    # rating left this lane 2026-10-02: core/regime/scan_context
+    # .attach_rs_ratings writes _rs_rating on every scan with no flag, and the
+    # post-pass no longer emits _rs_trailing_return.
     "FUNDAMENTALS_ENABLED": frozenset({
         "_fund_eps_growth_yoy", "_fund_sales_growth_yoy",
         "_fund_eps_growth_accel", "_fund_earnings_surprise",
-        "_days_to_earnings", "_rs_trailing_return", "_rs_rating"}),
-    # Same post-pass, the RS-line half (measured: _rs_trailing_return).
-    "RS_LINE_ENABLED": frozenset({
-        "_rs_trailing_return", "_rs_line_latest", "_rs_line_new_high"}),
+        "_fund_quarter_end", "_days_to_earnings"}),
+    # Same post-pass, the RS-line half.
+    "RS_LINE_ENABLED": frozenset({"_rs_line_latest", "_rs_line_new_high"}),
     # The sector rank is mapped straight onto archive columns at write time
     # (core/archive/writer.sector_rank_columns), never onto a result row.
     "SECTOR_RANKING_ENABLED": frozenset(),
@@ -132,7 +131,8 @@ DECLARED_ADDITIVE_FIELDS: dict[str, frozenset[str]] = {
 # Flags enrolled while dark that have since FLIPPED LIVE without dissolving.
 # Their entry stays: this contract is what their proofs re-scope into when
 # they do dissolve. A live flag joins only by a deliberate edit here.
-ENROLLED_THEN_FLIPPED_LIVE = frozenset({"SENTENCE_ARCHIVE_ENABLED"})
+# FUNDAMENTALS_ENABLED flipped live 2026-10-03 (display + archive only).
+ENROLLED_THEN_FLIPPED_LIVE = frozenset({"SENTENCE_ARCHIVE_ENABLED", "FUNDAMENTALS_ENABLED"})
 
 
 def _default_off_engine_flags() -> set[str]:

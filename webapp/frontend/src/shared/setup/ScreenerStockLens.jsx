@@ -18,8 +18,10 @@ import {
   displayLabel,
 } from '../presentation/wireVocabulary';
 import { API_BASE } from '../../api/base';
-import { fx, fmtDateShort, fmtDay } from '../formatting/format';
+import { EMPTY, fx, fmtDateShort, fmtDay, fmtPct } from '../formatting/format';
 import { triggerDistanceFrac } from './triggerProximity.js';
+import { leadershipCells, stageCells } from './leadershipRead';
+import { fundamentalsCells, fundamentalsNote, hasFundamentalsRead } from './fundamentalsRead';
 
 const pct = (value, digits = 1) => {
   const fixed = fx(value, digits, null);
@@ -62,7 +64,7 @@ const triggerRead = (value) => {
   return 'Needs more room';
 };
 
-const sectorLabel = (data) => data?.sector_etf || data?.sector_name || '-';
+const sectorLabel = (data) => data?.sector_etf || data?.sector_name || EMPTY;
 
 // Next-earnings cell for the detail grid. Shows the actual DATE (never the
 // cryptic "ER"), tinted by proximity — caution amber inside ~10 days, danger
@@ -85,28 +87,51 @@ const earningsDisplay = (earnings) => {
 };
 
 // The Finviz-style dense read: one tight grid of the engine's technical facts.
-// Finviz fills this with fundamentals (P/E, EPS); Chrollo has none, so every cell
-// is a measured structural fact from the scan payload — no invented data.
+// Every cell is a measured structural fact from the scan payload — no invented
+// data; the fundamentals have their own section (FundamentalsGrid).
 function TechnicalReadGrid({ data, earnings }) {
   const contractions = finiteNumber(data.contraction_count);
   const earn = earningsDisplay(earnings);
 
   const cells = [
     { k: 'Box width', v: pct(boxWidthPct(data)) },
-    { k: 'ADR', v: pct(data.adr_pct) },
     { k: 'Base length', v: bars(data.base_len) },
     { k: 'LPS pullback', v: bars(data.lps_len) },
     { k: 'Contractions', v: contractions == null ? '-' : String(contractions) },
     { k: displayLabel('traversal_density'), v: fx(data.traversal_density, 2, '-') },
-    { k: 'Sector', v: sectorLabel(data), tone: 'var(--accent-blue)', title: data?.sector_name || undefined },
     { k: 'Earnings', v: earn.value, tone: earn.tone, title: earn.title },
   ];
 
+  return <LensGridSection title="Technical read" note={data.setup || ''} cells={cells} />;
+}
+
+// The leadership read (2026-10-02): the STOCK, kept apart from the setup's grade —
+// RS rating, trend template and dollar volume, where the stock stands in its
+// life cycle (2026-10-03: off the 52-week low, the 200-day's month), plus the
+// two stock traits that used to sit in the technical read (ADR and sector).
+function LeadershipGrid({ data }) {
+  const cells = [
+    ...leadershipCells(data),
+    ...stageCells(data),
+    { k: 'ADR', v: fmtPct(data.adr_pct) },
+    { k: 'Sector', v: sectorLabel(data), tone: 'var(--accent-blue)', title: data?.sector_name || undefined },
+  ];
+  return <LensGridSection title="Leadership" note="the stock, not the setup" cells={cells} />;
+}
+
+// The fundamentals read (2026-10-03): the business beside the stock, apart from
+// the setup's grade. The note names the quarter the growth numbers describe.
+function FundamentalsGrid({ data }) {
+  if (!hasFundamentalsRead(data)) return null;
+  return <LensGridSection title="Fundamentals" note={fundamentalsNote(data)} cells={fundamentalsCells(data)} />;
+}
+
+function LensGridSection({ title, note, cells }) {
   return (
     <section className="stock-lens-section">
       <div className="stock-lens-section-header">
-        <span>Technical read</span>
-        <small>{data.setup || ''}</small>
+        <span>{title}</span>
+        <small>{note}</small>
       </div>
       <div className="lens-grid">
         {cells.map((cell) => (
@@ -478,7 +503,11 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
       />
       {ticker ? <FiredCrossedLine ticker={ticker} /> : null}
       <div className="stock-lens-bottom">
-        <TechnicalReadGrid data={data} earnings={earnings} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+          <LeadershipGrid data={data} />
+          <FundamentalsGrid data={data} />
+          <TechnicalReadGrid data={data} earnings={earnings} />
+        </div>
         {showDailyStructure ? (
           <NarrativePanel
             activeRegion={activeRegion}

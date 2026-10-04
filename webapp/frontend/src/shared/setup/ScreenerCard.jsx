@@ -6,6 +6,7 @@ import { healthStateMeta } from './healthStateData';
 import { tierColor, signColor } from '../presentation/theme';
 import { fx, fmtSignedPctFrac } from '../formatting/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from './screenerCardData';
+import { hasLeadershipRead, leadershipCells } from './leadershipRead';
 import { dialogOpenOutside, hasCommandModifier } from '../navigation/keyboardGuard';
 
 export function WatchlistButton({ active, onToggle }) {
@@ -122,13 +123,27 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
 
 const monoFaint = { color: 'var(--text-faint)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, whiteSpace: 'nowrap' };
 
+// The leadership read beside the sector (2026-10-02): RS rating, trend template,
+// dollar volume — the stock, not the setup. Neutral ink on purpose: no value is
+// judged good or bad here. Each piece explains itself on hover.
+function LeadershipRead({ data }) {
+  return (
+    <span style={{ ...monoFaint, color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, gap: 7 }}>
+      {leadershipCells(data).map((cell) => (
+        <span key={cell.k} title={cell.title}>{cell.card}</span>
+      ))}
+    </span>
+  );
+}
+
 // Minimal Finviz charts-view header, ONE row since 2026-10-02 — the operator
 // circled the old two-row header as space the chart should get ("increasing the
 // real state each setup gets in the mini chart cards"). Stock + tier + sector
-// ETF, then the weekly / monthly read, then — pushed right — the as-of date, the
-// live price and its daily % change, and the two toggles. The W/M group is the
-// ONE part that gives way: on a narrow (480px) card its state words ellipsize so
-// the row never wraps or overflows; the full read stays in each cell's tooltip.
+// ETF + the leadership read, then the weekly / monthly read, then — pushed
+// right — the as-of date, the live price and its daily % change, and the two
+// toggles. The W/M group is the ONE part that gives way: on a narrow (480px)
+// card its state words ellipsize so the row never wraps or overflows; the full
+// read stays in each cell's tooltip.
 // The shell (.screener-card-head, 30px) is shared with the health card and the
 // Watchlist's clean card, so every card kind's chart starts at the same height.
 // Score, setup name, and the next-earnings date live in the click-through detail
@@ -148,6 +163,7 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onTog
           {data.sector_etf}
         </span>
       ) : null}
+      {hasLeadershipRead(data) ? <LeadershipRead data={data} /> : null}
 
       {/* The weekly / monthly read — shrinks first (minWidth 0 + overflow) */}
       <div style={{ alignItems: 'center', display: 'flex', flex: '0 1 auto', gap: 8, marginLeft: 3, minWidth: 0, overflow: 'hidden' }}>

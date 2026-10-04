@@ -302,6 +302,19 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
+**The market-cap floor (live 2026-10-03, operator).** `MIN_MARKET_CAP = 300_000_000`
+dollars. It is the one entry rule the price data cannot answer, so it is NOT a leg of
+this gate: `core/pipeline/screening/market_cap_floor.py` runs in `run_screener` on the
+FIRES, after the read and before the advisory post-passes, looking each one up through
+the provider (`market_cap`, yfinance `fast_info`, shares times last price). A fire under
+the floor leaves the scan (not shown, not archived); a fire whose cap cannot be read
+stays (a missing number never refuses, this gate's NaN rule). Kept fires carry
+`_market_cap` onto the wire and into `setup_archive.market_cap`. A curated ETF universe
+(`ticker_source == "csv"`) skips it. Counts ride `market_context["market_cap_floor"]`.
+Measured on the 2026-10-02 scan before it went live: 7 of 82 fires under $300M (3 S,
+4 A), all trading under $2M a day. The floor reads today's cap, so it is a live-scan
+rule only; replays and the calibration harness never apply it.
+
 **The 50-day dip exception (`SMA50_DIP_EXCEPTION_ENABLED`, dark — miss program
 2026-08-28).** An `sma50` refusal is admitted into chart reading when the dip
 under the 50-day is a bounded, recent, already-recovered event
@@ -1234,11 +1247,43 @@ Fields: `_stage2_ma_stack_pass`, `_stage2_ma200_slope_1m_pct`,
 (all 7). Minervini's 8th criterion (RS rating ≥ 70, a *universe percentile*) is
 **deliberately omitted from the count** — the live scoring path measures relative
 strength SPY-relatively via `excess_return_6m` — so the count is out of 7.
-Context only; no gate, no score. **Correction 2026-07-26:** a universe-percentile
-RS rank DOES exist in the tree (`core/regime/percentile.py` + `scan_context.attach_rs_ratings`,
-wired at `screener.py` and archived as `rs_rating`); it is dormant only because
-`RS_LINE_ENABLED` / `SECTOR_RANKING_ENABLED` are False. Do not rebuild it — the
-action is a flag flip plus a shadow re-capture.
+Context only; no gate, no score. Since 2026-10-02 the count also reaches the wire
+(`stage2_trend_pass_count`) for the card's leadership read, and since 2026-10-03 two
+of its measures do too (`stage2_52w_low_pct`, a fraction; `stage2_ma200_slope_1m_pct`,
+in percent), shown in the detail panel's Leadership section as "Off 52-week low" and
+"200-day trend". The base count (`trend_base_count`) stays off the screen: it reads 1
+on every archived fire (8,804 of 8,804 by 2026-10-03), because the up-segment it
+counts inside, the swing labeller's latest confirmed up-leg, is only weeks long and
+holds no earlier base.
+
+**The RS rating (live 2026-10-02, the leadership read).** `scan_context.attach_rs_ratings`
+(called once per scan in `screener.py`) ranks each fire's twelve-month strength (four
+quarter returns of `RS_RATING_LOOKBACK // 4` days, the latest counted double) against
+every frame the scan read that has a year of history and a close at or above
+`MIN_PRICE`, and writes `_rs_rating` (0–100), archived as `rs_rating` and shown on the
+card on a 1–99 scale. No flag: it is display and archive only, never a gate, a score or
+a tier input. A frame with no readable close is left unrated, and a crash in the pass
+costs that night's ratings, never the scan (the same seam catch as the fundamentals
+post-pass). Until that day it ranked only the firing set and sat behind
+`FUNDAMENTALS_ENABLED` (the 2026-07-26 note here named the wrong flags); no archived
+row ever carried the old meaning.
+
+**The fundamentals (live 2026-10-03, operator: display and archive only).**
+`FUNDAMENTALS_ENABLED = True`: the conductor post-pass
+(`core/fundamentals/post_pass.py`) writes the four filing-gated metrics
+(`_fund_eps_growth_yoy`, `_fund_sales_growth_yoy`, `_fund_eps_growth_accel`,
+`_fund_earnings_surprise`), `_days_to_earnings`, and `_fund_quarter_end` (the period
+end of the quarter the growth reads describe) onto each fire. They reach the wire, the
+detail panel's Fundamentals section (beside the market cap) and `setup_archive`
+(`fund_*`, `days_to_earnings`; the quarter end is wire only). Never scored, never a
+filter. Two facts measured on 30 fires of the 2026-10-02 scan: yfinance returns five
+or six quarters, so EPS growth filled 28, sales growth 26 and the surprise 29, but
+acceleration (six quarters) only 5; and the 75-day filing lag can hold a just-reported
+quarter out for weeks, which is why the quarter is named. Fixed in the same change: the
+reporting-event cache now also lets go on the day a newer quarter can clear the lag
+(`_next_quarter_visible`, cached quarter end + 90 days + the lag). Keyed on the next
+earnings date alone, a fetch made while the new quarter was still lagged froze the
+previous quarter until the FOLLOWING report.
 
 All Stage-2A fields persist to `setup_archive` (writer + seed parity) and are
 surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
@@ -1586,13 +1631,14 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `ef5de2f09ccec50d77c60eaf6ab823bbf99a6c65dae10373b6f8dfb8b4832591`_
+_engine_config_version: `a2252c6c00159557c36adfff344cdf7c302b3c1e128ab6992aad5e33a02f143b`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
 MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50000
 MIN_YEARLY_RETURN = -0.2
+MIN_MARKET_CAP = 300000000
 SMA50_DIP_EXCEPTION_ENABLED = False
 SMA50_DIP_MAX_SESSIONS = 25
 SMA50_DIP_MAX_ATR = 1.0
@@ -1810,7 +1856,7 @@ TOUCH_VOL_Z_NO_SUPPLY = -0.3
 TOUCH_VOL_Z_SPRING = 0.3
 TOUCH_VOL_Z_HEAVY_R = 0.5
 TA_WARN_WEAK_MONTHLY = 1.0
-FUNDAMENTALS_ENABLED = False
+FUNDAMENTALS_ENABLED = True
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12
 FUNDAMENTALS_FILING_LAG_DAYS = 75
 RS_LINE_ENABLED = False

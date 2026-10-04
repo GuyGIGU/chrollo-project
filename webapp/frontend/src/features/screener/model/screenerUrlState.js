@@ -13,7 +13,7 @@ export const FILTER_DEFAULTS = { tierFilter: 'ALL', setupFilter: 'ALL', sortBy: 
 // copies together). Any other ?tier= or ?sort= reads as the default: ?tier=a faked
 // 'No setups match' with no pill pressed, and ?sort=valueOf crashed the sort.
 export const TIER_FILTERS = ['ALL', ...TIER_LETTERS, 'WATCHLIST'];
-export const SORT_KEYS = ['score', 'base', 'trigger'];
+export const SORT_KEYS = ['score', 'base', 'trigger', 'rs'];
 const shownOr = (value, shown, fallback) => (shown.includes(value) ? value : fallback);
 
 export function readFilterParams(params) {

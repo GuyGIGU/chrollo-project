@@ -12,7 +12,7 @@ green against a builder nothing calls:
     (the byte-identical guarantee at the unit level);
   * flags ON  -> the metrics attach, point-in-time safe (no future quarter),
     via a fake provider AND via a fully yfinance-mocked provider;
-  * the universe RS-rating post-pass ranks across the firing set;
+  * the RS rating ranks each fire against the whole scan universe;
   * the per-setup sector-rank mapping from the scan-wide ranking;
   * a missing/failed read degrades to an ABSENT key (never a chip, never a raise).
 
@@ -213,29 +213,63 @@ def test_post_pass_with_mocked_yfinance(tmp_path, monkeypatch):
     assert row["_days_to_earnings"] == 21
 
 
-# ── universe RS-rating post-pass ─────────────────────────────────────────────
-def test_attach_rs_ratings_ranks_across_firing_set(monkeypatch):
+# ── universe RS-rating post-pass (the leadership read, live 2026-10-02) ──────
+def _year_frame(end_close, start_close=10.0, days=253):
+    """A year plus one day, the close moving in a straight line."""
+    step = (end_close - start_close) / (days - 1)
+    return _price_df([start_close + step * i for i in range(days)])
+
+
+def test_rs_rating_ranks_fires_against_the_whole_universe(monkeypatch):
     from config import settings
 
-    monkeypatch.setattr(settings, "FUNDAMENTALS_ENABLED", True, raising=False)
-    results = [
-        {"Ticker": "LOW", "_rs_trailing_return": 0.05},
-        {"Ticker": "MID", "_rs_trailing_return": 0.20},
-        {"Ticker": "HIGH", "_rs_trailing_return": 0.50},
-        {"Ticker": "NONE"},  # no trailing return -> no rating
-    ]
-    scan_context.attach_rs_ratings(results)
-    assert results[0]["_rs_rating"] < results[1]["_rs_rating"] < results[2]["_rs_rating"]
-    assert "_rs_rating" not in results[3]
-
-
-def test_attach_rs_ratings_off_is_noop(monkeypatch):
-    from config import settings
-
+    # No flag governs it any more: the fundamentals switch stays off.
     monkeypatch.setattr(settings, "FUNDAMENTALS_ENABLED", False, raising=False)
-    results = [{"Ticker": "A", "_rs_trailing_return": 0.1}]
-    scan_context.attach_rs_ratings(results)
-    assert "_rs_rating" not in results[0]
+    frames = {f"S{i}": _year_frame(10.0 + i) for i in range(10)}  # S9 strongest
+    results = [{"Ticker": "S0"}, {"Ticker": "S9"}]
+    scan_context.attach_rs_ratings(results, frames)
+    # Ranked among all ten stocks (midrank: 0.5/10 and 9.5/10). Ranked among
+    # the two fires alone they would read 25 and 75.
+    assert results[0]["_rs_rating"] == pytest.approx(5.0)
+    assert results[1]["_rs_rating"] == pytest.approx(95.0)
+
+
+def test_rs_rating_counts_the_latest_quarter_double():
+    # Both stocks gain 30% over the year. LATE makes it all in the last
+    # quarter, EARLY all in the first; the latest quarter counts double.
+    late = _price_df([10.0] * 190 + [10.0 + 3.0 * i / 63 for i in range(1, 64)])
+    early = _price_df([10.0] + [10.0 + 3.0 * i / 63 for i in range(1, 64)] + [13.0] * 189)
+    assert scan_context.year_strength(late) == pytest.approx(0.6)
+    assert scan_context.year_strength(early) == pytest.approx(0.3)
+    results = [{"Ticker": "LATE"}, {"Ticker": "EARLY"}]
+    scan_context.attach_rs_ratings(results, {"LATE": late, "EARLY": early})
+    assert results[0]["_rs_rating"] > results[1]["_rs_rating"]
+
+
+def test_rs_rating_needs_a_year_of_history_and_the_price_floor():
+    frames = {
+        "LEAD": _year_frame(14.0),
+        "LAG": _year_frame(11.0),
+        # Strongest of all, but under the $3 floor: out of the population.
+        "PENNY": _year_frame(2.9, start_close=1.0),
+        # One day short of a year: no rating, never a low one.
+        "YOUNG": _year_frame(20.0, days=252),
+    }
+    results = [{"Ticker": "LEAD"}, {"Ticker": "YOUNG"}]
+    scan_context.attach_rs_ratings(results, frames)
+    assert results[0]["_rs_rating"] == pytest.approx(75.0)  # 1.5 of 2 ranked
+    assert "_rs_rating" not in results[1]
+
+
+def test_rs_rating_skips_a_frame_it_cannot_read():
+    # Two-level columns carry no "Close" key: that stock is left out, unrated,
+    # and the rest of the universe is still ranked.
+    unreadable = pd.concat({"ODD": _year_frame(30.0)}, axis=1)
+    frames = {"LEAD": _year_frame(14.0), "LAG": _year_frame(11.0), "ODD": unreadable}
+    results = [{"Ticker": "LEAD"}, {"Ticker": "ODD"}]
+    scan_context.attach_rs_ratings(results, frames)
+    assert results[0]["_rs_rating"] == pytest.approx(75.0)
+    assert "_rs_rating" not in results[1]
 
 
 # ── per-setup sector-rank fields ─────────────────────────────────────────────

@@ -256,7 +256,7 @@ the sealed protocol, not re-argue from canon.
 | Extend the LPS dry-up to the shelf form | Reverses the operator-ruled two-form doctrine, calibrated on his marked WTS + PBT shelves |
 | Add a P&F count / cause-derived target | No machinery to extend — new doctrine. And **never** re-derive `TARGET_R_MULTIPLE`: that column set is the ground truth behind the 1,977-episode edge read and the RS/uptrend demotion |
 | Restore `SCORE_RS_BONUS` / `SCORE_UPTREND_BONUS` | Demoted to 0 on evidence (corr −0.22 / −0.19 at n=1977) — the two worst terms in the book. Do **not** delete the zero-weighted ramps either; they preserve the archive trail |
-| Build a universe RS ranker | One exists (`rs_rating`, live-wired, flag-off). `strategy_alpha.md:1294-1297` is **stale** — the action is a flag flip |
+| Build a universe RS ranker | One exists and is LIVE since 2026-10-02 (`rs_rating`, display and archive only; `engine_reference.md`, the RS rating). Scoring it is the separate Tested-DEAD question |
 | Relax or tighten the SMA-200 baseline | Double-enforced veto; every pinned threshold was fitted on above-200MA tape. Either direction changes the firing set |
 | Unify the "duplicated" Phase-D starts / two Vs / two Phase-C labels / `sos_reclaim` | Frozen capture seams. `phase_d.py:259-266` forbids collapsing without a fold_parity proof **and** an operator ruling |
 
