@@ -97,3 +97,27 @@ His fires: S 10 / A 8 / B 2 today, S 11 / A 8 / B 1 under the ledger; the three 
 under the ledger (ABEV climbs on its window's spread and its named legs; its 7.5 turn points show the few turns).
 The other 15 marks do not fire on their frozen day under the whole method (they fire on another day of the
 window, or hand over, or wait as a root candidate: the step-11 record).
+
+## The two-eyes reader's grade probe (Mon 05/10/2026): no measure of the box survives
+
+Build task 14 of the two-eyes reader. The hypotheses were written into the decisions record before the probe
+existed: the box's height in its own daily range; three forms of his "huge against the box" (*"answer a."*, Sun
+20/09/2026); the spread profile; the event map; and the plain average as the control. They were read on the
+reader's OWN box (the one its LPS was read against), on his 40 drawings on his last receding day and on the 14 junk
+charts that fire in their window, on their first fire day (`python -m tools.calibration.grade_probe`).
+
+| Measure | His 40: min / q25 / median / q75 / max | The 14 junk fires | Separation | Left out |
+|---|---|---|---|---|
+| H, the box's height in daily ranges (junk higher) | 1.06 / 1.35 / 1.50 / 1.83 / 2.75 | 1.03 / 1.15 / 1.28 / 1.55 / 1.93 | 0.304 | 0.500 |
+| S1, days whose bar is 3/4 of the box or taller (junk higher) | 0.00 / 0.05 / 0.14 / 0.30 / 0.69 | 0.04 / 0.16 / 0.35 / 0.55 / 0.65 | 0.732 | 0.671 |
+| S2, swings from line to line per 20 days (junk lower) | 2.22 / 5.10 / 6.27 / 10.47 / 16.00 | 1.63 / 4.64 / 6.04 / 8.14 / 13.68 | 0.568 | 0.613 |
+| S3, the 90th-percentile bar over the median bar (junk higher) | 1.25 / 1.42 / 1.52 / 1.60 / 2.10 | 1.20 / 1.48 / 1.59 / 1.70 / 1.87 | 0.605 | 0.602 |
+| V, the last third's median spread over the first third's (junk higher) | 0.51 / 0.79 / 0.99 / 1.19 / 1.77 | 0.64 / 0.77 / 0.94 / 1.10 / 1.45 | 0.461 | 0.134 |
+| E, the story's committed words (junk lower) | 1 / 3 / 3.5 / 4 / 5 | 3 / 3 / 4 / 4 / 5 | 0.427 | 0.464 |
+| S0, the control: the median bar over the box's height | 0.35 / 0.45 / 0.52 / 0.64 / 0.89 | 0.36 / 0.50 / 0.66 / 0.81 / 0.88 | 0.664 | 0.666 |
+
+To survive, a measure had to beat 0.713 on separation AND 0.696 left out (the 95th percentile of the best of six
+under 2,000 shuffles of the labels). None does. The height runs the other way: the reader draws the junk's boxes
+narrow, at the one-range floor or near it, and their bars are tall against them. The tall bars come closest and
+mark down his own UNF (his lines; the median bar 89 percent of the box) as hard as FRPH (85 percent). No grade is
+built on these numbers; what the grade becomes is his ruling (the decisions record, 2026-10-05).
