@@ -73,6 +73,8 @@ def test_a_measure_survives_only_on_both_counts_at_most_three_and_never_two_that
                 "V": np.ones(12), "E": np.ones(12)}
     assert grade_probe.rank_corr(opposite["H"], opposite["S1"]) < -0.9
     assert grade_probe.survivors(opposite, junk, bar_auc=0.55, bar_loco=0.0)[1] == ["H", "S1"]
+    # the second probe judges its own family, the dead days alone
+    assert grade_probe.survivors({"D": up}, junk, bar_auc=0.7, bar_loco=0.7, family=grade_probe.SECOND)[1] == ["D"]
 
 
 def test_the_chance_baseline_repeats_with_its_seed_and_rises_with_the_family():
@@ -86,6 +88,10 @@ def test_the_chance_baseline_repeats_with_its_seed_and_rises_with_the_family():
     alone = chance({m: (table[m] if m == "H" else np.ones(28)) for m, _ in MEASURES}, junk, shuffles=200)
     assert 0.5 < alone[0] < first[0] < 1.0, "the best of six is harder to beat than one measure alone"
     assert alone[1] < first[1]
+    # the second probe's family is its one measure: its bar is that measure's own, not the best of six
+    assert chance(table, junk, shuffles=200, family=MEASURES) == first
+    one = chance(table, junk, shuffles=200, family=(("H", +1),))
+    assert one[0] < first[0] and one[1] <= first[1]
 
 
 def test_the_measures_and_their_directions_are_the_ones_written_down_before_the_probe_ran():
@@ -96,6 +102,10 @@ def test_the_measures_and_their_directions_are_the_ones_written_down_before_the_
     assert (grade_probe.SHUFFLES, grade_probe.TOGETHER, grade_probe.KEEP) == (2000, 0.7, 3)
     assert grade_probe.LETTERS == ((75.0, "S"), (50.0, "A"), (25.0, "B"))
     assert grade_probe.BAR == ("BMRN", "FRPH", "COLM")
+    # the second probe (the decisions row of Mon 05/10/2026, his dead space): one measure, the junk higher
+    assert grade_probe.SECOND == (("D", +1),)
+    # the grade's term, ours after the board: the same measure read on the parent
+    assert grade_probe.GRADE_TERM == ("Dp", +1)
 
 
 def test_the_grade_ramps_from_his_median_to_the_junk_median_and_the_letter_follows():
@@ -108,6 +118,31 @@ def test_the_grade_ramps_from_his_median_to_the_junk_median_and_the_letter_follo
     assert grade({"S1": 0.1}, ends) == 100.0 and grade({"S1": 0.9}, ends) == 0.0
     assert grade({"S1": 0.4}, ends) == pytest.approx(50.0)
     assert [letter(g) for g in (100.0, 75.0, 74.9, 50.0, 25.0, 24.9)] == ["S", "S", "A", "A", "B", "C"]
+
+
+def test_the_base_ends_the_day_before_the_soss_push_when_that_push_begins_after_the_box_opened():
+    """The dead days are counted over the base: from THE SOS's push on is the right side, never dead space."""
+    import types
+    import pandas as pd
+    from engine_alpha.two_eyes import record
+    from tools.calibration.grade_probe import base_end
+
+    days = pd.bdate_range("2026-01-05", periods=30)
+    prepared = pd.DataFrame(index=days)
+
+    def row(*events):
+        return {"read": types.SimpleNamespace(events=events), "prepared": prepared}
+
+    def sos(push_bar):
+        return record.Event(kind=record.SOS, day=days[push_bar + 3].date(), price=10.0,
+                            first_day=days[push_bar].date())
+
+    assert base_end(row(), 5, 29) == 29, "no SOS: to the read day"
+    assert base_end(row(sos(20)), 5, 29) == 19, "the day before the push begins"
+    assert base_end(row(sos(5)), 5, 29) == 29, "a push from the box's opening day ends no base"
+    assert base_end(row(sos(3)), 5, 29) == 29, "nor one that began before the box opened"
+    spring = record.Event(kind=record.SPRING, day=days[10].date(), price=9.0, first_day=days[8].date())
+    assert base_end(row(spring), 5, 29) == 29, "only THE SOS ends the base"
 
 
 @pytest.fixture(scope="module")
@@ -137,3 +172,51 @@ def test_on_the_readers_own_box_his_unf_has_bars_as_tall_as_the_box_like_the_jun
     assert unf["S1"] == pytest.approx(0.69, abs=0.005) and frph["S1"] == pytest.approx(0.65, abs=0.005)
     assert unf["H"] == pytest.approx(1.25, abs=0.005) and frph["H"] == pytest.approx(1.19, abs=0.005)
     assert (unf["E"], frph["E"]) == (4, 5)
+
+
+def test_his_frph_box_is_mostly_dead_space_and_his_unf_box_is_not(unf_and_frph):
+    """His word (Mon 05/10/2026): *"FRPH is total junk because the box is mostly dead space"*, while a box about as
+    tall as its bars, like his UNF, *"is completely fine"*. Over the base (the box's days before THE SOS's push),
+    FRPH's bars miss its box on more than half the days, and UNF's on fewer than half."""
+    from tools.calibration.grade_probe import measures
+
+    unf, frph = (measures(row) for row in unf_and_frph)
+    assert frph["D"] > 0.5, "mostly dead space"
+    assert unf["D"] < 0.5, "a box as tall as its bars is no dead space"
+    # pinned once measured: FRPH's base runs 103 of its 115 days (THE SOS's push ends it), 73 of them with no bar in
+    # the box; UNF's 29 of 35, 3 of them; over the whole days to the read day the right side would count too
+    assert (frph["base_days"], frph["D"], frph["D_all"]) == (103, pytest.approx(73 / 103), pytest.approx(82 / 115))
+    assert (unf["base_days"], unf["D"], unf["D_all"]) == (29, pytest.approx(3 / 29), pytest.approx(8 / 35))
+    assert (frph["Dp"], unf["Dp"]) == (frph["D"], unf["D"]), "both read on the parent already"
+
+
+def test_the_grade_reads_the_parents_dead_days_when_the_lps_was_read_against_the_mini():
+    """His VIK: the LPS is read against the mini, whose days after THE SOS of the parent are the mini's own push and
+    pullback; the grade's term reads the parent's base, where 1 day of 15 has no bar in the box."""
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+    from tools.calibration import core_board
+    from tools.calibration.grade_probe import measures
+    from tools.regression.marks_corpus import load_corpus, setup_key
+
+    frames, _ = load_sealed_fixture()
+    vik = next(s for s in load_corpus() if setup_key(s) == "VIK:2026-06-11")
+    m = measures(core_board.score_setup(vik, fixture_frame(frames, "VIK:2026-06-11", "VIK"))["on_last"])
+    assert (m["box"], m["base_days"], m["D"]) == ("mini", 16, pytest.approx(9 / 16))
+    assert m["Dp"] == pytest.approx(1 / 15)
+
+
+def test_the_grades_term_needs_the_written_down_d_to_survive_and_the_best_of_two_beaten():
+    from tools.calibration import grade_probe
+
+    junk = np.array([False] * 6 + [True] * 6)
+    apart = np.array([1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16], dtype=float)
+    flat = np.ones(12)
+    assert grade_probe.grade_term({"D": apart, "Dp": apart}, junk, ["D"], shuffles=200)[0] == ["Dp"]
+    assert grade_probe.grade_term({"D": apart, "Dp": flat}, junk, ["D"], shuffles=200)[0] == [], \
+        "a parent reading that cannot tell them apart is no term"
+    assert grade_probe.grade_term({"D": apart, "Dp": apart}, junk, [], shuffles=200)[0] == [], \
+        "only when the measure written down first survived"
+    # chosen after the board, so its bar is the best of the two under the same shuffles, not its own
+    table = {"D": apart, "Dp": apart[::-1].copy()}
+    assert grade_probe.grade_term(table, junk, ["D"], shuffles=200)[2] == \
+        grade_probe.chance(table, junk, 200, family=(("D", +1), ("Dp", +1)))

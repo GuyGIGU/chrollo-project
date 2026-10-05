@@ -20,6 +20,25 @@ family's shuffled 95th percentile; at most three, by the leave-one-chart-out sco
 correlation is 0.7 or more. The grade: each survivor 1 at his median or better, 0 at the junk fires' median or
 worse, linear between; 100 times their average; S at 75, A at 50, B at 25, C below.
 
+The second probe (the decisions row of Mon 05/10/2026, written down after the first found nothing, from his word
+"FRPH is total junk because the box is mostly dead space"), on the same box and the same reads:
+
+    D   the box's dead days: over the base (the box's days from its opening day to the day before THE SOS's push
+        begins, or to the read day when the story names no SOS whose push begins after the box opened), the share
+        of days whose bar does not reach the box: its low above the resistance or its high under the support
+                                                                                     (junk higher)
+
+Its test is the first probe's, the family being this one measure. For the record, deciding nothing: D with FRPH
+(the chart that taught it) left out, D over the box's whole days to the read day, and D on the parent.
+
+    Dp  D read on the PARENT, the setup's base, whatever box the LPS was read against
+                                                                                     (junk higher)
+
+The grade reads Dp (OURS, chosen after the board, the decisions row of Mon 05/10/2026): the base THE SOS bounds is
+the parent's, and the mini is a rest inside the parent's right side, so on the mini the base's window counts the
+mini's own push and pullback. Chosen after seeing the board, it must beat the BEST OF THE TWO (D and Dp) under the
+same shuffles, on both counts, and only when the written-down D survived.
+
 Offline, read-only, sidecars only:
 
     python -m tools.calibration.grade_probe                  # the board
@@ -51,6 +70,10 @@ from core.calibration.replay import load_sealed_fixture  # noqa: E402
 #: The six candidates and the control, each with its stated direction: +1 the junk reads higher, -1 lower.
 MEASURES = (("H", +1), ("S1", +1), ("S2", -1), ("S3", +1), ("V", +1), ("E", -1))
 CONTROL = ("S0", +1)
+#: The second probe's family: his dead space, one measure.
+SECOND = (("D", +1),)
+#: The grade's term, OURS after the board: D read on the parent.
+GRADE_TERM = ("Dp", +1)
 #: The story's words the event map counts, each kind once (the spring test rides with its spring).
 EVENT_MAP = (record.SPRING, record.UPTHRUST, record.SOS, record.LAST_SUPPER, record.PHASE_D)
 SHUFFLES = 2000
@@ -67,8 +90,19 @@ def the_box(row: dict, named: bool = True):
     return row["won"]
 
 
+def base_end(row: dict, first: int, last: int) -> int:
+    """The base's last day: the day before THE SOS's push begins, when the story names one beginning after the box
+    opened; else the read day. From THE SOS's push on is the right side, never dead space."""
+    sos = next((e for e in row["read"].events if e.kind == record.SOS and e.first_day is not None), None)
+    if sos is None:
+        return last
+    days = [d.date() for d in row["prepared"].index]
+    push = days.index(sos.first_day) if sos.first_day in days else None
+    return push - 1 if push is not None and push > first else last
+
+
 def measures(row: dict, named: bool = True) -> dict:
-    """The seven numbers of one read, or {} when the read shows no box."""
+    """The nine numbers of one read, or {} when the read shows no box."""
     if row.get("prepared") is None or row.get("won") is None:
         return {}
     pair = the_box(row, named)
@@ -77,6 +111,8 @@ def measures(row: dict, named: bool = True) -> dict:
     low = prepared["Low"].to_numpy(dtype=float)
     last = len(prepared) - 1
     first = pair.opening_bar
+    end = base_end(row, first, last)
+    missed = (low > pair.R) | (high < pair.S)           # the bar does not reach the box: wholly over it or under it
     spread = high[first:last + 1] - low[first:last + 1]
     gap, unit = pair.R - pair.S, pair.unit
     area = M.LINE_WORD_AREA_ATR * unit
@@ -84,6 +120,7 @@ def measures(row: dict, named: bool = True) -> dict:
     legs = sum(1 for a, b in zip(turns, turns[1:])
                if max(a.price, b.price) >= pair.R - area and min(a.price, b.price) <= pair.S + area)
     third = max(1, len(spread) // 3)
+    parent_dead = None if pair is row["won"] else measures(row, named=False)["D"]
     return {
         "H": gap / unit,
         "S0": float(np.median(spread)) / gap,
@@ -92,6 +129,10 @@ def measures(row: dict, named: bool = True) -> dict:
         "S3": float(np.percentile(spread, 90)) / float(np.median(spread)),
         "V": float(np.median(spread[-third:])) / float(np.median(spread[:third])),
         "E": len({e.kind for e in read.events if e.committed and e.kind in EVENT_MAP}),
+        "D": float(np.mean(missed[first:end + 1])),
+        "Dp": float(np.mean(missed[first:end + 1])) if parent_dead is None else parent_dead,
+        "D_all": float(np.mean(missed[first:last + 1])),
+        "base_days": end - first + 1,
         "days": len(spread),
         "box": "mini" if pair is not row["won"] else "parent",
     }
@@ -134,14 +175,16 @@ def loco(x: np.ndarray, junk: np.ndarray, sign: int) -> float:
     return float(0.5 * (said_junk[junk].mean() + (~said_junk[~junk]).mean()))
 
 
-def chance(table: dict, junk: np.ndarray, shuffles: int = SHUFFLES, seed: int = 20261005) -> tuple:
-    """The 95th percentile of the BEST of the six, for each score, under shuffles of the labels."""
+def chance(table: dict, junk: np.ndarray, shuffles: int = SHUFFLES, seed: int = 20261005,
+           family: tuple = MEASURES) -> tuple:
+    """The 95th percentile of the BEST of the family (the six, or the second probe's one), for each score, under
+    shuffles of the labels."""
     rng = np.random.default_rng(seed)
     best_auc, best_loco = [], []
     for _ in range(shuffles):
         shuffled = rng.permutation(junk)
-        best_auc.append(max(auc(table[m], shuffled, s) for m, s in MEASURES))
-        best_loco.append(max(loco(table[m], shuffled, s) for m, s in MEASURES))
+        best_auc.append(max(auc(table[m], shuffled, s) for m, s in family))
+        best_loco.append(max(loco(table[m], shuffled, s) for m, s in family))
     return float(np.percentile(best_auc, 95)), float(np.percentile(best_loco, 95))
 
 
@@ -159,12 +202,12 @@ def rank_corr(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.corrcoef(ranks(a), ranks(b))[0, 1])
 
 
-def survivors(table: dict, junk: np.ndarray, bar_auc: float, bar_loco: float) -> tuple:
-    scored = {m: (auc(table[m], junk, s), loco(table[m], junk, s)) for m, s in MEASURES}
+def survivors(table: dict, junk: np.ndarray, bar_auc: float, bar_loco: float, family: tuple = MEASURES) -> tuple:
+    scored = {m: (auc(table[m], junk, s), loco(table[m], junk, s)) for m, s in family}
     passed = sorted((m for m, (a, l) in scored.items() if a > bar_auc and l > bar_loco),
                     key=lambda m: (-scored[m][1], -scored[m][0]))
     kept, dropped = [], []
-    sign = dict(MEASURES)
+    sign = dict(family)
     for m in passed:
         # "move together" as graded: each measure turned to its stated direction first, so two that rise apart
         # (a correlation of -0.7 between two measures that both read the junk higher) are not twins
@@ -235,8 +278,9 @@ def board(his: list, junk: list, silent: list, shuffles: int = SHUFFLES) -> tupl
     charts = [c for c in his + junk if c["m"]]
     no_box = [c["key"] for c in his + junk if not c["m"]]
     is_junk = np.array([c["junk"] for c in charts])
-    table = {m: np.array([c["m"][m] for c in charts], dtype=float) for m, _ in MEASURES + (CONTROL,)}
-    parent = {m: np.array([c["parent"][m] for c in charts], dtype=float) for m, _ in MEASURES + (CONTROL,)}
+    every = MEASURES + (CONTROL,) + SECOND + (GRADE_TERM,)
+    table = {m: np.array([c["m"][m] for c in charts], dtype=float) for m, _ in every}
+    parent = {m: np.array([c["parent"][m] for c in charts], dtype=float) for m, _ in every}
     bar_auc, bar_loco = chance(table, is_junk, shuffles)
     scored, kept, dropped = survivors(table, is_junk, bar_auc, bar_loco)
     out = [f"THE GRADE PROBE — {int((~is_junk).sum())} of his drawings and {int(is_junk.sum())} junk fires, on the "
@@ -267,6 +311,9 @@ def board(his: list, junk: list, silent: list, shuffles: int = SHUFFLES) -> tupl
         for b, _ in MEASURES[i + 1:]))
     out.append("")
     out.append(f"  SURVIVORS: {', '.join(kept) if kept else 'none'}")
+    second, kept2, second_summary = second_probe(charts, table, parent, is_junk, shuffles)
+    out.extend(second)
+    kept = kept + kept2
     ends = ramps(table, is_junk, kept)
     for m, (full, zero) in ends.items():
         out.append(f"    {m}: 1 at {full:.3f} (his median), 0 at {zero:.3f} (the junk fires' median)")
@@ -284,7 +331,57 @@ def board(his: list, junk: list, silent: list, shuffles: int = SHUFFLES) -> tupl
         out.extend(format_grades(charts, junk, ends))
     out.extend(format_charts(charts, bool(ends)))
     return out, charts, {"kept": kept, "ends": ends, "chance": [bar_auc, bar_loco],
-                         "scored": {m: list(v) for m, v in scored.items()}}
+                         "scored": {m: list(v) for m, v in scored.items()}, "second": second_summary}
+
+
+def second_probe(charts: list, table: dict, parent: dict, is_junk: np.ndarray, shuffles: int) -> tuple:
+    """The second probe's lines and survivors: the dead days against their own chance bar, then three readings
+    for the record that decide nothing."""
+    bar_auc, bar_loco = chance(table, is_junk, shuffles, family=SECOND)
+    scored, kept, _ = survivors(table, is_junk, bar_auc, bar_loco, family=SECOND)
+    base = np.array([c["m"]["base_days"] for c in charts], dtype=float)
+    cut = np.array([c["m"]["base_days"] < c["m"]["days"] for c in charts])
+    out = ["", "  THE SECOND PROBE — his dead space (the decisions row of Mon 05/10/2026, written down before it ran)",
+           f"  the base: his {quartiles(base[~is_junk])} days, the junk fires' {quartiles(base[is_junk])}; ended by "
+           f"THE SOS's push on {int(cut[~is_junk].sum())} of his and {int(cut[is_junk].sum())} junk fires",
+           f"  chance ({shuffles} shuffles, the one measure): rank separation {bar_auc:.3f} · "
+           f"leave-one-chart-out {bar_loco:.3f}", "",
+           f"  {'':<4}{'his: min / q25 / median / q75 / max':<40}{'junk fires: min / q25 / median / q75 / max':<44}"
+           f"{'sep':>6}{'loco':>7}{'parent':>8}"]
+    for m, sign in SECOND:
+        a, l = scored[m]
+        out.append(f"  {m:<4}{quartiles(table[m][~is_junk]):<40}{quartiles(table[m][is_junk]):<44}"
+                   f"{a:>6.3f}{l:>7.3f}{auc(parent[m], is_junk, sign):>8.3f}  {'KEPT' if m in kept else ''}")
+    tickers = np.array([c["ticker"] for c in charts])
+    without = ~(is_junk & (tickers == "FRPH"))
+    whole = np.array([c["m"]["D_all"] for c in charts])
+    d, j = table["D"][without], is_junk[without]
+    out += ["  for the record, deciding nothing:",
+            f"    FRPH (the chart that taught it) left out: separation {auc(d, j, +1):.3f} · "
+            f"leave-one-chart-out {loco(d, j, +1):.3f}",
+            f"    over the box's whole days to the read day: his median {np.median(whole[~is_junk]):.2f}, the junk "
+            f"fires' {np.median(whole[is_junk]):.2f} · separation {auc(whole, is_junk, +1):.3f} · "
+            f"leave-one-chart-out {loco(whole, is_junk, +1):.3f}",
+            f"    on the parent: separation {auc(parent['D'], is_junk, +1):.3f} · "
+            f"leave-one-chart-out {loco(parent['D'], is_junk, +1):.3f}",
+            "", f"  SURVIVORS (the second probe): {', '.join(kept) if kept else 'none'}"]
+    term, passes, pair_bar, (a, l) = grade_term(table, is_junk, kept, shuffles)
+    out += ["", "  THE GRADE'S TERM (ours, chosen after the board): D on the parent, the setup's base",
+            f"  chance ({shuffles} shuffles, the best of D and Dp): rank separation {pair_bar[0]:.3f} · "
+            f"leave-one-chart-out {pair_bar[1]:.3f}",
+            f"  Dp  {quartiles(table['Dp'][~is_junk]):<40}{quartiles(table['Dp'][is_junk]):<44}{a:>6.3f}{l:>7.3f}"
+            f"  {'KEPT' if passes else 'fails'}"]
+    return out, term, {"chance": [bar_auc, bar_loco], "scored": {m: list(v) for m, v in scored.items()},
+                       "grade_term": {"chance": list(pair_bar), "scored": [a, l], "kept": passes}}
+
+
+def grade_term(table: dict, is_junk: np.ndarray, survived: list, shuffles: int = SHUFFLES) -> tuple:
+    """The grade's term, OURS after the board: Dp, kept only when the written-down D survived and Dp beats the
+    best of the two under the same shuffles on both counts. Returns (the terms, kept?, the bar, its two scores)."""
+    bar = chance(table, is_junk, shuffles, family=SECOND + (GRADE_TERM,))
+    a, l = auc(table["Dp"], is_junk, +1), loco(table["Dp"], is_junk, +1)
+    passes = "D" in survived and a > bar[0] and l > bar[1]
+    return (["Dp"] if passes else []), passes, bar, (a, l)
 
 
 def format_grades(charts: list, junk: list, ends: dict) -> list:
@@ -307,18 +404,28 @@ def format_charts(charts: list, graded: bool) -> list:
     """Every chart's numbers: by grade when there is one, else his drawings first, then the junk."""
     order = sorted(charts, key=lambda c: -c["grade"]) if graded else sorted(charts, key=lambda c: (c["junk"], c["key"]))
     out = ["", f"  {'chart':<20}{'':<8}{'box':<7}{'days':>5}{'grade':>7} {'':<2}{'loco':>5}  "
-               + "".join(f"{m:>7}" for m, _ in MEASURES) + f"{'S0':>7}"]
+               + "".join(f"{m:>7}" for m, _ in MEASURES) + f"{'S0':>7}{'D':>7}{'base':>6}{'Dp':>7}"]
     for c in order:
         who = "JUNK" if c["junk"] else ("" if c["fires"] else "no fire")
         g = f"{c['grade']:>7.1f} {c['letter']:<2}{c['loco_grade']:>5.0f}" if graded else f"{'':>7} {'':<2}{'':>5}"
         out.append(f"  {c['key']:<20}{who:<8}{c['m']['box']:<7}{c['m']['days']:>5}{g}  "
-                   + "".join(f"{c['m'][m]:>7.2f}" for m, _ in MEASURES) + f"{c['m']['S0']:>7.2f}")
+                   + "".join(f"{c['m'][m]:>7.2f}" for m, _ in MEASURES) + f"{c['m']['S0']:>7.2f}"
+                   + f"{c['m']['D']:>7.2f}{c['m']['base_days']:>6}{c['m']['Dp']:>7.2f}")
     return out
+
+
+#: The measure an ungraded sheet is ranked by, in plain words: his dead space.
+PLAIN = {"D": "his dead space (the share of the base's days on which no bar is in the box)",
+         "Dp": "his dead space on the parent (the share of the base's days on which no bar is in the box)"}
 
 
 #: The measures said to him in plain words, for the pages.
 def said(m: dict) -> str:
-    return (f"Bars at least three quarters as tall as the box: {m['S1']:.0%} of its {m['days']} trading days "
+    base = "the days before THE SOS's push" if m["base_days"] < m["days"] else "no SOS ends it: to the read day"
+    mini = f" (on the mini, the box the LPS was read against: {m['D']:.0%})" if m["box"] == "mini" else ""
+    return (f"No bar in the box on {m['Dp']:.0%} of the base's days{mini}; the base: {m['base_days']} trading days "
+            f"on the box measured ({base}) · "
+            f"bars at least three quarters as tall as the box: {m['S1']:.0%} of its {m['days']} trading days "
             f"(the median bar is {m['S0']:.0%} of the box's height) · the box is {m['H']:.2f} daily ranges tall "
             f"· swings from one line to the other: {m['S2']:.1f} per 20 trading days · the story names "
             f"{m['E']} of the five events · measured on the {m['box']}")
@@ -335,7 +442,7 @@ def render_sheet(charts: list, out_dir: str, rank_by: str, graded: bool) -> str:
     from tools.research.full_package_render import _draw_bars
 
     os.makedirs(out_dir, exist_ok=True)
-    sign = dict(MEASURES)[rank_by] if not graded else -1
+    sign = dict(MEASURES + SECOND)[rank_by] if not graded else -1
     value = (lambda c: c["grade"]) if graded else (lambda c: c["m"][rank_by])
     order = sorted((c for c in charts if c["m"]), key=lambda c: sign * value(c))
     cells = []
@@ -348,12 +455,11 @@ def render_sheet(charts: list, out_dir: str, rank_by: str, graded: bool) -> str:
         tag = "miss" if c["junk"] else "hit"
         cells.append(f'<figure class="{tag}"><img src="{os.path.basename(path)}" loading="lazy"><figcaption>'
                      f'<b>{n}. {c["key"]}</b> — {"JUNK: " + c.get("label", "") if c["junk"] else "your drawing"}'
-                     f' · tall bars {c["m"]["S1"]:.0%} · box {c["m"]["H"]:.2f} ranges · story {c["m"]["E"]} of 5'
-                     f'</figcaption></figure>')
+                     f' · no bar in the box {c["m"]["Dp"]:.0%} of the base · tall bars {c["m"]["S1"]:.0%}'
+                     f' · box {c["m"]["H"]:.2f} ranges · story {c["m"]["E"]} of 5</figcaption></figure>')
     how = ("by the grade, best first" if graded else
-           f"by the measure that came closest ({rank_by}: the share of the box's days whose bar is at least three "
-           "quarters of the box's height), fewest first. It is NOT a grade: no measure passed the test written "
-           "down before the probe ran")
+           f"by {PLAIN[rank_by]}, fewest first. It is NOT a grade: no measure passed the test written down before "
+           "the probe ran")
     html = f"""<!doctype html><meta charset="utf-8">
 <title>The grade sheet</title>
 <style>
@@ -394,9 +500,7 @@ def main() -> int:
                 {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in c.items()
                  if k not in ("every", "row", "setup")} for c in charts]}, f, indent=1, default=str)
     if args.pages:
-        graded = bool(summary["kept"])
-        closest = max(MEASURES, key=lambda ms: summary["scored"][ms[0]][0])[0]
-        print(f"  the sheet: {render_sheet(charts, args.pages, closest, graded)}")
+        print(f"  the sheet: {render_sheet(charts, args.pages, 'D', bool(summary['kept']))}")
     return 0
 
 
