@@ -104,8 +104,8 @@ def test_the_measures_and_their_directions_are_the_ones_written_down_before_the_
     assert grade_probe.BAR == ("BMRN", "FRPH", "COLM")
     # the second probe (the decisions row of Mon 05/10/2026, his dead space): one measure, the junk higher
     assert grade_probe.SECOND == (("D", +1),)
-    # the grade's term, ours after the board: the same measure read on the parent
-    assert grade_probe.GRADE_TERM == ("Dp", +1)
+    # beside the grade, never in its place (ours, after the board): the same measure read on the parent
+    assert grade_probe.PARENT == ("Dp", +1)
 
 
 def test_the_grade_ramps_from_his_median_to_the_junk_median_and_the_letter_follows():
@@ -190,9 +190,9 @@ def test_his_frph_box_is_mostly_dead_space_and_his_unf_box_is_not(unf_and_frph):
     assert (frph["Dp"], unf["Dp"]) == (frph["D"], unf["D"]), "both read on the parent already"
 
 
-def test_the_grade_reads_the_parents_dead_days_when_the_lps_was_read_against_the_mini():
+def test_the_parent_reading_takes_the_parents_dead_days_when_the_lps_was_read_against_the_mini():
     """His VIK: the LPS is read against the mini, whose days after THE SOS of the parent are the mini's own push and
-    pullback; the grade's term reads the parent's base, where 1 day of 15 has no bar in the box."""
+    pullback; the parent reading (beside the grade) takes the parent's base, where 1 day of 15 has no bar in the box."""
     from core.calibration.replay import fixture_frame, load_sealed_fixture
     from tools.calibration import core_board
     from tools.calibration.grade_probe import measures
@@ -205,18 +205,31 @@ def test_the_grade_reads_the_parents_dead_days_when_the_lps_was_read_against_the
     assert m["Dp"] == pytest.approx(1 / 15)
 
 
-def test_the_grades_term_needs_the_written_down_d_to_survive_and_the_best_of_two_beaten():
+def test_the_grade_is_the_measure_written_down_and_the_parent_reading_only_stands_beside_it():
+    """The row written before the probe ran says "If D survives, the grade is D alone"; the parent reading, chosen
+    after the board, is printed beside the grade for his call (verify-14d, P1)."""
+    from tools.calibration import grade_probe
+
+    junk = np.array([False] * 6 + [True] * 6)
+    apart = np.array([0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+    charts = [{"ticker": f"T{i}", "junk": bool(j), "m": {"base_days": 20, "days": 25, "D_all": d}}
+              for i, (j, d) in enumerate(zip(junk, apart))]
+    out, kept, beside, _ = grade_probe.second_probe(charts, {"D": apart, "Dp": apart}, {"D": apart}, junk, 200)
+    assert (kept, beside) == (["D"], ["Dp"])
+
+
+def test_the_parent_reading_needs_the_written_down_d_to_survive_and_the_best_of_two_beaten():
     from tools.calibration import grade_probe
 
     junk = np.array([False] * 6 + [True] * 6)
     apart = np.array([1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16], dtype=float)
     flat = np.ones(12)
-    assert grade_probe.grade_term({"D": apart, "Dp": apart}, junk, ["D"], shuffles=200)[0] == ["Dp"]
-    assert grade_probe.grade_term({"D": apart, "Dp": flat}, junk, ["D"], shuffles=200)[0] == [], \
+    assert grade_probe.parent_term({"D": apart, "Dp": apart}, junk, ["D"], shuffles=200)[0] == ["Dp"]
+    assert grade_probe.parent_term({"D": apart, "Dp": flat}, junk, ["D"], shuffles=200)[0] == [], \
         "a parent reading that cannot tell them apart is no term"
-    assert grade_probe.grade_term({"D": apart, "Dp": apart}, junk, [], shuffles=200)[0] == [], \
+    assert grade_probe.parent_term({"D": apart, "Dp": apart}, junk, [], shuffles=200)[0] == [], \
         "only when the measure written down first survived"
     # chosen after the board, so its bar is the best of the two under the same shuffles, not its own
     table = {"D": apart, "Dp": apart[::-1].copy()}
-    assert grade_probe.grade_term(table, junk, ["D"], shuffles=200)[2] == \
+    assert grade_probe.parent_term(table, junk, ["D"], shuffles=200)[2] == \
         grade_probe.chance(table, junk, 200, family=(("D", +1), ("Dp", +1)))

@@ -127,3 +127,37 @@ the tall bars and the story; COLM the zigzag and the volatile bars; COLM and FRP
 cannot read "no room to zigzag" on the narrowest boxes, where the two lines' areas nearly meet (0.05 ranges apart on
 COLM), so it says least exactly where the junk sits. No grade is built on these numbers: the grade carries no
 letter until a measure survives or he weights his traits by eye (the decisions record, 2026-10-05).
+
+## The second probe (Mon 05/10/2026): his dead space separates
+
+His word on the sheet above: *"some boxes are about as wide as the bars themselves, and that's completely fine
+... FRPH is total junk because the box is mostly dead space with no visible base insight"*, with red crosses
+along FRPH's box where no bar is in it ([his drawing](marks/rulings_2026-10-05/frph_dead_space.png)). One measure
+was written down before it ran (the decisions record, 2026-10-05): the share of the base's days whose bar does
+not reach the box, its low over the resistance or its high under the support. The base is the box's days from
+its opening to the day before THE SOS's push. The push and the pullback after it are the right side.
+
+| The dead days | His 40: min / q25 / median / q75 / max | The 14 junk fires | Separation | Left out |
+|---|---|---|---|---|
+| D, on the box the LPS was read against (written down first: THE GRADE) | 0.00 / 0.00 / 0.05 / 0.10 / 0.65 | 0.00 / 0.11 / 0.28 / 0.51 / 0.71 | 0.769 | 0.732 |
+| Dp, the same on the parent (chosen after the board: beside it, his call) | 0.00 / 0.00 / 0.05 / 0.10 / 0.65 | 0.00 / 0.11 / 0.28 / 0.51 / 0.71 | 0.790 | 0.709 |
+
+D beats chance on both counts (0.646 / 0.645, 2,000 shuffles, the one measure). It still does with FRPH, the chart
+that taught it, left out (0.751 / 0.721). The grade scores 1 at his median (0.054) or less and 0 at the junk
+fires' median (0.275) or more; S 75, A 50, B 25.
+
+- **His 40:** S 31, A 2, B 3, C 4. The junk fires: S 4, A 1, B 2, C 7.
+- **The bar:** BMRN and FRPH grade 0 on every day they fire, and COLM 34. COLM's own left-out grade is 50.7, an A,
+  because with fourteen junk charts the zero end is the midpoint of COLM's 0.20 and BMRN's 0.35.
+- **His UNF,** a box as tall as its bars, grades 77.7.
+- **His four C's:** on NET and BODI the reader's own box sits off his, and the bars spend weeks outside it. VIK and
+  VLO are graded on their minis.
+- **On the parent** (held to the best of the two under the same shuffles, 0.659 / 0.661, and passing): VIK and VLO
+  go to S, his 40 read S 31, A 4, B 3, C 2, and COLM's left-out grade is 49.6. It was chosen after the board, so it
+  stands beside the grade, for his call.
+- **The junk at S** (DGII, KWR, RLGT and the June BBVA) have full boxes, so dead space is not what is wrong with
+  them. DGII and KWR are still on the plan's list for his ruling at the approval sitting.
+
+The sheet, ranked by the grade with the parent grade on every page, is the build run's
+`pictures/grade-sheet-dead-space/`. His word after it: *"all of the 40 calibrated should be S tier in my book"*.
+The grade's next step opens a new session.
