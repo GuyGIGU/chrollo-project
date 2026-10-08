@@ -335,10 +335,13 @@ def test_the_third_reading_chosen_after_the_lists_must_beat_the_best_of_four_und
     junk = np.array([False] * 6 + [True] * 6)
     apart = np.array([1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16], dtype=float)
     flat = np.ones(12)
-    table = {"D": flat, "Dp": flat, "Dh": flat, "K": apart}
+    rng = np.random.default_rng(3)
+    table = {"D": rng.normal(size=12), "Dp": rng.normal(size=12), "Dh": rng.normal(size=12), "K": apart}
     passes, bar, scores = grade_probe.third_term(table, junk, shuffles=200)
     assert passes and scores == (1.0, 1.0)
     assert bar == grade_probe.chance(table, junk, 200, family=grade_probe.THIRD), "the best of the four, not its own"
+    own = grade_probe.chance(table, junk, 200, family=(("K", +1),))
+    assert bar[0] > own[0] and bar[1] > own[1], "the four together are harder to beat than K alone"
     assert not grade_probe.third_term({**table, "K": flat}, junk, shuffles=200)[0]
 
 
@@ -375,3 +378,79 @@ def test_his_frph_stays_empty_counted_his_way_and_his_unf_grades_s(unf_and_frph)
     assert frph["Dh"] > 1 / 3
     assert unf["Dh"] == 0.0 and unf["holds"]
     assert third_grade(unf, {"Dh": (0.0, 0.2)}) == 100.0
+
+
+# --------------------------------------------------------------------------- #
+# The fourth reading (the decisions row of Fri 09/10/2026, written down after the third's board): the fall must   #
+# go under the whole base ("reaches a lower level"), and the ramp's ends come from his word "mostly"               #
+# --------------------------------------------------------------------------- #
+def test_the_fourth_hold_needs_the_fall_beyond_the_supports_area_and_under_the_bases_own_lowest_low():
+    """His COLM word, *"reaches a lower level"*: a lower level than the base ever made. A dip beyond the support's
+    area that stays over the spring's tip holds (his JAZZ, 13/09/2026: on the support rather than under it); a dip
+    under the base's lowest low that stays inside the area holds; only a fall that is both does not."""
+    from engine_alpha.two_eyes import record
+    from tools.calibration.grade_probe import his_way
+
+    def read(base_low, right_low):
+        highs = [10.8] * 8 + [10.9, 11.5, 12.0, 11.2, 11.2]
+        lows = [10.2, 10.2, base_low, 10.2, 10.2, 10.2, 10.2, 10.2] + [10.4, 10.8, 11.3, 10.6, right_low]
+        return his_way(_bars(highs, lows, 11.0, 10.0, 1.0, 0, _event(record.SOS, 8, 10, day=10))[0])
+
+    over_the_spring = read(9.0, 9.4)                  # 0.6 under the support, over the spring's tip 9.0
+    assert not over_the_spring["holds"] and over_the_spring["holds4"], "the third reading's fault, mended"
+    assert over_the_spring["floor"] == 9.0
+    assert not read(9.0, 8.9)["holds4"], "beyond the area and under the whole base: the base does not hold"
+    assert read(9.8, 9.7)["holds4"], "under the base's low by a hair, inside the support's area: it holds"
+
+
+def test_the_fourth_grade_ramps_from_no_empty_day_to_mostly_empty_and_a_base_that_does_not_hold_grades_nothing():
+    from tools.calibration.grade_probe import ENDS4, fourth_grade, letter
+
+    assert ENDS4 == {"Dh": (0.0, 0.5)}, "1 at no empty day, 0 at one half: his 'mostly dead space'"
+    assert letter(fourth_grade({"Dh": 1 / 60, "holds4": True})) == "S", "one empty day in sixty is S"
+    assert fourth_grade({"Dh": 0.125, "holds4": True}) == pytest.approx(75.0)
+    assert fourth_grade({"Dh": 0.25, "holds4": True}) == pytest.approx(50.0)
+    assert fourth_grade({"Dh": 0.5, "holds4": True}) == 0.0
+    assert fourth_grade({"Dh": 0.0, "holds4": False}) == 0.0
+
+
+def test_the_fourth_reading_must_beat_the_best_of_five_under_the_same_shuffles():
+    from tools.calibration import grade_probe
+
+    assert grade_probe.FOURTH == grade_probe.THIRD + (("K4", +1),)
+    junk = np.array([False] * 6 + [True] * 6)
+    apart = np.array([1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16], dtype=float)
+    flat = np.ones(12)
+    rng = np.random.default_rng(3)
+    table = {"D": rng.normal(size=12), "Dp": rng.normal(size=12), "Dh": rng.normal(size=12),
+             "K": rng.normal(size=12), "K4": apart}
+    passes, bar, scores = grade_probe.fourth_term(table, junk, shuffles=200)
+    assert passes and scores == (1.0, 1.0)
+    assert bar == grade_probe.chance(table, junk, 200, family=grade_probe.FOURTH), "the best of the five"
+    own = grade_probe.chance(table, junk, 200, family=(("K4", +1),))
+    assert bar[0] > own[0] and bar[1] > own[1], "the five together are harder to beat than K4 alone"
+    assert not grade_probe.fourth_term({**table, "K4": flat}, junk, shuffles=200)[0]
+
+
+def test_his_colm_falls_under_its_whole_base_and_his_jazz_drts_and_bodi_do_not(colm_fires):
+    """COLM (his picture, Thu 08/10/2026) falls under its spring's tip (63.72) on both fire days; his JAZZ, whose own
+    LPS pokes 0.54 daily ranges under the support (his ruling of 13/09/2026: on the support, not under it), and his
+    DRTS and BODI, whose dips stay over their springs' tips, hold."""
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+    from tools.calibration import core_board
+    from tools.calibration.grade_probe import fourth_grade, letter, measures
+    from tools.regression.marks_corpus import load_corpus, setup_key
+
+    for fire in colm_fires:
+        m = measures(fire)
+        assert not m["holds4"] and m["floor"] == pytest.approx(63.72, abs=0.005)
+        assert fourth_grade(m) == 0.0
+    frames, _ = load_sealed_fixture()
+    his = {setup_key(s): s for s in load_corpus()}
+    for key in ("JAZZ:2026-02-24", "DRTS:2026-04-15", "BODI:2026-04-21"):
+        s = his[key]
+        m = measures(core_board.score_setup(s, fixture_frame(frames, key, s["ticker"]))["on_last"])
+        assert not m["holds"] and m["holds4"], key
+    jazz = his["JAZZ:2026-02-24"]
+    m = measures(core_board.score_setup(jazz, fixture_frame(frames, "JAZZ:2026-02-24", "JAZZ"))["on_last"])
+    assert letter(fourth_grade(m)) == "S"
