@@ -233,3 +233,145 @@ def test_the_parent_reading_needs_the_written_down_d_to_survive_and_the_best_of_
     table = {"D": apart, "Dp": apart[::-1].copy()}
     assert grade_probe.parent_term(table, junk, ["D"], shuffles=200)[2] == \
         grade_probe.chance(table, junk, 200, family=(("D", +1), ("Dp", +1)))
+
+
+# --------------------------------------------------------------------------- #
+# The third reading (the decisions row of Fri 09/10/2026): his COLM word, "base dosen't hold and dosen't answer #
+# for an LPS anywhere", and the study of his 40, written down before it was measured                           #
+# --------------------------------------------------------------------------- #
+def _bars(highs, lows, R, S, unit, opening, *events):
+    """A read made of bars and a story, for the parts of the third reading that need nothing else."""
+    import types
+    import pandas as pd
+
+    days = pd.bdate_range("2026-01-05", periods=len(highs))
+    prepared = pd.DataFrame({"High": highs, "Low": lows}, index=days)
+    pair = types.SimpleNamespace(R=R, S=S, unit=unit, opening_bar=opening)
+    return {"read": types.SimpleNamespace(events=tuple(e(days) for e in events)), "prepared": prepared,
+            "won": pair}, [d.date() for d in days]
+
+
+def _event(kind, first, last=None, day=None):
+    from engine_alpha.two_eyes import record
+
+    def make(days):
+        swing = kind != record.PHASE_D
+        return record.Event(kind=kind, day=days[first if day is None else day].date(), price=10.0,
+                            first_day=days[first].date() if swing else None,
+                            last_day=days[first if last is None else last].date() if swing else None)
+    return make
+
+
+def test_his_way_a_hair_beyond_a_line_is_respect_and_a_day_inside_a_named_swing_is_story():
+    """His 30/08/2026 ruling (holding just below support, resting just above resistance, is respect) and his
+    13/09/2026 ruling (*"a named event's swing is never docked, an unnamed lunge beyond a rail is"*): a day is empty
+    only when its bar misses the box by more than the line's area, half a daily range, outside every named swing.
+    Phase D is a day, not a swing: it pardons nothing."""
+    from engine_alpha.two_eyes import record
+    from tools.calibration.grade_probe import his_way
+
+    inside = (10.8, 10.2)
+    bars = [inside,
+            (9.7, 9.4),     # wholly under the support, 0.3 under it: a hair, respect
+            (9.4, 9.0),     # 0.6 under: beyond the area, empty
+            (11.8, 11.4),   # 0.4 over the resistance: a hair, respect
+            (12.0, 11.6),   # 0.6 over: empty
+            (9.2, 8.8),     # 0.8 under, inside the named spring: story
+            inside,
+            (9.3, 9.0),     # 0.7 under, on Phase D's day: still empty
+            inside, inside]
+    row, days = _bars([h for h, _ in bars], [lo for _, lo in bars], 11.0, 10.0, 1.0, 0,
+                      _event(record.SPRING, 5), _event(record.PHASE_D, 7))
+    m = his_way(row)
+    assert m["Dh_empty"] == [days[2], days[4], days[7]]
+    assert (m["Dh"], m["Dh_days"]) == (pytest.approx(3 / 10), 10)
+
+
+def test_the_hold_reads_the_lows_after_the_soss_top_against_the_supports_area_and_pardons_no_swing():
+    """His COLM word (Thu 08/10/2026): *"base dosen't hold and dosen't answer for an LPS anywhere"*. After THE SOS's
+    top, a low more than half a daily range under the support is the base not holding, a named last supper or not;
+    a low a hair under it holds; the push's own days, before its top, are not read."""
+    from engine_alpha.two_eyes import record
+    from tools.calibration.grade_probe import his_way
+
+    def read(right_lows, *events, push_low=10.4, opening=0):
+        highs = [10.8] * 8 + [10.9, 11.5, 12.0] + [11.2] * len(right_lows)
+        lows = [10.2] * 8 + [push_low, 10.8, 11.3] + list(right_lows)
+        return his_way(_bars(highs, lows, 11.0, 10.0, 1.0, opening, *events)[0])
+
+    sos = _event(record.SOS, 8, 10, day=10)               # the push from day 8, its top on day 10
+    held = read([10.6, 9.6, 10.2], sos)
+    assert held["holds"] and held["U"] == pytest.approx(0.4)
+    broke = read([10.6, 9.4, 10.2], sos)
+    assert not broke["holds"] and broke["U"] == pytest.approx(0.6)
+    assert not read([10.6, 9.4, 10.2], sos, _event(record.LAST_SUPPER, 10, 12))["holds"], \
+        "a named last supper that falls beyond the support is still the base not holding"
+    assert read([10.6, 9.6, 10.2], sos, push_low=9.0)["holds"], "the push's days before its top are not read"
+    assert read([10.6, 9.4, 10.2])["holds"], "no SOS ends the base: no right side yet"
+    on_top = read([], sos)
+    assert on_top["holds"] and on_top["U"] == 0.0, "the read day on the top itself: no right side yet"
+    assert read([10.6, 9.4, 10.2], _event(record.SOS, 1, 10, day=10), opening=2)["holds"], \
+        "a push that began before the box opened ends no base, so it opens no right side"
+
+
+def test_the_third_grade_is_the_smaller_of_the_two_and_a_base_that_does_not_hold_grades_nothing():
+    from tools.calibration.grade_probe import order_key, third_grade
+
+    ends = {"Dh": (0.0, 0.2)}
+    assert third_grade({"Dh": 0.0, "holds": True}, ends) == 100.0
+    assert third_grade({"Dh": 0.05, "holds": True}, ends) == pytest.approx(75.0)
+    assert third_grade({"Dh": 0.2, "holds": True}, ends) == 0.0
+    assert third_grade({"Dh": 0.0, "holds": False}, ends) == 0.0, "the smaller, not the average (that would be 50)"
+    # the grade's own order, label-free: every base that does not hold under every base that holds, then by Dh
+    keys = [order_key({"Dh": d, "holds": h}) for d, h in ((0.0, True), (0.9, True), (0.0, False), (0.5, False))]
+    assert keys == sorted(keys)
+
+
+def test_the_third_reading_chosen_after_the_lists_must_beat_the_best_of_four_under_the_same_shuffles():
+    from tools.calibration import grade_probe
+
+    assert grade_probe.THIRD == (("D", +1), ("Dp", +1), ("Dh", +1), ("K", +1))
+    assert grade_probe.STORY == ("spring", "spring test", "upthrust", "last supper", "SOS")
+    junk = np.array([False] * 6 + [True] * 6)
+    apart = np.array([1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16], dtype=float)
+    flat = np.ones(12)
+    table = {"D": flat, "Dp": flat, "Dh": flat, "K": apart}
+    passes, bar, scores = grade_probe.third_term(table, junk, shuffles=200)
+    assert passes and scores == (1.0, 1.0)
+    assert bar == grade_probe.chance(table, junk, 200, family=grade_probe.THIRD), "the best of the four, not its own"
+    assert not grade_probe.third_term({**table, "K": flat}, junk, shuffles=200)[0]
+
+
+@pytest.fixture(scope="module")
+def colm_fires() -> list:
+    from tools.calibration import core_board
+    from tools.regression import negative_corpus
+
+    junk_frames, meta = negative_corpus._load_fixture()
+    case = next(c for c in meta["cases"] if c.get("key", c["ticker"]) == "COLM")
+    return core_board.junk_row(case, junk_frames["COLM"])["fires"]
+
+
+def test_his_colm_base_does_not_hold_on_either_fire_day_and_grades_nothing(colm_fires):
+    """His picture (Thu 08/10/2026): after the reader's anchoring the price does not consolidate in the box, it
+    reaches a lower level. On both fire days the fall after THE SOS's top (Wed 17/06/2026, low 63.59) lies 0.94
+    daily ranges under the support 65.81, beyond its area; by Tue 23/06 the LPS's own low (63.24) is 1.08 under."""
+    import datetime as dt
+    from tools.calibration.grade_probe import measures, third_grade
+
+    assert [f["day"] for f in colm_fires] == [dt.date(2026, 6, 22), dt.date(2026, 6, 23)]
+    for fire, under in zip(colm_fires, (0.937, 1.084)):
+        m = measures(fire)
+        assert not m["holds"] and m["U"] == pytest.approx(under, abs=0.001)
+        assert third_grade(m, {"Dh": (0.0, 0.2)}) == 0.0
+
+
+def test_his_frph_stays_empty_counted_his_way_and_his_unf_grades_s(unf_and_frph):
+    """His FRPH crosses (Mon 05/10/2026) are not hairs or story: counted his way, more than a third of its base is
+    still empty. His UNF, a box as tall as its bars (*"completely fine"*), has no empty day left and holds."""
+    from tools.calibration.grade_probe import measures, third_grade
+
+    unf, frph = (measures(row) for row in unf_and_frph)
+    assert frph["Dh"] > 1 / 3
+    assert unf["Dh"] == 0.0 and unf["holds"]
+    assert third_grade(unf, {"Dh": (0.0, 0.2)}) == 100.0
