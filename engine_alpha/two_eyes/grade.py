@@ -40,7 +40,9 @@ from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes.record import LAST_SUPPER, SOS, SPRING, SPRING_TEST, UPTHRUST, Grade, Step
 
 STAGE = "grade"
-#: The named events whose own swing is story, never empty (his 13/09/2026). Phase D is a day: it forgives nothing.
+#: The named events whose own swing is story, never empty (his 13/09/2026). "Forgiven" is the build's word: each event
+#: is a piece of the setup that makes the box stronger, never a fault let pass (his 09/10/2026), so its swing's days are
+#: the box's own. Phase D is a day: it forgives nothing.
 FORGIVEN = (SPRING, SPRING_TEST, UPTHRUST, LAST_SUPPER, SOS)
 
 

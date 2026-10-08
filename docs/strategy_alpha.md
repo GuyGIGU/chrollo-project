@@ -419,7 +419,10 @@ default as ours.
    within half a daily range, is respect (Sun 30/08/2026); a day inside a named event's own
    swing is story, *"a named event's swing is never docked, an unnamed lunge beyond a rail
    is"* (Sun 13/09/2026), and only that swing, never weeks spent outside the box (Fri
-   09/10/2026). And the base must hold: after the push tops, a fall beyond the support's
+   09/10/2026). Not as a fault let pass: the event is a piece of the setup, a price pattern
+   found in the box that gives it more context and makes it stronger, *"that is a good
+   thing"* (Fri 09/10/2026), so its days are the box at work. And the base must hold:
+   after the push tops, a fall beyond the support's
    area to a lower level than the base ever made is a base that failed, *"base dosen't hold
    and dosen't answer for an LPS anywhere"* (COLM, Thu 08/10/2026). The grade is read on the
    setup's box, S by default, falling as the base turns empty to nothing at half of it (his
