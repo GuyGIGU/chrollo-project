@@ -16,8 +16,9 @@ The rules, each measured on his 40 and the 14 junk fires before it was built (th
 09/10/2026, the grade probe's fifth reading):
 
 1. The box is the setup's box, the parent, whatever box the LPS was read against.
-2. The base runs from the box's opening day to the day before THE SOS's push (the story's first SOS whose push
-   begins after the box opened), else to the read day. From the push on is the right side.
+2. The base runs from the box's opening day to the day before THE SOS's push (the story's first SOS, when its push
+   begins after the box opened; a later SOS is never looked at), else to the read day. From the push on is the
+   right side.
 3. A day of the base is empty when its bar misses the box by more than the line's area (half the box's daily
    range) and lies outside every named event's own swing: the reader's span for the event, narrowed to the line's
    legs into and out of its extreme (from the line's last committed turn before the event's day to its first

@@ -96,6 +96,30 @@ def test_the_base_does_not_hold_only_when_the_fall_after_the_top_is_beyond_the_a
     assert _with_sos([], base_low=9.0).holds, "the read day on the top: no right side yet"
 
 
+def test_the_lines_are_crossed_strictly_a_bar_exactly_half_a_range_out_and_a_low_exactly_on_the_area_are_respect():
+    """Respect is a hair up to and including half a daily range (his 30/08/2026): a bar whose low sits exactly half a
+    range over the resistance, or whose high sits exactly half a range under the support, is not empty; a fall after
+    the top to exactly the support's area does not break the base, nor does the top day's own low (the right side
+    starts the day after the top). Values chosen exact in binary (unit 1, area 0.5)."""
+    exact = [INSIDE, (12.0, 11.5), (9.5, 9.0), INSIDE]
+    assert _grade(exact)[0].empty_days == 0
+    assert _grade([INSIDE, (12.0, 11.5 + 2 ** -10), INSIDE])[0].empty_days == 1, "a hair past half a range is empty"
+    assert _with_sos([10.6, 9.5, 10.2], base_low=9.75).holds, "a low exactly on the area's edge holds"
+    highs = [10.8] * 8 + [10.9, 11.5, 12.0, 11.2]
+    lows = [10.2, 10.2, 9.75] + [10.2] * 5 + [10.4, 10.8, 8.0, 10.6]
+    top_day_low, _ = _grade(list(zip(highs, lows)), _event(record.SOS, 8, 10, day=10))
+    assert top_day_low.holds, "the top day's own low is the push's, not the right side's"
+
+
+def test_a_named_sos_from_before_the_box_is_story_in_a_base_that_runs_to_the_read_day():
+    """His 13/09/2026: a named event's swing is never docked; THE SOS too. A push that began before the box opened ends
+    no base, so its days fall inside the base, and those beyond the box are its own swing: forgiven."""
+    bars = [INSIDE] * 3 + [(12.0, 11.6)] * 3 + [INSIDE] * 4
+    plain, _ = _grade(bars, opening=2)
+    named, _ = _grade(bars, _event(record.SOS, 1, 5, day=5), opening=2)
+    assert (plain.empty_days, named.empty_days, named.base_days) == (3, 0, 8)
+
+
 def test_only_an_sos_whose_push_began_after_the_box_opened_ends_the_base():
     """A push that began before the box opened is no SOS of this box: the base runs to the read day and there is no
     right side to fall from."""
