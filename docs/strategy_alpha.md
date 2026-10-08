@@ -410,10 +410,25 @@ default as ours.
    it's height"*. The junk he refuses is *"Extreme Width, Spread, Messy non tight
    structure"*, and the huge spread is huge against the box itself (his "answer a.", Sun
    20/09/2026): bars almost as tall as the gap between the lines, with no room to zigzag.
-   Which measurable form of that sentence separates his setups from the junk is measured
-   before it is graded, and the weights are his. A named event's swing is never docked; an
-   unnamed lunge beyond a line is. Volume never refuses, never elects, and carries no
-   points. Every chart gets one state word: fired, crossed, lines with no LPS yet, forming,
+   Measured, no form of the box's SHAPE tells his setups from the junk (its height, its tall
+   bars, its zigzag, its spread profile, its story count), and a box about as tall as its
+   bars is fine: *"there are plenty of great setups just like it"* (Mon 05/10/2026). What
+   tells them apart is his dead space in TIME: *"FRPH is total junk because the box is
+   mostly dead space with no visible base insight"* (Mon 05/10/2026), the days of the base
+   on which no bar is in the box. They are counted his way: a bar a hair beyond a line,
+   within half a daily range, is respect (Sun 30/08/2026); a day inside a named event's own
+   swing is story, *"a named event's swing is never docked, an unnamed lunge beyond a rail
+   is"* (Sun 13/09/2026), and only that swing, never weeks spent outside the box (Fri
+   09/10/2026). And the base must hold: after the push tops, a fall beyond the support's
+   area to a lower level than the base ever made is a base that failed, *"base dosen't hold
+   and dosen't answer for an LPS anywhere"* (COLM, Thu 08/10/2026). The grade is read on the
+   setup's box, S by default, falling as the base turns empty to nothing at half of it (his
+   "mostly"), and nothing at all for a base that did not hold; every one of his calibrated
+   setups is S (Mon 05/10/2026); the ends and the cuts are his to approve. A box the price
+   leaves for a lower level of its own for weeks has failed, and its later return to the
+   box's range is not tied to it, so no test and no SOS is read on that return (Fri
+   09/10/2026; the box's life does not read it yet). Volume never refuses, never elects,
+   and carries no points. Every chart gets one state word: fired, crossed, lines with no LPS yet, forming,
    root candidate unconfirmed, beyond resistance undetermined, under support undetermined,
    broke down, not scanned, no lines. Fired charts go on the board, the rest in a watch
    lane; nothing is on the board on the buy day. A read that failed is a fault on the

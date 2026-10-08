@@ -27,7 +27,7 @@ import pytest
 from core.calibration.replay import fixture_frame, load_sealed_fixture
 from engine_alpha.two_eyes import line_words as LW
 from engine_alpha import two_eyes
-from engine_alpha.two_eyes import lps, record, state, story, walk
+from engine_alpha.two_eyes import grade, lps, record, state, story, walk
 from engine_alpha.two_eyes import method_numbers as M
 from engine_alpha.two_eyes.daily_range import calculate_atr
 from engine_alpha.two_eyes.swing_line import turn_line, turn_line_floors
@@ -53,7 +53,7 @@ def test_a_read_carries_its_events_and_every_older_field_is_where_it_was():
     names = [f.name for f in dataclasses.fields(record.Read)]
     assert names[:9] == ["ticker", "as_of", "boxes", "lps", "trail", "state", "failed", "refusal", "close"], \
         "a later stage fills the record; it never moves a field the adapter and the archive were built against"
-    assert names[9:] == ["events", "state_days"]
+    assert names[9:] == ["events", "state_days", "grade"], "the grade (stage 7, task 14) is the last field"
     assert (read.boxes, read.lps, read.trail, read.state, read.failed, read.refusal, read.close) == \
         ((), None, (), record.NO_LINES, False, None, None)
     # A list handed in is frozen like the boxes and the trail.
@@ -301,8 +301,9 @@ def test_the_story_is_one_step_after_the_lps_and_its_events_are_dated_by_days(hi
         if read.parent is None:
             assert read.events == () and story.STAGE not in stages, key
             continue
-        assert stages.count(story.STAGE) == 1 and stages[-1] == story.STAGE and stages[-2] == "LPS", (key, stages)
-        assert "could not be read" not in read.trail[-1].saying, (key, read.trail[-1].saying)
+        # the story's one step follows the LPS's; only the grade's (stage 7, task 14) comes after it
+        assert stages.count(story.STAGE) == 1 and stages[-3:] == ["LPS", story.STAGE, grade.STAGE], (key, stages)
+        assert "could not be read" not in read.trail[-2].saying, (key, read.trail[-2].saying)
         for event in read.events:
             assert isinstance(event, record.Event) and type(event.day) is dt.date, (key, event)
             assert read.parent.opened_day <= event.day <= read.as_of, (key, event)
@@ -331,9 +332,10 @@ def test_a_story_that_falls_over_costs_no_fire(monkeypatch):
     assert read.fired and read.failed is False and read.state == record.FIRED
     assert read.lps == whole.lps and read.boxes == whole.boxes and read.close == whole.close
     assert read.events == ()
-    assert read.trail[:-1] == whole.trail[:-1], "everything before the story is told as before"
-    assert read.trail[-1].stage == story.STAGE and "could not be read" in read.trail[-1].saying
-    assert "StopIteration" in read.trail[-1].saying
+    assert read.trail[:-2] == whole.trail[:-2], "everything before the story is told as before"
+    assert read.trail[-2].stage == story.STAGE and "could not be read" in read.trail[-2].saying
+    assert "StopIteration" in read.trail[-2].saying
+    assert read.trail[-1].stage == grade.STAGE, "the grade (stage 7) still reads, on no story"
 
 
 def test_keeping_the_listing_changes_no_event(his_last_receding_day):
@@ -571,7 +573,7 @@ def test_a_word_standing_on_the_forming_turn_is_provisional(his_last_receding_da
     read = his_last_receding_day[key]
     provisional = [e for e in read.events if not e.committed]
     assert [(e.kind, e.day, e.known_day) for e in provisional] == [(record.SPRING_TEST, dt.date(2026, 1, 15), None)]
-    assert ", provisional" in read.trail[-1].saying
+    assert ", provisional" in next(s.saying for s in read.trail if s.stage == story.STAGE)
     assert all(e.known_day is not None for e in read.events if e.committed)
 
 

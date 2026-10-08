@@ -105,3 +105,13 @@ LPS_DEPTH_MAX_RANGES = 2.5
 #: More than this share of the pullback's high-to-low travel under the support area refuses it: "most of the
 #: move is above it and only small parts of it poke out down" (his JAZZ answer, Sun 13/09/2026).
 LPS_UNDER_SUPPORT_SHARE = 0.5
+
+# THE GRADE (build task 14, Fri 09/10/2026; the decisions rows of that day). The grade is 100 when no day of the
+# base is empty his way and falls in a straight line to 0 at this share: one half, his "mostly dead space" (FRPH,
+# Mon 05/10/2026). The end is his word; the straight line and the cuts below are the plan's, his to approve.
+GRADE_EMPTY_ZERO = 0.5
+
+#: The letters' cuts on the grade's 0 to 100: S from 75, A from 50, B from 25, C under (the plan's task 14).
+GRADE_S = 75.0
+GRADE_A = 50.0
+GRADE_B = 25.0

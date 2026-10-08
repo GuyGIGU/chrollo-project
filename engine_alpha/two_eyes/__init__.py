@@ -19,15 +19,16 @@ The order the stages will fill in is his, not the old engine's:
     found by walking right like two legs -> the box's life -> the story left
     to right -> the LPS and its trigger -> the grade and the state word
 
-Built so far: stages 1 to 4 and stage 6 — the core, the box and the LPS, which
-his ruling of Sat 26/09/2026 put first. The story (stage 5) and the grade
-(stage 7) follow his core sitting.
+Built so far: every stage. Stages 1 to 4 and 6 — the core, the box and the
+LPS, which his ruling of Sat 26/09/2026 put first; then the story (stage 5,
+task 12b), the mini (task 13) and the grade (stage 7, task 14).
 
 Reading order for the next session: `record.py` is the shape everything is
 built against; `frame.py` is what a chart must be before it is read.
 """
 from __future__ import annotations
 
+from engine_alpha.two_eyes import grade as grade_stage
 from engine_alpha.two_eyes import lps
 from engine_alpha.two_eyes import mini
 from engine_alpha.two_eyes import state as state_word
@@ -190,6 +191,18 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                 trail = trail + story.record(events)
             except Exception as exc:                  # the read stands; the words are missing; the trail says why
                 events, trail = (), trail + story.could_not_be_read(exc)
+        # Stage 7 (task 14): the grade — his dead space on the setup's box (the parent) and whether the base held.
+        # After the story, because the swings it forgives are the story's own events, and in its own guard: a grade
+        # never costs a fire, a bug in a grade rule included.
+        the_grade = None
+        if found.winner is not None:
+            try:
+                the_grade = grade_stage.read(high, low, days, line.committed, events, R=found.winner.R,
+                                             S=found.winner.S, unit=found.winner.unit,
+                                             opening_bar=found.winner.opening_bar, read_bar=len(prepared) - 1)
+                trail = trail + grade_stage.record(the_grade)
+            except Exception as exc:                  # the read stands; the grade is missing; the trail says why
+                the_grade, trail = None, trail + grade_stage.could_not_be_read(exc)
         # The state word (task 12b), decided LAST and in its own guard: `fired` and `crossed` are final; with no
         # fire and no cross the right edge is read (bars wholly past a line's area), and with no box a young pair
         # the bars came back to is `forming N of 15`. A decision that falls over leaves the word above standing.
@@ -203,8 +216,8 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
     except Exception as exc:                      # a broken frame, not a chart
         return crashed(ticker, as_of, f"{type(exc).__name__}: {exc}")
 
-    # Stage 7 fills in the rest (the grade). Empty is the
-    # honest answer until it does. The close is a fact of the read day, not
-    # of a stage: the frame contract has just proved the last bar is whole.
+    # The close is a fact of the read day, not of a stage: the frame contract
+    # has just proved the last bar is whole.
     return Read(ticker=ticker, as_of=as_of, boxes=boxes, lps=the_lps, trail=trail,
-                state=state, close=float(prepared["Close"].iloc[-1]), events=events, state_days=state_days)
+                state=state, close=float(prepared["Close"].iloc[-1]), events=events, state_days=state_days,
+                grade=the_grade)

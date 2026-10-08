@@ -1046,11 +1046,12 @@ HTF_MONTHLY_WINDOWS = {
 # walking right like two legs, the box's life, the story left to right, the
 # LPS and its trigger, the grade and the state word.
 #
-# Read in exactly ONE function, engine_alpha.reader.which_reader(). Today the
-# core is built (the line, the box, its life, the LPS and its trigger, with
-# the universe door before the read) and the story, the mini and the grade
-# are not, so this is on for tests and the measuring tools only. The flip is
-# HIS, after the approval sitting; nothing goes live piecemeal.
+# Read in exactly ONE function, engine_alpha.reader.which_reader(). Every
+# stage is built (the line, the box, its life, the LPS and its trigger, with
+# the universe door before the read; the story, the mini and the grade), but
+# the screen block and the approval pack are not, so this is on for tests and
+# the measuring tools only. The flip is HIS, after the approval sitting;
+# nothing goes live piecemeal.
 TWO_EYES_READER_ENABLED = False
 
 # The new reader's ruleset version, BUMPED BY HAND with every change to how
@@ -1058,4 +1059,4 @@ TWO_EYES_READER_ENABLED = False
 # names and the scoring registry - but NO reader code, so without this two
 # different builds of the new reader would stamp the same version and an
 # archive row could not say which one wrote it.
-TWO_EYES_RULESET = "two-eyes-0.8.2-deep"
+TWO_EYES_RULESET = "two-eyes-0.9.0-grade"

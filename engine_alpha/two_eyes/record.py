@@ -181,6 +181,31 @@ class Event:
             raise TypeError("an event points at a day")
 
 
+#: The grade's letters, best first (stage 7). The cuts on the score are the reader's own numbers.
+GRADE_LETTERS = ("S", "A", "B", "C")
+
+
+@dataclass(frozen=True)
+class Grade:
+    """The grade (stage 7): his dead space and whether the base held, read on the setup's box. ``score`` runs from 0
+    to 100 and ``letter`` follows it; ``empty_days`` of the base's ``base_days`` were empty his way; ``holds`` is
+    False when, after THE SOS's top, the price fell under the whole base. A verdict and its facts: nothing that
+    decides a fire reads it."""
+    score: float
+    letter: str
+    empty_days: int
+    base_days: int
+    holds: bool
+
+    def __post_init__(self):
+        if self.letter not in GRADE_LETTERS:
+            raise ValueError(f"unknown grade letter {self.letter!r}; expected one of {GRADE_LETTERS}")
+        if not 0.0 <= self.score <= 100.0:
+            raise ValueError(f"a grade runs from 0 to 100, not {self.score!r}")
+        if not 0 <= self.empty_days <= self.base_days:
+            raise ValueError(f"{self.empty_days} empty days of a base of {self.base_days}")
+
+
 @dataclass(frozen=True)
 class Read:
     """One chart, read once, as of one day.
@@ -208,6 +233,9 @@ class Read:
     # The number that rides BESIDE a state word that counts days ("forming N of 15": N; a run of days beyond a
     # line: its length). Never written into the word, which is one of the closed ten.
     state_days: Optional[int] = None
+    # The grade (stage 7): None with no box, and None again when it could not be read: a grade never costs a
+    # fire, so `fired` does not read this.
+    grade: Optional[Grade] = None
 
     def __post_init__(self):
         # Frozen, but a list slipped in through `boxes` or `trail` would make

@@ -521,6 +521,17 @@ def frph_fires() -> list:
     return core_board.junk_row(case, junk_frames["FRPH"])["fires"]
 
 
+def test_the_readers_own_grade_is_the_probes_fifth_reading(colm_fires, frph_fires, unf_and_frph):
+    """The grade entry in the reader (stage 7) is the reading measured here, not a re-typed cousin of it: on COLM's
+    and FRPH's fire days and on his UNF, the record's grade is the probe's fifth reading, day for day."""
+    from tools.calibration.grade_probe import fifth_grade, measures
+
+    for row in (*colm_fires, *frph_fires, *unf_and_frph):
+        m, g = measures(row), row["read"].grade
+        assert (g.score, g.holds, g.empty_days, g.base_days) == \
+            (pytest.approx(fifth_grade(m)), m["holds4"], len(m["Dw_empty"]), m["Dh_days"]), row["day"]
+
+
 def test_his_frph_box_failed_so_it_grades_under_a_on_every_fire_day_and_his_unf_and_jazz_stay_s(frph_fires,
                                                                                                  unf_and_frph):
     """His verdict (Fri 09/10/2026): FRPH's marked box failed long ago, and the reader's two-month spring under its

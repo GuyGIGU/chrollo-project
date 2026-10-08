@@ -867,10 +867,10 @@ def test_the_record_carries_the_box_its_trail_and_the_state_and_keep_listing_add
 def test_read_fills_the_record_from_the_walk():
     """The read is the walk's record, then the mini (a second box inside the parent's right side, LAST in the
     boxes, its one step: task 13), then stage 6 on the box it shows (the LPS, its step after the walk's trail,
-    and the state word: task 12a), then the story's one step and its events (stage 5, task 12b), which change
-    neither the boxes, the LPS nor the state word."""
+    and the state word: task 12a), then the story's one step and its events (stage 5, task 12b), then the grade's
+    one step and the grade (stage 7, task 14), which change neither the boxes, the LPS nor the state word."""
     from engine_alpha import two_eyes
-    from engine_alpha.two_eyes import (frame as frame_module, line as line_module, lps, mini, story, walk,
+    from engine_alpha.two_eyes import (frame as frame_module, grade, line as line_module, lps, mini, story, walk,
                                        method_numbers as M)
     from core.calibration.replay import load_sealed_fixture
 
@@ -899,10 +899,13 @@ def test_read_fills_the_record_from_the_walk():
                         read_bar=len(prepared) - 1, pullback=pullback,
                         trend_end_bar=(result.lives[-1].trend_end or {}).get("climax_bar"))
     told = story.record(events)
+    graded = grade.read(high, low, days, line.committed, events, R=won.R, S=won.S, unit=won.unit,
+                        opening_bar=won.opening_bar, read_bar=len(prepared) - 1)
     from engine_alpha.two_eyes import state as state_word
     final, beside = state_word.decide(result, word, high, low, len(prepared) - 1)
-    assert (read.boxes, read.lps, read.trail, read.state) == (boxes, the_lps, trail + said + told, final)
-    assert read.state_days == beside
+    assert (read.boxes, read.lps, read.trail, read.state) == \
+        (boxes, the_lps, trail + said + told + grade.record(graded), final)
+    assert read.state_days == beside and read.grade == graded
     assert read.events == events and [s.stage for s in told] == [story.STAGE]
     assert read.parent is not None and len(said) == 1 and word in (lps.FIRED, lps.CROSSED, lps.LINES_NO_LPS)
 

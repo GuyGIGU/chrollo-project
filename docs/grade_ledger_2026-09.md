@@ -161,3 +161,45 @@ fires' median (0.275) or more; S 75, A 50, B 25.
 The sheet, ranked by the grade with the parent grade on every page, is the build run's
 `pictures/grade-sheet-dead-space/`. His word after it: *"all of the 40 calibrated should be S tier in my book"*.
 The grade's next step opens a new session.
+
+
+## The grade session (Thu 08/10 to Fri 09/10/2026): his way, the hold, and the grade built
+
+A study of his 40 came first (read-only, the build run's `pictures/grade-study/`). On his own lines 17 of his 40
+have no empty day before the push; of the 119 empty days, 75 lie a hair outside a line, 23 inside his drawn
+springs, 17 are pokes over the resistance that came back. So he counts days as a trader does: a hair beyond a line
+is respect (Sun 30/08/2026), a day inside a named event's swing is story (Sun 13/09/2026). Counted so, COLM's
+base has no empty day, the same as his MTLS. His answer on COLM (Thu 08/10/2026): *"base dosen't hold and dosen't
+answer for an LPS anywhere"* ([his picture](marks/rulings_2026-10-08/colm_base_does_not_hold.png)). Three
+readings were then written down and measured in turn, each against the best of every reading looked at before it
+under the same 2,000 shuffles:
+
+| Reading | What changed | Its order | The bar it had to beat | His 40 | The plan's bar |
+|---|---|---|---|---|---|
+| third | his way on the parent; the hold: no low over half a range under the support after THE SOS's top; the medians' ramp | 0.705 / 0.688 | 0.666 / 0.664 | S 33, C 7 | met |
+| fourth | the hold needs a fall under the base's own lowest low too (his JAZZ LPS pokes 0.54 under and holds); ends fixed: 0 at half the base empty (his "mostly") | 0.748 / 0.713 | 0.671 / 0.664 | S 39, B 1 | FRPH S on four days |
+| fifth | the story forgives an event's own swing only (his ruling, Fri 09/10/2026) | 0.780 / 0.761 | 0.671 / 0.668 | S 39, C 1 | met but BMRN (A, parked) |
+
+The third's medians' ramp collapsed (seven of the fourteen junk fires have no empty day his way, so the zero end
+fell to one day in sixty), and its hold failed his JAZZ against his own ruling on that chart. The fourth's FRPH
+grades S because, from Thu 25/06/2026, the reader moves FRPH's box up and names two months under it a spring.
+His word on that (Fri 09/10/2026): forgive only the swing, and *"the marked box failed"*, so the late return is
+no test and no SOS; the reader's part is recorded for after the grade.
+
+**THE GRADE is the fifth reading**, built into the reader as its stage 7 (`engine_alpha/two_eyes/grade.py`,
+`Read.grade`), dark like the rest of it:
+
+- the setup's box (the parent); the base from its opening to the day before THE SOS's push;
+- a base day is empty when its bar misses the box by more than half its daily range, outside every named event's
+  own swing (the reader's span narrowed to the line's legs into and out of the event's extreme);
+- the base does not hold when, after THE SOS's top, a low falls beyond the support's area and under the base's own
+  lowest low;
+- 100 with no empty day, 0 at half the base empty, a straight line between; 0 when the base did not hold; S 75,
+  A 50, B 25.
+
+On his 40: S 39 and C 1 (BODI, where the reader's box sits off his). On the 43 junk fire days: S 17, A 8, B 6,
+C 12; COLM and FRPH grade C on every day they fire, BMRN A (15 to 23 percent of its base empty). SIMO, an A on the
+screener's scan of Fri 02/10/2026 only by the old engine's 15-percent-of-price ceiling, grades S on all six of its
+fire days. The reader's own grade equals the probe's fifth reading on every one of the 83 reads. The ends and the
+cuts are his to approve at the sitting; the adapter's score and tier still carry the dark placeholder until task
+15 puts the grade on the row.
