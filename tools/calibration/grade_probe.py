@@ -67,6 +67,15 @@ The fourth reading (the decisions row of Fri 09/10/2026, written down after the 
 and the ramp's ends from his words, not the medians: 1 at no empty day, 0 at one half ("mostly dead space"). K4
 must beat the best of FIVE (D, Dp, Dh, K and K4); when it does, the board grades by the fourth reading.
 
+The fifth reading (his ruling of Fri 09/10/2026, "I'd forgive only that swing," correct): the fourth's hold and ends,
+
+    Dw  Dh with the story narrowed to each named event's own swing on the line: a day is forgiven only inside both
+        the reader's span for the event and the line's legs into and out of its extreme (from the last committed
+        turn before the event's day to the first after it, else the read day)          (junk higher)
+    K5  Dw when the base holds (the fourth's hold), else 1 + Dw                       (junk higher)
+
+K5 must beat the best of SIX (D, Dp, Dh, K, K4 and K5); when it does, the board grades by the fifth reading.
+
 Offline, read-only, sidecars only:
 
     python -m tools.calibration.grade_probe                  # the board
@@ -110,6 +119,9 @@ THIRD = SECOND + (PARENT,) + HIS_WAY
 FOURTH = THIRD + (("K4", +1),)
 #: The fourth reading's ramp, from his words: 1 at no empty day, 0 at one half (his FRPH "mostly dead space").
 ENDS4 = {"Dh": (0.0, 0.5)}
+#: The fifth reading (his ruling of Fri 09/10/2026): the story forgives a named event's own swing only.
+FIFTH = FOURTH + (("K5", +1),)
+ENDS5 = {"Dw": (0.0, 0.5)}
 #: The swings the reader names, whose days are story and never empty (his 13/09/2026 ruling). Phase D is a day.
 STORY = (record.SPRING, record.SPRING_TEST, record.UPTHRUST, record.LAST_SUPPER, record.SOS)
 #: The story's words the event map counts, each kind once (the spring test rides with its spring).
@@ -157,10 +169,17 @@ def his_way(row: dict) -> dict:
     first, last = pair.opening_bar, len(prepared) - 1
     end = base_end(row, first, last)
     area = M.LINE_WORD_AREA_ATR * pair.unit
-    swings = [(e.first_day or e.day, e.last_day or e.day) for e in row["read"].events if e.kind in STORY]
-    empty = [days[i] for i in range(first, end + 1)
-             if (low[i] > pair.R + area or high[i] < pair.S - area)     # beyond the line's area: not a hair
-             and not any(a <= days[i] <= b for a, b in swings)]         # outside every named swing: not story
+    named = [e for e in row["read"].events if e.kind in STORY]
+    swings = [(e.first_day or e.day, e.last_day or e.day) for e in named]
+    beyond = [i for i in range(first, end + 1)
+              if low[i] > pair.R + area or high[i] < pair.S - area]     # beyond the line's area: not a hair
+    empty = [days[i] for i in beyond
+             if not any(a <= days[i] <= b for a, b in swings)]          # outside every named span: not story
+    # the fifth reading: each span narrowed to the event's own swing, the line's legs into and out of its extreme
+    turns = [t.day for t in row["line"].committed]
+    own = [(max(a, max((t for t in turns if t < e.day), default=days[0])),
+            min(b, min((t for t in turns if t > e.day), default=days[last]))) for e, (a, b) in zip(named, swings)]
+    empty_w = [days[i] for i in beyond if not any(a <= days[i] <= b for a, b in own)]
     sos = ending_sos(row, first)
     right = range(days.index(sos.day) + 1, last + 1) if sos is not None and sos.day in days else range(0)
     lowest = float(low[right.start:right.stop].min()) if len(right) else None
@@ -169,9 +188,11 @@ def his_way(row: dict) -> dict:
            "U": max(0.0, (pair.S - lowest) / pair.unit) if lowest is not None else 0.0,
            "holds": lowest is None or lowest >= pair.S - area,
            # the fourth reading: beyond the support's area AND a lower level than the base ever made
-           "holds4": lowest is None or lowest >= pair.S - area or lowest >= floor, "floor": floor}
+           "holds4": lowest is None or lowest >= pair.S - area or lowest >= floor, "floor": floor,
+           "Dw": len(empty_w) / (end - first + 1), "Dw_empty": empty_w}
     out["K"] = order_key(out)
     out["K4"] = out["Dh"] if out["holds4"] else 1.0 + out["Dh"]
+    out["K5"] = out["Dw"] if out["holds4"] else 1.0 + out["Dw"]
     return out
 
 
@@ -343,6 +364,19 @@ def fourth_term(table: dict, is_junk: np.ndarray, shuffles: int = SHUFFLES) -> t
     return a > bar[0] and l > bar[1], bar, (a, l)
 
 
+def fifth_grade(m: dict, ends: dict = ENDS5) -> float:
+    """The fifth reading's grade: the smaller of Dw's ramp (his ends) and the fourth's hold."""
+    return grade(m, ends) if m["holds4"] else 0.0
+
+
+def fifth_term(table: dict, is_junk: np.ndarray, shuffles: int = SHUFFLES) -> tuple:
+    """The fifth reading, his ruling after the fourth's board: does K5 beat the best of the six readings looked at
+    under the same shuffles, on both counts? Returns (passes?, the bar, its two scores)."""
+    bar = chance(table, is_junk, shuffles, family=FIFTH)
+    a, l = auc(table["K5"], is_junk, +1), loco(table["K5"], is_junk, +1)
+    return a > bar[0] and l > bar[1], bar, (a, l)
+
+
 def third_term(table: dict, is_junk: np.ndarray, shuffles: int = SHUFFLES) -> tuple:
     """The third reading, OURS after the lists: does its order K beat the best of the four readings looked at (D,
     Dp, Dh and K) under the same shuffles, on both counts? Returns (passes?, the bar, its two scores)."""
@@ -386,7 +420,7 @@ def board(his: list, junk: list, silent: list, shuffles: int = SHUFFLES) -> tupl
     charts = [c for c in his + junk if c["m"]]
     no_box = [c["key"] for c in his + junk if not c["m"]]
     is_junk = np.array([c["junk"] for c in charts])
-    every = MEASURES + (CONTROL,) + SECOND + (PARENT,) + HIS_WAY + FOURTH[-1:]
+    every = MEASURES + (CONTROL,) + SECOND + (PARENT,) + HIS_WAY + FOURTH[-1:] + FIFTH[-1:]
     table = {m: np.array([c["m"][m] for c in charts], dtype=float) for m, _ in every}
     parent = {m: np.array([c["parent"][m] for c in charts], dtype=float) for m, _ in every}
     bar_auc, bar_loco = chance(table, is_junk, shuffles)
@@ -433,46 +467,69 @@ def board(his: list, junk: list, silent: list, shuffles: int = SHUFFLES) -> tupl
     out.extend(third)
     fourth, fourth_passes, fourth_summary = fourth_probe(charts, table, is_junk, junk, shuffles)
     out.extend(fourth)
-    out.extend(format_charts(charts, bool(ends), bool(alt), "4" if fourth_passes else "h" if third_passes else ""))
+    fifth, fifth_passes, fifth_summary = fifth_probe(charts, table, is_junk, junk, shuffles)
+    out.extend(fifth)
+    out.extend(format_charts(charts, bool(ends), bool(alt), graded_by(fifth_passes, fourth_passes, third_passes)))
     return out, charts, {"kept": kept, "ends": ends, "beside": alt, "chance": [bar_auc, bar_loco],
                          "scored": {m: list(v) for m, v in scored.items()}, "second": second_summary,
-                         "third": third_summary, "fourth": fourth_summary}
+                         "third": third_summary, "fourth": fourth_summary, "fifth": fifth_summary}
+
+
+def graded_by(fifth: bool, fourth: bool, third: bool) -> str:
+    """The latest reading that passed its bar, which the chart table and the sheet grade by: "5", "4", "h" or ""."""
+    return "5" if fifth else "4" if fourth else "h" if third else ""
 
 
 def fourth_probe(charts: list, table: dict, is_junk: np.ndarray, junk: list, shuffles: int) -> tuple:
     """The fourth reading's lines (the decisions row of Fri 09/10/2026, after the third's board): the hold read as
     his words say it, K4 against the best of five, the grade on his ends, the bar, and his under S and why."""
-    passes, bar, (a, l) = fourth_term(table, is_junk, shuffles)
+    return fixed_ends_probe(charts, table, is_junk, junk, shuffles, "FOURTH", "the fall under the whole base, the ends "
+                            "from his word (the decisions row of Fri 09/10/2026, written down after the third's board; "
+                            "OURS)", "the five: D, Dp, Dh, K and K4", "4", fourth_term, fourth_grade, ENDS4, "Dh")
+
+
+def fifth_probe(charts: list, table: dict, is_junk: np.ndarray, junk: list, shuffles: int) -> tuple:
+    """The fifth reading's lines (his ruling of Fri 09/10/2026): the story narrowed to each event's own swing, K5
+    against the best of six, the grade on his ends, the bar, and his under S and why."""
+    return fixed_ends_probe(charts, table, is_junk, junk, shuffles, "FIFTH", "the story forgives an event's own swing "
+                            "only (his ruling of Fri 09/10/2026, written down before it ran)",
+                            "the six: D, Dp, Dh, K, K4 and K5", "5", fifth_term, fifth_grade, ENDS5, "Dw")
+
+
+def fixed_ends_probe(charts: list, table: dict, is_junk: np.ndarray, junk: list, shuffles: int, name: str, what: str,
+                     family: str, n: str, term, grader, ends: dict, empty: str) -> tuple:
+    """A reading graded on his fixed ends with the fourth's hold: its lines, and each chart's grade under ``_<n>``."""
+    passes, bar, (a, l) = term(table, is_junk, shuffles)
     broke = lambda junk_side: ", ".join(c["key"] for c in charts if c["junk"] == junk_side and not c["m"]["holds4"])
     held = np.array([c["m"]["holds4"] for c in charts])
-    out = ["", "  THE FOURTH READING — the fall under the whole base, the ends from his word (the decisions row of Fri "
-               "09/10/2026, written down after the third's board; OURS)",
+    out = ["", f"  THE {name} READING — {what}",
            f"  the hold: his {int(held[~is_junk].sum())} of {int((~is_junk).sum())} hold"
            f"{' (not: ' + broke(False) + ')' if broke(False) else ''}; the junk fires {int(held[is_junk].sum())} of "
            f"{int(is_junk.sum())}{' (not: ' + broke(True) + ')' if broke(True) else ''}",
-           f"  chance ({shuffles} shuffles, the best of the five: D, Dp, Dh, K and K4): rank separation {bar[0]:.3f} · "
+           f"  chance ({shuffles} shuffles, the best of {family}): rank separation {bar[0]:.3f} · "
            f"leave-one-chart-out {bar[1]:.3f}",
-           f"  K4  {quartiles(table['K4'][~is_junk]):<40}{quartiles(table['K4'][is_junk]):<44}{a:>6.3f}{l:>7.3f}"
-           f"  {'passes' if passes else 'fails'}"]
+           f"  K{n}  {quartiles(table['K' + n][~is_junk]):<40}{quartiles(table['K' + n][is_junk]):<44}{a:>6.3f}"
+           f"{l:>7.3f}  {'passes' if passes else 'fails'}"]
     for c in charts:
-        c["grade_4"] = c["loco_grade_4"] = fourth_grade(c["m"])        # fixed ends: left out, the same grade
-        c["letter_4"] = c["loco_letter_4"] = letter(c["grade_4"])
-    title = ("THE GRADE, THE FOURTH READING (his to approve)" if passes else
-             "THE FOURTH READING'S GRADE, for the record (it fails the strictest bar)")
-    out.extend(format_grades(charts, junk, ENDS4, "_4", title, fourth_grade,
-                             f"    Dh: 1 at {ENDS4['Dh'][0]:.3f} (no empty day), 0 at {ENDS4['Dh'][1]:.3f} (one half: "
+        c["grade_" + n] = c["loco_grade_" + n] = grader(c["m"])        # fixed ends: left out, the same grade
+        c["letter_" + n] = c["loco_letter_" + n] = letter(c["grade_" + n])
+    title = (f"THE GRADE, THE {name} READING (his to approve)" if passes else
+             f"THE {name} READING'S GRADE, for the record (it fails the strictest bar)")
+    (key, (full, zero)), = ends.items()
+    out.extend(format_grades(charts, junk, ends, "_" + n, title, grader,
+                             f"    {key}: 1 at {full:.3f} (no empty day), 0 at {zero:.3f} (one half: "
                              "his 'mostly dead space'); a base that does not hold: 0; the ends are fixed, so a chart "
                              "left out grades the same"))
-    low = sorted((c for c in charts if not c["junk"] and c["letter_4"] != "S"), key=lambda c: -c["grade_4"])
-    out.append(f"  his under S on the fourth reading: {len(low)}")
+    low = sorted((c for c in charts if not c["junk"] and c["letter_" + n] != "S"), key=lambda c: -c["grade_" + n])
+    out.append(f"  his under S on the {name.lower()} reading: {len(low)}")
     for c in low:
         m = c["m"]
         why = ("does not hold: after THE SOS's top it fell under the base's lowest low" if not m["holds4"] else
-               f"{len(m['Dh_empty'])} of its {m['Dh_days']} base days empty his way")
-        out.append(f"    {c['key']}: {c['grade_4']:.0f} {c['letter_4']} — {why}")
-    junk_s = [c["key"] for c in charts if c["junk"] and c["letter_4"] in "SA"]
-    out.append(f"  the junk fires at S or A on the fourth reading: {', '.join(junk_s) if junk_s else 'none'}")
-    return out, passes, {"chance": list(bar), "scored": [a, l], "passes": passes, "ends": ENDS4}
+               f"{len(m[empty + '_empty'])} of its {m['Dh_days']} base days empty his way")
+        out.append(f"    {c['key']}: {c['grade_' + n]:.0f} {c['letter_' + n]} — {why}")
+    junk_s = [c["key"] for c in charts if c["junk"] and c["letter_" + n] in "SA"]
+    out.append(f"  the junk fires at S or A on the {name.lower()} reading: {', '.join(junk_s) if junk_s else 'none'}")
+    return out, passes, {"chance": list(bar), "scored": [a, l], "passes": passes, "ends": ends}
 
 
 def third_probe(charts: list, table: dict, is_junk: np.ndarray, junk: list, shuffles: int) -> tuple:
@@ -601,30 +658,38 @@ def format_grades(charts: list, junk: list, ends: dict, sfx: str = "", title: st
     return out
 
 
+#: For each later reading the board can grade by: its order, its empty days and its hold.
+ORDER_KEY = {"5": "K5", "4": "K4", "h": "K"}
+EMPTY_OF = {"5": "Dw_empty", "4": "Dh_empty", "h": "Dh_empty"}
+HOLD_OF = {"5": "holds4", "4": "holds4", "h": "holds"}
+
+
 def format_charts(charts: list, graded: bool, beside: bool = False, third: str = "") -> list:
-    """Every chart's numbers: by grade when there is one (the fourth or third reading's when it passed: ``third`` is
-    "4", "h" or ""), else his drawings first, then the junk; the grade on the parent beside it when there is one,
-    and the third and fourth readings' always."""
+    """Every chart's numbers: by grade when there is one (the fifth, fourth or third reading's when it passed:
+    ``third`` is "5", "4", "h" or ""), else his drawings first, then the junk; the grade on the parent beside it when
+    there is one, and the later readings' always."""
     if third:
-        order = sorted(charts, key=lambda c: (-c["grade_" + third], c["m"]["K4" if third == "4" else "K"], c["key"]))
+        order = sorted(charts, key=lambda c: (-c["grade_" + third], c["m"][ORDER_KEY[third]], c["key"]))
     elif graded:
         order = sorted(charts, key=lambda c: -c["grade"])
     else:
         order = sorted(charts, key=lambda c: (c["junk"], c["key"]))
     out = ["", f"  {'chart':<20}{'':<8}{'box':<7}{'days':>5}{'grade':>7} {'':<2}{'loco':>6}"
                + (f"{'parent':>8} {'':<2}" if beside else "") + f"{'third':>7} {'':<2}{'loco':>6}"
-               + f"{'fourth':>7} {'':<2}  "
+               + f"{'fourth':>7} {'':<2}{'fifth':>7} {'':<2}  "
                + "".join(f"{m:>7}" for m, _ in MEASURES) + f"{'S0':>7}{'D':>7}{'base':>6}{'Dp':>7}"
-               + f"{'Dh':>7}{'U':>6}{'hold':>6}{'hold4':>6}"]
+               + f"{'Dh':>7}{'Dw':>7}{'U':>6}{'hold':>6}{'hold4':>6}"]
     for c in order:
         who = "JUNK" if c["junk"] else ("" if c["fires"] else "no fire")
         g = f"{c['grade']:>7.1f} {c['letter']:<2}{c['loco_grade']:>6.1f}" if graded else f"{'':>7} {'':<2}{'':>6}"
         p = f"{c['grade_p']:>8.1f} {c['letter_p']:<2}" if beside else ""
-        h = f"{c['grade_h']:>7.1f} {c['letter_h']:<2}{c['loco_grade_h']:>6.1f}{c['grade_4']:>7.1f} {c['letter_4']:<2}"
+        h = (f"{c['grade_h']:>7.1f} {c['letter_h']:<2}{c['loco_grade_h']:>6.1f}{c['grade_4']:>7.1f} {c['letter_4']:<2}"
+             f"{c['grade_5']:>7.1f} {c['letter_5']:<2}")
         out.append(f"  {c['key']:<20}{who:<8}{c['m']['box']:<7}{c['m']['days']:>5}{g}{p}{h}  "
                    + "".join(f"{c['m'][m]:>7.2f}" for m, _ in MEASURES) + f"{c['m']['S0']:>7.2f}"
                    + f"{c['m']['D']:>7.2f}{c['m']['base_days']:>6}{c['m']['Dp']:>7.2f}"
-                   + f"{c['m']['Dh']:>7.2f}{c['m']['U']:>6.2f}{'yes' if c['m']['holds'] else 'NO':>6}"
+                   + f"{c['m']['Dh']:>7.2f}{c['m']['Dw']:>7.2f}{c['m']['U']:>6.2f}"
+                   + f"{'yes' if c['m']['holds'] else 'NO':>6}"
                    + f"{'yes' if c['m']['holds4'] else 'NO':>6}")
     return out
 
@@ -642,16 +707,17 @@ def said(m: dict) -> str:
             f"bars at least three quarters as tall as the box: {m['S1']:.0%} of its {m['days']} trading days "
             f"(the median bar is {m['S0']:.0%} of the box's height) · the box is {m['H']:.2f} daily ranges tall "
             f"· swings from one line to the other: {m['S2']:.1f} per 20 trading days · the story names "
-            f"{m['E']} of the five events · measured on the {m['box']} · counted your way on the parent: "
-            f"{len(m['Dh_empty'])} of the base's {m['Dh_days']} days empty · after THE SOS's top the base "
+            f"{m['E']} of the five events · measured on the {m['box']} · counted your way on the parent "
+            f"(forgiving only each named event's own swing): {len(m['Dw_empty'])} of the base's {m['Dh_days']} days "
+            "empty · after THE SOS's top the base "
             + ("holds" if m["holds4"] else f"does NOT hold: a low {m['U']:.2f} daily ranges under the support, "
                "under the base's own lowest low"))
 
 
 def render_sheet(charts: list, out_dir: str, rank_by: str, graded: bool, third: str = "") -> str:
-    """One OHLC page per chart and ONE sheet, his drawings and the junk fires ranked together: by the third
-    reading's grade when it passed the stricter bar, else by the grade when there is one, else by the measure that
-    came closest, best first."""
+    """One OHLC page per chart and ONE sheet, his drawings and the junk fires ranked together: by the latest later
+    reading's grade that passed its bar (``third``: "5", "4" or "h"), else by the grade when there is one, else by
+    the measure that came closest, best first."""
     import os
     import matplotlib
     matplotlib.use("Agg")
@@ -665,7 +731,7 @@ def render_sheet(charts: list, out_dir: str, rank_by: str, graded: bool, third: 
     order = sorted((c for c in charts if c["m"]), key=lambda c: sign * value(c))
     if third:
         order = sorted((c for c in charts if c["m"]),
-                       key=lambda c: (-c["grade_" + third], c["m"]["K4" if third == "4" else "K"], c["key"]))
+                       key=lambda c: (-c["grade_" + third], c["m"][ORDER_KEY[third]], c["key"]))
     cells = []
     for n, c in enumerate(order, 1):
         path = os.path.join(out_dir, f"{n:02d}_{c['key'].replace(':', '_').replace('@', '_')}.png")
@@ -683,8 +749,8 @@ def render_sheet(charts: list, out_dir: str, rank_by: str, graded: bool, third: 
                      + (f' · grade {c["grade"]:.0f} {c["letter"]}, on the parent {c["grade_p"]:.0f} {c["letter_p"]}'
                         if graded and c.get("letter_p") else "")
                      + (f' · grade {c["grade_" + third]:.0f} {c["letter_" + third]} · your way '
-                        f'{len(c["m"]["Dh_empty"])} of {c["m"]["Dh_days"]} base days empty · '
-                        + ("holds" if c["m"]["holds4" if third == "4" else "holds"] else
+                        f'{len(c["m"][EMPTY_OF[third]])} of {c["m"]["Dh_days"]} base days empty · '
+                        + ("holds" if c["m"][HOLD_OF[third]] else
                            f'does NOT hold ({c["m"]["U"]:.2f} ranges under the support)')
                         + (f' · as written {c["grade"]:.0f} {c["letter"]}' if graded else "") if third else "")
                      + f' · no bar in the box {c["m"]["D"]:.0%} of the base · tall bars {c["m"]["S1"]:.0%}'
@@ -733,7 +799,7 @@ def main() -> int:
                 {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in c.items()
                  if k not in ("every", "row", "setup")} for c in charts]}, f, indent=1, default=str)
     if args.pages:
-        third = "4" if summary["fourth"]["passes"] else "h" if summary["third"]["passes"] else ""
+        third = graded_by(*(summary[n]["passes"] for n in ("fifth", "fourth", "third")))
         print(f"  the sheet: {render_sheet(charts, args.pages, 'D', bool(summary['kept']), third)}")
     return 0
 

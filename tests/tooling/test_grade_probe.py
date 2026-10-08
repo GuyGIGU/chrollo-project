@@ -239,16 +239,18 @@ def test_the_parent_reading_needs_the_written_down_d_to_survive_and_the_best_of_
 # The third reading (the decisions row of Fri 09/10/2026): his COLM word, "base dosen't hold and dosen't answer #
 # for an LPS anywhere", and the study of his 40, written down before it was measured                           #
 # --------------------------------------------------------------------------- #
-def _bars(highs, lows, R, S, unit, opening, *events):
-    """A read made of bars and a story, for the parts of the third reading that need nothing else."""
+def _bars(highs, lows, R, S, unit, opening, *events, turns=()):
+    """A read made of bars, a story and the line's committed turns (bar numbers; none by default), for the parts of
+    the third, fourth and fifth readings that need nothing else."""
     import types
     import pandas as pd
 
     days = pd.bdate_range("2026-01-05", periods=len(highs))
     prepared = pd.DataFrame({"High": highs, "Low": lows}, index=days)
     pair = types.SimpleNamespace(R=R, S=S, unit=unit, opening_bar=opening)
+    line = types.SimpleNamespace(committed=tuple(types.SimpleNamespace(bar=b, day=days[b].date()) for b in turns))
     return {"read": types.SimpleNamespace(events=tuple(e(days) for e in events)), "prepared": prepared,
-            "won": pair}, [d.date() for d in days]
+            "won": pair, "line": line}, [d.date() for d in days]
 
 
 def _event(kind, first, last=None, day=None):
@@ -454,3 +456,85 @@ def test_his_colm_falls_under_its_whole_base_and_his_jazz_drts_and_bodi_do_not(c
     jazz = his["JAZZ:2026-02-24"]
     m = measures(core_board.score_setup(jazz, fixture_frame(frames, "JAZZ:2026-02-24", "JAZZ"))["on_last"])
     assert letter(fourth_grade(m)) == "S"
+
+
+# --------------------------------------------------------------------------- #
+# The fifth reading (his ruling of Fri 09/10/2026): the story forgives an event's own swing only                  #
+# --------------------------------------------------------------------------- #
+def test_a_named_events_span_forgives_only_its_own_swing_on_the_line():
+    """His ruling (Fri 09/10/2026): *"I'd forgive only that swing," correct*. The reader names a spring over ten days
+    under the box; the line turns inside them. Only the days from the line's last turn before the spring's tip to its
+    first turn after it are forgiven: the leg down to the low and back up."""
+    from engine_alpha.two_eyes import record
+    from tools.calibration.grade_probe import his_way
+
+    inside, under = (10.8, 10.2), (9.3, 8.5)
+    bars = [inside] * 5 + [under] * 10 + [inside] * 5
+    row, days = _bars([h for h, _ in bars], [lo for _, lo in bars], 11.0, 10.0, 1.0, 0,
+                      _event(record.SPRING, 5, 14, day=9), turns=(7, 8, 9, 11, 13))
+    m = his_way(row)
+    assert m["Dh"] == 0.0, "the span forgave all ten (the third and fourth readings)"
+    assert m["Dw_empty"] == [days[i] for i in (5, 6, 7, 12, 13, 14)], "the swing forgives 8 to 11 only"
+    assert m["Dw"] == pytest.approx(6 / 20)
+    # no committed turn after the tip yet: its swing runs to the read day; none before it: from the first day
+    row, days = _bars([h for h, _ in bars], [lo for _, lo in bars], 11.0, 10.0, 1.0, 0,
+                      _event(record.SPRING, 5, 14, day=9), turns=(7,))
+    assert his_way(row)["Dw_empty"] == [days[i] for i in (5, 6)]
+    row, days = _bars([h for h, _ in bars], [lo for _, lo in bars], 11.0, 10.0, 1.0, 0,
+                      _event(record.SPRING, 5, 14, day=9))
+    assert his_way(row)["Dw_empty"] == [], "with no turn on the line, the swing is the whole span"
+    # a one-day event (a spring test) forgives its own day only, as before
+    row, days = _bars([h for h, _ in bars], [lo for _, lo in bars], 11.0, 10.0, 1.0, 0,
+                      _event(record.SPRING_TEST, 9), turns=(7, 8, 9, 11, 13))
+    assert len(his_way(row)["Dw_empty"]) == 9
+
+
+def test_the_fifth_grade_reads_dw_with_his_ends_and_the_fourth_hold_and_beats_the_best_of_six():
+    from tools.calibration import grade_probe
+    from tools.calibration.grade_probe import ENDS5, fifth_grade, letter
+
+    assert ENDS5 == {"Dw": (0.0, 0.5)}
+    assert letter(fifth_grade({"Dw": 1 / 60, "holds4": True})) == "S"
+    assert fifth_grade({"Dw": 0.25, "holds4": True}) == pytest.approx(50.0)
+    assert fifth_grade({"Dw": 0.0, "holds4": False}) == 0.0
+    assert grade_probe.FIFTH == grade_probe.FOURTH + (("K5", +1),)
+    junk = np.array([False] * 6 + [True] * 6)
+    apart = np.array([1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 15, 16], dtype=float)
+    rng = np.random.default_rng(3)
+    table = {m: rng.normal(size=12) for m in ("D", "Dp", "Dh", "K", "K4")}
+    table["K5"] = apart
+    passes, bar, scores = grade_probe.fifth_term(table, junk, shuffles=200)
+    assert passes and scores == (1.0, 1.0)
+    assert bar == grade_probe.chance(table, junk, 200, family=grade_probe.FIFTH), "the best of the six"
+    own = grade_probe.chance(table, junk, 200, family=(("K5", +1),))
+    assert bar[0] > own[0] and bar[1] > own[1]
+    assert not grade_probe.fifth_term({**table, "K5": np.ones(12)}, junk, shuffles=200)[0]
+
+
+@pytest.fixture(scope="module")
+def frph_fires() -> list:
+    from tools.calibration import core_board
+    from tools.regression import negative_corpus
+
+    junk_frames, meta = negative_corpus._load_fixture()
+    case = next(c for c in meta["cases"] if c.get("key", c["ticker"]) == "FRPH")
+    return core_board.junk_row(case, junk_frames["FRPH"])["fires"]
+
+
+def test_his_frph_box_failed_so_it_grades_under_a_on_every_fire_day_and_his_unf_and_jazz_stay_s(frph_fires,
+                                                                                                 unf_and_frph):
+    """His verdict (Fri 09/10/2026): FRPH's marked box failed long ago, and the reader's two-month spring under its
+    moved box is no spring. Forgiving only its own swing, FRPH grades under A on all six fire days, Thu 18/06 to Thu
+    02/07/2026. His UNF (a box as tall as its bars) and JAZZ (his LPS on the support) still grade S."""
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+    from tools.calibration import core_board
+    from tools.calibration.grade_probe import fifth_grade, letter, measures
+    from tools.regression.marks_corpus import load_corpus, setup_key
+
+    assert len(frph_fires) == 6
+    for fire in frph_fires:
+        assert letter(fifth_grade(measures(fire))) in ("B", "C"), fire["day"]
+    frames, _ = load_sealed_fixture()
+    jazz = next(s for s in load_corpus() if setup_key(s) == "JAZZ:2026-02-24")
+    for row in (unf_and_frph[0], core_board.score_setup(jazz, fixture_frame(frames, "JAZZ:2026-02-24", "JAZZ"))["on_last"]):
+        assert letter(fifth_grade(measures(row))) == "S", row["day"]
