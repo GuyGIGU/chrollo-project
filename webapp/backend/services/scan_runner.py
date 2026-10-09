@@ -613,7 +613,7 @@ def run_scheduled_scan_and_forward_returns() -> None:
     silently starve outcome maturation. The scan status and the backfill report
     independently; the scan's run record still reflects only the scan outcome.
     """
-    from core.archive.forward_returns import update_forward_returns
+    from core.archive.forward_returns import run_calibration_maturation, update_forward_returns
     from services import scan_status
 
     with scan_lock() as acquired:
@@ -660,3 +660,6 @@ def run_scheduled_scan_and_forward_returns() -> None:
                 scan_status.finish_run(mat_run_id, status="failed", error=str(exc))
                 alert_if_needed("scheduled-maturation", "failed", None, str(exc))
                 log.exception("scheduled forward-return update failed")
+            # His calibration setups mature with the fires (ruling 2026-10-03), as
+            # a contained passenger: it never raises and never owns the run status.
+            run_calibration_maturation()

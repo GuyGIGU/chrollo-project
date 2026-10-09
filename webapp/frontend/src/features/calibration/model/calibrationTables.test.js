@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   buildCoverageRows, sortCoverageRows, buildMarkRows, sortMarkRows,
   buildSetupRows, sortSetupRows,
+  SETUPS_PER_PAGE, filterSetupRows, pageCount, pageSlice, pageOfKey, setupDateLabel,
+  adjacentSetupRow,
 } from './calibrationTables.js';
 
 // A small marks population across three tickers: AGCO has a box + a negative,
@@ -299,4 +301,100 @@ test('setup sort by asOf desc, symmetric and non-mutating / idempotent', () => {
   const twice = sortSetupRows(sortSetupRows(rows)).map((r) => r.key);
   assert.deepEqual(rows.map((r) => r.key), before); // input untouched
   assert.deepEqual(once, twice);                     // stable
+});
+
+// ---- rail search + pages ----------------------------------------------------
+
+// n setup rows: ticker T00..T(n-1), one session each, so row i is key `T<i>|...`.
+const manyRows = (n) => Array.from({ length: n }, (_, i) => ({
+  key: `T${String(i).padStart(2, '0')}|2026-01-02`,
+  ticker: `T${String(i).padStart(2, '0')}`, asOf: '2026-01-02', label: '',
+}));
+
+test('filterSetupRows: an empty or blank query returns the input unchanged', () => {
+  const rows = buildSetupRows(marks);
+  assert.equal(filterSetupRows(rows, ''), rows);
+  assert.equal(filterSetupRows(rows, '   '), rows);
+  assert.equal(filterSetupRows(rows, null), rows);
+});
+
+test('filterSetupRows: case-insensitive ticker substring, trimmed', () => {
+  const rows = buildSetupRows(marks);
+  assert.deepEqual(filterSetupRows(rows, ' kl ').map((r) => r.ticker), ['KLAC']);
+  assert.deepEqual(filterSetupRows(rows, 'yP').map((r) => r.ticker), ['YPF']);
+  assert.deepEqual(filterSetupRows(rows, 'zzz'), []);
+});
+
+test('filterSetupRows: a label match finds the setup even when the ticker does not', () => {
+  const rows = buildSetupRows(marks); // AGCO@07-10 carries the label 'chop'
+  const hit = filterSetupRows(rows, 'CHOP');
+  assert.deepEqual(hit.map((r) => `${r.ticker}@${r.asOf}`), ['AGCO@2026-07-10']);
+});
+
+test('filterSetupRows: two setups on one ticker are BOTH kept', () => {
+  const rows = buildSetupRows(marks);
+  const agco = filterSetupRows(rows, 'agco');
+  assert.equal(agco.length, 2);
+  assert.deepEqual(agco.map((r) => r.asOf).sort(), ['2026-07-07', '2026-07-10']);
+});
+
+test('filterSetupRows never mutates its input', () => {
+  const rows = buildSetupRows(marks);
+  const before = rows.map((r) => r.key);
+  filterSetupRows(rows, 'agco');
+  assert.deepEqual(rows.map((r) => r.key), before);
+  assert.equal(rows.length, 4);
+});
+
+test('pages of 20: 41 setups split 20 / 20 / 1', () => {
+  assert.equal(SETUPS_PER_PAGE, 20);
+  const rows = manyRows(41);
+  assert.equal(pageCount(rows.length), 3);
+  assert.equal(pageSlice(rows, 1).length, 20);
+  assert.equal(pageSlice(rows, 2).length, 20);
+  assert.deepEqual(pageSlice(rows, 3).map((r) => r.ticker), ['T40']);
+  assert.equal(pageSlice(rows, 2)[0].ticker, 'T20'); // page 2 starts at the 21st setup
+  // Exactly 40 is two full pages; an empty list is still one page.
+  assert.equal(pageCount(40), 2);
+  assert.equal(pageCount(0), 1);
+  assert.deepEqual(pageSlice([], 1), []);
+});
+
+test('pageSlice clamps a page past either end into range, and never mutates', () => {
+  const rows = manyRows(41);
+  assert.deepEqual(pageSlice(rows, 9).map((r) => r.ticker), ['T40']); // past the end -> last page
+  assert.equal(pageSlice(rows, 0)[0].ticker, 'T00');                 // before the start -> first
+  assert.equal(pageSlice(rows, -3)[0].ticker, 'T00');
+  assert.equal(rows.length, 41);
+});
+
+test('pageOfKey: the 1-based page holding a key, null when it is not listed', () => {
+  const rows = manyRows(41);
+  assert.equal(pageOfKey(rows, 'T00|2026-01-02'), 1);
+  assert.equal(pageOfKey(rows, 'T19|2026-01-02'), 1);
+  assert.equal(pageOfKey(rows, 'T20|2026-01-02'), 2);
+  assert.equal(pageOfKey(rows, 'T40|2026-01-02'), 3);
+  assert.equal(pageOfKey(rows, 'NOPE|2026-01-02'), null);
+  assert.equal(pageOfKey([], 'T00|2026-01-02'), null);
+});
+
+test('adjacentSetupRow walks the shown list and wraps', () => {
+  const rows = manyRows(5);
+  const at = (key, step) => adjacentSetupRow(rows, key, step)?.ticker;
+  assert.equal(at('T01|2026-01-02', 1), 'T02');
+  assert.equal(at('T01|2026-01-02', -1), 'T00');
+  assert.equal(at('T04|2026-01-02', 1), 'T00'); // wraps past the bottom...
+  assert.equal(at('T00|2026-01-02', -1), 'T04'); // ...and past the top
+  // Nothing loaded (or the loaded setup filtered out): down starts at the top, up at the bottom.
+  assert.equal(at(null, 1), 'T00');
+  assert.equal(at('NOPE|x', -1), 'T04');
+  assert.equal(adjacentSetupRow([], 'T00|2026-01-02', 1), null);
+  assert.equal(rows.length, 5);
+});
+
+test('setupDateLabel: day, month and two-digit year; empty is the em-dash', () => {
+  assert.equal(setupDateLabel('2026-04-13'), '13 Apr 26');
+  assert.equal(setupDateLabel('2025-12-01'), '1 Dec 25');
+  assert.equal(setupDateLabel(null), '—');
+  assert.equal(setupDateLabel('not a date'), 'not a date');
 });

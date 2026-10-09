@@ -14,7 +14,7 @@ import { confirmDialog } from '../../../shared/components/feedback';
 // coherent muted "no live setup" row (roughly half a real watchlist). Replaces
 // the old chip list; the in-scan setups still show as full chart cards in the
 // grid above, so this is the manage-and-triage view, not a second chart wall.
-function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleWatchlist }) {
+function ScreenerWatchlistPanel({ watchlist, screenerData, onToggleWatchlist }) {
   // Sort lives in the caller (controlled), not inside the table primitive.
   const [sort, setSort] = useState({ by: 'tier', dir: 'asc' });
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -35,8 +35,6 @@ function ScreenerWatchlistPanel({ watchlist, screenerData, isScanning, onToggleW
     [chartData, scanStamp],
   );
   const { glassProps, anchorProps } = useHoverGlance(resolveGlance, { suspended: reviewOpen });
-
-  if (isScanning) return null;
 
   // The review entry point rides both states — un-starred HISTORY exists even
   // when the active watchlist is empty.

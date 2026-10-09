@@ -33,6 +33,23 @@ const { miniFocusLogicalRange, modalFocusLogicalRange, CHART_FRAMING } = await i
 // in the running app at the operator's 1536x864-effective viewport, scale 1.00.
 const PLOT = { mini: 435, modal: 1050, popover: 330 };
 
+// 2026-10-02: his two real screens (2560x1440 main, 1920x1080 secondary, both at
+// Windows 100%), three cards per row at scale 1.00. Measured in the running app
+// at 1920x1080: a 618px card, the modal's daily pane 1318x672. A plot is the card
+// less its borders and the ~53px right price scale. The wells: BEFORE was
+// clamp(200px, 26vh, 300px) (281px at 1080 tall, capped at 300 at 1440); AFTER is
+// the card's inner width / 1.9. The five-up row is 2560 before the three-card cap.
+const SCREENS = [
+  { name: '1920 three-up', card: 618, plot: 563, wellBefore: 281, wellAfter: 324 },
+  { name: '2560 three-up', card: 831, plot: 776, wellBefore: 300, wellAfter: 436 },
+  { name: '2560 five-up (before the three-card cap)', card: 493, plot: 438, wellBefore: 300, wellAfter: null },
+];
+// The "big chart" every card is compared against: the modal's daily pane at 1920.
+const BIG_CHART = { w: 1318, h: 672 };
+// The card profile as shipped 2026-09-02 -> 2026-10-02, transcribed so the
+// before column runs through the SAME shipped function (only these fields moved).
+const MINI_BEFORE = { ...CHART_FRAMING.mini, baseWidthCap: 0.35, scaleMargins: { top: 0.06, bottom: 0.14 } };
+
 // --- the RETIRED model, transcribed (the code itself is deleted) -------------
 // CHART_FRAMING.mini/modal as shipped up to 2026-09-02, plus proportionTrimmedFrom.
 const RETIRED = {
@@ -154,8 +171,12 @@ function measure(tickers, chart, range) {
 
 // A longer rest drawn NARROWER than a shorter one is the operator's complaint,
 // stated as a number: it is the fraction of side-by-side pairs that lie about
-// which consolidation lasted longer.
-function inversions(rows, chart) {
+// which consolidation lasted longer. With `plot` and `tolPx` (2026-10-02) a pair
+// counts only when the longer rest is drawn MORE than tolPx narrower on that
+// plot: the cap's ceil() makes a 32-day rest a hair narrower than a 31-day one,
+// a difference no eye can see, and at 0.45 those step artifacts would otherwise
+// swamp the count the operator actually cares about.
+function inversions(rows, chart, plot = null, tolPx = 0) {
   let bad = 0;
   let pairs = 0;
   for (let i = 0; i < rows.length; i += 1) {
@@ -166,10 +187,52 @@ function inversions(rows, chart) {
       pairs += 1;
       const wider = a > b ? rows[i].share : rows[j].share;
       const narrower = a > b ? rows[j].share : rows[i].share;
-      if (wider < narrower) bad += 1;
+      if (plot == null ? wider < narrower : (narrower - wider) * plot > tolPx) bad += 1;
     }
   }
   return { bad, pairs };
+}
+
+// What the card actually DRAWS (2026-10-02): the box's width and height in px on
+// a given plot and well, and its squareness (height / width) relative to the same
+// box on the big chart. The box's height share is (R - S) over the visible
+// high-low range, which autoscale maps onto the price band (the well less the
+// price-scale margins). Cards without a finite R > S are skipped.
+function visibleRange(d, r) {
+  let hi = -Infinity;
+  let lo = Infinity;
+  for (let i = r.from; i <= r.to; i += 1) {
+    const c = d.candles[i];
+    if (!c) continue;
+    if (Number.isFinite(+c.high)) hi = Math.max(hi, +c.high);
+    if (Number.isFinite(+c.low)) lo = Math.min(lo, +c.low);
+  }
+  return hi > lo ? hi - lo : null;
+}
+
+function drawn(tickers, chart, profile, plot, well) {
+  const band = 1 - profile.scaleMargins.top - profile.scaleMargins.bottom;
+  const modalBand = 1 - CHART_FRAMING.modal.scaleMargins.top - CHART_FRAMING.modal.scaleMargins.bottom;
+  const out = [];
+  for (const t of tickers) {
+    const d = chart[t];
+    const R = num(d.R);
+    const S = num(d.S);
+    if (R == null || S == null || !(R > S)) continue;
+    const { baseStart, baseEnd } = boxSpan(d);
+    const share = (r) => Math.max(0, Math.min(r.to, baseEnd) - Math.max(r.from, baseStart) + 1) / (r.to - r.from + 1);
+    const card = miniFocusLogicalRange(d, profile);
+    const big = modalFocusLogicalRange(d);
+    const cardRange = visibleRange(d, card);
+    const bigRange = visibleRange(d, big);
+    if (!cardRange || !bigRange) continue;
+    const w = share(card) * plot;
+    const h = ((R - S) / cardRange) * band * well;
+    const bigW = share(big) * BIG_CHART.w;
+    const bigH = ((R - S) / bigRange) * modalBand * BIG_CHART.h;
+    out.push({ w, h, sq: (h / w) / (bigH / bigW) });
+  }
+  return out;
 }
 
 const artifact = process.argv[2] || path.join(REPO, 'output', 'screener_data.json');
@@ -210,6 +273,52 @@ const invAfter = inversions(afterMini, chart);
 console.log(`  ORDER INVERSION: ${invAfter.bad}/${invAfter.pairs} pairs = ${pct(invAfter.bad / invAfter.pairs)}%`);
 profile('MODAL @1050px', measure(tickers, chart, (d) => modalFocusLogicalRange(d)), PLOT.modal);
 profile('HOVER GLANCE @330px', measure(tickers, chart, (d) => miniFocusLogicalRange(d, CHART_FRAMING.popover)), PLOT.popover);
+
+// --- 2026-10-02: the close-up, on his two real screens ------------------------
+// Operator: "I want more close up on the setups themselves ... Very important to
+// keep an ACCURATE view of how each setup looks in the big advanced chart".
+console.log('\n================ 2026-10-02 — the close-up, on his two screens ================');
+console.log(`card cap ${MINI_BEFORE.baseWidthCap} -> ${CHART_FRAMING.mini.baseWidthCap} (glance ${CHART_FRAMING.popover.baseWidthCap}, modal stays ${CHART_FRAMING.modal.baseWidthCap}); `
+  + `price band ${pct(1 - MINI_BEFORE.scaleMargins.top - MINI_BEFORE.scaleMargins.bottom)}% -> ${pct(1 - CHART_FRAMING.mini.scaleMargins.top - CHART_FRAMING.mini.scaleMargins.bottom)}% of the well`);
+console.log(`squareness = the box's height/width on the card over the same on the big chart (modal daily pane ${BIG_CHART.w}x${BIG_CHART.h}); 1.00 = the same shape`);
+const closeBefore = measure(tickers, chart, (d) => miniFocusLogicalRange(d, MINI_BEFORE));
+const closeAfter = measure(tickers, chart, (d) => miniFocusLogicalRange(d));
+const wins = (rows) => rows.map((r) => r.win);
+const shares = (rows) => rows.map((r) => r.share);
+const over = (rows, x) => rows.filter((r) => r.share > x).length;
+const arrow = (a, b) => (b == null ? `${a}` : `${a} -> ${b}`);
+console.log(`  window, trading days : med ${arrow(quant(wins(closeBefore), 0.5), quant(wins(closeAfter), 0.5))} | p90 ${arrow(quant(wins(closeBefore), 0.9), quant(wins(closeAfter), 0.9))}`);
+console.log(`  base % of WIDTH      : med ${arrow(pct(quant(shares(closeBefore), 0.5)), pct(quant(shares(closeAfter), 0.5)))} | p90 ${arrow(pct(quant(shares(closeBefore), 0.9)), pct(quant(shares(closeAfter), 0.9)))} | >45%: ${arrow(over(closeBefore, 0.45), over(closeAfter, 0.45))} | >60%: ${arrow(over(closeBefore, 0.6), over(closeAfter, 0.6))}`);
+console.log(`  boxes cropped off-pane: ${arrow(closeBefore.filter((r) => r.cropped).length, closeAfter.filter((r) => r.cropped).length)}`);
+// The glance moves with the card (same cap), so its before/after is printed
+// too — the framing doc quotes it, and every figure there needs a command.
+const glanceBefore = measure(tickers, chart, (d) => miniFocusLogicalRange(d, { ...CHART_FRAMING.popover, baseWidthCap: MINI_BEFORE.baseWidthCap }));
+const glanceAfter = measure(tickers, chart, (d) => miniFocusLogicalRange(d, CHART_FRAMING.popover));
+const glanceThin = (rows) => rows.filter((r) => PLOT.popover / r.win < 3).length;
+console.log(`  GLANCE @${PLOT.popover}px base % : med ${arrow(pct(quant(shares(glanceBefore), 0.5)), pct(quant(shares(glanceAfter), 0.5)))} | >60%: ${arrow(over(glanceBefore, 0.6), over(glanceAfter, 0.6))} | under 3 px/day: ${arrow(glanceThin(glanceBefore), glanceThin(glanceAfter))}`);
+for (const screen of SCREENS) {
+  const after = screen.wellAfter != null;
+  console.log(`\n${screen.name} (${screen.card}px card, ${screen.plot}px plot) — well ${arrow(screen.wellBefore, after ? screen.wellAfter : null)}px`);
+  const b = drawn(tickers, chart, MINI_BEFORE, screen.plot, screen.wellBefore);
+  const a = after ? drawn(tickers, chart, CHART_FRAMING.mini, screen.plot, screen.wellAfter) : null;
+  const medBox = (rows) => `${quant(rows.map((r) => r.w), 0.5).toFixed(0)}x${quant(rows.map((r) => r.h), 0.5).toFixed(0)}`;
+  const medSq = (rows) => quant(rows.map((r) => r.sq), 0.5).toFixed(2);
+  const thin = (rows) => rows.filter((r) => screen.plot / r.win < 3).length;
+  const pxDay = (rows) => (screen.plot / quant(wins(rows), 0.5)).toFixed(2);
+  console.log(`  px per trading day (med)  : ${arrow(pxDay(closeBefore), after ? pxDay(closeAfter) : null)}`);
+  console.log(`  cards under 3 px/day      : ${arrow(thin(closeBefore), after ? thin(closeAfter) : null)}`);
+  console.log(`  box drawn, median w x h px: ${arrow(medBox(b), a ? medBox(a) : null)}   (n=${b.length})`);
+  console.log(`  squareness vs big chart   : med ${arrow(medSq(b), a ? medSq(a) : null)}`);
+  const inv = (rows, tol) => { const r = inversions(rows, chart, screen.plot, tol); return `${r.bad}/${r.pairs}`; };
+  const strictB = inversions(closeBefore, chart);
+  const strictA = inversions(closeAfter, chart);
+  console.log(`  ORDER INVERSION strict    : ${arrow(`${strictB.bad}/${strictB.pairs}`, after ? `${strictA.bad}/${strictA.pairs}` : null)}`);
+  console.log(`  ... at 1px tolerance      : ${arrow(inv(closeBefore, 1), after ? inv(closeAfter, 1) : null)}`);
+  // The ceil() step between rests ONE day apart draws ~1.1px at 563 and ~1.5px
+  // at 776, so 2px is where only real inversions remain (measured 2026-10-02:
+  // the one left is TTC 171d vs FLNG 136d, the monster yield, already there before).
+  console.log(`  ... at 2px tolerance      : ${arrow(inv(closeBefore, 2), after ? inv(closeAfter, 2) : null)}`);
+}
 
 console.log('\n---- named cards (the two the operator screenshotted, plus the cap-bound case) ----');
 for (const t of ['MSEX', 'NP', 'SBUX', 'TECH']) {

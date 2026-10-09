@@ -2,11 +2,13 @@ import { lazy, Suspense } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import ErrorBoundary from '../../shared/components/ErrorBoundary';
 import LoadingPanel from '../../shared/components/LoadingPanel';
+import useDocumentTitle from '../../shared/hooks/useDocumentTitle';
 
 const TradeTable = lazy(() => import('../journal/components/TradeTable'));
 
 // Options = the same trade table scoped to option symbols, no draft-row path.
 function OptionsRoute() {
+  useDocumentTitle('Options');
   const { optionTrades, onDetailClick, onTradeUpdate, riskFor } = useOutletContext();
 
   return (

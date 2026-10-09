@@ -57,6 +57,18 @@ export const fmtMoneyUsd = (value, currency = 'USD', empty = EMPTY) => {
   return `${sign}$${abs}${currency && currency !== 'USD' ? ` ${currency}` : ''}`;
 };
 
+// Compact dollar amount for liquidity reads: $850, $850K, $32.6M, $1.2B. A
+// value that rounds up to the next unit takes it ($999.96M reads $1.0B).
+export const fmtMoneyCompact = (value, empty = EMPTY) => {
+  const n = finiteOrNull(value);
+  if (n == null) return empty;
+  const abs = Math.abs(n);
+  if (Math.round(abs) < 1e3) return `$${Math.round(abs)}`;
+  if (Math.round(abs / 1e3) < 1e3) return `$${Math.round(abs / 1e3)}K`;
+  if (Number((abs / 1e6).toFixed(1)) < 1e3) return `$${(abs / 1e6).toFixed(1)}M`;
+  return `$${(abs / 1e9).toFixed(1)}B`;
+};
+
 // Percent where the value is ALREADY in percent units (12.3 -> "12.3%").
 export const fmtPct = (value, digits = 1, empty = EMPTY) => {
   const n = finiteOrNull(value);

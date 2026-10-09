@@ -47,6 +47,19 @@ def last_weekday_slot(now: datetime, hour: int, minute: int) -> datetime:
     return slot
 
 
+def next_weekday_slot(after: datetime, hour: int, minute: int) -> datetime:
+    """The first weekday scan slot strictly after ``after`` — the mirror of
+    ``last_weekday_slot``, in the same home. A Friday-night write looks ahead
+    to Monday's slot. Pure; ``after`` must be timezone-aware in America/New_York,
+    so the slot stays at its New York wall-clock time across DST."""
+    slot = after.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if slot <= after:
+        slot += timedelta(days=1)
+    while slot.weekday() >= 5:  # Sat/Sun have no slot — step on to Monday
+        slot += timedelta(days=1)
+    return slot
+
+
 def _started_at_or_after(started_at: str | None, slot: datetime) -> bool:
     """True when a run's ``started_at`` (UTC ISO, as scan_status writes it) is
     at/after ``slot``. An absent or unparseable stamp cannot vouch for the slot."""

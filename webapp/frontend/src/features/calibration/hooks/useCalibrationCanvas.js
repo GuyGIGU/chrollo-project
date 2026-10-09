@@ -5,16 +5,24 @@ import { attachCalibrationDraw } from '../chart/calibrationDraw';
 import { attachHoverHighlight } from '../chart/calibrationHover';
 import { attachAsOfDivider } from '../chart/calibrationAsOfLine';
 import { chartTimeToIso, effectiveSpan, placementRefusal } from '../model/calibrationMarking';
+import { initialVisibleRange } from '../model/calibrationChartUtils';
 
 // Owns chart attachment, click placement, retained overlays and teardown.
 // The page owns lookup/draft/save state; a draft edit never rebuilds this chart.
+// `framing` is the saved setup's {boxStart, triggerDate} for the loaded frame
+// (or null): read ONCE, when a new frame opens.
 export default function useCalibrationCanvas({
   chartData, marking, savedForFrame, engineOn, engineRead,
-  dispatchMarking, setPlaceNotice,
+  dispatchMarking, setPlaceNotice, framing,
 }) {
   const chartApiRef = useRef(null);
   const markingRef = useRef(marking);
   markingRef.current = marking;
+  // Read through a ref inside onReady and NEVER a dependency of the spec: the
+  // rail's rows refresh after every save, and a framing dep would rebuild the
+  // chart on each one and throw away his zoom mid-mark.
+  const framingRef = useRef(framing);
+  framingRef.current = framing;
   // Bars by date, for snap-to-extreme rail placement.
   const barsByDate = useMemo(() => {
     const map = new Map();
@@ -69,6 +77,10 @@ export default function useCalibrationCanvas({
         // the mouse while clicks land at the true pointer position — the
         // "cursor follows at some margin" placement bug (operator, 2026-07-11).
         crosshair: { mode: CrosshairMode.Normal },
+        // A width change (the rail resizing, the window moving to the other
+        // monitor) keeps the SAME bars framed instead of sliding the left edge
+        // — the opening frame below survives the pane settling too.
+        timeScale: { ...base.timeScale, lockVisibleTimeRangeOnResize: true },
       };
     },
     candles: chartData?.candles,
@@ -109,22 +121,21 @@ export default function useCalibrationCanvas({
                           bar: barsRef.current.get(date) });
       };
       chart.subscribeClick(onClick);
-      // Open the view at the as-of divider: the chart reads as the stock "up
-      // until that point" — how the setup looked in real time — while still
-      // revealing a dozen forward bars past the line so the near breakout and
-      // the auto-snapped buy stay on-screen (the placement guard keeps geometry
+      // Open the view ZOOMED IN at the as-of divider (operator asks 2026-07-21
+      // and 2026-10-02): the chart reads as the stock "up until that point" —
+      // how the setup looked in real time, at his TradingView zoom — with a
+      // dozen forward bars past the line so the near breakout and the
+      // auto-snapped buy stay on-screen (the placement guard keeps geometry
       // LEFT of the divider, so a little forward context can't invite a
-      // misplaced mark) (operator ask 2026-07-21). Ending here (rather than
-      // fitContent over the whole [-900d,+45d] window) also lets the price
-      // autoscale to the observed bars, so the base is not squashed by the
-      // forward breakout. A rebuild only happens on a NEW frame (deps:
-      // [chartData]), so this never fights a manual zoom mid-mark.
-      const observedLast = chartData?.bar_count ? chartData.bar_count - 1 : null;
-      if (observedLast != null) {
-        chart.timeScale().setVisibleLogicalRange({ from: 0, to: observedLast + 12 });
-      } else {
-        chart.timeScale().fitContent();
-      }
+      // misplaced mark). A saved setup opens wide enough for its whole box and
+      // its buy. The price autoscales to the visible bars, so the base is not
+      // squashed by older highs or the forward breakout. A rebuild only happens
+      // on a NEW frame (deps: [chartData]), so this never fights a manual zoom
+      // mid-mark. initialVisibleRange owns the rule (tested).
+      const range = initialVisibleRange(chartData?.candles, chartData?.as_of_session,
+        framingRef.current ?? {});
+      if (range) chart.timeScale().setVisibleLogicalRange(range);
+      else chart.timeScale().fitContent();
       return () => {
         chart.unsubscribeClick(onClick);
         hover.detach();

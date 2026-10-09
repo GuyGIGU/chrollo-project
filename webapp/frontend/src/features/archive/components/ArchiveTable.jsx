@@ -2,6 +2,8 @@ import { memo, useCallback } from 'react';
 import HoverGlass from '../../../shared/charts/glance/HoverGlass';
 import useHoverGlance from '../../../shared/charts/glance/useHoverGlance';
 import { archiveGlance } from '../../../shared/charts/glance/glanceResolvers';
+import Pager from '../../../shared/components/Pager';
+import Skeleton from '../../../shared/components/Skeleton';
 import {
   ITEMS_PER_PAGE,
   QUALITY_LABELS,
@@ -34,6 +36,7 @@ const COLUMNS = [
 function ArchiveTable({
   currentPage,
   filteredSetups,
+  loading,
   onLabelChange,
   onOpenChart,
   onReviewReasonChange,
@@ -54,6 +57,10 @@ function ArchiveTable({
   // the dwell, one flick down the table retargets 24 times and issues 24
   // requests for charts the pointer only passed over.
   const { glassProps, anchorProps } = useHoverGlance(resolveGlance, { swapDwellMs: 90 });
+
+  // The first load only: the header, health strip and filters already render
+  // above it, and a filter click keeps the previous rows up instead.
+  if (loading) return <Skeleton rows={8} label="Loading archive" />;
 
   if (filteredSetups.length === 0) {
     return (
@@ -99,12 +106,12 @@ function ArchiveTable({
         </table>
       </div>
       <HoverGlass {...glassProps} />
-      <ArchivePager currentPage={currentPage} setCurrentPage={setCurrentPage} totalPages={totalPages} />
+      <Pager page={currentPage} pageCount={totalPages} onPage={setCurrentPage} label="Archive pages" />
     </>
   );
 }
 
-function HeaderCell({ active, col, onSort, sortDir }) {
+export function HeaderCell({ active, col, onSort, sortDir }) {
   const sortable = col.sortable !== false;
   const arrow = active ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
   return (
@@ -224,7 +231,7 @@ const SetupRow = memo(({ onLabelChange, onOpenChart, onReviewReasonChange, onTog
   );
 });
 
-function Cell({ align, children, color, muted }) {
+export function Cell({ align, children, color, muted }) {
   return (
     <td style={{
       color: color || (muted ? 'var(--text-muted)' : 'var(--text-main)'),
@@ -234,44 +241,6 @@ function Cell({ align, children, color, muted }) {
     }}>
       {children}
     </td>
-  );
-}
-
-function ArchivePager({ currentPage, setCurrentPage, totalPages }) {
-  if (totalPages <= 1) return null;
-  return (
-    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px', marginTop: '8px' }}>
-      <PagerButton disabled={currentPage === 1} onClick={() => setCurrentPage(page => page - 1)}>Prev</PagerButton>
-      {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => (
-        <PagerButton key={page} active={currentPage === page} onClick={() => setCurrentPage(page)}>
-          {page}
-        </PagerButton>
-      ))}
-      <PagerButton disabled={currentPage === totalPages} onClick={() => setCurrentPage(page => page + 1)}>Next</PagerButton>
-    </div>
-  );
-}
-
-function PagerButton({ active, children, disabled, onClick }) {
-  return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        background: active ? 'var(--accent-active)' : 'var(--bg-main)',
-        border: '1px solid',
-        borderColor: active ? 'var(--accent-active)' : 'var(--border-color)',
-        borderRadius: '6px',
-        color: active ? 'var(--myth-ink)' : 'var(--text-main)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: 'inherit',
-        fontWeight: active ? '600' : '400',
-        opacity: disabled ? 0.5 : 1,
-        padding: '6px 14px',
-      }}
-    >
-      {children}
-    </button>
   );
 }
 

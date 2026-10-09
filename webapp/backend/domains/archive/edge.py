@@ -19,7 +19,8 @@ import math
 import threading
 import time
 
-from core.backtest.edge_report import UNBIASED_SOURCE, headline_edge, slice_by
+from core.archive.calibration_outcomes import load_calibration_setups
+from core.backtest.edge_report import UNBIASED_SOURCE, edge_block, headline_edge, slice_by
 from core.backtest.loader import load_episodes
 from core.pipeline.universe import default_universe
 
@@ -80,7 +81,16 @@ def _empty() -> dict:
         "abnormal_median": None,
         "tail": {"n": 0, "col": None, "bands": []},
         "by_tier": {},
+        "calibration": None,
     }
+
+
+def _calibration_view():
+    """His calibration setups as their own group beside the fires (operator ruling
+    2026-10-03: archived setups too), never pooled into the headline or a tier.
+    None when there are none."""
+    df = load_calibration_setups()
+    return _tier_view(edge_block(df)) if not df.empty else None
 
 
 def _compute() -> dict:
@@ -117,6 +127,7 @@ def _compute() -> dict:
         "abnormal_median": _finite(abnormal.get("median")),
         "tail": _tail_view(headline),
         "by_tier": by_tier,
+        "calibration": _calibration_view(),
     }
 
 

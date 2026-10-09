@@ -1031,3 +1031,31 @@ def test_the_app_verdict_is_re_runnable_only_when_every_failure_is():
     assert diag.overall_verdict([rerun, attention]) == diag.NEEDS_ATTENTION
     # A check that somehow carries no verdict must not be counted as harmless.
     assert diag.overall_verdict([rerun, {}]) == diag.NEEDS_ATTENTION
+
+
+# ---- scan_stale_after: when a scan stops being the latest (review 2026-10-03) ----
+
+def test_a_friday_scan_stays_current_through_the_weekend_and_monday():
+    # Friday's 17:00 New York slot wrote at 17:19 EDT. The next slot is Monday
+    # 17:00 EDT; plus the 2h hang allowance = Monday 19:00 EDT = 23:00 UTC.
+    stale = diag.scan_stale_after("2026-10-02T21:19:00+00:00", 17, 0)
+    assert stale == datetime(2026, 10, 5, 23, 0, tzinfo=UTC)
+
+
+def test_a_dst_mismatch_week_does_not_age_a_fresh_scan():
+    # Israel has left daylight saving, the US has not: Monday's slot lands at
+    # 23:20 in Israel. The calendar-day rule called it stale all Tuesday; it is
+    # current until Tuesday's slot plus the allowance (19:00 EDT = 23:00 UTC).
+    stale = diag.scan_stale_after("2026-10-26T21:20:00+00:00", 17, 0)
+    assert stale == datetime(2026, 10, 27, 23, 0, tzinfo=UTC)
+
+
+def test_the_allowance_is_the_hang_threshold_not_a_new_number():
+    slot_after = diag.scan_stale_after("2026-10-02T21:19:00+00:00", 17, 0)
+    assert slot_after - datetime(2026, 10, 5, 21, 0, tzinfo=UTC) == timedelta(
+        hours=diag.HUNG_RUNNING_HOURS)
+
+
+def test_no_or_unreadable_stamp_has_no_stale_after():
+    assert diag.scan_stale_after(None, 17, 0) is None
+    assert diag.scan_stale_after("not a date", 17, 0) is None

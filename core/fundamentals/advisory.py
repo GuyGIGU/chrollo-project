@@ -12,9 +12,9 @@ ADVISORY CONTRACT (the hard rules the assembly must never break):
     makes ZERO provider calls, so the engine output stays byte-identical.
   * Null-safe by construction: a missing/short/failed read degrades to an
     ABSENT key (never a chip, never a penalty).
-  * The in-house ``rs_rating`` is a universe-relative percentile the screener
-    computes over all firing tickers (``core.regime.percentile``); this layer
-    only emits the single-ticker inputs.
+  * The in-house ``rs_rating`` is a percentile the screener computes over the
+    whole scan universe (``core.regime.scan_context.attach_rs_ratings``, live
+    since 2026-10-02); it builds on ``_trailing_return`` below.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _flag(name: str, default=False):
 
 def _trailing_return(df: pd.DataFrame, lookback: int) -> Optional[float]:
     """Trailing close-to-close return over ``lookback`` bars ending at the latest
-    bar of ``df``; the universe-relative RS rating percentile-ranks this. ``None``
+    bar of ``df``; the RS rating's quarter returns are built from it. ``None``
     when the frame is too short or the base close is non-positive."""
     if df is None or "Close" not in getattr(df, "columns", []) or len(df) <= lookback:
         return None

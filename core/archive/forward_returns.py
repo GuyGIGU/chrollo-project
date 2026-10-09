@@ -598,6 +598,23 @@ def run_near_miss_maturation(min_age_days: int = 5, force: bool = False) -> int:
         return -1
 
 
+def run_calibration_maturation(force: bool = False) -> int:
+    """His calibration setups' maturation pass (operator ruling 2026-10-03: a
+    calibration setup is an archived setup too), CONTAINED like the near-miss
+    pass: it never owns the fires' run status. Returns setups measured, or -1 on
+    a contained failure (printed + logged, never raised)."""
+    try:
+        from core.archive.calibration_outcomes import update_calibration_outcomes
+        n = update_calibration_outcomes(force=force)
+        print(f"Calibration outcomes updated: {n} setup(s).", flush=True)
+        return n
+    except Exception as exc:  # noqa: BLE001 — passenger isolation
+        log.exception("calibration maturation failed (fires' run unaffected)")
+        print(f"Calibration maturation FAILED: {type(exc).__name__}: {exc}",
+              flush=True)
+        return -1
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -628,6 +645,7 @@ if __name__ == "__main__":
         # the call is CONTAINED, so a lane-only failure can never mark the
         # fires' committed maturation "failed" (review finding 6).
         run_near_miss_maturation(min_age_days=args.min_age, force=args.force)
+        run_calibration_maturation(force=args.force)
         if _status is not None and _run_id is not None:
             _status.finish_run(_run_id, status="ok", n_setups=_updated)
     except Exception as _exc:

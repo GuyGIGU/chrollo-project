@@ -7,8 +7,9 @@ across processes. This module moves it to the CONDUCTOR: one process, one
 shared throttle (the provider's own), a serial bounded loop over the FIRING
 results only — never the whole universe. It is THE advisory assembly: the
 old per-ticker builder (``advisory.per_ticker_advisory``) is retired
-(2026-08-17 review, EC-3 — one assembly, one owner); the primitives
-(``advisory._trailing_return``) stay where they were.
+(2026-08-17 review, EC-3 — one assembly, one owner). The RS rating is not
+part of it: since 2026-10-02 ``core.regime.scan_context.attach_rs_ratings``
+ranks the whole scan universe on its own, with no flag.
 
 Contracts (the honest-at-the-vendor-seam rules):
 
@@ -29,13 +30,15 @@ Contracts (the honest-at-the-vendor-seam rules):
   result line.
 * **Reporting-event cache — facts only.** Fundamentals change on filings, not
   days: the four filing-gated metrics are reused while ``as_of <
-  next_earnings`` (no new report can have landed) and refetched otherwise —
-  keyed on the FACT, never a wall-clock TTL (EC-25). An entry is written ONLY
+  next_earnings`` (no new report can have landed) AND no newer quarter can
+  have cleared the filing lag (``_next_quarter_visible``, keyed on the cached
+  quarter's own period end), and refetched otherwise — keyed on the FACTS,
+  never a wall-clock TTL (EC-25). An entry is written ONLY
   when the fetch actually holds metrics: a vendor outage is never persisted
   as a filing-gated fact frozen until the next earnings date (2026-08-17
   review, Ramírez + McKinney independently). ``days_to_earnings`` is
   recomputed arithmetically from the cached next-earnings date; the
-  price-local fields (trailing return, RS line) are never cached.
+  price-local RS line is never cached.
 * **Containment (EC-20), at every layer this passenger rides.** Per-ticker: a
   counted swallow (``errored``) so one bad row never costs the loop. Cache
   trust: the loader validates each on-disk entry's shape and drops malformed
@@ -56,6 +59,35 @@ import sys
 import pandas as pd
 
 CACHE_BASENAME = "fundamentals_cache.json"
+
+# The four filing-gated metrics. ``_fund_quarter_end`` rides beside them (WHICH
+# quarter they describe) but is not a metric: alone it never counts as populated.
+_METRIC_KEYS = ("eps_growth_yoy", "sales_growth_yoy",
+                "eps_growth_accel", "earnings_surprise")
+
+
+def _holds_metrics(fields: dict) -> bool:
+    return any(f"_fund_{key}" in fields for key in _METRIC_KEYS)
+
+
+def _next_quarter_visible(entry: dict) -> str | None:
+    """The first day a quarter NEWER than the cached one could clear the filing
+    lag: the next quarter ends at least 90 days after the cached one and stays
+    hidden for the lag after that. Until then the lag cannot reveal anything
+    new, so the cached read stands. Without this the cache froze a fetch made
+    while a reported quarter was still lagged until the NEXT earnings date, a
+    quarter late (found 2026-10-03 before the flip). ``None`` when the entry
+    names no quarter (the next-earnings rule alone decides)."""
+    from core.fundamentals.metrics import _filing_lag_days
+
+    quarter_end = entry["fund_fields"].get("_fund_quarter_end")
+    if not isinstance(quarter_end, str):
+        return None
+    try:
+        day = pd.Timestamp(quarter_end) + pd.Timedelta(days=90 + _filing_lag_days(None))
+    except (TypeError, ValueError):
+        return None
+    return str(day.date())
 
 
 def _flag(name: str, default=False):
@@ -124,10 +156,11 @@ def _fund_fields_fresh(ticker: str, as_of, provider) -> tuple[dict, str | None]:
     fields: dict = {}
     try:
         m = metrics.compute_metrics(ticker, as_of=as_of, provider=provider)
-        for key in ("eps_growth_yoy", "sales_growth_yoy",
-                    "eps_growth_accel", "earnings_surprise"):
+        for key in _METRIC_KEYS:
             if m.get(key) is not None:
                 fields[f"_fund_{key}"] = round(float(m[key]), 6)
+        if m.get("quarter_end"):
+            fields["_fund_quarter_end"] = m["quarter_end"]
     except Exception:
         pass                          # vendor miss -> absent keys, counted below
     nxt = None
@@ -168,7 +201,6 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
     rs_line_on = bool(_flag("RS_LINE_ENABLED"))
     if not (fundamentals_on or rs_line_on):
         return None
-    from core.fundamentals.advisory import _trailing_return
 
     if provider is None:
         from core.pipeline.market_data.providers import get_provider
@@ -199,11 +231,6 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
                 continue
 
             fields: dict = {}
-            rs_lookback = int(_flag("RS_RATING_LOOKBACK", 252) or 252)
-            tr = _trailing_return(df, rs_lookback)
-            if tr is not None:
-                fields["_rs_trailing_return"] = round(float(tr), 6)
-
             if fundamentals_on:
                 counts["attempted"] += 1
                 as_of_iso = str(pd.Timestamp(as_of).date())
@@ -212,13 +239,14 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
                             and entry.get("next_earnings")
                             and entry.get("as_of")
                             and entry["as_of"] <= as_of_iso
-                            and as_of_iso < entry["next_earnings"])
+                            and as_of_iso < entry["next_earnings"]
+                            and as_of_iso < (_next_quarter_visible(entry) or "9999"))
                 if reusable:
                     fund = _fund_fields_cached(entry, as_of)
                     counts["cache_hits"] += 1
                 else:
                     fund, nxt = _fund_fields_fresh(ticker, as_of, provider)
-                    if nxt and any(k.startswith("_fund_") for k in fund):
+                    if nxt and _holds_metrics(fund):
                         # Only a fetch that actually HOLDS metrics becomes a
                         # cached fact — an outage frozen until the next
                         # earnings date is the alarm without the recovery.
@@ -226,7 +254,7 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
                             "as_of": as_of_iso, "next_earnings": nxt,
                             "fund_fields": {k: v for k, v in fund.items()
                                             if k != "_days_to_earnings"}}
-                if any(k.startswith("_fund_") for k in fund):
+                if _holds_metrics(fund):
                     counts["populated"] += 1
                 fields.update(fund)
 

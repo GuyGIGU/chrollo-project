@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from archive_models import SetupArchive
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
 from database import get_db
-from domains.archive.schemas import EpisodeOut, LabelUpdate, SetupOut
+from domains.archive.schemas import CalibrationSetupOut, EpisodeOut, LabelUpdate, SetupOut
 from domains.archive.queries import _apply_setup_filters, _episode_context, _episode_key, _ta_grades_by_ids
 
 router = APIRouter(tags=["archive"])
@@ -170,6 +170,28 @@ def list_episodes(
             review_note=passed_notes.get(review_key),
         ))
     return out
+
+
+@router.get("/calibration-setups", response_model=List[CalibrationSetupOut])
+def list_calibration_setups(
+    sort_by: str = Query("his_trigger_date"),
+    sort_dir: str = Query("desc"),
+):
+    """His calibration setups with their outcomes, for the Archive screen's
+    calibration filter (operator ruling 2026-10-03: archived setups too). A sort
+    key the rows do not carry falls back to his trigger day; nulls sort last."""
+    from core.archive.calibration_outcomes import load_calibration_setups
+
+    df = load_calibration_setups()
+    if df.empty:
+        return []
+    fields = CalibrationSetupOut.model_fields
+    sub = df[[c for c in df.columns if c in fields]]
+    rows = sub.astype(object).where(sub.notna(), None).to_dict("records")
+    key = sort_by if sort_by in fields else "his_trigger_date"
+    present = [r for r in rows if r.get(key) is not None]
+    present.sort(key=lambda r: r[key], reverse=(sort_dir != "asc"))
+    return present + [r for r in rows if r.get(key) is None]
 
 
 @router.get("/setups/{setup_id}", response_model=SetupOut)

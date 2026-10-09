@@ -66,7 +66,14 @@ const barCount = (value) => {
 // the operator ruled that "way way too much" on a 24-day rest, and he is right:
 // a fixed span makes the window a property of the surface instead of a property
 // of the setup, which is the same mistake in the other direction. Now a 24-day
-// rest gets 83 days and a 33-day rest gets 109.
+// rest gets 73 days and a 33-day rest gets 95 on the card (cap 0.40).
+// CLOSER (operator 2026-10-02, "I want more close up on the setups themselves
+// ... Very important to keep an ACCURATE view of how each setup looks in the big
+// advanced chart"): the card and the glance went to 0.45, the modal stays at 0.35
+// because its job is the stock. Then a little way back (operator 2026-10-04,
+// "revert the mini chart card change but only slightly, we can zoom out a little
+// bit out of the base"): 0.40, half way. Still a window the SETUP sets — closer
+// than the modal, never trimmed.
 // The ceiling YIELDS to a base it cannot frame (monster zoom-out), and every
 // bound yields to the never-crop rule (2026-08-09: the box is the datum). The
 // 2026-07 sprawl failure — "~48 bars at ~10px/bar let a tight base sprawl
@@ -74,10 +81,9 @@ const barCount = (value) => {
 export const CHART_FRAMING = {
   mini: {
     minWindowBars: 55,           // the FLOOR, not a span: a very short rest still needs room
-                                 // behind it. Inert on the live 230 (the shortest rest already
-                                 // earns 60+ days through the cap) — it exists so a 5-day rest
-                                 // cannot produce a 43-day window.
-    legibilityCeilingBars: 220,  // 435px plot / 220 = 1.98 px/bar at the very bottom — a hard
+                                 // behind it. It exists so a 5-day rest cannot produce a
+                                 // 23-day window; at cap 0.40 it binds on rests under 17 days.
+    legibilityCeilingBars: 220,  // 563px plot / 220 = 2.56 px/bar at the very bottom — a hard
                                  // stop, not a target. It has to sit HIGH: a low ceiling makes
                                  // the window stop growing while the rest keeps growing, so a
                                  // longer rest starts drawing NARROWER than a shorter one. At
@@ -87,14 +93,18 @@ export const CHART_FRAMING = {
                                  // 25,904, all rests of 130+ days). Measured 2026-09-02.
     ceilingYieldShare: 0.75,     // ...and it yields to a rest it cannot frame (operator
                                  // 2026-09-02, "for monster bases simply zoom out the base").
-    baseWidthCap: 0.35,          // the base + its right pad may never own more than 35% of
-                                 // the pane; the leg is therefore always >= 1.86x the base.
-                                 // Crossover is base_len ~44, so it is a TAIL rule (62% of
-                                 // setups never touch it). Measured knee: 0.30 buys nothing
-                                 // (median unchanged), 0.40 puts p90 back at 0.47.
+    baseWidthCap: 0.40,          // the base + its right pad may never own more than 40% of
+                                 // the pane, so the context behind it is always >= 1.5x the
+                                 // base + pad. 0.35 until 2026-10-02, 0.45 for the close-up,
+                                 // 0.40 since 2026-10-04 ("zoom out a little bit"). The
+                                 // measured knee is 0.50 (2026-09-02: p90 43.2 -> 47.5, cards
+                                 // over 45% of width 17 -> 63) — stay below.
     minContextBars: 18,          // UNCHANGED — the 2026-08-09 approach-leg ruling.
-    scaleMargins: { top: 0.06, bottom: 0.14 },
-    volumeScaleTop: 0.86,
+    // The price band is 88% of the well (was 80%): volume is decoration on the
+    // card — doctrine keeps it out of the read — so its strip, under the bars,
+    // gives up height to the candles (2026-10-02).
+    scaleMargins: { top: 0.04, bottom: 0.08 },
+    volumeScaleTop: 0.92,
   },
   modal: {
     minWindowBars: 252,          // ONE TRADING YEAR — here the floor IS the span, because the
@@ -106,8 +116,12 @@ export const CHART_FRAMING = {
     legibilityCeilingBars: 300,  // the whole carried history; 3.50 px/bar at the floor.
     ceilingYieldShare: 0.6,      // inert here — the ceiling already IS the whole history — but
                                  // declared so every box-framed profile answers the same question.
-    baseWidthCap: 0.35,          // DELIBERATELY IDENTICAL to mini — the card and the modal
-                                 // can never disagree about how much pane the base owns.
+    baseWidthCap: 0.35,          // DELIBERATELY at or below the card's: the card is the
+                                 // close-up, the modal is the stock (2026-10-02). It was
+                                 // identical to the card's until the card went to 0.45 (0.40
+                                 // since 2026-10-04); the
+                                 // modal's span is one trading year either way, so this only
+                                 // binds on a rest long enough to need more than the year.
     minContextBars: 25,
     scaleMargins: { top: 0.06, bottom: 0.16 },
     volumeScaleTop: 0.84,
@@ -125,8 +139,9 @@ export const CHART_FRAMING = {
   popover: {
     minWindowBars: 55,           // same floor as the card; the cap does the work.
     legibilityCeilingBars: 105,  // 330/105 = 3.14 px/bar, the same density floor as the card.
-    ceilingYieldShare: 1,        // NOT the card's 0.6 — measured 2026-09-02. Against a 105-bar
-                                 // ceiling that number is not a tail rule: it trips at base 59
+    ceilingYieldShare: 1,        // NOT the 0.6 the card carried when this was measured
+                                 // (2026-09-02; the card is at 0.75 now, 2026-10-02 left this
+                                 // alone). Against a 105-bar ceiling 0.6 is not a tail rule: it trips at base 59
                                  // and fires on 66 of 230 setups (29%), dropping 66 glances to
                                  // 1.1-1.8 px per trading day. At 1 the glance yields only when
                                  // the rest does not FIT the pane at all, which costs nothing
@@ -135,8 +150,10 @@ export const CHART_FRAMING = {
                                  // bases owning over 60% of the pane from 63 down to 48.
                                  // The glance is a RECOGNITION surface (ruled 2026-09-02), and
                                  // 1.1 px/day serves recognition worse than a wide base does.
-    baseWidthCap: 0.35,          // same cap — the glance and the card agree on base share
-                                 // even though they show different spans.
+    baseWidthCap: 0.40,          // the CARD's cap — the glance is a preview of the card and
+                                 // keeps agreeing with it on base share even though it shows
+                                 // a different span (moved with the card 2026-10-02 and
+                                 // again 2026-10-04).
     minContextBars: 14,
     scaleMargins: { top: 0.07, bottom: 0.16 },
     volumeScaleTop: 0.88,
@@ -297,8 +314,10 @@ export const miniFocusLogicalRange = (data, profile = CHART_FRAMING.mini) => {
   //
   // HONEST NOTE (2026-09-02): since the ceiling learned to yield, this clamp is
   // REDUNDANT — swept over every base length x forward count x history depth on
-  // all three box-framed profiles, it never once binds, because a base long
-  // enough to threaten its own leg now earns a window ~2.9x its own width. It is
+  // all three box-framed profiles, it never once crops the box's open, because a
+  // base long enough to threaten its own leg now earns a window ~2.5x its own
+  // width (1 / the card's 0.40 cap; re-swept 2026-10-04). It does still bind on
+  // the glance's 14-day approach leg (the glance(100) fixture). It is
   // kept as a one-token backstop, not as a live guard: raise ceilingYieldShare
   // above 1 (i.e. turn the yield off) and it goes load-bearing again in the same
   // edit. Do not read its test as proof that it fires — the invariant is proved
@@ -313,10 +332,11 @@ export const miniFocusLogicalRange = (data, profile = CHART_FRAMING.mini) => {
 //
 // The modal opens on ONE TRADING YEAR because its job is the stock, not the
 // base's tightness: the operator was zooming out on every single chart to see
-// what he was actually looking at (2026-09-02). It shares the card's
-// baseWidthCap by construction, so the two surfaces can never disagree about
-// how much pane the base owns; it differs only in reference span and in running
-// to the last candle (the modal shows the forward tape). The card's old
+// what he was actually looking at (2026-09-02). Its baseWidthCap may never sit
+// ABOVE the card's (the card is the close-up, the modal is the stock —
+// 2026-10-02), so a base can never own more of the big chart than of the card;
+// it also differs in reference span and in running to the last candle (the
+// modal shows the forward tape). The card's old
 // proportion trim deliberately does NOT run here — it does not run anywhere.
 export const modalFocusLogicalRange = (data, profile = CHART_FRAMING.modal) => {
   const candles = data?.candles || [];

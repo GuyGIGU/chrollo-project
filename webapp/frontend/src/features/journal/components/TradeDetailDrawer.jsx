@@ -30,7 +30,6 @@ import {
   alertStyle,
   alertToneStyle,
   bodyStyle,
-  closeButtonStyle,
   cockpitGridStyle,
   convictionButtonStyle,
   convictionStyle,
@@ -50,7 +49,6 @@ import {
   overlayStyle,
   panelStyle,
   rButtonStyle,
-  saveButtonStyle,
   saveGroupStyle,
   saveMessageStyle,
   secondaryGridStyle,
@@ -158,7 +156,9 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
       onClick={(event) => { if (event.target === overlayRef.current) onClose?.(); }}
       style={overlayStyle}
     >
-      <aside style={drawerStyle}>
+      {/* A dialog for the app's page keys (keyboardGuard.dialogOpen): arrows, J/K, '/'
+          and calibration ↑/↓ must not act on the page behind the scrim. */}
+      <aside style={drawerStyle} role="dialog" aria-modal="true" aria-label={`Trade ${workingTrade.ticker} details`}>
         <header style={headerStyle}>
           <div style={{ minWidth: 0 }}>
             <div style={eyebrowStyle}>Trade #{workingTrade.id} / {workingTrade.opening_date || '—'}</div>
@@ -167,7 +167,7 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
               <span style={titleMetaStyle}>{derived.direction} / {derived.status}</span>
             </div>
           </div>
-          <button type="button" onClick={onClose} title="Close" style={closeButtonStyle}>x</button>
+          <button type="button" className="btn btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
         </header>
 
         <div style={bodyStyle}>
@@ -190,7 +190,7 @@ export default function TradeDetailDrawer({ trade, onClose, onTradeUpdate, riskF
               </div>
               <div style={saveGroupStyle}>
                 {message && <span style={saveMessageStyle(message)}>{message}</span>}
-                <button type="button" onClick={savePlan} disabled={saving} style={saveButtonStyle(saving)}>
+                <button type="button" className="btn btn-primary" style={{ minWidth: 76 }} onClick={savePlan} disabled={saving}>
                   {saving ? 'Saving' : 'Save'}
                 </button>
               </div>

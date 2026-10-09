@@ -483,6 +483,7 @@ class SetupArchive(Base):
     rs_line_new_high = Column(Integer, nullable=True)       # 1 if the RS line is at a trailing new high (leadership tell)
     sector_rank_pct = Column(Float, nullable=True)          # setup's SPDR-sector composite RS percentile (scan-wide)
     sector_rank_pos = Column(Integer, nullable=True)        # setup's sector rank position (1 = strongest sector this scan)
+    market_cap = Column(Float, nullable=True)               # dollars at the scan, from the market-cap floor's lookup (2026-10-03)
 
     # ── Engine provenance (frozen-config reproducibility) ────────
     # sha256 of the frozen engine-config manifest (engine_alpha/freeze/manifest.py) that
@@ -707,6 +708,68 @@ class NearMissArchive(Base):
             name="ck_near_miss_pool",
         ),
         Index("ix_near_miss_identity", "ticker", "first_seen"),
+    )
+
+
+class CalibrationOutcome(Base):
+    """The forward outcome of one calibration setup (operator ruling 2026-10-03:
+    "treat calibrated setups as archived ones as well"). One row per mark.
+
+    Measured exactly like a fire (core.archive.forward_returns._compute_returns):
+    anchored on the trading day BEFORE his trigger, the fire-day analog (the LPS
+    complete, the trigger set), with his trigger price as the trigger and his
+    support as the stop's rail. A mark with no trigger anchors on its as-of bar.
+
+    A DEDICATED table, like near_miss_archive: setup_archive is the engine's
+    fire population, and his hand-picked setups must never blend into its
+    studies by a forgotten filter. Every study reads them as their own group.
+    ``mark_revision`` is the mark's revision the row was measured from, so a
+    redrawn mark is re-measured.
+    """
+    __tablename__ = "calibration_outcomes"
+
+    mark_id = Column(Integer, primary_key=True)        # calibration_marks.id
+    ticker = Column(String, nullable=False, index=True)
+    mark_revision = Column(Integer, nullable=False)
+    anchor_date = Column(String, nullable=False)       # YYYY-MM-DD, the outcome clock's start
+    anchor_basis = Column(String, nullable=False)      # 'trigger' | 'as_of'
+    entry_close = Column(Float, nullable=False)        # the anchor bar's close, fresh scale
+    trigger_price = Column(Float, nullable=True)       # his trigger, on the fresh scale
+    s_level = Column(Float, nullable=True)             # his support, on the fresh scale
+    computed_at = Column(String, nullable=False)       # ISO UTC
+
+    # ── Forward outcomes: the setup_archive names, one meaning ──
+    fwd_return_1d = Column(Float, nullable=True)
+    fwd_return_5d = Column(Float, nullable=True)
+    fwd_return_10d = Column(Float, nullable=True)
+    fwd_return_20d = Column(Float, nullable=True)
+    fwd_return_60d = Column(Float, nullable=True)
+    mfe_20d = Column(Float, nullable=True)
+    mae_20d = Column(Float, nullable=True)
+    mfe_60d = Column(Float, nullable=True)
+    mae_60d = Column(Float, nullable=True)
+    mfe_20d_date = Column(String, nullable=True)
+    mae_20d_date = Column(String, nullable=True)
+    r_multiple_20d = Column(Float, nullable=True)
+    r_multiple_60d = Column(Float, nullable=True)
+    triggered = Column(Integer, nullable=True)
+    trigger_date = Column(String, nullable=True)
+    days_to_trigger = Column(Integer, nullable=True)
+    trigger_volume_ratio = Column(Float, nullable=True)
+    days_to_2_5r = Column(Integer, nullable=True)
+    days_to_15pct = Column(Integer, nullable=True)
+    days_to_stop = Column(Integer, nullable=True)
+    barrier_label = Column(String, nullable=True)
+    win_barrier = Column(String, nullable=True)
+    mfe_to_date = Column(Float, nullable=True)
+    mae_to_date = Column(Float, nullable=True)
+    ret_to_date = Column(Float, nullable=True)
+    bars_to_date = Column(Integer, nullable=True)
+    abnormal_ret_to_date = Column(Float, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("anchor_basis IN ('trigger', 'as_of')",
+                        name="ck_calibration_outcome_anchor_basis"),
     )
 
 

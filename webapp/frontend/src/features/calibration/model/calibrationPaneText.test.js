@@ -6,6 +6,7 @@ import {
   failureNotice,
   paneBody,
   paneTitle,
+  provenanceLine,
 } from './calibrationPaneText.js';
 
 const failure = (cls, message = 'vendor said no') => ({ class: cls, message });
@@ -36,7 +37,7 @@ test('paneBody: an unnamed class shows the bare message; loading and blank have 
   assert.equal(paneBody(false, failure('weird_class', 'something odd')), 'something odd');
   assert.equal(paneBody(true, null), 'Fetching candles through the provider (bounded).');
   assert.equal(paneBody(false, null),
-    'Enter a ticker and an as-of date. The chart renders on Chrollo’s own data — '
+    'Pick a setup on the right, or enter a ticker and a date. The chart renders on Chrollo’s own data — '
     + 'marks drawn here are born on the exact frame the engine replays.');
 });
 
@@ -77,4 +78,12 @@ test('engineTitle: the raw detector reason only when the engine refused', () => 
   assert.equal(engineTitle({ elected: false }), undefined);
   assert.equal(engineTitle({ elected: true, reason: 'x' }), undefined);
   assert.equal(engineTitle(null), undefined);
+});
+
+test('provenanceLine: ticker, session, close, bar count and regime; a missing close is the guard', () => {
+  const chart = { ticker: 'SKYT', as_of_session: '2025-06-20', anchor_close: 9.5,
+                  bar_count: 612, data_regime: 'as_traded' };
+  assert.equal(provenanceLine(chart), 'SKYT @ 2025-06-20 · close 9.50 · 612 bars · as_traded');
+  assert.equal(provenanceLine({ ...chart, anchor_close: null }),
+    'SKYT @ 2025-06-20 · close — · 612 bars · as_traded');
 });

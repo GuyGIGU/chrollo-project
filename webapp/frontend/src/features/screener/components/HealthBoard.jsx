@@ -159,7 +159,8 @@ const unreadableCardStyle = {
 
 const gridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
+  // Same card size as ScreenerGrid's gridStyle (uiScale.test.js pins both).
+  gridTemplateColumns: 'repeat(auto-fill, minmax(590px, 1fr))',
   gap: '14px',
   width: '100%',
 };

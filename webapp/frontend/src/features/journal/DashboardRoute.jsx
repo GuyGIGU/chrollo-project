@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import ErrorBoundary from '../../shared/components/ErrorBoundary';
 import LoadingPanel from '../../shared/components/LoadingPanel';
+import useDocumentTitle from '../../shared/hooks/useDocumentTitle';
 
 const DashboardStats = lazy(() => import('./components/DashboardStats'));
 const TradeTable = lazy(() => import('./components/TradeTable'));
@@ -11,6 +12,7 @@ const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel'));
 // table (with the draft-row entry path) + the analytics panel. Trade data,
 // filtering and draft state are owned by AppShell and arrive via outlet context.
 function DashboardRoute() {
+  useDocumentTitle('Journal');   // the nav label, not the /dashboard path
   const { stats, trades, tradeFilter, onTradeFilterChange, stockTrades, draftRow, setDraftRow, onDetailClick, onTradeUpdate, riskFor } =
     useOutletContext();
 

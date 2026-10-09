@@ -31,6 +31,13 @@ from core.calibration.replay import fixture_frame, flag_capture
 pytestmark = pytest.mark.regression
 
 
+@pytest.fixture(autouse=True)
+def _no_vendor_post_pass(monkeypatch):
+    # run_screener here runs on fakes; the live fundamentals post-pass
+    # (2026-10-03) would fetch and write output/fundamentals_cache.json.
+    monkeypatch.setattr(settings, "FUNDAMENTALS_ENABLED", False)
+
+
 def _refusing_frame(n=300):
     """A steady riser: passes every universe filter, seeds no climax->AR
     anchors (no 5% reaction ever prints), so the walk is a FULL refusal and
