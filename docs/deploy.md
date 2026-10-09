@@ -497,6 +497,34 @@ powershell -File update_dashboard.ps1 -Rollback
 It never sets `IBKR_LIVE_CONFIRMED` and never changes the service's broker-free configuration — the
 dashboard stays broker-free at boot exactly as before.
 
+## Replaying a Scan Night With Both Readers (before the two-eyes flip)
+
+The two-eyes reader is built dark (`TWO_EYES_READER_ENABLED` stays `False`; the flip is the go-live
+plan's, after the operator's approval). Before it, one real scan night is read by BOTH readers, every
+ticker through the one door, from the repo folder in PowerShell with the repo venv:
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.calibration.parallel_night output\nights\two-readers
+```
+
+- **Outside the scan slot.** It refuses to start from the scan's hour (`SCAN_SCHEDULE_HOUR_ET`, New
+  York) until two hours after it, while the nightly scan and its catch-up run.
+- **On a copy.** The scan's market-data file, its meta and the two eligibility ledgers beside it are
+  copied into the folder you name first, and only the copies are read; the night read is the night
+  copied (its sha256 is in the side file). The service's own files are never held open.
+- **Side files only.** `night.json` and `night.txt` in that folder (and the copy, and the market
+  context computed from it): both readers' fires, the new reader's state words, each reader's wall
+  clock and its five slowest reads, stamped with each reader's engine version. Nothing reaches the
+  archive, the screener payload or the screen.
+
+The approval pack folds the night into its one page:
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.calibration.approval_pack output\approval-pack
+.\.venv\Scripts\python.exe -m tools.calibration.parallel_night output\approval-pack\night
+.\.venv\Scripts\python.exe -m tools.calibration.approval_pack output\approval-pack --index-only
+```
+
 ## Service Commands
 
 ```powershell

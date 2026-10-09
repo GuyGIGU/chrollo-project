@@ -36,9 +36,12 @@ import pandas as pd
 from engine_alpha.two_eyes_roles import ROLES
 
 __all__ = [
+    "SCREEN_KEY",
+    "SCREEN_ROLES",
     "TWO_EYES_COLUMN_SQL",
     "TWO_EYES_LPS_BOXES",
     "two_eyes_archive_values",
+    "two_eyes_screen_boxes",
 ]
 
 #: The roles a box can hold, and the closed set the LPS column is drawn from.
@@ -122,6 +125,39 @@ def two_eyes_archive_values(get, *, prefixed: bool) -> dict:
             value = _day(column, value)
         out[column] = value
     return out
+
+
+#: The boxes the screen draws, in the order it draws them: the setup's own box, then the mini inside it. Never an
+#: earlier box (build task 15, ours): the earlier boxes are each night's own telling (the known limit of Fri
+#: 02/10/2026), the archive keeps none, and a screen that drew them would disagree with the archive's view of the
+#: same row. The approval pack's pages still draw them.
+SCREEN_ROLES = ("parent", "mini")
+
+#: The result key the screen's ONE block rides on, from the adapter to the scan's wire (`core/pipeline/screening/
+#: dashboard.py` hands it to the chart as ``two_eyes``). Not a column: the archive keeps the family. It lives here,
+#: in a module the nightly path already loads, so the wire can name it without importing the new reader.
+SCREEN_KEY = "_wire_two_eyes"
+
+
+def two_eyes_screen_boxes(values: dict) -> list:
+    """The family's boxes as the screen reads them: each line's price and the day it was anchored, the day the box
+    opened and the day it ended (None while live). Nothing the browser would have to work out.
+
+    ``values`` is :func:`two_eyes_archive_values`' own output, so the scan's wire (built from a live result) and the
+    archive's chart (built from a stored row) are shaped by ONE function from ONE family and cannot drift apart. A
+    role whose two lines are not both there draws no box.
+    """
+    boxes = []
+    for role in SCREEN_ROLES:
+        def part(name, role=role):
+            return values.get(f"two_eyes_{role}_{name}")
+        if part("r_price") is None or part("s_price") is None:
+            continue
+        boxes.append({"role": role,
+                      "r": part("r_price"), "r_day": part("r_anchor_date"),
+                      "s": part("s_price"), "s_day": part("s_anchor_date"),
+                      "opened": part("opened_date"), "end": part("end_date")})
+    return boxes
 
 
 def _yes_or_no(value) -> int:

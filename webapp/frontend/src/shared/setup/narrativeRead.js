@@ -65,6 +65,11 @@ export function narrativeStatus(data) {
   if (!data || FAMILY_SCALARS.every((k) => !(k in data))) {
     return NARRATIVE_STATUS.NOT_CARRIED;
   }
+  // A row the two-eyes reader wrote (its dated block rides the wire) never
+  // carries this family. The archive's modal merges the clicked row's columns
+  // in, all NULL on such a row, and NOT_MEASURED would call last night's read
+  // "this row predates the event-map read" (the two-eyes build, task 15).
+  if (data.two_eyes != null) return NARRATIVE_STATUS.NOT_CARRIED;
   if (FAMILY_SCALARS.every((k) => data[k] == null)) {
     return NARRATIVE_STATUS.NOT_MEASURED;
   }

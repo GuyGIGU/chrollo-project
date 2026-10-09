@@ -63,7 +63,10 @@ def test_a_frame_the_cache_cannot_serve_is_not_scanned_with_the_reason(monkeypat
     assert out["as_of"] is None and out["close"] is None
 
 
-def test_a_read_that_raises_says_so_instead_of_raising(monkeypatch):
+def test_a_read_that_raises_is_a_screen_state_never_one_of_his_words(monkeypatch):
+    """The two-eyes build, task 15: *"a failed or pending read is a screen state, never one of your ten words"*.
+    It used to answer "no lines", the word for a chart that genuinely has none, so a broken read and an empty chart
+    looked the same on the card."""
     frame = _frame()
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
 
@@ -72,7 +75,50 @@ def test_a_read_that_raises_says_so_instead_of_raising(monkeypatch):
 
     monkeypatch.setattr(chart_state.evaluation, "_run_eval_chain", boom)
     out = chart_state.read_chart_state("ABC")
-    assert out["state"] == "no lines" and out["why"] == "the read failed"
+    assert out["failed"] is True and out["why"] == "the read failed"
+    assert out["state"] is None, "no word at all: the read did not get far enough to have one"
+    assert out["as_of"] == str(frame.index[-1].date())
+
+
+def test_under_the_new_reader_the_word_and_the_lines_are_the_readers(monkeypatch):
+    """With his switch on, the card's line is the new reader's: its word, and its own box's lines and opening day,
+    with the days that ride beside a word that counts them."""
+    import datetime as dt
+
+    from engine_alpha import reader as door
+    from engine_alpha.two_eyes import record
+
+    frame = _frame()
+    box = record.Box(resistance=record.Line(101.25, dt.date(2026, 3, 2)), support=record.Line(98.5, dt.date(2026, 3, 4)),
+                     opened_day=dt.date(2026, 3, 2), daily_range=1.0)
+    read = record.Read(ticker="ABC", as_of=frame.index[-1].date(), boxes=(box,), state="beyond R, undetermined",
+                       state_days=3, close=float(frame["Close"].iloc[-1]))
+
+    def two_eyes_chain(ticker, df, spy, breadth, *, watch=None, **_k):
+        watch.update(two_eyes=True, read=read, state=read.state)
+        return None
+
+    monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
+    monkeypatch.setattr(door, "run_eval_chain", two_eyes_chain)
+    out = chart_state.read_chart_state("ABC")
+    assert out["state"] == "beyond R, undetermined"
+    assert (out["R"], out["S"], out["open"], out["days"]) == (101.25, 98.5, "2026-03-02", 3)
+    assert "failed" not in out
+
+
+def test_a_crashed_two_eyes_read_is_the_same_screen_state(monkeypatch):
+    """The door's chain RAISES on a failed two-eyes read (its contract); the page says the read failed."""
+    from engine_alpha import reader as door
+
+    frame = _frame()
+
+    def refused(*a, **k):
+        raise ValueError("two-eyes reader refused ABC: a day deleted from the middle")
+
+    monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
+    monkeypatch.setattr(door, "run_eval_chain", refused)
+    out = chart_state.read_chart_state("ABC")
+    assert (out["state"], out["failed"], out["why"]) == (None, True, "the read failed")
 
 
 def test_every_state_the_service_returns_is_on_the_table(monkeypatch):

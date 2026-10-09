@@ -16,7 +16,7 @@
 // chartTheme palette (also pure).
 
 import { CHART_COLORS } from './chartTheme.js';
-import { colorLpsCandles, rootSwingRange } from './chartPhaseOverlay.js';
+import { colorLpsCandles, rootSwingRange, twoEyesBox } from './chartPhaseOverlay.js';
 
 // null / '' -> null (NOT 0). Number(null) === 0 would draw a phantom rail at
 // price 0 on any timeframe with no box. This is the canonical copy used by the
@@ -219,6 +219,14 @@ export const setupIndexes = (data) => {
   return { baseEnd, baseStart, candles, forwardBars };
 };
 
+// The base's length in bars for the framing math. A two-eyes row carries no bar counts: its base runs from the bar
+// its box opened on (located by the day) to the base's end; every other row keeps its own base_len.
+const framedBaseLen = (data, candles, baseEnd) => {
+  if (!data?.two_eyes) return barCount(data.base_len);
+  const parent = twoEyesBox(data, candles, 'parent');
+  return parent ? Math.max(0, baseEnd - parent.openIndex + 1) : null;
+};
+
 // The window the consolidation earns: wide enough that the rest owns no more
 // than baseWidthCap of the pane, floored at minWindowBars so a very short rest
 // still gets room behind it, capped at legibilityCeilingBars so the bars stay
@@ -266,15 +274,15 @@ export const miniFocusLogicalRange = (data, profile = CHART_FRAMING.mini) => {
   if (!candles.length) return null;
 
   const lastIndex = candles.length - 1;
-  const baseLen = barCount(data.base_len);
+  const forwardBars = barCount(data.forward_bars) ?? 0;
+  const baseEnd = Math.max(0, lastIndex - forwardBars);
+  const baseLen = framedBaseLen(data, candles, baseEnd);
   if (baseLen == null || baseLen <= 0) {
     // No consolidation to frame (the Watchlist's clean charts, the index panes):
     // show the widest window that is still legible on this surface.
     return { from: Math.max(0, lastIndex - profile.legibilityCeilingBars + 1), to: lastIndex };
   }
 
-  const forwardBars = barCount(data.forward_bars) ?? 0;
-  const baseEnd = Math.max(0, lastIndex - forwardBars);
   const baseStart = Math.max(0, baseEnd - baseLen + 1);
   const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
   const rightEdge = Math.min(lastIndex, baseEnd + rightPadding);
@@ -315,13 +323,13 @@ export const modalFocusLogicalRange = (data, profile = CHART_FRAMING.modal) => {
   if (!candles.length) return null;
 
   const lastIndex = candles.length - 1;
-  const baseLen = barCount(data.base_len);
+  const forwardBars = barCount(data.forward_bars) ?? 0;
+  const baseEnd = Math.max(0, lastIndex - forwardBars);
+  const baseLen = framedBaseLen(data, candles, baseEnd);
   if (baseLen == null || baseLen <= 0) {
     return { from: Math.max(0, lastIndex - profile.legibilityCeilingBars + 1), to: lastIndex };
   }
 
-  const forwardBars = barCount(data.forward_bars) ?? 0;
-  const baseEnd = Math.max(0, lastIndex - forwardBars);
   const baseStart = Math.max(0, baseEnd - baseLen + 1);
   const rightPadding = Math.max(5, Math.min(9, forwardBars + 5));
 
@@ -348,6 +356,7 @@ export const marketFocusLogicalRange = (candles, visibleBars) => {
 // R/S/mid are emitted unconditionally (matching both prior sites); the inner
 // box only when all three inner fields are finite.
 export const boxRailSpecs = (data) => {
+  if (data?.two_eyes) return datedRailSpecs(data);
   const candles = data.candles || [];
   const { baseStart } = setupIndexes(data);
   // A candles-only payload (the Watchlist page's clean chart) carries no box:
@@ -383,6 +392,32 @@ export const boxRailSpecs = (data) => {
       : lastIndex;
     specs.push({ kind: 'inner', startIndex: innerStart, endIndex: innerEnd, value: innerR });
     specs.push({ kind: 'inner', startIndex: innerStart, endIndex: innerEnd, value: innerS });
+  }
+  return specs;
+};
+
+// The two-eyes reader's rails (build task 15): the ONE dated-lines helper. The wire carries each line's price and
+// the day it was anchored; this locates the days on the shipped candles and draws each line from ITS OWN anchor day
+// (his PBT drawings: a line starts where it was anchored) to the box's last day — the last candle while it lives.
+// The setup's box draws as the old rails do (with the midline from its first day), its mini as the thin inner rails.
+// Every other payload, the archive's old rows among them, takes the legacy bar-count path above.
+const datedRailSpecs = (data) => {
+  const candles = data.candles || [];
+  const specs = [];
+  const parent = twoEyesBox(data, candles, 'parent');
+  if (parent) {
+    specs.push(
+      { kind: 'rail', startIndex: parent.rIndex, endIndex: parent.endIndex, value: parent.r },
+      { kind: 'rail', startIndex: parent.sIndex, endIndex: parent.endIndex, value: parent.s },
+      { kind: 'mid', startIndex: parent.openIndex, endIndex: parent.endIndex, value: (parent.r + parent.s) / 2 },
+    );
+  }
+  const mini = twoEyesBox(data, candles, 'mini');
+  if (mini) {
+    specs.push(
+      { kind: 'inner', startIndex: mini.rIndex, endIndex: mini.endIndex, value: mini.r },
+      { kind: 'inner', startIndex: mini.sIndex, endIndex: mini.endIndex, value: mini.s },
+    );
   }
   return specs;
 };

@@ -253,7 +253,7 @@ def get_setup_chart(setup_id: int, glance: bool = False, db: Session = Depends(g
             candles = candles[-keep:]
             volumes = volumes[-keep:]
 
-    return {
+    chart = {
         "candles": candles,
         "volumes": volumes,
         "base_len": setup.base_length or 0,
@@ -270,6 +270,30 @@ def get_setup_chart(setup_id: int, glance: bool = False, db: Session = Depends(g
         "setup": setup.setup_type,
         "forward_bars": forward_bars,
         "annotations": _build_annotations(setup, ratio),
+    }
+    # The two-eyes reader looked whenever it wrote a row (its has-a-mini flag
+    # is 1 or 0, never NULL): such a row is drawn from its days, not from bar
+    # offsets that died with the window. An old row is the dict above, as ever.
+    if setup.two_eyes_has_mini is not None:
+        chart["two_eyes"] = _two_eyes_block(setup, ratio)
+    return chart
+
+
+def _two_eyes_block(setup, ratio: float) -> Dict[str, Any]:
+    """A two-eyes row's block for the chart (build task 15 of the two-eyes reader): its boxes by their days, shaped
+    by the family's ONE shaper exactly as the scan's wire is, the prices rescaled onto today's candles like the old
+    lines; which box the LPS was read against; and the grade the archive keeps, its score and its letter. The LPS's
+    own days are not stored, so the archive's chart draws no LPS band."""
+    from engine_alpha.two_eyes_archive import two_eyes_archive_values, two_eyes_screen_boxes
+
+    stored = two_eyes_archive_values(lambda column: getattr(setup, column, None), prefixed=False)
+    boxes = two_eyes_screen_boxes(stored)
+    for box in boxes:
+        box["r"], box["s"] = box["r"] * ratio, box["s"] * ratio
+    return {
+        "boxes": boxes,
+        "lps": {"against": stored["two_eyes_lps_read_against"]},
+        "grade": {"score": setup.score, "letter": setup.tier} if setup.tier else None,
     }
 
 

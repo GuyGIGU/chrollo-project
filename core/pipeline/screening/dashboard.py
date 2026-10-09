@@ -44,6 +44,7 @@ from engine_alpha.structure.events.event_map import narrative_chart_fields
 from engine_alpha.structure.context.htf import HTF_COLUMNS, chart_box
 from engine_alpha.structure.box.trace_export import election_trace_chart_fields
 from engine_alpha.scoring.tags import traversal_density_from_counts
+from engine_alpha.two_eyes_archive import SCREEN_KEY
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -99,6 +100,55 @@ def _round_opt(value, digits):
     return None if value is None else round(float(value), digits)
 
 
+# The advisory facts the scan attaches to ANY firing row after the read (the
+# fundamentals and RS-line post-pass, the universe RS rating) — graded chip
+# data, NOT scored, NOT a veto, None while their flags are off. Whichever
+# reader fired, the row carries them, so both chart shapes take this ONE list.
+ADVISORY_KEYS = (
+    'fund_eps_growth_yoy', 'fund_sales_growth_yoy', 'fund_eps_growth_accel',
+    'fund_earnings_surprise', 'days_to_earnings', 'rs_rating', 'rs_line_latest',
+    'rs_line_new_high',
+)
+
+
+def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf):
+    """A two-eyes fire's chart (build task 15 of the two-eyes reader).
+
+    The frame's own candles, the verdicts every row carries (the lines, the
+    tier, the score, the price, the trigger), the sector, the advisory facts,
+    the grade's 0-100 number, and THE block: the boxes with their roles and
+    each line's day, the LPS and the box it was read against, the state word,
+    the grade. The wire carries days and resolved prices; the browser only
+    finds each day's bar and draws. Nothing of the old engine's families: a
+    key this reader does not fill is ABSENT, never a null a panel reads as
+    "this row predates the read", never a zero that reads as measured. The
+    weekly and monthly boxes are still the old engine's own read of the
+    frame (the plan's named inconsistency until the go-live re-points them).
+    """
+    return {
+        'candles': tf_set['candles'],
+        'volumes': tf_set['volumes'],
+        'weekly_candles': tf_set['weekly_candles'],
+        'weekly_volumes': tf_set['weekly_volumes'],
+        'weekly_box': weekly_box,
+        'monthly_candles': tf_set['monthly_candles'],
+        'monthly_volumes': tf_set['monthly_volumes'],
+        'monthly_box': monthly_box,
+        'R': round(float(row['_R']), 2),
+        'S': round(float(row['_S']), 2),
+        'tier': row['Tier'],
+        'score': row['Score'],
+        'setup': row['Setup'],
+        'sector_etf': sector_etf,
+        'sector_name': SECTOR_ETF_NAMES.get(sector_etf) if sector_etf else None,
+        'price': round(float(row['Current Price']), 2),
+        'trigger': round(float(row['_trigger_price']), 2),
+        **{key: row.get('_' + key) for key in ADVISORY_KEYS},
+        'ta_grade': _round_opt(row.get('_ta_grade'), 1),
+        'two_eyes': block,
+    }
+
+
 def _json_safe(obj):
     """Recursively coerce NumPy/Pandas scalars and replace NaN/Inf with None.
 
@@ -145,6 +195,15 @@ def _extract_chart_data(data, results_df, tickers):
             # rails to the bars the box is born from, like the daily chart.
             weekly_box = chart_box(df, "weekly")
             monthly_box = chart_box(df, "monthly")
+            # A two-eyes fire carries ONE dated block and none of the old
+            # engine's families; it skips the old shape whole (its bar counts
+            # are empty, and casting them dropped the chart).
+            block = row.get(SCREEN_KEY)
+            if isinstance(block, dict):
+                chart_data[ticker] = _two_eyes_chart(
+                    row, block, tf_set, weekly_box, monthly_box,
+                    _sector_etf_for_ticker(ticker, sector_etf_cache))
+                continue
             # Inner-box bar indices (_inner_start_bar, _inner_climax_bar, ...) are
             # positional in the 2y DAILY_STRUCTURE_PERIOD eval frame the daily
             # structure read runs on (evaluation._prepare_eval_frame trims full_df
@@ -339,14 +398,7 @@ def _extract_chart_data(data, results_df, tickers):
                 # Fundamentals are point-in-time (filing-lag gated). The held
                 # frontend lane maps these to ⚡ RS Leader / Earnings Accel /
                 # days-to-earnings chips.
-                'fund_eps_growth_yoy': row.get('_fund_eps_growth_yoy'),
-                'fund_sales_growth_yoy': row.get('_fund_sales_growth_yoy'),
-                'fund_eps_growth_accel': row.get('_fund_eps_growth_accel'),
-                'fund_earnings_surprise': row.get('_fund_earnings_surprise'),
-                'days_to_earnings': row.get('_days_to_earnings'),
-                'rs_rating': row.get('_rs_rating'),
-                'rs_line_latest': row.get('_rs_line_latest'),
-                'rs_line_new_high': row.get('_rs_line_new_high'),
+                **{key: row.get('_' + key) for key in ADVISORY_KEYS},
                 # ── Technical Analysis Grade v2 block (task 9) — key-ABSENT
                 # while TA_SCORE_V2 is off (the setup_quality presence pattern; the
                 # flag-off wire snapshot pins the absence). The wire carries

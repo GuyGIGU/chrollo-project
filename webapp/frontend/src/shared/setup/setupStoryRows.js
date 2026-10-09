@@ -75,6 +75,48 @@ export function lpsGrade(data) {
   return { fraction, percent: Math.round(fraction * 100) };
 }
 
+// The grade cell beside the story: the value, its scale and the words under it, from RESOLVED wire values only.
+//
+// Three kinds of row. The old grade, with chapters that sum to it. An old row from before the 0-100 grade, which
+// says so. And a row the two-eyes reader wrote (build task 15): its grade is the new reader's own, read from its
+// dated block, with the facts it was read from when the wire carries them (the scan does; the archive keeps only
+// the score and the letter). Such a row never wears the old grade's words: it has no chapters, and calling it a
+// pre-grade archive row would call last night's read old.
+const OLD_GRADE_TITLE =
+  "Technical Analysis Grade — one 0-100 visual grade; the columns beside it read the chart's story left to right";
+const TWO_EYES_GRADE_TITLE =
+  "The two-eyes reader's grade: the base's days with no bar in the box (the dead space), and whether the base held";
+
+export function gradeCell(data) {
+  if (data?.two_eyes) {
+    const grade = data.two_eyes.grade;
+    const score = grade == null ? null : Number(grade.score);
+    if (score == null || !Number.isFinite(score)) {
+      return {
+        value: null, scale: null, label: 'Grade', note: 'not graded',
+        title: 'The two-eyes reader could not read a grade for this setup',
+      };
+    }
+    const facts = grade.empty_days != null && grade.base_days != null;
+    return {
+      value: score,
+      scale: '/100',
+      label: 'Grade',
+      note: facts
+        ? `${grade.empty_days} of ${grade.base_days} base days empty · the base ${grade.holds ? 'held' : 'did not hold'}`
+        : 'dead space and the hold',
+      title: TWO_EYES_GRADE_TITLE,
+    };
+  }
+  if (data?.ta_grade != null) {
+    return { value: data.ta_grade, scale: '/100', label: 'Grade', note: 'chapters sum to this', title: OLD_GRADE_TITLE };
+  }
+  return {
+    value: null, scale: null, label: 'Grade', note: 'pre-grade archive row',
+    title: 'This row predates the 0-100 grade (archived before the 2026-08-09 flip), so no grade exists for it',
+  };
+}
+
 // A row exists in one of three relationships with a band on the chart:
 //   'measured' — the band resolved and this row can light it
 //   'absent'   — this chapter owns a band and the engine found none here

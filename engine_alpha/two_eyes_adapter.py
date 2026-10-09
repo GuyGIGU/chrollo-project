@@ -26,6 +26,7 @@ from typing import Optional
 
 from engine_alpha.evaluation import EVAL_ERROR, WATCH_WIRE_STATES
 from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, Read
+from engine_alpha.two_eyes_archive import SCREEN_KEY, two_eyes_archive_values, two_eyes_screen_boxes
 
 #: Keys downstream reads with square brackets — a missing one is a KeyError in
 #: the middle of a night's write, not a None in a column. A fire row is whole
@@ -95,7 +96,7 @@ def to_result(read: Read):
     if not read.fired:
         return None
 
-    box, lps = read.parent, read.lps
+    box, lps, grade = read.parent, read.lps, read.grade
     base_end = box.end_day or read.as_of
     result = {
         "Ticker": read.ticker,
@@ -104,22 +105,22 @@ def to_result(read: Read):
         # every old-reader row this reader does not share. A number stored in
         # either shape is indistinguishable from a measured one forever after.
         #
-        # One exception the schema forces: the score column cannot be empty,
-        # so it holds 0.0 until the grade exists (stage 7). That IS a made-up
-        # number, and it is a DARK-ONLY placeholder: the switch flips only at
-        # his approval sitting, after the grade is built, so no row the live
-        # scan archives ever carries it. In a dark run it is recognisable by
-        # the empty tier and by two_eyes_has_mini, which only this reader
-        # fills, and the tier-keyed reports skip an empty tier. Recorded in
-        # docs/decisions.md (2026-09-21) as the builder's default, not his
-        # ruling, and his to overrule.
-        "Tier": "",
+        # The tier and the score are the grade's (stage 7, task 14; build
+        # task 15): its letter, and its 0-100 score. The old engine's tier
+        # ladder — its 15%-of-price S ceiling among it — never runs here, so
+        # nothing but the grade decides the letter. One placeholder survives:
+        # a read whose grade fell over (a grade never costs a fire) keeps the
+        # empty tier and the score 0.0, because the score column cannot be
+        # empty. That IS a made-up number, recognisable by its empty tier;
+        # the screen charts lettered tiers only. Recorded in docs/decisions.md
+        # (2026-09-21, and the task-15 row) as the builder's default.
+        "Tier": grade.letter if grade is not None else "",
         # The SETUP TYPE — LPS / REBOUND on every old-reader row — not the
         # screen's state word, which is a different vocabulary and rides the
         # watch sink to the screen. A fire of this reader is a box and its
         # last receding run: an LPS setup.
         "Setup": "LPS",
-        "Score": 0.0,
+        "Score": float(grade.score) if grade is not None else 0.0,
         # The read day's real close. The resistance line stood in here once,
         # and the forward-returns backfill scales every trigger by this price.
         "Current Price": round(float(read.close), 2) if read.close is not None else None,
@@ -163,10 +164,14 @@ def to_result(read: Read):
         "_s_touches": None,
         "_vol_contraction": None,
         "_tightness_ratio": None,
-        # The grade is stage 7's. None is "not measured" — the archive stores
-        # that as empty, never as a made-up number — but the KEY must exist,
-        # because the scan sorts its results by this column.
-        "_ta_grade": None,
+        # The 0-100 grade the screen shows beside the letter and the scan
+        # sorts by: the new grade's score (the grade session's note for task
+        # 15), on the same 0-100 scale; the engine version tells the two
+        # readers' rows apart. None when the grade fell over — "not
+        # measured", stored empty — but the KEY must exist, because the scan
+        # sorts its results by this column. The old grade's raw sum and its
+        # chapters are not this reader's: empty, never the score again.
+        "_ta_grade": float(grade.score) if grade is not None else None,
         "_ta_grade_raw": None,
         # What the old engine has no word for, carried so the new reader's own
         # facts survive the crossing rather than being rebuilt from prices —
@@ -186,7 +191,27 @@ def to_result(read: Read):
     missing = [k for k in REQUIRED_KEYS + SILENTLY_LOST_KEYS if k not in result]
     if missing:                         # a fire row is whole or it is not a row
         raise KeyError(f"the two-eyes adapter built a fire row missing {missing}")
+    result[SCREEN_KEY] = _wire_block(read, result)
     return result
+
+
+def _wire_block(read: Read, result: dict) -> dict:
+    """The screen's block for a two-eyes fire (build task 15): days and resolved prices, nothing for the browser to
+    work out. The boxes are the archive family's own, through its one shaper, so the scan's card and the archive's
+    chart of the same row draw the same lines; the LPS, the state word and the grade are the record's."""
+    lps, grade = read.lps, read.grade
+    return {
+        "boxes": two_eyes_screen_boxes(two_eyes_archive_values(result.get, prefixed=True)),
+        "lps": {"against": lps.read_against, "how": lps.how,
+                "start": lps.start_day.isoformat(), "end": lps.end_day.isoformat(),
+                "trigger": float(lps.trigger_price)},
+        "state": read.state,
+        # The number that rides beside a word that counts days ("forming N of 15": N), never written into it.
+        "state_days": read.state_days,
+        "grade": None if grade is None else {
+            "score": float(grade.score), "letter": grade.letter,
+            "empty_days": int(grade.empty_days), "base_days": int(grade.base_days), "holds": bool(grade.holds)},
+    }
 
 
 def _box_family(role: str, box) -> dict:

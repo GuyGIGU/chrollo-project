@@ -3,24 +3,16 @@ import ScreenerCard, { WatchlistButton } from '../../../shared/setup/ScreenerCar
 import ScreenerMiniChart from '../../../shared/charts/ScreenerMiniChart';
 import { CANDLE_REASON_COPY } from '../presentation/watchlistChartData';
 import { dailyChangeFrac, asOfDate } from '../../../shared/setup/screenerCardData';
-import { fx, fmtDay, fmtSignedPctFrac } from '../../../shared/formatting/format';
+import { fx, fmtSignedPctFrac } from '../../../shared/formatting/format';
 import { signColor } from '../../../shared/presentation/theme';
 import useChartState from '../hooks/useChartState';
+import { chartStateLine } from '../model/chartStateEntry';
 
-// The state word for a name the scan did not list (points 22 and 24), read
-// off the wire already resolved: "not scanned: under the 50-day average
-// (1.3 ranges)", or the lines the walk found with their facts.
-const stateCopy = (state) => {
-  if (!state?.state) return null;
-  let line = state.why ? `${state.state}: ${state.why}` : state.state;
-  if (state.distance_ranges != null) line += ` (${fx(state.distance_ranges, 1)} ranges)`;
-  if (state.R != null && state.S != null) {
-    line += ` · R ${fx(state.R, 2)} / S ${fx(state.S, 2)} · open ${fmtDay(state.open)}`;
-    if (state.age != null) line += ` · ${fx(state.age, 0)} days`;
-    if (state.turns_at_r != null) line += ` · turns ${fx(state.turns_at_r, 0)} / ${fx(state.turns_at_s, 0)}`;
-  }
-  return line;
-};
+// The state line for a name the scan did not list (points 22 and 24) is
+// written by the model (chartStateEntry): the word read off the wire already
+// resolved — "not scanned: under the 50-day average (1.3 ranges)", or the
+// lines the walk found with their facts — or a screen state while the read is
+// on its way or after it failed, never another ticker's answer.
 
 // The Watchlist page's bottom section: one full screener-grid card per starred
 // name. A scan-backed name renders the REAL ScreenerCard — same header, chart
@@ -64,7 +56,7 @@ function CleanCard({ ticker, card, onSelect, onRemove }) {
   const candles = card.data?.candles || [];
   const changePct = dailyChangeFrac(candles);
   const lastClose = candles.length ? candles[candles.length - 1]?.close : null;
-  const stateLine = stateCopy(useChartState(ticker, candles.length > 0));
+  const stateLine = chartStateLine(useChartState(ticker, candles.length > 0));
   return (
     <div
       className="screener-card"

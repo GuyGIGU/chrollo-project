@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TagRow } from './SetupTags';
 import { warningItems } from './chapterStrip.js';
-import { storyRows } from './setupStoryRows.js';
+import { gradeCell, storyRows } from './setupStoryRows.js';
 import { explainTip } from '../formatting/tooltipText';
 import { formatScore } from '../formatting/scoreFormat.js';
 import { EMPTY, finiteOrNull } from '../formatting/format.js';
@@ -215,7 +215,9 @@ function StoryColumn({ engaged, footnote, onEngage, onRegionChange, row, sub }) 
 export default function SetupStoryPanel({ data, note, onRegionChange, regions = [] }) {
   const rows = storyRows(data, regions);
   const warnings = warningItems(data);
-  const graded = data?.ta_grade != null;
+  // The grade cell's words are resolved in ONE pure place (setupStoryRows.gradeCell): the old grade, an old row
+  // from before it, or the two-eyes reader's own grade — never the old grade's words on a new reader's row.
+  const grade = gradeCell(data);
   const [engaged, setEngaged] = useState(null);
 
   // Columns, with the LPS attached to its parent. Guarded on phase_d: an
@@ -256,33 +258,15 @@ export default function SetupStoryPanel({ data, note, onRegionChange, regions = 
 
       <div className="story-bank" style={{ '--story-track': track }}>
         <div className="story-total">
-          {graded ? (
-            <>
-              <span
-                className="story-total-fig"
-                title="Technical Analysis Grade — one 0-100 visual grade; the columns beside it read the chart's story left to right"
-              >
-                <span className="story-total-value">{formatScore(data.ta_grade)}</span>
-                <span className="story-total-scale">/100</span>
-              </span>
-              <span className="story-total-label">Grade</span>
-              <small className="story-total-note">chapters sum to this</small>
-            </>
-          ) : (
-            /* An ungraded payload (pre-grade archive row) shows an honest
-               absence in the same cell - the legacy pills retired with the
-               legacy score path (2026-08-22); the two scales never coalesce. */
-            <>
-              <span
-                className="story-total-fig"
-                title="This row predates the 0-100 grade (archived before the 2026-08-09 flip), so no grade exists for it"
-              >
-                <span className="story-total-value">{EMPTY}</span>
-              </span>
-              <span className="story-total-label">Grade</span>
-              <small className="story-total-note">pre-grade archive row</small>
-            </>
-          )}
+          {/* An ungraded payload shows an honest absence in the same cell - the
+              legacy pills retired with the legacy score path (2026-08-22); the
+              two scales never coalesce. */}
+          <span className="story-total-fig" title={grade.title}>
+            <span className="story-total-value">{grade.value != null ? formatScore(grade.value) : EMPTY}</span>
+            {grade.scale ? <span className="story-total-scale">{grade.scale}</span> : null}
+          </span>
+          <span className="story-total-label">{grade.label}</span>
+          <small className="story-total-note">{grade.note}</small>
           {warnings.length > 0 && (
             <div className="ta-grade-warnings">
               {warnings.map((warning) => (

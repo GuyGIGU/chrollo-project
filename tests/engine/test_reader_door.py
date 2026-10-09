@@ -266,14 +266,17 @@ def test_the_switch_is_read_in_exactly_one_place():
     # as a dark engine flag and decides nothing. The LPS tests flip it to send a
     # real fire through the door (task 12a), and the yardstick flips it to read
     # the new reader as its third arm: both measure, neither decides. The core
-    # board's test flips it to check the board against the door on his 35.
+    # board's test flips it to check the board against the door on his 35. The
+    # night replay (task 15) reads one scan night with it off and then on, the
+    # old reader and the new through the door: it measures, it decides nothing.
     files -= {"config/settings.py", "config/engine.py", "engine_alpha/freeze/manifest.py",
               "tests/contracts/test_inert_contract.py",
               "tests/engine/test_reader_door.py", "tests/engine/test_two_eyes_adapter.py",
               "tests/engine/test_two_eyes_skeleton.py", "tests/engine/test_two_eyes_lps.py",
               "tests/engine/test_two_eyes_mini.py",
               "tests/tooling/test_core_board.py",
-              "tests/tooling/test_yardstick.py", "tools/calibration/yardstick.py"}
+              "tests/tooling/test_yardstick.py", "tools/calibration/yardstick.py",
+              "tools/calibration/parallel_night.py"}
     assert files == {"engine_alpha/reader.py"}, (
         f"the reader switch is read in {sorted(files)}; it belongs in "
         "engine_alpha.reader.which_reader() alone")
