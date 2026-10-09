@@ -20,8 +20,8 @@ would.
   night is copied too, and the night says what the scan showed, under which engine, and which fires differ.
 
 Not the scan's lanes. Beside the old reader the scan runs its near-miss lane, which records refusals and moves no
-fire. Under the new reader the scan still refuses to start (`reader.scan_worker`): wiring the scan is the go-live
-plan's, written after his approval.
+fire. Under the new reader the scan runs no lane (`reader.scan_worker`, go-live plan task 2): the near-miss lane goes
+quiet and the dark ones refuse the scan by name.
 
     python -m tools.calibration.parallel_night OUT
     python -m tools.calibration.parallel_night OUT --panel PATH --meta PATH     # a panel other than the scan's own

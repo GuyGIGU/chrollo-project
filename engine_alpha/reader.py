@@ -170,33 +170,75 @@ def run_eval_chain(ticker: str, df: pd.DataFrame,
                                       **_only_given(near_miss=near_miss, watch=watch))
 
 
+class LaneRefused(RuntimeError):
+    """A scan lane that reads the OLD engine was asked for under the new reader.
+
+    Raised at the start of the scan, by name, never answered by a silent
+    old-engine read beside a night stamped "new" (go-live plan, task 2)."""
+
+
+#: Why each of the scan's lanes cannot ride the new reader, in plain words.
+_OLD_ENGINE_LANES = {
+    "near_miss_lane": (
+        "the near-miss lane (NEAR_MISS_LANE_ENABLED) records the OLD reader's "
+        "refusals; the scan turns it off under the new reader"),
+    "watch_lane": (
+        "the watch lane (LPS_LEAVES_ELECTION_ENABLED) builds its row from the "
+        "OLD reader's frame, unit, box and forming read, which the new "
+        "reader's watch does not give"),
+    "rescue_lane": (
+        "the rescue lanes (CONTRACTION_RESCUE_ENABLED / "
+        "BAR_POSTURE_RESCUE_ENABLED) re-read the OLD reader's refusals with "
+        "the old engine"),
+}
+
+
+def refuse_old_engine_lanes(*, near_miss_lane: bool = False,
+                            watch_lane: bool = False,
+                            rescue_lane: bool = False) -> None:
+    """Raise :class:`LaneRefused`, naming every lane asked for, under the new reader.
+
+    Each lane beside the scan's read is a twin of the OLD engine's chain: it
+    reaches the old engine directly and takes no inner worker, so composing
+    it under the new reader would hand the pool the old engine while the night
+    says "new" (the split brain this door exists to prevent). The scan asks
+    this before a price is fetched, and :func:`scan_worker` asks it again.
+    """
+    asked = {"near_miss_lane": near_miss_lane, "watch_lane": watch_lane,
+             "rescue_lane": rescue_lane}
+    named = [_OLD_ENGINE_LANES[lane] for lane, on in asked.items() if on]
+    if named:
+        raise LaneRefused(
+            "the scan reads with the two-eyes reader tonight, and "
+            + "; ".join(named)
+            + ". Switch the lane off, or switch TWO_EYES_READER_ENABLED off.")
+
+
 def scan_worker(*, near_miss_lane: bool, watch_lane: bool, rescue_lane: bool = False):
     """The one worker the nightly scan hands to its process pool.
 
-    The scan composes three lanes around the read — the near-miss cohort, the
-    watch-lane recorder and the rescue lanes' cost twin (the outermost rung,
-    so the scan's unwrap stays deterministic) — and all are engine twins of
-    the same chain, not second readers. Composing them HERE keeps the scan's call site one line and
-    keeps the reader's identity in one module. The result is picklable
-    (module-level functions and a ``partial`` of one), which the
-    ``ProcessPoolExecutor`` requires.
+    Under the old reader the scan composes three lanes around the read — the
+    near-miss cohort, the watch-lane recorder and the rescue lanes' cost twin
+    (the outermost rung, so the scan's unwrap stays deterministic) — and all
+    are engine twins of the same chain, not second readers. Composing them
+    HERE keeps the scan's call site one line and keeps the reader's identity
+    in one module. The result is picklable (module-level functions and a
+    ``partial`` of one), which the ``ProcessPoolExecutor`` requires.
+
+    Under the new reader the worker is this door's own :func:`evaluate_ticker`
+    and no lane rides (go-live plan, task 2): every lane is an old-engine
+    twin, so a lane asked for is refused by name
+    (:func:`refuse_old_engine_lanes`). The scan turns the live near-miss lane
+    off itself and says so; the dark watch and rescue lanes refuse the scan.
     """
     from functools import partial
 
     from engine_alpha import evaluation
 
     if which_reader() == READER_NEW:
-        # The new reader has no lanes yet, and the lane twins reach the old
-        # engine directly — they take no inner worker. Composing them here
-        # would hand the pool the OLD engine while the stamp said "new", which
-        # is the split brain this door exists to prevent. Every stage of the
-        # reader, its screen block and the approval pack are built; the scan's
-        # lanes are the go-live plan's work, after his approval sitting.
-        raise NotImplementedError(
-            "the two-eyes reader is not wired for the nightly scan yet: the "
-            "scan's lanes are the go-live plan's work, after his approval "
-            "sitting. Flip TWO_EYES_READER_ENABLED for the tests and the "
-            "measuring tools only.")
+        refuse_old_engine_lanes(near_miss_lane=near_miss_lane,
+                                watch_lane=watch_lane, rescue_lane=rescue_lane)
+        return evaluate_ticker
     worker = evaluation.evaluate_ticker_with_near_miss if near_miss_lane else evaluate_ticker
     if watch_lane:
         worker = partial(evaluation.evaluate_ticker_with_watch, inner=worker)
@@ -218,7 +260,7 @@ def read_box(df: pd.DataFrame, atr: float, *, bricks=None, trace=None,
     answering = which_reader()
     _stamp(stamp, answering)
     if answering == READER_NEW:
-        # Refused out loud, as the scan's worker does. Its callers (the
+        # Refused out loud. Its callers (the
         # workbench's "why did this mark miss", its grading, the replay seam)
         # read the OLD reader's box shape and trace; this
         # door used to read the chart with the new reader, throw the read away

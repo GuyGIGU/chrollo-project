@@ -49,6 +49,11 @@ from core.pipeline.universe.descriptor import resolve_universe
 __all__ = ["CachedMarketDataError", "run_screener", "_evaluate_ticker", "apply_baseline_filters"]
 
 
+#: What the night's record says when the live near-miss lane goes quiet under
+#: the new reader (it records the OLD chain's refusals; there is no twin of it).
+NEAR_MISS_OFF_WORDS = "off under the new reader"
+
+
 class CachedMarketDataError(RuntimeError):
     """Raised when cached evaluation cannot safely use the local market-data panel."""
 
@@ -99,6 +104,10 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     ``rescue_sink``: the rescue lanes' attempt rows + counters (consolidation-
     method Task 10, ``CONTRACTION_RESCUE_ENABLED`` / ``BAR_POSTURE_RESCUE_ENABLED``):
     its cost twin is the OUTERMOST rung, wrapping the watch twin when both ride.
+
+    All three lanes are old-engine twins: under the new reader the worker is
+    the door's own read, and a lane asked for here is refused by name
+    (``reader.scan_worker``); ``run_screener`` quiets or refuses them first.
 
     Returns ``(results, errored)`` where ``errored`` is the number of tickers
     whose eval chain THREW (and was swallowed by the skip-guard) — distinct from a
@@ -241,6 +250,14 @@ def run_screener(mode: str = "download",
     one and hands the rows to the cohort writer behind the SAME archive
     freshness gate as the fires; no sink or flag off = untouched legacy path).
 
+    Under the new reader (``reader.which_reader()``, go-live plan task 2) the
+    scan's worker is the door's own ``evaluate_ticker`` and no old-engine lane
+    rides: the near-miss lane goes quiet (its sink stays empty, and the night
+    says "near-miss lane: off under the new reader" once in the log, in
+    ``market_context["near_miss_lane"]`` and in the scan metrics' counts), and
+    the dark watch and rescue lanes, if switched on, refuse the scan by name
+    (``reader.LaneRefused``) before a price is fetched.
+
     Returns:
         (results_df, market_data, tickers, market_context)
         - results_df: ranked per-ticker setup DataFrame (possibly empty)
@@ -250,6 +267,20 @@ def run_screener(mode: str = "download",
     """
     if mode not in {"download", "cache"}:
         raise ValueError(f"unknown screener data mode: {mode}")
+
+    # The night's lanes under the new reader, decided before a price is
+    # fetched (go-live plan, task 2). Every lane beside the read is a twin of
+    # the OLD engine's chain: a dark lane switched on refuses the scan by name,
+    # and the live near-miss lane goes quiet, said once in the log, the market
+    # context and the scan metrics' counts.
+    near_miss_off = False
+    if reader.which_reader() == reader.READER_NEW:
+        reader.refuse_old_engine_lanes(
+            watch_lane=settings.LPS_LEAVES_ELECTION_ENABLED,
+            rescue_lane=(settings.CONTRACTION_RESCUE_ENABLED
+                         or settings.BAR_POSTURE_RESCUE_ENABLED))
+        near_miss_off = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
+        near_miss_sink = None
 
     uni = resolve_universe(universe)
 
@@ -283,6 +314,9 @@ def run_screener(mode: str = "download",
 
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
+    if near_miss_off:
+        print(f"Near-miss lane: {NEAR_MISS_OFF_WORDS}", flush=True)
+        market_context["near_miss_lane"] = NEAR_MISS_OFF_WORDS
 
     # The rescue lanes' sink (consolidation-method Task 10): attempt rows +
     # counters for the full-refusal second look. Rows ride the payload through
@@ -406,6 +440,8 @@ def run_screener(mode: str = "download",
     )
     if errored_tickers:
         finish_counts["errored_tickers"] = errored_tickers
+    if near_miss_off:
+        finish_counts["near_miss_lane"] = NEAR_MISS_OFF_WORDS
     if fundamentals_counts is not None:
         # The attempted-vs-populated alarm rides the health surface: "flag
         # off" = key absent; "attempted, all failed" = populated 0, visibly.

@@ -122,9 +122,11 @@ that scoped overrides and tests patch.
 Two readers exist side by side (today's engine, and the two-eyes reader of the
 2026-09-20 rewrite: every stage built, dark), so **every shipping path and every gate
 asks the same door which reader answers**, and the switch is read in exactly one
-function (`which_reader`). With the switch on, `scan_worker` and `read_box` refuse out
-loud (the scan's lanes and a new-reader box for the old callers are the go-live plan's
-work), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a
+function (`which_reader`). With the switch on, `scan_worker` hands the scan the door's own
+`evaluate_ticker` and no lane (every lane is an old-engine twin: the near-miss lane goes
+quiet and says so, a dark lane switched on refuses the scan by name, `refuse_old_engine_lanes`;
+go-live plan task 2), `read_box` refuses out loud (a new-reader box for the old callers is
+the go-live plan's work), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a
 failed read is never told as "no setup".
 
 **The two-eyes reader and its doors.** `engine_alpha/two_eyes/` is the reader itself,
@@ -139,8 +141,8 @@ producer for every writer) and `market_sessions.py` (the NYSE calendar, moved he
 `core` so the leaf can read it). The door has three ways in — `evaluate_ticker` (the whole chain
 under its skip guard), `run_eval_chain` (the chain that raises, for callers that
 want the exception) and `read_box` (the box read alone, no pullback, no score) —
-plus `scan_worker`, which composes the scan's three lanes (the near-miss cohort, the
-watch-lane recorder and the rescue lanes' cost twin, outermost). The reader's NAME rides
+plus `scan_worker`, which composes the scan's three lanes under the old reader (the
+near-miss cohort, the watch-lane recorder and the rescue lanes' cost twin, outermost). The reader's NAME rides
 an optional `stamp` sink, never the result, so flag-off output stays byte-identical.
 
 **Who reads a chart, and how** (surveyed 2026-09-20; the earlier list of five was

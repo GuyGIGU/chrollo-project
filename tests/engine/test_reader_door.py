@@ -270,9 +270,12 @@ def test_the_switch_is_read_in_exactly_one_place():
     # night replay (task 15) reads one scan night with it off and then on, the
     # old reader and the new through the door: it measures, it decides nothing.
     # The failed-read test (council review 2026-10-09, finding 3) flips it to make
-    # the new reader refuse a chart through the seed and the manual add.
+    # the new reader refuse a chart through the seed and the manual add. The
+    # scan's walking skeleton (go-live plan task 2) flips it to send his ALB
+    # through the whole scan and into a throwaway archive, and back off.
     files -= {"config/settings.py", "config/engine.py", "engine_alpha/freeze/manifest.py",
               "tests/contracts/test_inert_contract.py", "tests/archive/test_read_failed_is_said.py",
+              "tests/pipeline/test_scan_under_the_new_reader.py",
               "tests/engine/test_reader_door.py", "tests/engine/test_two_eyes_adapter.py",
               "tests/engine/test_two_eyes_skeleton.py", "tests/engine/test_two_eyes_lps.py",
               "tests/engine/test_two_eyes_mini.py",

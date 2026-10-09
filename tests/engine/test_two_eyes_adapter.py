@@ -296,19 +296,20 @@ def test_every_way_through_the_door_answers_with_the_reader_it_stamps(monkeypatc
     assert stamp == {"reader": "new"}
 
 
-def test_the_scan_refuses_the_new_reader_rather_than_running_the_old_one(monkeypatch):
+def test_the_scan_refuses_an_old_engine_lane_under_the_new_reader_by_name(monkeypatch):
     """The scan's lanes reach the old engine directly and take no inner
-    worker, so composing them under the new reader would hand the pool the
-    OLD engine while the stamp said "new". It refuses out loud instead, and
-    says where the lanes come from: the go-live plan (its words trued up by the
-    council review of 2026-10-09, finding 14: it used to blame "task 12")."""
+    worker, so composing one under the new reader would hand the pool the
+    OLD engine while the stamp said "new". Since go-live task 2 the worker
+    reads with the new reader and no lane; a lane asked for is refused by
+    name, never composed (it used to refuse the whole scan, finding 14)."""
     from config import settings
     from engine_alpha import reader
 
     monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True, raising=False)
-    with pytest.raises(NotImplementedError) as refusal:
+    with pytest.raises(reader.LaneRefused) as refusal:
         reader.scan_worker(near_miss_lane=True, watch_lane=False)
-    assert "go-live plan" in str(refusal.value) and "task 12" not in str(refusal.value)
+    assert "near-miss lane" in str(refusal.value)
+    assert reader.scan_worker(near_miss_lane=False, watch_lane=False) is reader.evaluate_ticker
 
 
 def test_a_frame_that_is_not_a_chart_is_a_counted_failure_not_a_crash(monkeypatch):
