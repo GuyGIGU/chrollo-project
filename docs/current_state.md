@@ -33,7 +33,11 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
 - **Engine rewrite:** the final method (`claude/method-steps-7-12` with `claude/sos-session`) is merged
   here, every switch dark; the approval sitting flips them together ([`final_method_2026-09.md`](final_method_2026-09.md)).
   `claude/two-eyes-reader` still carries unmerged engine work; it was ported onto this layout on
-  2026-09-26 (base `61c88cc`) and its council build continues there. None of it is live here.
+  2026-09-26 (base `61c88cc`). Its build is CLOSED (Fri 09/10/2026: every stage, the screen block and
+  the approval pack built, dark) and the branch review's fixes followed; next are his approval sitting and
+  a go-live plan. On that plan's list as a READER task: his FRPH ruling of Fri 09/10/2026 (a box that failed into
+  its own lower level for two months is not tied to the box any more; its late return is no test and no SOS),
+  recorded and NOT built — the approval pack names the fires that rest on that way back. None of it is live here.
 - **Research:** the 2026-09-03 "no standalone edge" verdict has not been re-run on the
   corrected statistics ([`edge_denominator_2026-09-08.md`](edge_denominator_2026-09-08.md), [`asks.md`](asks.md)).
   Archive counts come from `python -m core.archive.analyze`; do not quote them from memory.
@@ -109,7 +113,7 @@ checkpoints are in [`migrations/2026-09-domain-refactor.md`](migrations/2026-09-
 On 2026-09-25 `claude/engine-time-axis-and-nan-contract` followed, no longer held: the operator ruled
 that LIVN may drop out ([`decisions.md`](decisions.md)). One branch remains unmerged:
 `claude/two-eyes-reader` (ported onto this layout on 2026-09-26 at `61c88cc`, one merge commit plus the
-port; its council build continues on the branch). On 2026-09-26 the
+port; its build closed on Fri 09/10/2026, the branch review's fixes on top). On 2026-09-26 the
 two superseded branches were retired as tags, `retired/indexless-universe-cold-gate-2026-09` (superseded
 by `937ecd4`) and `retired/signal-edge-backtest-2026-07` (an older copy of `revive/signal-edge`); every
 merged branch and leftover worktree was removed, and their uncommitted leftovers were saved to

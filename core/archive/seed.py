@@ -194,6 +194,11 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
     """
     try:
         result = reader.run_eval_chain("", df, spy_6m_return, None)
+    except reader.ReadFailed:
+        # A read that fell over is not "no setup": the caller says so (the
+        # manual add names the reason, the seed counts it). Council review
+        # 2026-10-09, finding 3.
+        raise
     except (KeyError, ValueError, IndexError, TypeError, ZeroDivisionError,
             AttributeError):
         # Parity with the live _evaluate_ticker guard: skip the date, never crash.
@@ -212,6 +217,61 @@ def _election_key(result: dict) -> tuple:
     ``_ta_grade`` to ``ta_grade``. Reading the canonical name here misses on
     every row and silently degrades the election to raw score alone."""
     return (float(result.get("ta_grade") or 0.0), float(result.get("score") or 0.0))
+
+def _best_day(df_full: pd.DataFrame, target_date: pd.Timestamp, spy_close_series) -> tuple:
+    """The seed's walk over one setup's window: ``(best result, its day, failed reads)``.
+
+    Each day of -WINDOW_BACK/+WINDOW_FWD with 200 bars is read; the best fire is elected on the live ranking basis.
+    A day the reader REFUSED is not a day that did not fire: it is kept as ``"<day>: <reason>"`` (council review
+    2026-10-09, finding 3), and every other error still skips the day as before."""
+    best_result = None
+    best_eval_date = None
+    failed_reads = []
+    for offset in range(-WINDOW_BACK, WINDOW_FWD + 1):
+        eval_date = target_date + pd.Timedelta(days=offset)
+        df_slice = df_full[df_full.index <= eval_date]
+        if len(df_slice) < 200:
+            continue
+
+        # SPY 6m return as of this eval date (None-safe: 0.0 if SPY missing).
+        spy_6m = 0.0
+        if spy_close_series is not None:
+            spy_slice = spy_close_series[spy_close_series.index <= eval_date]
+            if len(spy_slice) > settings.RS_LOOKBACK_BARS:
+                spy_6m = float(
+                    spy_slice.iloc[-1] / spy_slice.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0
+                )
+
+        try:
+            result = _evaluate_at_date(df_slice, spy_6m_return=spy_6m)
+        except reader.ReadFailed as exc:
+            failed_reads.append(f"{eval_date:%Y-%m-%d}: {exc}")
+            continue
+        if result is not None:
+            # Elect on the LIVE ranking basis (the grade), raw sum as the
+            # tiebreak - re-keyed at the 2026-08-22 retirement seam so the
+            # seed gallery pins the same "best day" the live ranking would.
+            if best_result is None or _election_key(result) > _election_key(best_result):
+                best_result = result
+                best_eval_date = eval_date
+    return best_result, best_eval_date, failed_reads
+
+
+def _window_words(ticker: str, date_str: str, best_result, failed_reads: list) -> str | None:
+    """What the seed says of one window, or None when there is nothing to say (a fire, every day read)."""
+    window = f"-{WINDOW_BACK}/+{WINDOW_FWD}d window"
+    if failed_reads:
+        first = failed_reads[0]
+        if best_result is None:
+            # Not "did not fire": the reader never read those days.
+            return (f"  {ticker} @ {date_str}: no fire in {window}, and the read FAILED on "
+                    f"{len(failed_reads)} of its days — first: {first}")
+        return (f"  {ticker} @ {date_str}: the read FAILED on {len(failed_reads)} day(s) of the {window}; the best "
+                f"day was elected among the rest — first: {first}")
+    if best_result is None:
+        return f"  {ticker} @ {date_str}: screener did not fire in {window}."
+    return None
+
 
 def seed_archive(
     setups: list[tuple[str, str]] | None = None,
@@ -314,34 +374,11 @@ def seed_archive(
 
         # Scan backward from trigger date to find when the screener signal fired
         # (typically 2-8 days before trigger), plus a small forward buffer
-        best_result = None
-        best_eval_date = None
-        for offset in range(-WINDOW_BACK, WINDOW_FWD + 1):
-            eval_date = target_date + pd.Timedelta(days=offset)
-            df_slice = df_full[df_full.index <= eval_date]
-            if len(df_slice) < 200:
-                continue
-
-            # SPY 6m return as of this eval date (None-safe: 0.0 if SPY missing).
-            spy_6m = 0.0
-            if spy_close_series is not None:
-                spy_slice = spy_close_series[spy_close_series.index <= eval_date]
-                if len(spy_slice) > settings.RS_LOOKBACK_BARS:
-                    spy_6m = float(
-                        spy_slice.iloc[-1] / spy_slice.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0
-                    )
-
-            result = _evaluate_at_date(df_slice, spy_6m_return=spy_6m)
-            if result is not None:
-                # Elect on the LIVE ranking basis (the grade), raw sum as the
-                # tiebreak - re-keyed at the 2026-08-22 retirement seam so the
-                # seed gallery pins the same "best day" the live ranking would.
-                if best_result is None or _election_key(result) > _election_key(best_result):
-                    best_result = result
-                    best_eval_date = eval_date
-
+        best_result, best_eval_date, failed_reads = _best_day(df_full, target_date, spy_close_series)
+        said = _window_words(ticker, date_str, best_result, failed_reads)
+        if said:
+            log.warning(said)
         if best_result is None:
-            log.warning(f"  {ticker} @ {date_str}: screener did not fire in -{WINDOW_BACK}/+{WINDOW_FWD}d window.")
             continue
 
         eval_date_str = best_eval_date.strftime("%Y-%m-%d")
@@ -558,14 +595,6 @@ def _scan_back_seeds(
     downloaded frames) and the hermetic offline guard (which feeds a frozen fixture),
     so both paths exercise identical evaluation logic.
     """
-    def _spy6(eval_date) -> float:
-        if spy_close is None:
-            return 0.0
-        s = spy_close[spy_close.index <= eval_date]
-        if len(s) > settings.RS_LOOKBACK_BARS:
-            return float(s.iloc[-1] / s.iloc[-settings.RS_LOOKBACK_BARS - 1] - 1.0)
-        return 0.0
-
     out: dict[tuple[str, str], Optional[dict]] = {}
     seen: set[tuple[str, str]] = set()
     for ticker, date_str in active:
@@ -576,17 +605,9 @@ def _scan_back_seeds(
         if df_full is None:
             out[(ticker, date_str)] = None
             continue
-        target = pd.Timestamp(date_str)
-        best = None
-        for offset in range(-WINDOW_BACK, WINDOW_FWD + 1):
-            eval_date = target + pd.Timedelta(days=offset)
-            df_slice = df_full[df_full.index <= eval_date]
-            if len(df_slice) < 200:
-                continue
-            result = _evaluate_at_date(df_slice, spy_6m_return=_spy6(eval_date))
-            if result is not None and (best is None
-                                       or _election_key(result) > _election_key(best)):
-                best = result
+        # The ONE window walk `seed_archive` reads too (EC-3; council review 2026-10-09, finding 3's twin): a day
+        # the new reader refuses is skipped and counted there, never a crash of the whole recall.
+        best, _day, _failed = _best_day(df_full, pd.Timestamp(date_str), spy_close)
         out[(ticker, date_str)] = best
     return out
 

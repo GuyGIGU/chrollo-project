@@ -33,6 +33,8 @@ import datetime as dt
 import html
 import json
 import os
+import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -67,6 +69,40 @@ NIGHT_COMMAND = "python -m tools.calibration.parallel_night OUT/night"
 #: refuses it: his "near it / resting on it" (the mini, task 13), on no picture of his. The task-13 blind check named
 #: them "for task 15's sheet before any go-live" (docs/decisions.md, 2026-10-03).
 MINI_RESCUES = (("BWAY", "2026-08-13"), ("FRBA", "2026-07-30"), ("TEVA", "2026-09-25"))
+#: The day the rewrite began: every builder's default of its record is on the page (EC-58).
+REWRITE_BEGAN = "2026-09-20"
+#: How a decisions row marks a default of the builder's, not a ruling of his.
+#: In any case and any form the record uses ("OURS", "ours", "(mine)", "my defaults", "marked as ours",
+#: "builder's default"): verify-6 of the fix run found three rows the upper-case form missed, a live rule among them.
+OURS_MARK = re.compile(r"\bours\b|\bmine\b|\bmy defaults?\b|builder's defaults?", re.IGNORECASE)
+#: What he approves that is not his own word, or that he ruled and the reader does not yet do: each with the
+#: date of its decisions row, first on the page (council review 2026-10-09, findings 4 and 5; EC-58).
+#: Each with its decisions date and, where one is committed, the picture he ruled on (a repo path).
+OPEN_FOR_HIM = (
+    ("2026-10-05", "The grade reads the PARENT box, whatever box the LPS was read against. That day's record "
+                   "calls this your call, not ours, and the build took the parent: it is what makes SIMO an S "
+                   "(SIMO's two letters are side by side below). It also moves VIK, VLO, WTS and SYRE.", None),
+    ("2026-10-09", "Your FRPH ruling (a box that failed into its own lower level for two months is not tied to "
+                   "the box any more; its late return is no test and no SOS) is NOT BUILT: the reader still "
+                   "gives a box its place back on the first day the bars come back to both its lines, and the "
+                   "boxes after it build on that box.", "docs/marks/rulings_2026-10-05/frph_dead_space.png"),
+    ("2026-10-01", "A line the reader has shown never moves back to an earlier pair (ours, the core sitting): "
+                   "it is what costs your ROIV box. Asked of you on the night of your ROIV picture.", None),
+    ("2026-09-26", "A pair under one daily range tall is never a box (ours, placed at the listing gate). Your "
+                   "word of Mon 05/10/2026: a box about as tall as its bars is completely fine. All 40 of yours "
+                   "pass it today.", None),
+    ("2026-09-08", "Your LPS trait, \"Lowering (and low) spread below average\": no stage reads it, no rule "
+                   "grades it and nothing stores it. Keep it as a raw number on every fire, or drop it?", None),
+    ("2026-10-03", "Your MTLS word, follow the counter swing to the support the bars rest on: ten readings "
+                   "measured, none built, by your own bar.", None),
+    ("2026-10-09", "The grade's straight line from 100 to 0 and its cuts (S from 75, A from 50, B from 25) are "
+                   "the plan's, yours to approve.", None),
+)
+#: SIMO's letters on the two boxes, from the decisions row of Fri 09/10/2026 (the fifth reading measured): the
+#: parent reading he is asked to approve, beside the box the LPS was read against.
+SIMO_LETTERS = (("the parent box (as built)", "S on all six fire days"),
+                ("the box the LPS was read against (the mini on two days)", "C on the two days read against the "
+                                                                         "mini, S on the other four"))
 
 
 def misses_first_by_step(rows: list) -> list:
@@ -126,6 +162,45 @@ def rescue_rows(out_dir: str) -> list | None:
     return rows
 
 
+def rests_on_the_way_back(found) -> bool:
+    """The box shown DESCENDS from a way back: since the read's last new trend (a first box, or a box taken over
+    from one anchored inside a live trend), some box took its place back after the price had left it downward
+    (``walk.came_back_to``), the rule his FRPH ruling of Fri 09/10/2026 calls a mistake for a box that failed
+    long ago. Read off the walk's own reasons (``Life.why``), never its words: FRPH's January box comes back once
+    and the boxes it fires on take over from it upward (verify-6 of the fix run)."""
+    from engine_alpha.two_eyes import walk
+
+    for life in reversed(getattr(found, "lives", None) or ()):
+        if life.why == walk.CAME_BACK:
+            return True
+        if life.why in (walk.LIVE_TREND, walk.FIRST_BOX):
+            return False
+    return False
+
+
+def ours_rows(path: str | None = None) -> list:
+    """Every decisions row since the rewrite began that records a default of the builder's (OURS, MINE, a
+    builder's default), as ``(date, title)``: the page lists them all, so \"approved\" never signs a rule he
+    never saw stated (EC-58)."""
+    path = path or os.path.join(_ROOT, "docs", "decisions.md")
+    out = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            row = re.match(r"\| (\d{4}-\d\d-\d\d) \| (.*)", line)
+            if not row or row.group(1) < REWRITE_BEGAN or not OURS_MARK.search(line):
+                continue
+            title = re.search(r"\*\*(.+?)\*\*", row.group(2))
+            out.append((row.group(1), title.group(1) if title else row.group(2)[:200]))
+    return out
+
+
+def _versions() -> dict:
+    """The engine version each reader reads under, as the night replay stamps it (``parallel_night._version``)."""
+    from tools.calibration.parallel_night import _version
+
+    return {"old": _version(False), "new": _version(True)}
+
+
 def _head() -> str | None:
     """The commit the pack is built at, "+dirty" when a tracked file has changed since it."""
     try:
@@ -141,15 +216,13 @@ def _head() -> str | None:
 def build(out_dir: str) -> dict:
     """Read every chart once, draw the pages and the grade sheet, write ``pack.json`` and the index."""
     from config import settings
-    from core.calibration.replay import load_sealed_fixture
     from tools.calibration import core_board, grade_probe, yardstick
-    from tools.regression.marks_corpus import load_corpus
+    from tools.regression.marks_corpus import load_sealed_standard
 
     refuse_sealed_output(out_dir)
     os.makedirs(out_dir, exist_ok=True)
     started = time.perf_counter()
-    setups = load_corpus()
-    frames, _ = load_sealed_fixture()
+    setups, frames, stamp = load_sealed_standard()     # the drawings and their bars, proved one set (EC-13)
 
     # The last yardstick run: three arms on his drawings and the junk under each, the board kept as it prints.
     arms = [yardstick.run_arm(arm, setups, frames) for arm in yardstick.ARMS]
@@ -197,6 +270,12 @@ def build(out_dir: str) -> dict:
                   "junk": _tally(grade_of(f["read"]) for row in junk for f in row["fires"]),
                   "sheet": _page(sheet, out_dir)},
         "rescues": rescues,
+        "stamp": {**stamp, "readers": _versions()},
+        "way_back": {"his": [row["key"] for row in rows
+                            if row["on_last"]["fired"] and rests_on_the_way_back(row["on_last"].get("found"))],
+                    "junk": [f"{row['key']} {f['day'].isoformat()}" for row in junk for f in row["fires"]
+                             if rests_on_the_way_back(f.get("found"))]},
+        "grade_nights": core_board.grade_moves(setups, frames),
         "seconds": round(time.perf_counter() - started, 1),
     }
     with open(os.path.join(out_dir, "pack.json"), "w", encoding="utf-8", newline="\n") as f:
@@ -271,7 +350,7 @@ def _rescue_section(rescues) -> str:
 def _grade_rule() -> str:
     """The grade's rule and weights, stated where he approves them, from the reader's own numbers (verify-15d: the
     sheet showed every chart's grade, never the rule that makes it)."""
-    from engine_alpha.two_eyes import method_numbers as M
+    from engine_alpha import two_eyes_numbers as M
 
     def share(x: float) -> str:
         return "half" if x == 0.5 else f"{x:g} of"
@@ -282,6 +361,63 @@ def _grade_rule() -> str:
             f" when the base did not hold (after the SOS's top, a low beyond the support's area and under the base's"
             f" own lowest low). Read to the whole point: S from {M.GRADE_S:g}, A from {M.GRADE_A:g}, B from"
             f" {M.GRADE_B:g}, C under. These numbers are yours to approve.</p>")
+
+
+def _choices_section(record: dict) -> str:
+    """First on the page: what he approves that is not his own word, and the rulings the reader does not yet do
+    (council review 2026-10-09, findings 4 and 5; EC-58)."""
+    way = record.get("way_back")
+    if way is None:
+        way_said = "not counted on this run (an older pack)."
+    else:
+        named = list(way.get("his") or []) + list(way.get("junk") or [])
+        way_said = ("fires that rest on that way back here: " + _e(", ".join(named))) if named else \
+            "no fire of this pack rests on that way back."
+    items = []
+    for day, words, picture in OPEN_FOR_HIM:
+        extra = f" <i>{way_said}</i>" if "FRPH" in words else ""
+        if "SIMO" in words:
+            extra += ("<table class=\"simo\"><tr><th>SIMO, read on</th><th>its letter</th></tr>"
+                      + "".join(f"<tr><td>{_e(box)}</td><td>{_e(letter)}</td></tr>" for box, letter in SIMO_LETTERS)
+                      + "</table>")
+        if picture and os.path.exists(os.path.join(_ROOT, picture)):
+            uri = pathlib.Path(_ROOT, picture).resolve().as_uri()
+            extra += f' <a href="{_e(uri)}">the picture you ruled on</a>'
+        items.append(f"<li><b>{_day(day)}</b> — {_e(words)}{extra}</li>")
+    rows = "".join(f"<li>{_day(day)} — {_e(title)}</li>" for day, title in ours_rows())
+    return ("<h2 id=\"choices\">What you approve that is ours, not yours</h2>"
+            f"<ul class=\"short\">{''.join(items)}</ul>"
+            "<details><summary>Every default of ours on the record since the rewrite began "
+            f"({len(ours_rows())} rows of docs/decisions.md)</summary><ul>{rows}</ul></details>")
+
+
+def _grade_nights_paragraph(record: dict) -> str:
+    """The letter night after night on his drawings (council review 2026-10-09, finding 6)."""
+    moves = record.get("grade_nights")
+    if moves is None:
+        return "<p><b>The letter, night after night</b>: not measured on this run (an older pack).</p>"
+    charts = " · ".join(f"{_e(key)} {_e(letters)}" for key, letters in sorted(moves["charts"].items()))
+    return (f"<p><b>The letter, night after night</b>, on your drawings, the ten trading days up to your last "
+            f"receding day and on to your day ({moves['nights']} nights): with the same box shown, the letter "
+            f"moved {moves['moves']} times in {moves['pairs']} pairs of nights, {moves['moves_with_the_sos']} of "
+            f"them when THE SOS's day moved; THE SOS was still provisional on {moves['provisional_sos_nights']} "
+            f"nights. Charts whose letter moved: {charts or 'none'}. The grade reads THE SOS whether it is settled "
+            f"or provisional; grading only on a settled SOS is yours to choose.</p>")
+
+
+def night_mismatch(record: dict, night) -> str | None:
+    """A night read by another engine than the pack's: the two halves of the page would come from two builds
+    (council review 2026-10-09, finding 7). None when they agree or either side carries no stamp."""
+    ours = (record.get("stamp") or {}).get("readers")
+    if night is None or not ours:
+        return None
+    theirs = {side: night["readers"][side].get("engine_config_version") for side in ("old", "new")}
+    differ = [side for side in ("old", "new") if theirs[side] and theirs[side] != ours.get(side)]
+    if not differ:
+        return None
+    return ("THE NIGHT WAS READ BY ANOTHER ENGINE than this pack: " + "; ".join(
+        f"{'today' if side == 'old' else 'the new reader'}'s night {str(theirs[side])[:12]}, the pack "
+        f"{str(ours.get(side))[:12]}" for side in differ) + ". Run the night again, then this page.")
 
 
 def _scan_paragraph(night) -> str:
@@ -343,6 +479,17 @@ def _night_section(night) -> str:
 <h3>The new reader's words, every chart of the night</h3><table class="words">{words}</table>"""
 
 
+def _stamp_words(record: dict) -> str:
+    """Which drawings and which engines made the page (EC-13): blank-safe for an older pack."""
+    stamp = record.get("stamp") or {}
+    readers = stamp.get("readers") or {}
+    if not stamp:
+        return "no stamp of the drawings or the engines (an older pack)"
+    return (f"drawings: corpus {_e(str(stamp.get('corpus_sha256'))[:12])}, marks fingerprint "
+            f"{_e(str(stamp.get('marks_fingerprint'))[:12])} · engines: today's {_e(str(readers.get('old'))[:12])}, "
+            f"the new reader's {_e(str(readers.get('new'))[:12])}")
+
+
 def write_index(out_dir: str) -> str:
     """``OUT/index.html`` from ``OUT/pack.json`` and, when it exists, ``OUT/night/night.json``."""
     with open(os.path.join(out_dir, "pack.json"), encoding="utf-8") as f:
@@ -376,7 +523,10 @@ def write_index(out_dir: str) -> str:
                        f" {len(night['readers']['new']['fires'])}, both on {len(night['both'])}.")
     else:
         summary.append("One real night, both readers: not run yet.")
-    summary.append("You approve, or point at the charts that are wrong.")
+    warning = night_mismatch(record, night)
+    if warning:
+        summary.insert(0, f'<span class="warn">{_e(warning)}</span>')
+    summary.append("You approve, or point at the charts that are wrong — and the choices of ours listed first.")
 
     def group(keys):
         return "".join(_junk_figure(junk[key]) for key in keys if key in junk)
@@ -391,17 +541,19 @@ def write_index(out_dir: str) -> str:
  .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:18px}}
  figure{{margin:0;padding:8px;border:2px solid #ddd;border-radius:6px;background:#fff}}
  figure.miss{{border-color:#d62728}} figure.chance{{border-color:#e8a33d}} figure.hit{{border-color:#2e8b57}}
- figure.fleet{{border-color:#4a6fa5}}
+ figure.fleet{{border-color:#4a6fa5}} .warn{{color:#b00020;font-weight:600}}
  img{{width:100%;height:auto}} figcaption{{padding-top:6px;font-size:13px}} .nopage{{color:#999;padding:30px}}
  table{{border-collapse:collapse}} td,th{{border:1px solid #ddd;padding:4px 10px;text-align:left}}
 </style>
 <h1>The two-eyes reader — the approval pack</h1>
 <p class="meta">Made {_e(record['made'])} from commit {_e(record.get('head') or '?')} · reader {_e(record['ruleset'])}
+ · {_stamp_words(record)}
  · OHLC bars; red: your lines and your days; blue: the reader's box, thin blue its mini; green: its LPS and trigger.
  Frames: green, read as you drew it; amber, it fires on your day at your trigger and something before differs; red,
  no fire on your day at your trigger; blue, a chart you never drew.</p>
 <h2>In short</h2>
 <ul class="short">{''.join(f'<li>{line}</li>' for line in summary)}</ul>
+{_choices_section(record)}
 <h2>Your {record['marks']['drawings']} drawings — misses first, by the first step where the reader leaves yours</h2>
 <div class="grid">{''.join(_his_figure(row) for row in his)}</div>
 <h2>The junk</h2>
@@ -414,6 +566,7 @@ def write_index(out_dir: str) -> str:
  <a href="{_e(record['grade']['sheet'])}">The sheet</a>: your drawings and the junk fires ranked together by the
  grade.</p>
 {_grade_rule()}
+{_grade_nights_paragraph(record)}
 {_night_section(night)}
 """
     path = os.path.join(out_dir, "index.html")

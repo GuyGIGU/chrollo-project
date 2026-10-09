@@ -41,7 +41,7 @@ from typing import Optional
 
 import numpy as np
 
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.record import CROSSED, FIRED, LINES_NO_LPS, ROLE_PARENT, Lps, Step
 from engine_alpha.two_eyes.walk import known_by
 

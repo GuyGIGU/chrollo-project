@@ -4,13 +4,19 @@ Task 7 of the two-eyes-reader build. The pieces copied from the old engine read 
 `config.settings` at call time. The copies may not: those keys are SHARED with the frozen originals, so tuning
 one for the new reader would silently move the old engine too, and a guard that freezes the old engine's FILES
 cannot see a settings value change. So each number is copied here, once, with the value it held at the freeze
-base (cd87fcc) and the words that placed it, and the copies read `method_numbers.NAME` where the originals read
+base (cd87fcc) and the words that placed it, and the copies read `two_eyes_numbers.NAME` where the originals read
 `settings.NAME` — the one change a copy makes.
 
 The names are kept as they were, so an original and its copy can be read side by side. Changing a number here
 is a change to the new reader's reading, and the version stamp moves with it: `engine_alpha/freeze/manifest.py`
 hashes every number in this module. A change to the copies' CODE still needs a `TWO_EYES_RULESET` bump: the
 stamp hashes numbers, not reader code.
+
+It sits OUTSIDE `engine_alpha/two_eyes/` and imports nothing, for the reason `two_eyes_roles.py` does: the version
+stamp reads it on every night of the old reader's scan, and a module inside the package runs the package's door,
+which loads every stage. A broken stage would then stop the old reader's night with the switch off (it lived at
+`engine_alpha/two_eyes/method_numbers.py` until the council review of Fri 09/10/2026, finding 1). Keep it
+import-free. The readers still call it `M`.
 """
 
 #: Placed by the sweep on his 186 turns (his Q1 asked for a search): a turn commits when price backs off the

@@ -30,20 +30,21 @@ from typing import Optional
 import pandas as pd
 
 try:
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ImportError:  # invoked as a script from the repo root
     import os, sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path  # type: ignore
+    from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path(backend=True)
 
 from engine_alpha import two_eyes  # noqa: E402
 from engine_alpha.evaluation import apply_baseline_filters_with_reason  # noqa: E402
 from engine_alpha.two_eyes import lps, mini, walk  # noqa: E402
-from engine_alpha.two_eyes import method_numbers as M  # noqa: E402
+from engine_alpha import two_eyes_numbers as M  # noqa: E402
 from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
-from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
+from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
+                                           stamp_line)
 from core.calibration.replay import fired_window_sessions, fixture_frame, load_sealed_fixture  # noqa: E402
 
 VERDICTS = ("HIS", "CLOSE", "OTHER", "NONE")
@@ -307,6 +308,41 @@ def name_moves(setups: list, frames: dict, back: int = 10) -> dict:
                             continue
                         out[which][e.kind] = out[which].get(e.kind, 0) + 1
             before = (box, read.events)
+    return out
+
+
+def grade_moves(setups: list, frames: dict, back: int = 10) -> dict:
+    """Night after night, the reader's LETTER, over the nights ``name_moves`` reads (the ``back`` trading days up
+    to his last receding day and on to his as-of day). The letter keys off THE SOS, a word the record says moves
+    between nights, and since task 15 it is the screen's tier; its stability was never measured (council review
+    2026-10-09, finding 6). Counted on pairs of nights with the same box shown and a letter on both: how often the
+    letter moved, how often THE SOS's day moved with it, how many nights read THE SOS still provisional, and per
+    chart whose letter moved, its letters night by night ('-' no letter)."""
+    out = {"nights": 0, "pairs": 0, "moves": 0, "moves_with_the_sos": 0, "provisional_sos_nights": 0,
+           "charts": {}}
+    for setup in setups:
+        key = setup_key(setup)
+        raw = fixture_frame(frames, key, setup["ticker"])
+        end = raw.index.get_loc(pd.Timestamp(his_last_lps_day(setup)))
+        before, letters = None, []
+        for i in range(max(0, end - back), len(raw)):
+            read = two_eyes.read(setup["ticker"], raw.iloc[:i + 1])
+            out["nights"] += 1
+            sos = next((e for e in read.events if e.kind == two_eyes.record.SOS), None)
+            out["provisional_sos_nights"] += sos is not None and not sos.committed
+            letter = None if read.grade is None else read.grade.letter
+            letters.append(letter or "-")
+            box = None if read.parent is None else (read.parent.resistance, read.parent.support,
+                                                    read.parent.opened_day)
+            now = (box, letter, None if sos is None else sos.day)
+            if before is not None and box is not None and box == before[0] and letter and before[1]:
+                out["pairs"] += 1
+                if letter != before[1]:
+                    out["moves"] += 1
+                    out["moves_with_the_sos"] += now[2] != before[2]
+            before = now
+        if len({letter for letter in letters if letter != "-"}) > 1:
+            out["charts"][key] = "".join(letters)
     return out
 
 
@@ -632,8 +668,11 @@ def main() -> int:
     ap.add_argument("--nights", metavar="N", type=int, help="also count, over the N trading days up to his last "
                     "receding day and on to his as-of day, the committed words whose name moved (about a minute)")
     args = ap.parse_args()
-    setups = load_corpus()
-    frames, _ = load_sealed_fixture()
+    # EC-14: every write path is checked before anything is read (council review 2026-10-09, finding 9).
+    if args.pages:
+        refuse_sealed_output(args.pages)
+    setups, frames, stamp = load_sealed_standard()     # the drawings and their bars, one set (EC-13)
+    print(stamp_line(stamp))
     started = time.perf_counter()
     rows = run_board(setups, frames)
     junk = junk_rows()

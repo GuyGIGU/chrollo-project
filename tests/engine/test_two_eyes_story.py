@@ -28,7 +28,7 @@ from core.calibration.replay import fixture_frame, load_sealed_fixture
 from engine_alpha.two_eyes import line_words as LW
 from engine_alpha import two_eyes
 from engine_alpha.two_eyes import grade, lps, record, state, story, walk
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.daily_range import calculate_atr
 from engine_alpha.two_eyes.swing_line import turn_line, turn_line_floors
 from tools.regression.marks_corpus import load_corpus, setup_key

@@ -3,7 +3,7 @@
 Rebuilt on Thu 01/10/2026 on the rule he settled at the core sitting (ten sentences typed out to him on Wed
 30/09/2026, his answer to each the day after; both in the build run's request file and in the decisions record).
 Pure functions of the bars' highs and lows, the line (stage 1) and each day's range: no close is read, nothing is
-graded, and the only numbers are the four in ``method_numbers``. Everything is computed from what is known on the
+graded, and the only numbers are the four in ``two_eyes_numbers``. Everything is computed from what is known on the
 read day, and the box shown changes only forward, so a reader with no memory gives the same answer as one that
 watched every day (``tests/engine/test_two_eyes_walk.py`` proves it on his drawings, on the fixture charts and on
 hand-built bars).
@@ -84,12 +84,13 @@ from typing import Optional
 
 import numpy as np
 
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.record import LINES_NO_LPS, NO_LINES, ROLE_EARLIER, ROLE_PARENT, Box, Line, Step
 from engine_alpha.two_eyes.runs import _cmp
 
 __all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
-           "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lives", "measure", "move_began",
+           "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lies_beyond", "lives", "measure",
+           "move_began",
            "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD",
            "LIVE_TREND", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
 
@@ -429,6 +430,14 @@ def _back_at_both(pair: Pair, high, low, first: int, days) -> np.ndarray:
     return (at_r[days - first + 1] > at_r[since - first]) & (at_s[days - first + 1] > at_s[since - first])
 
 
+def lies_beyond(new: Pair, shown: Pair) -> bool:
+    """The position half of his sentences 9 and 10: the newer pair lies BEYOND the shown box — its support in
+    or above the shown resistance's area, or its resistance in or below the shown support's area. A pair that
+    does not is inside or across the box: its own leg, a poke, a dip or a mini. The ONE judgment: the walk's
+    take-over and the mini's home both ask it (council review 2026-10-09, finding 13)."""
+    return new.S >= shown.R - shown.area or new.R <= shown.S + shown.area
+
+
 def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
     """His sentences 9 and 10, judged on every day: the newer box lies beyond the shown one — its support in or
     above the shown resistance's area, or its resistance in or below the shown support's area — and *"the bars
@@ -440,7 +449,7 @@ def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) 
     a box by the rule on a day the price was already back under it)."""
     if new.opening_bar <= shown.opening_bar:
         return None
-    if not (new.S >= shown.R - shown.area or new.R <= shown.S + shown.area):
+    if not lies_beyond(new, shown):
         return None
     first, start = new.opening_bar, max(int(since), int(new.birth_bar))
     if start > read_bar:

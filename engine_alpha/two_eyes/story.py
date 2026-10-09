@@ -9,9 +9,11 @@ detecting consolidations and an LPS. the rest is a nice little bonus."*
 
 So this stage only NAMES. It reads the read's own line (the forming turn at the right edge included: that turn is
 what makes a word provisional), the box SHOWN and no earlier box, and the pullback the LPS stage measured; it
-calls the pure word rules in ``line_words`` and turns what they name into ``record.Event``s dated by days. It
-decides nothing: the fire is settled before it runs, ``Read.fired`` reads no event, and a story that cannot be
-read is an empty story and a step on the trail, never a failed read.
+calls the pure word rules in ``line_words`` (their one assembly, ``line_words.assemble``) and turns what they name
+into ``record.Event``s dated by days. It decides no fire: the fire is settled before it runs, ``Read.fired`` reads
+no event, and a story that cannot be read is an empty story and a step on the trail, never a failed read. Its
+events do reach a verdict: the grade (stage 7) forgives each named event's own swing, and since task 15 the grade
+is the screen's tier (trued up by the council review of Fri 09/10/2026, finding 14).
 
 The order is LPS first, then the story, because three words lean on the pullback (THE SOS tops at or before its
 low, a last supper is sought before its window opens, it is one of the ways the right side opens). The dependency
@@ -27,7 +29,7 @@ from typing import Optional
 import numpy as np
 
 from engine_alpha.two_eyes import line_words as LW
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.record import (LAST_SUPPER, PHASE_D, SOS, SPRING, SPRING_TEST, UPTHRUST, Event, Step)
 
 __all__ = ["read", "record", "could_not_be_read", "STAGE"]
@@ -70,20 +72,19 @@ def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: fl
     def day(bar: Optional[int]):
         return None if bar is None else days[int(bar)]
 
-    pushes = LW.thrusts(line, start, R, unit)
-    spring = LW.phase_c(line, high, start, S, unit, R, lps_start, read_bar, fifteenth=fifteenth)
-    sos = LW.pick_the_sos(pushes, lps_low_bar, after=spring["tip_bar"] if spring is not None else None,
-                          line=line, highs=high, start=start, read_bar=read_bar, unit=unit)
+    words = LW.assemble(line, high, low, start=start, R=R, S=S, unit=unit, read_bar=read_bar,
+                        lps_start=lps_start, lps_low_bar=lps_low_bar, fifteenth=fifteenth)
+    pushes, spring, sos = words["thrusts"], words["phase_c"], words["the_sos"]
     out = []
     if spring is not None:
         out.append(Event(kind=SPRING, day=day(spring["tip_bar"]), price=spring["tip_price"],
                          first_day=day(spring["start_bar"]), last_day=day(spring["confirm_bar"]),
                          size=spring["depth_ranges"], committed=spring["knowable_bar"] is not None,
                          known_day=day(spring["knowable_bar"])))
-    for test in LW.spring_tests(line, spring, S, unit):
+    for test in words["spring_tests"]:
         out.append(Event(kind=SPRING_TEST, day=day(test["tip_bar"]), price=test["tip_price"],
                          committed=test["knowable_bar"] is not None, known_day=day(test["knowable_bar"])))
-    up = LW.the_upthrust(pushes, line, R, unit, spring, start, read_bar, fifteenth=fifteenth)
+    up = words["the_upthrust"]
     if up is not None:
         out.append(Event(kind=UPTHRUST, day=day(up["top_bar"]), price=up["top_price"],
                          first_day=day(up["swing_bar"]), last_day=day(up["back_bar"]), size=up["poke_ranges"],
@@ -96,11 +97,11 @@ def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: fl
                          known_day=day(sos["knowable_bar"]) if settled else None,
                          note="" if not sos["in_progress"] else "no LPS follows it yet"))
     tops = {t["top_bar"]: t["top_price"] for t in pushes}
-    for supper in LW.last_suppers(pushes, low, unit, lps_start, R=R, pc=spring, start=start, read_bar=read_bar):
+    for supper in words["last_suppers"]:
         out.append(Event(kind=LAST_SUPPER, day=day(supper["top_bar"]), price=tops[supper["top_bar"]],
                          first_day=day(supper["top_bar"]), last_day=day(supper["low_bar"]),
                          size=supper["dig_ranges"], committed=True, known_day=day(supper["low_bar"])))
-    opens = LW.phase_d(line, start, R, S, unit, spring, sos, lps_start, read_bar)
+    opens = words["phase_d"]
     if opens is not None:
         bar, opener = int(opens["open_bar"]), opens["opener"]
         # The right side's opening is as settled as what opened it: a low of the line that has committed (the

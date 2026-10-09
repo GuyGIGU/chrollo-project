@@ -28,13 +28,12 @@ from engine_alpha import reader
 from engine_alpha.evaluation import (
     EVAL_ERROR,
     apply_baseline_filters,
-    # Re-exported, NOT called here: the lane twins are named by instruments and
-    # by tests that pin their flag-off degrade. The scan composes its worker
+    # Re-exported, NOT called here: a test that pins the near-miss lane's
+    # flag-off degrade names it by this module. The scan composes its worker
     # through the door (`reader.scan_worker`), so the one place that decides
-    # which reader answers stays one place.
+    # which reader answers stays one place. (The watch and rescue twins were
+    # re-exported too, and nothing named them: dropped, finding 14.)
     evaluate_ticker_with_near_miss,  # noqa: F401
-    evaluate_ticker_with_rescue_stats,  # noqa: F401
-    evaluate_ticker_with_watch,  # noqa: F401
 )
 # The scan's worker under its old name, for the instruments and tests that call
 # it directly. Both names lead to the same door.

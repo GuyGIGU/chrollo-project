@@ -91,7 +91,7 @@ def test_the_summary_comes_before_the_detail(tmp_path):
     html = _write(tmp_path, _record(), _night())
     headings = re.findall(r"<h2[^>]*>(.*?)</h2>", html)
     assert headings[0].startswith("In short")
-    assert [h.split(" ")[0] for h in headings[1:]] == ["Your", "The", "Three", "The", "One"]
+    assert [h.split(" ")[0] for h in headings[1:]] == ["What", "Your", "The", "Three", "The", "One"]
     summary = html[html.index("In short"):html.index(headings[1])]
     for fact in ("35 of 40", "S 39", "both readers", "Thu 08/10/2026", "the scan you saw that night showed 0"):
         assert fact in summary, fact
@@ -211,3 +211,111 @@ def test_a_pack_without_its_night_says_how_to_make_it(tmp_path):
     html = _write(tmp_path, _record(), None)
     night = html[html.index('id="night"'):]
     assert "python -m tools.calibration.parallel_night" in night
+
+
+# ---- What he approves that is ours, the way back, the letter across nights, the stamps (council review
+# ---- 2026-10-09, findings 4 to 7; EC-58) -------------------------------------------------------------------------
+def test_the_choices_of_ours_come_right_after_the_summary_with_every_default_on_the_record(tmp_path):
+    """"Approved" on this page must never sign a rule he never saw stated: the defaults of ours come first, the
+    ones that move what he sees by name and date, then EVERY decisions row since the rewrite that marks a default of
+    the builder's, read from the record itself so a new one cannot be missed."""
+    html = _write(tmp_path, _record(), _night())
+    headings = re.findall(r"<h2[^>]*>(.*?)</h2>", html)
+    assert headings[1].startswith("What you approve that is ours")
+    section = html[html.index('id="choices"'):html.index(headings[2])]
+    rows = pack.ours_rows()
+    assert len(rows) >= 20, "the record holds well over twenty defaults of ours since Sun 20/09/2026"
+    # Three rows the first, upper-case pattern missed (verify-6), each read independently here: a live rule of
+    # the reader among them, "a shown line never moves back (mine)".
+    titles = {(day, title[:40]) for day, title in rows}
+    for day, start in (("2026-10-01", "His ROIV picture"), ("2026-09-20", "Build step 12 of the final method, pa"),
+                       ("2026-09-26", "The rewrite's remaining build is REORDE")):
+        assert any(d == day and t.startswith(start[:30]) for d, t in titles), (day, start)
+    for day, title in rows:
+        assert pack._e(title) in section, (day, title[:60])
+    for words in ("PARENT box", "SIMO", "FRPH", "one daily range tall", "spread below average", "MTLS",
+                  "never moves back"):
+        assert words in section, words
+    simo = section[section.index('class="simo"'):section.index("</table>", section.index('class="simo"'))]
+    assert "S on all six fire days" in simo and "C on the two days" in simo, "SIMO's two letters, side by side"
+    assert "frph_dead_space.png" in section, "the FRPH ruling links the picture he ruled on"
+
+
+def test_the_rows_of_ours_are_exactly_the_marked_ones_since_the_rewrite(tmp_path):
+    record = tmp_path / "decisions.md"
+    record.write_text("\n".join([
+        "| 2026-10-05 | **A default of ours.** OURS; nothing moves. | x |",
+        "| 2026-09-21 | **Four builder's defaults, recorded.** | x |",
+        "| 2026-10-03 | **His word, verbatim.** No default here. | x |",
+        "| 2026-09-19 | **Before the rewrite.** OURS. | x |",
+    ]), encoding="utf-8")
+    assert pack.ours_rows(str(record)) == [("2026-10-05", "A default of ours."),
+                                          ("2026-09-21", "Four builder's defaults, recorded.")]
+
+
+def test_the_frph_line_names_the_fires_that_rest_on_the_way_back(tmp_path):
+    record = dict(_record(), way_back={"his": ["ROIV"], "junk": ["FRPH 2026-06-05"]})
+    section = _write(tmp_path, record, _night())
+    section = section[section.index('id="choices"'):]
+    frph = section[section.index("FRPH ruling"):section.index("</li>", section.index("FRPH ruling"))]
+    assert "ROIV" in frph and "FRPH 2026-06-05" in frph
+
+
+def test_a_box_that_descends_from_a_way_back_is_told_from_any_other():
+    """Read off the walk's own reasons: a way back since the last new trend, the box shown or one it took over
+    from (FRPH's case); a way back before a new trend no longer counts."""
+    from engine_alpha.two_eyes import walk
+
+    def lives(*whys):
+        return SimpleNamespace(lives=tuple(SimpleNamespace(why=why) for why in whys))
+
+    assert pack.rests_on_the_way_back(lives(walk.FIRST_BOX, walk.LEFT_FOR_GOOD, walk.CAME_BACK)) is True
+    assert pack.rests_on_the_way_back(lives(walk.FIRST_BOX, walk.CAME_BACK, walk.LEFT_FOR_GOOD)) is True, \
+        "FRPH: a box taken over upward from a box that came back still rests on the way back"
+    assert pack.rests_on_the_way_back(lives(walk.FIRST_BOX, walk.CAME_BACK, walk.LIVE_TREND)) is False
+    assert pack.rests_on_the_way_back(lives(walk.FIRST_BOX, walk.LEFT_FOR_GOOD)) is False
+    assert pack.rests_on_the_way_back(None) is False
+
+
+def test_frph_the_rulings_own_chart_rests_on_the_way_back_on_its_fire_days():
+    """verify-6: the first detector (a text match on the last hand-over) named ten junk fires and missed FRPH."""
+    from tools.calibration import core_board
+    from tools.regression import negative_corpus
+
+    frames, meta = negative_corpus._load_fixture()
+    case = next(c for c in meta["cases"] if c.get("key", c["ticker"]) == "FRPH")
+    fires = core_board.junk_row(case, frames["FRPH"])["fires"]
+    assert len(fires) == 6 and all(pack.rests_on_the_way_back(f["found"]) for f in fires)
+
+
+def test_the_page_says_which_drawings_and_which_engines_made_it(tmp_path):
+    record = dict(_record(), stamp={"corpus_sha256": "c" * 64, "marks_fingerprint": "f" * 64, "drawings": 40,
+                                    "engine_config_version": "e" * 64, "readers": {"old": "a" * 64, "new": "b" * 64}})
+    html = _write(tmp_path, record, None)
+    meta = html[html.index('class="meta"'):html.index("</p>", html.index('class="meta"'))]
+    for part in ("c" * 12, "f" * 12, "a" * 12, "b" * 12):
+        assert part in meta, part
+
+
+def test_a_night_read_by_another_engine_is_said_first_and_in_red(tmp_path):
+    record = dict(_record(), stamp={"readers": {"old": "a" * 64, "new": "b" * 64}})
+    night = _night()
+    night["readers"]["old"]["engine_config_version"] = "a" * 64
+    night["readers"]["new"]["engine_config_version"] = "d" * 64
+    html = _write(tmp_path, record, night)
+    summary = html[html.index("In short"):html.index('id="choices"')]
+    assert 'class="warn"' in summary and "THE NIGHT WAS READ BY ANOTHER ENGINE" in summary
+
+    night["readers"]["new"]["engine_config_version"] = "b" * 64
+    (tmp_path / "night" / "night.json").write_text(json.dumps(night), encoding="utf-8")
+    with open(pack.write_index(str(tmp_path)), encoding="utf-8") as f:
+        assert "ANOTHER ENGINE" not in f.read()
+
+
+def test_the_letter_night_after_night_is_on_the_page(tmp_path):
+    record = dict(_record(), grade_nights={"nights": 600, "pairs": 520, "moves": 3, "moves_with_the_sos": 2,
+                                           "provisional_sos_nights": 41, "charts": {"MTLS:2026-09-04": "SSSAS"}})
+    html = _write(tmp_path, record, _night())
+    said = html[html.index("The letter, night after night"):]
+    for fact in ("moved 3 times in 520 pairs", "2 of them when THE SOS", "provisional on 41", "MTLS:2026-09-04 SSSAS"):
+        assert fact in said, fact

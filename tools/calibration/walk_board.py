@@ -38,22 +38,23 @@ from typing import Optional
 import pandas as pd
 
 try:
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ImportError:  # invoked as a script from the repo root
     import os, sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path  # type: ignore
+    from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path(backend=True)
 
 from engine_alpha import two_eyes  # noqa: E402
 from engine_alpha.two_eyes import frame as two_eyes_frame  # noqa: E402
 from engine_alpha.two_eyes import line as two_eyes_line  # noqa: E402
-from engine_alpha.two_eyes import method_numbers as M  # noqa: E402
+from engine_alpha import two_eyes_numbers as M  # noqa: E402
 from engine_alpha.two_eyes import walk  # noqa: E402
 from tools.calibration.listing_gate import anchor_turns  # noqa: E402
 from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
-from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
+from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
+                                           stamp_line)
 from core.calibration.replay import fixture_frame, load_sealed_fixture  # noqa: E402
 
 #: The plan's named charts for tasks 10 and 11 (BMRN and OHI are junk charts: see the junk board).
@@ -417,8 +418,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--pages", metavar="DIR", help="also write one OHLC page per drawing and a contact sheet here")
     args = ap.parse_args()
-    setups = load_corpus()
-    frames, _ = load_sealed_fixture()
+    # EC-14: every write path is checked before anything is read (council review 2026-10-09, finding 9).
+    if args.pages:
+        refuse_sealed_output(args.pages)
+    setups, frames, stamp = load_sealed_standard()     # the drawings and their bars, one set (EC-13)
+    print(stamp_line(stamp))
     started = time.perf_counter()
     rows = run_board(setups, frames)
     print(format_board(rows))

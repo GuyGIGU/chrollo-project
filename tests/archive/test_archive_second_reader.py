@@ -1089,7 +1089,12 @@ def test_the_old_readers_nightly_path_does_not_import_the_new_reader():
     """The archive needs the LPS words, and taking them from the new reader's
     record imported the whole new-reader package — every stage the rewrite
     adds — into the old reader's nightly scan. A broken stage could then stop
-    the scan with the switch off; the door exists to prevent exactly that."""
+    the scan with the switch off; the door exists to prevent exactly that.
+
+    The night also CALLS the engine's version stamp (the archive write and the
+    payload write), and importing alone never runs it: the stamp once loaded the
+    whole package at run time while this test stayed green (council review
+    2026-10-09, finding 1). So the probe computes the stamp too."""
     import subprocess
     import textwrap
 
@@ -1098,6 +1103,8 @@ def test_the_old_readers_nightly_path_does_not_import_the_new_reader():
         sys.path[:0] = [{str(ROOT)!r}, {str(BACKEND_DIR)!r}]
         os.environ["CHROLLO_DB_PATH"] = os.path.join({str(ROOT)!r}, "nonexistent", "x.db")
         import core.pipeline.screening.scan_job, core.archive.writer, core.archive.seed
+        from engine_alpha.freeze.manifest import manifest_hash
+        manifest_hash()
         leaked = sorted(m for m in sys.modules if m.startswith("engine_alpha.two_eyes."))
         leaked += ["engine_alpha.two_eyes"] if "engine_alpha.two_eyes" in sys.modules else []
         print("LEAKED:" + ",".join(leaked))

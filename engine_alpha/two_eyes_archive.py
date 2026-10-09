@@ -79,8 +79,9 @@ _DATE_COLUMNS = frozenset(
 
 
 def _clean(value):
-    """NaN and pandas' own nulls become None. A NaN that reaches SQLite binds
-    as a float and reads back as a number, so it must die here."""
+    """NaN and pandas' own nulls become None: the family's one producer says
+    "no value" one way for every writer and every reader of the row (SQLite
+    would store a bare NaN as empty too; pandas' NaT and NA would not bind)."""
     if value is None:
         return None
     try:

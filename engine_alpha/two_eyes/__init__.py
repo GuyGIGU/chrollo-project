@@ -33,7 +33,7 @@ from engine_alpha.two_eyes import lps
 from engine_alpha.two_eyes import mini
 from engine_alpha.two_eyes import state as state_word
 from engine_alpha.two_eyes import story
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes import walk
 from engine_alpha.two_eyes.frame import DAILY_RANGE, FrameRefused, check as check_frame, prepare
 from engine_alpha.two_eyes.line import SwingLine, Turn, build as build_line

@@ -67,6 +67,14 @@ function scanFreshness(scanStatus, screenerData, ordered) {
       color: scanStatusColor(status),
     };
   }
+  // A finished run the backend says needs attention (a night that lost archive rows): its reason, never a clean
+  // "scanned" line (council review 2026-10-09, finding 12). Word and tone come resolved off the wire.
+  if (status === 'ok' && scanStatus.verdict) {
+    return {
+      text: `${scanStatus.reason || 'the last scan needs attention'} ${fmtScanTime(scanStatus.finished_at)}`,
+      color: scanStatusColor(status, scanStatus.verdict),
+    };
+  }
   const stale = ranOnPriorDay(screenerData?.scanned_at);
   const zero = screenerData && ordered.length === 0;
   return {

@@ -1,7 +1,7 @@
 """The ONE door to the chart reader.
 
-Task 4 of the two-eyes-reader build. Two readers are about to exist side by
-side — today's engine and the new one written in his order — and the only way
+Task 4 of the two-eyes-reader build. Two readers exist side by side —
+today's engine and the new one written in his order — and the only way
 that can be safe is if every caller asks the same door which reader answered.
 
 **Why a door at all.** The reader has three entry points, not one, and they are
@@ -18,15 +18,14 @@ would have kept reading the old engine while the board read the new one, and
 nobody would have been told.
 
 **What the door does NOT do.** It does not change a single byte of what the
-engine returns. Today every function here forwards to the reader that exists,
-and the flag-off output is the same object it always was. The reader's NAME
+engine returns. With the switch off every function here forwards to today's
+engine, and the flag-off output is the same object it always was. The reader's NAME
 rides out of band, through an optional ``stamp`` dict — the sink idiom this
 codebase already uses for ``watch`` and ``near_miss`` — so "which reader
 answered" can be printed on a board or asserted in a test without appearing in
 a result dict, an archive row or a wire payload.
 
-**The switch is read in ONE function**, :func:`which_reader`. When the new
-reader lands (task 5) it is added there and nowhere else.
+**The switch is read in ONE function**, :func:`which_reader`, and nowhere else.
 """
 from __future__ import annotations
 
@@ -37,7 +36,7 @@ import pandas as pd
 from config import settings
 
 #: What :func:`which_reader` can answer. ``OLD`` is today's engine; ``NEW`` is
-#: the two-eyes reader, which does not exist yet — task 5 introduces it behind
+#: the two-eyes reader (every stage built, dark), behind
 #: ``TWO_EYES_READER_ENABLED``.
 READER_OLD = "old"
 READER_NEW = "new"
@@ -54,6 +53,14 @@ def which_reader() -> str:
     if getattr(settings, "TWO_EYES_READER_ENABLED", False):
         return READER_NEW
     return READER_OLD
+
+
+class ReadFailed(ValueError):
+    """The new reader refused a chart: a failed read, which is never "no setup".
+
+    A ValueError, so every caller that already skips a date on a crash keeps
+    doing so; one that must SAY why (the manual add, the seed's count) catches
+    this first (council review 2026-10-09, finding 3)."""
 
 
 def _stamp(stamp: Optional[dict], reader: str) -> None:
@@ -157,7 +164,7 @@ def run_eval_chain(ticker: str, df: pd.DataFrame,
         # This entry point's contract is that it RAISES; the caller decides.
         read, result = _two_eyes(ticker, df, watch)
         if read is not None and read.failed:
-            raise ValueError(f"two-eyes reader refused {ticker}: {read.refusal}")
+            raise ReadFailed(f"two-eyes reader refused {ticker}: {read.refusal}")
         return result
     return evaluation._run_eval_chain(ticker, df, spy_6m_return, breadth_pct,
                                       **_only_given(near_miss=near_miss, watch=watch))
@@ -182,12 +189,14 @@ def scan_worker(*, near_miss_lane: bool, watch_lane: bool, rescue_lane: bool = F
         # The new reader has no lanes yet, and the lane twins reach the old
         # engine directly — they take no inner worker. Composing them here
         # would hand the pool the OLD engine while the stamp said "new", which
-        # is the split brain this door exists to prevent. The switch is for
-        # the tests and the yardstick until the lanes are built (task 12).
+        # is the split brain this door exists to prevent. Every stage of the
+        # reader, its screen block and the approval pack are built; the scan's
+        # lanes are the go-live plan's work, after his approval sitting.
         raise NotImplementedError(
-            "the two-eyes reader is not wired for the nightly scan yet: its "
-            "lanes arrive with the display work. Flip TWO_EYES_READER_ENABLED "
-            "for the tests and the yardstick only.")
+            "the two-eyes reader is not wired for the nightly scan yet: the "
+            "scan's lanes are the go-live plan's work, after his approval "
+            "sitting. Flip TWO_EYES_READER_ENABLED for the tests and the "
+            "measuring tools only.")
     worker = evaluation.evaluate_ticker_with_near_miss if near_miss_lane else evaluate_ticker
     if watch_lane:
         worker = partial(evaluation.evaluate_ticker_with_watch, inner=worker)
@@ -200,22 +209,26 @@ def read_box(df: pd.DataFrame, atr: float, *, bricks=None, trace=None,
              near_miss=None, stamp: Optional[dict] = None):
     """The box read alone: no pullback, no score, no verdict.
 
-    The calibration workbench, the doctrine audit and the censuses read a chart
-    this way — they want the lines and the reasons, not a fire.
+    The calibration workbench, its grading and the replay seam read a chart
+    this way — they want the lines and the reasons, not a fire. (The doctrine
+    audit reads the old engine directly, not through here.)
     """
     from engine_alpha.structure.narrative import read_structure
 
     answering = which_reader()
     _stamp(stamp, answering)
     if answering == READER_NEW:
-        # The skeleton draws no lines, and "no lines" in this entry point's
-        # vocabulary is None — the same answer the old box read gives when it
-        # finds nothing, so every caller's no-read branch already handles it.
-        from engine_alpha import two_eyes
-
-        read = two_eyes.read("", df)
-        if read.failed:
-            raise ValueError(f"two-eyes reader refused the frame: {read.refusal}")
-        return None
+        # Refused out loud, as the scan's worker does. Its callers (the
+        # workbench's "why did this mark miss", its grading, the replay seam)
+        # read the OLD reader's box shape and trace; this
+        # door used to read the chart with the new reader, throw the read away
+        # and answer None — "no box" — for every chart, which looks like a real
+        # answer (council review 2026-10-09, finding 2). Giving them the new
+        # reader's box is the go-live plan's work.
+        raise NotImplementedError(
+            "the two-eyes reader has no box-only read for the old reader's "
+            "callers yet (the calibration workbench and the replay seam): that "
+            "is the go-live plan's work. Flip "
+            "TWO_EYES_READER_ENABLED for the tests and the measuring tools only.")
     return read_structure(df, atr, **_only_given(bricks=bricks, trace=trace,
                                                  near_miss=near_miss))

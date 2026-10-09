@@ -57,10 +57,11 @@ _ROOT = configure_path(backend=True)
 
 from engine_alpha.two_eyes import frame as two_eyes_frame  # noqa: E402
 from engine_alpha.two_eyes import line as two_eyes_line  # noqa: E402
-from engine_alpha.two_eyes import method_numbers as M  # noqa: E402
+from engine_alpha import two_eyes_numbers as M  # noqa: E402
 from engine_alpha.two_eyes.runs import runs_on_the_line  # noqa: E402
 from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
-from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
+from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
+                                           stamp_line)
 from core.calibration.replay import fixture_frame, load_sealed_fixture  # noqa: E402
 
 #: The three far floors the plan asks the gate to measure (task 8 left the floor a parameter).
@@ -929,8 +930,8 @@ def main() -> int:
     ap.add_argument("--json", metavar="PATH", help="also dump the measurements as JSON")
     args = ap.parse_args()
 
-    setups = load_corpus()
-    frames, _ = load_sealed_fixture()
+    setups, frames, stamp = load_sealed_standard()     # the drawings and their bars, one set (EC-13)
+    print(stamp_line(stamp))
     floors = tuple(sorted(set(FAR_FLOORS) | {args.floor}))
     started = time.perf_counter()
     rows = run_gate(setups, frames, floors)

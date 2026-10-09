@@ -3,13 +3,18 @@ upthrust follows his word of Thu 01/10/2026 on ALB ("that breach is not an upthr
 25/02/2026 ... that movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place where the
 trend ends"): crashing back may take more than one swing (``_crashes_back``), and a push that tops before the
 box's fifteenth day is the trend still ending, never an upthrust (``_upthrust_printed``, the ONE predicate both
-the upthrust and the spring's "the range ran on" read). Everything else is as copied. What follows is the copy's
-own header, kept for the record.
+the upthrust and the spring's "the range ran on" read). Since then: the last supper is named once per box and only
+when it digs deep (Sat 03/10 and Sun 04/10/2026), the numbers were re-placed in the box's own daily range (task
+12b; the current ones are `two_eyes_numbers`), and the rules are put together in ONE place, :func:`assemble`, which
+the story and :func:`read_line_words` both call (council review of Fri 09/10/2026, finding 13). What follows is
+the copy's own header, kept for the record; two of its sentences no longer hold HERE: these words are not
+measure-only (the story names them on the screen and the grade forgives their own swings), and the floors it
+quotes (UNF 0.94, VIK 1.55) were re-measured in the box's own range (UNF 1.21, VIK 1.31: the floor is 1.25).
 
 COPIED from engine_alpha/structure/events/line_words.py at cd87fcc (two-eyes-reader task 7): the word rules — THE SOS, the upthrust, the last supper, Phase C and its spring test, Phase D, the mini, and the reader `read_line_words`; NOT the old engine's flag plumbing (`_WORDS_BY_FLAG`, `any_word_enabled`, `emitted`), which is how the old engine emitted words, not a rule for reading one.
 
 Verbatim, function for function, but for this: every number it reads (the LINE_WORD_* values) comes from the new reader's own
-`method_numbers` instead of the SHARED settings, with the same values; and the line is the
+`two_eyes_numbers` instead of the SHARED settings, with the same values; and the line is the
 copied swing line in this package. The original stays in the old
 engine, frozen, and the old engine keeps reading it; this copy is the new reader's, and changes on
 purpose from here. tests/engine/test_two_eyes_copies_equal_originals.py pinned the two equal once, on the
@@ -98,7 +103,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.swing_line import turn_line, turn_line_floors
 
 
@@ -447,10 +452,32 @@ def _empty(unit, read_bar):
             "spring_tests": [], "phase_d": None, "mini": None}
 
 
-def read_line_words(df, box, unit, *, lps=None, inner=None):
+def assemble(line, highs, lows, *, start: int, R: float, S: float, unit: float, read_bar: int,
+             lps_start=None, lps_low_bar=None, fifteenth: int) -> dict:
+    """The word rules put together ONCE: the pushes, the spring and its tests, THE SOS, THE upthrust, the last
+    suppers and the opening of Phase D, on ``line`` (bar, kind, price, knowable bar) inside the box opened on
+    ``start``. The story (``story.read``) and :func:`read_line_words` both call it (council review 2026-10-09,
+    finding 13); word recall feeds it the reader's own line, in the box's own daily range. ``fifteenth`` is the
+    caller's: the story counts it from the end of the trend, a box with no trend end (his own drawn box, in
+    word recall) from its own first line."""
+    pushes = thrusts(line, start, R, unit)
+    spring = phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=fifteenth)
+    sos = pick_the_sos(pushes, lps_low_bar, after=spring["tip_bar"] if spring is not None else None,
+                       line=line, highs=highs, start=start, read_bar=read_bar, unit=unit)
+    return {"thrusts": pushes, "phase_c": spring, "the_sos": sos,
+            "spring_tests": spring_tests(line, spring, S, unit),
+            "the_upthrust": the_upthrust(pushes, line, R, unit, spring, start, read_bar, fifteenth=fifteenth),
+            "last_suppers": last_suppers(pushes, lows, unit, lps_start, R=R, pc=spring, start=start,
+                                         read_bar=read_bar),
+            "phase_d": phase_d(line, start, R, S, unit, spring, sos, lps_start, read_bar)}
+
+
+def read_line_words(df, box, unit, *, lps=None, inner=None, line=None):
     """Every word on the line inside the elected box, read on the frame's last day. ``box`` carries
     ``start_bar``, ``R`` and ``S``; ``lps`` (``start_bar``, ``low_bar``, ``low``) and ``inner`` (the mini) may be
-    None. Bars are the frame's own positions."""
+    None. Bars are the frame's own positions. ``line`` is the turn line to read (bar, kind, price, knowable
+    bar); without it the line is built here from the frame's per-bar range, the scalar ``unit`` filling any bar
+    with none. Word recall passes the READER's own line, so it measures the words the reader names."""
     n = len(df)
     unit = float(unit) if unit is not None else float("nan")
     if n == 0 or not np.isfinite(unit) or unit <= 0:
@@ -458,20 +485,13 @@ def read_line_words(df, box, unit, *, lps=None, inner=None):
     rec = _empty(unit, n - 1)
     highs = df["High"].to_numpy(dtype=float)
     lows = df["Low"].to_numpy(dtype=float)
-    line = [(int(b), k, float(p), None if know is None else int(know))          # native types: the record is JSON
-            for (b, k, p, know) in turn_line(highs, lows, turn_line_floors(df, unit))]
+    if line is None:
+        line = [(int(b), k, float(p), None if know is None else int(know))      # native types: the record is JSON
+                for (b, k, p, know) in turn_line(highs, lows, turn_line_floors(df, unit))]
     start, R, S = int(box.start_bar), float(box.R), float(box.S)
     lps_start = int(lps.start_bar) if lps is not None else None
     lps_low_bar = int(lps.low_bar) if lps is not None else None
-    fifteenth = start + M.BOX_DAYS - 1
-    th = thrusts(line, start, R, unit)
-    pc = phase_c(line, highs, start, S, unit, R, lps_start, n - 1, fifteenth=fifteenth)
-    sos = pick_the_sos(th, lps_low_bar, after=pc["tip_bar"] if pc is not None else None,
-                       line=line, highs=highs, start=start, read_bar=n - 1, unit=unit)
-    rec.update(thrusts=th, the_sos=sos,
-               the_upthrust=the_upthrust(th, line, R, unit, pc, start, n - 1, fifteenth=fifteenth),
-               last_suppers=last_suppers(th, lows, unit, lps_start, R=R, pc=pc, start=start, read_bar=n - 1),
-               phase_c=pc, spring_tests=spring_tests(line, pc, S, unit),
-               phase_d=phase_d(line, start, R, S, unit, pc, sos, lps_start, n - 1),
+    rec.update(assemble(line, highs, lows, start=start, R=R, S=S, unit=unit, read_bar=n - 1,
+                        lps_start=lps_start, lps_low_bar=lps_low_bar, fifteenth=start + M.BOX_DAYS - 1),
                mini=mini(inner, lps, unit, n - 1))
     return rec

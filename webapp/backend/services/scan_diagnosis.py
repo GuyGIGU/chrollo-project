@@ -48,6 +48,8 @@ FAILURE_KINDS = (
 )
 # What the reconcile stamps: "interrupted, cause not yet determined".
 PENDING_KIND = "interrupted_unknown"
+#: The start of an OK run's error cell when its archive writer refused rows (`refused_rows_error`).
+REFUSED_ROWS_MARKER = "archive rows refused: "
 
 # ------------------------------------------------------------- verdict ----
 
@@ -284,9 +286,36 @@ def _failure_signature(row: dict) -> tuple:
     return (row.get("status"), _interruption_kind(row))
 
 
+def refused_rows_error(n_refused: int) -> str:
+    """The error cell an OK run carries when its archive writer refused rows (council review 2026-10-09,
+    finding 12): the scan finished, so the run is not 'failed', but a lost row is the one thing a re-run
+    cannot put back, so the run's own record says it, not only a log line and the alert."""
+    return f"{REFUSED_ROWS_MARKER}{int(n_refused)}"
+
+
+def _refused_rows(row: dict) -> int | None:
+    error = row.get("error") or ""
+    if row.get("status") != "ok" or not error.startswith(REFUSED_ROWS_MARKER):
+        return None
+    try:
+        return int(error[len(REFUSED_ROWS_MARKER):])
+    except ValueError:
+        return None
+
+
 def _describe_run(row: dict) -> dict:
     row = row or {}
     status = row.get("status")
+    lost = _refused_rows(row)
+    if lost:
+        job = row.get("kind")
+        return {
+            "verdict": NEEDS_ATTENTION,
+            "reason": _in_words(
+                "{Job} finished, but " + f"{lost} of the setups it read never reached the archive.", job),
+            "solution": "Those setups are missing from that night's record, and a re-run cannot add them "
+                        "back. The service log names each row the archive refused.",
+        }
     if status in (None, "ok", "running", "never"):
         return {"verdict": None, "reason": None, "solution": None}
     kind = _interruption_kind(row)

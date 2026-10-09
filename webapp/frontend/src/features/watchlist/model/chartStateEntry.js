@@ -28,12 +28,17 @@ export const chartStateLine = (entry) => {
   const state = entry.body;
   if (!state?.state) return null;
   let line = state.why ? `${state.state}: ${state.why}` : state.state;
-  // The days that ride beside a word that counts them, never written into the word.
-  if (state.days != null) line += ` (${fx(state.days, 0)} days)`;
+  // The days that ride beside a word that counts them, never written into the word — and each count says what it
+  // counts, because the box's age can stand on the same line (council review 2026-10-09, finding 15).
+  if (state.days != null) {
+    line += state.state === 'forming N of 15'
+      ? ` (day ${fx(state.days, 0)} of 15)`
+      : ` (${fx(state.days, 0)} days past the line)`;
+  }
   if (state.distance_ranges != null) line += ` (${fx(state.distance_ranges, 1)} ranges)`;
   if (state.R != null && state.S != null) {
     line += ` · R ${fx(state.R, 2)} / S ${fx(state.S, 2)} · open ${fmtDay(state.open)}`;
-    if (state.age != null) line += ` · ${fx(state.age, 0)} days`;
+    if (state.age != null) line += ` · box ${fx(state.age, 0)} days`;
     if (state.turns_at_r != null) line += ` · turns ${fx(state.turns_at_r, 0)} / ${fx(state.turns_at_s, 0)}`;
   }
   return line;

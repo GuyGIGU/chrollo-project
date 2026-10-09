@@ -1,6 +1,8 @@
 {
  "_about": "The old chart reader, frozen until the flip (two-eyes-reader task 7). The freeze base moved from cd87fcc to 61c88cc when the branch was ported onto main's domain layout (Sat 26/09/2026): the same scope, re-fingerprinted at main's paths, every file checked against that commit. sha256 of each file's text with line endings normalised to LF, so the Windows checkout and the one-commit CI checkout agree. tests/engine/test_old_engine_frozen.py fails on any edit, any new file and any removed file under these paths. The flip retires both.",
  "base": "61c88cc",
+ "_settings_about": "The old chart reader's KNOBS, pinned beside its files (council review Fri 09/10/2026, finding 1): sha256 of the engine's version stamp (engine_alpha/freeze/manifest.py collect_manifest, canonical JSON) with every TWO_EYES_* entry left out. Captured on c442503, where the stamp is fce78b48 and the old reader's settings are those of the freeze base: the branch added only the TWO_EYES_* entries. tests/engine/test_old_engine_frozen.py fails when it moves.",
+ "settings_sha256": "ef5de2f09ccec50d77c60eaf6ab823bbf99a6c65dae10373b6f8dfb8b4832591",
  "files": {
   "engine_alpha/election_identity.py": "16a35a10a719814e6ff341855012ff984a1a0e00783d26270ef84570691d0809",
   "engine_alpha/evaluation.py": "ad3ec853427e6adc53d2e3f62ae75b0d512a0adadf24db0e8870e2c834b463ae",

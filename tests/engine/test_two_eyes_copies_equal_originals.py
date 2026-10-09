@@ -224,7 +224,7 @@ def test_the_window_rule_copy_cuts_the_same_frame_on_every_fixture_frame():
     pinned once, like the pieces, on the 88 frames at the window the reader uses."""
     from engine_alpha import frames as old_frames
     from engine_alpha.two_eyes import frame as new_frame
-    from engine_alpha.two_eyes import method_numbers
+    from engine_alpha import two_eyes_numbers as method_numbers
 
     cut = 0
     for name, raw in _all_fixture_frames().items():
@@ -236,18 +236,21 @@ def test_the_window_rule_copy_cuts_the_same_frame_on_every_fixture_frame():
 
 
 def test_the_copies_read_no_shared_setting():
-    """The copies' numbers are their own (engine_alpha/two_eyes/method_numbers.py). Were a copy to read
-    `config.settings`, tuning a shared knob for the new reader would move the frozen original with it — and
-    the freeze guard, which watches FILES, could not see a settings value change."""
+    """The copies' numbers are their own (engine_alpha/two_eyes_numbers.py, outside the package since the council
+    review of Fri 09/10/2026). Were a copy to read `config.settings`, tuning a shared knob for the new reader would
+    move the frozen original with it — and the freeze guard, which watches FILES, could not see a settings value
+    change."""
     import ast
     import os
 
     root = str(REPO_ROOT)
     package = os.path.join(root, "engine_alpha", "two_eyes")
     names = sorted(f[:-3] for f in os.listdir(package) if f.endswith(".py"))
-    assert {"daily_range", "swing_line", "runs", "line_words", "method_numbers"} <= set(names)
-    for name in names:
-        path = os.path.join(package, f"{name}.py")
+    assert {"daily_range", "swing_line", "runs", "line_words"} <= set(names)
+    paths = [os.path.join(package, f"{name}.py") for name in names]
+    paths.append(os.path.join(root, "engine_alpha", "two_eyes_numbers.py"))
+    for path in paths:
+        name = os.path.basename(path)[:-3]
         with open(path, encoding="utf-8") as f:
             tree = ast.parse(f.read())
         imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
@@ -289,7 +292,7 @@ def test_the_copies_numbers_start_at_the_values_the_originals_read():
     upthrust's poke could drift from 1.25 to 1.27 and pass them all); this fails on any drift. The task that
     first moves a number on purpose takes its name out of `pinned` in the same commit."""
     from config import settings
-    from engine_alpha.two_eyes import method_numbers
+    from engine_alpha import two_eyes_numbers as method_numbers
 
     # Two left on purpose at build task 12b (Fri 02/10/2026): the ground of a push and the dig of a last supper
     # were re-placed in the box's own range, from his marks (tests/engine/test_two_eyes_story.py holds them now).
@@ -304,7 +307,7 @@ def test_a_changed_number_moves_the_version_stamp(monkeypatch):
     settings only: a tuned number would have changed the reading and kept the stamp, so the archived rows
     before and after could not be told apart. Each number, moved alone, must move the stamp."""
     from engine_alpha.freeze import manifest
-    from engine_alpha.two_eyes import method_numbers
+    from engine_alpha import two_eyes_numbers as method_numbers
 
     names = sorted(n for n in vars(method_numbers) if n.isupper())
     assert len(names) == 21, names           # six from the copies (task 7; R15's margin left with the box-end copy at task 11), two from stage 1 (task 8), three from stages 2 and 3 (task 10), five from stage 6 (task 12a), the last supper's naming floor (Sat 03/10/2026), four from the grade (task 14)

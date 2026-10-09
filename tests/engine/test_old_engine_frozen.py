@@ -71,3 +71,38 @@ def test_the_freeze_covers_every_file_it_names_and_nothing_else():
     assert len(pinned["files"]) >= 47, "the frozen set shrank"
     for p in pinned["files"]:
         assert p in _FROZEN_FILES or p.startswith(_FROZEN_TREES), f"{p} is fingerprinted but not frozen"
+
+
+def _old_reader_settings_digest() -> str:
+    """The engine's version stamp with the new reader's own entries left out: every knob the old reader reads
+    (detection, scoring, the derived registries), and nothing the new reader's tuning moves."""
+    from engine_alpha.freeze.manifest import collect_manifest
+
+    old = {key: value for key, value in collect_manifest().items() if not key.startswith("TWO_EYES")}
+    return hashlib.sha256(json.dumps(old, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def test_the_old_chart_readers_knobs_have_not_moved_since_the_freeze():
+    """Freezing the old reader's FILES does not freeze its KNOBS: a threshold in config/engine.py or a weight in
+    config/scoring.py moves its reading with every file above unchanged. The version stamp would rotate, but it
+    also carries the new reader's numbers, so its "engine config changed" advisory is lit for a reason that is
+    not the old reader's (council review 2026-10-09, finding 1). This pins the stamp without those entries."""
+    with open(_MANIFEST, encoding="utf-8") as f:
+        pinned = json.load(f)["settings_sha256"]
+    assert _old_reader_settings_digest() == pinned, (
+        "an old-reader knob moved (config/engine.py, config/scoring.py or a registry the version stamp hashes): "
+        "the old chart reader is frozen until the flip. If this is the flip itself, retire this guard with the "
+        "file guard above.")
+
+
+def test_the_knob_guard_sees_a_moved_knob(monkeypatch):
+    """The guard's teeth: one old-reader knob moved, and the digest moves with it."""
+    from config import settings
+    from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
+
+    before = _old_reader_settings_digest()
+    knob = next(k for k in ENGINE_SETTINGS_KEYS
+                if not k.startswith("TWO_EYES") and isinstance(getattr(settings, k), (int, float))
+                and not isinstance(getattr(settings, k), bool))
+    monkeypatch.setattr(settings, knob, getattr(settings, knob) + 1)
+    assert _old_reader_settings_digest() != before, f"moving {knob} did not move the digest"

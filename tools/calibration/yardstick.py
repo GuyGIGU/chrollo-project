@@ -57,7 +57,8 @@ _ROOT = configure_path(backend=True)
 
 from engine_alpha import reader  # noqa: E402
 from engine_alpha.election_identity import projection  # noqa: E402
-from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
+from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
+                                           stamp_line)
 from core.calibration.replay import (  # noqa: E402
     FROZEN_SPY_6M,
     drawn_box_window,
@@ -778,8 +779,8 @@ def main() -> int:
     args = ap.parse_args()
 
     arms_wanted = args.arm or list(ARMS)
-    setups = load_corpus()
-    frames, _ = load_sealed_fixture()
+    setups, frames, stamp = load_sealed_standard()     # the drawings and their bars, one set (EC-13)
+    print(stamp_line(stamp))
     by_key = {setup_key(s): s for s in setups}
 
     arms, junk = [], {}

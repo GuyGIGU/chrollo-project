@@ -533,14 +533,18 @@ def collect_manifest() -> Dict[str, Any]:
 
     manifest["SENTENCE_VOCABULARY"] = event_vocabulary.vocabulary_manifest()
     # The new reader's own numbers (two-eyes-reader task 7). Its copied pieces
-    # read them from method_numbers, not settings — a shared key would move the
+    # read them from two_eyes_numbers, not settings — a shared key would move the
     # frozen original with them — so without this block a tuned number would
-    # change the reading and keep the version.
-    from engine_alpha.two_eyes import method_numbers
+    # change the reading and keep the version. The numbers live OUTSIDE the
+    # package (a module with no imports): this stamp runs on every night's
+    # payload and archive write, and importing them from inside the package ran
+    # its door, which loads every stage — so a broken stage stopped the old
+    # reader's night with the switch off (council review 2026-10-09, finding 1).
+    from engine_alpha import two_eyes_numbers
 
     manifest["TWO_EYES_METHOD_NUMBERS"] = {
         name: _canonical(value)
-        for name, value in vars(method_numbers).items() if name.isupper()}
+        for name, value in vars(two_eyes_numbers).items() if name.isupper()}
     return manifest
 
 

@@ -15,7 +15,9 @@ Task 14 of the two-eyes-reader build. His words that place it:
 The rules, each measured on his 40 and the 14 junk fires before it was built (the decisions rows of Fri
 09/10/2026, the grade probe's fifth reading):
 
-1. The box is the setup's box, the parent, whatever box the LPS was read against.
+1. The box is the setup's box, the parent, whatever box the LPS was read against. OURS: the record of Mon
+   05/10/2026 calls the parent reading his call, not ours, and the build took it; it is what makes SIMO an S (C
+   on two of its fire days read against the mini). On his sitting list (the approval pack's first section).
 2. The base runs from the box's opening day to the day before THE SOS's push (the story's first SOS, when its push
    begins after the box opened; a later SOS is never looked at), else to the read day. From the push on is the
    right side.
@@ -37,8 +39,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.record import LAST_SUPPER, SOS, SPRING, SPRING_TEST, UPTHRUST, Grade, Step
+from engine_alpha.two_eyes.state import side
 
 STAGE = "grade"
 #: The named events whose own swing is story, never empty (his 13/09/2026). "Forgiven" is the build's word: each event
@@ -88,7 +91,7 @@ def read(high, low, days, turns, events, *, R: float, S: float, unit: float, ope
     end = days.index(sos.first_day) - 1 if sos is not None else read_bar
     swings = own_swings(events, [t.day for t in turns], days[0], days[read_bar])
     empty = sum(1 for i in range(opening_bar, end + 1)
-                if (low[i] > R + area or high[i] < S - area)                # beyond the line's area: not a hair
+                if side(high[i], low[i], R, S, area) is not None            # beyond the line's area: not a hair
                 and not any(a <= days[i] <= b for a, b in swings))          # outside every own swing: not story
     base = end - opening_bar + 1
     holds = True

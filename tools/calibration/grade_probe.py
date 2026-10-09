@@ -90,19 +90,19 @@ import time
 import numpy as np
 
 try:
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, refuse_sealed_output
 except ImportError:  # invoked as a script from the repo root
     import os, sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path  # type: ignore
+    from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 configure_path(backend=True)
 
 from engine_alpha import two_eyes  # noqa: E402
-from engine_alpha.two_eyes import method_numbers as M  # noqa: E402
+from engine_alpha import two_eyes_numbers as M  # noqa: E402
 from engine_alpha.two_eyes import record  # noqa: E402
 from engine_alpha.two_eyes.grade import whole_points  # noqa: E402
 from tools.calibration.core_board import junk_rows, run_board  # noqa: E402
-from tools.regression.marks_corpus import load_corpus  # noqa: E402
+from tools.regression.marks_corpus import load_corpus, load_sealed_standard  # noqa: E402
 from core.calibration.replay import load_sealed_fixture  # noqa: E402
 
 #: The six candidates and the control, each with its stated direction: +1 the junk reads higher, -1 lower.
@@ -392,8 +392,7 @@ def third_term(table: dict, is_junk: np.ndarray, shuffles: int = SHUFFLES) -> tu
 def collect() -> tuple:
     """Every chart's measures: his drawings on his last receding day, each junk chart on its first fire day (and
     on every fire day, for the bar)."""
-    setups = load_corpus()
-    frames, _ = load_sealed_fixture()
+    setups, frames, _stamp = load_sealed_standard()  # one set (EC-13)
     his = []
     for row in run_board(setups, frames):
         on = row["on_last"]
@@ -789,6 +788,10 @@ def main() -> int:
     ap.add_argument("--pages", metavar="DIR", help="also write one OHLC page per chart and the ranked sheet here")
     ap.add_argument("--shuffles", type=int, default=SHUFFLES, help=argparse.SUPPRESS)
     args = ap.parse_args()
+    # EC-14: every write path is checked before anything is read (council review 2026-10-09, finding 9).
+    for out in (args.json, args.pages):
+        if out:
+            refuse_sealed_output(out)
     started = time.perf_counter()
     his, junk, silent = collect()
     read_in = time.perf_counter() - started

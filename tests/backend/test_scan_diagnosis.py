@@ -339,6 +339,9 @@ def operator_sentences():
         for status in ("failed", "aborted", "stale_data", "expired"):
             yield from _sentences(f"{job}/{status}",
                                   diag.describe_run({"status": status, "kind": job}))
+        # A finished run that lost archive rows (council review 2026-10-09, finding 12).
+        yield from _sentences(f"{job}/lost rows", diag.describe_run(
+            {"status": "ok", "kind": job, "error": diag.refused_rows_error(3)}))
     for name in sorted(BUILT_CHECKS - {"ibkr"}):
         yield from _sentences(f"check/{name}",
                               diag.describe_health_check(name, {"ok": False}))

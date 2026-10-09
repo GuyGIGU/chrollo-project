@@ -25,7 +25,7 @@ import pytest
 
 from engine_alpha.two_eyes import frame as frame_module
 from engine_alpha.two_eyes import line as line_module
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.line import FORMING_ONLY, SwingLine, Turn, build
 
 FAR_FLOORS = (1.5, 2.5, 3.0)       # the listing gate's three candidates (task 9)

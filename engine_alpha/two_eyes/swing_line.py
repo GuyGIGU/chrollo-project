@@ -1,6 +1,6 @@
 """COPIED from engine_alpha/structure/metrics/pivots.py and engine_alpha/structure/events/market_structure.py at cd87fcc (two-eyes-reader task 7): the ONE turn line and its labels — `turn_line_floors`, `_opening_direction`, `turn_line`, `turns_at_rails` from pivots.py, and `_empty`, `label_market_structure` from market_structure.py.
 
-Copied verbatim but for the one number it reads (TURN_LINE_FLOOR_ATR, from the new reader's own `method_numbers`
+Copied verbatim but for the one number it reads (TURN_LINE_FLOOR_ATR, from the new reader's own `two_eyes_numbers`
 instead of the SHARED settings, same value), then CHANGED ON PURPOSE at task 8 (Sat 26/09/2026), the line's own
 task, in three places the original still has: (1) after a turn commits, the new leg's extreme is the true extreme
 since that turn over every bar to the confirming one, where the original starts the new leg at the confirming
@@ -21,7 +21,7 @@ from typing import Optional
 
 import numpy as np
 
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 
 
 def turn_line_floors(df, atr_val, mult=None):

@@ -285,25 +285,30 @@ def test_every_way_through_the_door_answers_with_the_reader_it_stamps(monkeypatc
     assert reader.run_eval_chain("T", frame, 0.0, None, stamp=stamp) is None
     assert stamp == {"reader": "new"}
 
-    # The box read's "no lines" is None — the same answer the old box read
-    # gives when it finds nothing, so every caller's no-read branch holds.
+    # The box read REFUSES the new reader out loud, as the scan does. It used to
+    # read the chart, throw the read away and answer None — "no box" — on every
+    # chart, so the workbench's "why did this mark miss", its grading and the
+    # replay would have said "no box" to every drawing of his, looking like a
+    # real answer (council review 2026-10-09, finding 2).
     stamp = {}
-    assert reader.read_box(frame, 1.0, stamp=stamp) is None
+    with pytest.raises(NotImplementedError, match="box-only read"):
+        reader.read_box(frame, 1.0, stamp=stamp)
     assert stamp == {"reader": "new"}
 
 
 def test_the_scan_refuses_the_new_reader_rather_than_running_the_old_one(monkeypatch):
     """The scan's lanes reach the old engine directly and take no inner
     worker, so composing them under the new reader would hand the pool the
-    OLD engine while the stamp said "new". It refuses out loud instead: the
-    switch is for the tests and the yardstick until the lanes are built."""
+    OLD engine while the stamp said "new". It refuses out loud instead, and
+    says where the lanes come from: the go-live plan (its words trued up by the
+    council review of 2026-10-09, finding 14: it used to blame "task 12")."""
     from config import settings
     from engine_alpha import reader
 
     monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True, raising=False)
     with pytest.raises(NotImplementedError) as refusal:
         reader.scan_worker(near_miss_lane=True, watch_lane=False)
-    assert "yardstick" in str(refusal.value)
+    assert "go-live plan" in str(refusal.value) and "task 12" not in str(refusal.value)
 
 
 def test_a_frame_that_is_not_a_chart_is_a_counted_failure_not_a_crash(monkeypatch):

@@ -199,3 +199,19 @@ test('the registry leads with the verdict on both of its surfaces', () => {
   assert.ok(src.includes('verdict={health?.verdict}'));
   assert.ok(src.includes('RUN_VERDICT_LABELS[verdict]'));
 });
+
+// Council review 2026-10-09, finding 12 (verify-5): a night that finished but lost archive rows arrives with status
+// 'ok' and a resolved verdict. The pill and the registry said so; the topbar read "ok" in the success colour, the
+// reason only in its hover title. The verdict is read off the wire (EC-28), never worked out here.
+test('a finished run the backend says needs attention does not read as a clean ok', () => {
+  const lost = { status: 'ok', verdict: 'needs_attention', n_setups: 12, finished_at: '2026-10-08T21:30:00Z' };
+  const text = buildScanStatusText(lost);
+  assert.ok(text.endsWith(`| ${RUN_VERDICT_LABELS.needs_attention}`), text);
+  assert.equal(scanStatusColor(lost.status, lost.verdict), RUN_VERDICT_TONES.needs_attention);
+  assert.notEqual(scanStatusColor(lost.status, lost.verdict), scanStatusColor('ok'));
+  // A clean night, and a failed one (its own word stays), are unchanged.
+  const clean = { status: 'ok', verdict: null, n_setups: 12, finished_at: '2026-10-08T21:30:00Z' };
+  assert.match(buildScanStatusText(clean), /\| ok$/);
+  assert.equal(scanStatusColor('ok', null), 'var(--success)');
+  assert.match(buildScanStatusText({ status: 'failed', verdict: 'rerunnable', n_setups: null }), /\| failed$/);
+});

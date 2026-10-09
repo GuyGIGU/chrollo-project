@@ -128,7 +128,7 @@ def test_the_new_package_imports_nothing_from_the_old_engine():
     ("from engine_alpha.reader import read_box", True),  # the door loads the old engine
     ("from engine_alpha import reader", True),
     ("from . import record", False),                  # the leaf's own modules
-    ("from engine_alpha.two_eyes import method_numbers as M", False),
+    ("from engine_alpha import two_eyes_numbers as M", False),
     ("from engine_alpha import two_eyes_roles", False),
     ("import pandas as pd", False),
 ])

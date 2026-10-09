@@ -40,7 +40,7 @@ from __future__ import annotations
 from typing import Optional
 
 from engine_alpha.two_eyes.record import ROLE_MINI, ROLE_PARENT, Box, Step
-from engine_alpha.two_eyes.walk import Life, Pair, Walk, _box_record, lives
+from engine_alpha.two_eyes.walk import Life, Pair, Walk, _box_record, lies_beyond, lives
 
 __all__ = ["STAGE", "a_small_box_inside", "candidates", "could_not_be_read", "find", "inside_or_across",
            "is_a_mini", "lps_box", "on_the_right_side", "record", "where"]
@@ -57,8 +57,8 @@ def on_the_right_side(pair: Pair, parent: Pair) -> bool:
 
 
 def inside_or_across(pair: Pair, parent: Pair) -> bool:
-    """Layer 2: not beyond the parent — the negation of the walk's test for a pair that could take its place."""
-    return not (pair.S >= parent.R - parent.area or pair.R <= parent.S + parent.area)
+    """Layer 2: not beyond the parent — the walk's own judgment (``walk.lies_beyond``), negated."""
+    return not lies_beyond(pair, parent)
 
 
 def a_small_box_inside(pair: Pair, parent: Pair) -> bool:

@@ -219,3 +219,18 @@ def test_the_board_draws_the_mini_and_names_the_box_the_lps_was_read_against(tmp
     assert "THE MINI (never counted above): a second box inside the parent on 1 of 1: DSGN:2026-03-31 10.97 / 9.66" in board
     assert "your drawn mini on DSGN:2026-03-31: the reader's mini 10.97 / 9.66 is within half a range of your band 10.97 / 9.90" in board
     assert "the LPS read against the mini on 1 (in 1)" in board and "the mini could not be read: 0" in board
+
+
+def test_the_letter_is_counted_night_after_night_on_his_drawings():
+    """The grade keys off THE SOS, a word that moves between nights; how often the letter moves with it is
+    measured, never assumed (council review 2026-10-09, finding 6)."""
+    from core.calibration.replay import load_sealed_fixture
+    from tools.calibration import core_board
+    from tools.regression.marks_corpus import load_corpus, setup_key
+
+    frames, _ = load_sealed_fixture()
+    setups = [s for s in load_corpus() if setup_key(s) in ("MTLS:2026-09-04", "ALB:2026-04-13")]
+    moves = core_board.grade_moves(setups, frames, back=3)
+    assert moves["nights"] >= 8 and 0 < moves["pairs"] < moves["nights"]
+    assert 0 <= moves["moves_with_the_sos"] <= moves["moves"] <= moves["pairs"]
+    assert set(moves["charts"]) <= {"MTLS:2026-09-04", "ALB:2026-04-13"}

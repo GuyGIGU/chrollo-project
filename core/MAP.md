@@ -119,10 +119,24 @@ that scoped overrides and tests patch.
 
 ## 2b. `engine_alpha/reader.py` — the ONE door to the chart reader
 
-Two readers are being built side by side (today's engine, and the two-eyes reader
-of the 2026-09-20 rewrite), so **every shipping path and every gate asks the same
-door which reader answers**, and the switch is read in exactly one function
-(`which_reader`). The door has three ways in — `evaluate_ticker` (the whole chain
+Two readers exist side by side (today's engine, and the two-eyes reader of the
+2026-09-20 rewrite: every stage built, dark), so **every shipping path and every gate
+asks the same door which reader answers**, and the switch is read in exactly one
+function (`which_reader`). With the switch on, `scan_worker` and `read_box` refuse out
+loud (the scan's lanes and a new-reader box for the old callers are the go-live plan's
+work), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a
+failed read is never told as "no setup".
+
+**The two-eyes reader and its doors.** `engine_alpha/two_eyes/` is the reader itself,
+a leaf inside the leaf: it imports nothing of the old reader (`structure`, `scoring`,
+`evaluation`), and its stages run in his order (`frame`, `line`, `walk`, `lps`, `story`,
+`mini`, `grade`, `state`; `record.py` is the shape of a read). Around it, each OUTSIDE
+the package so the old reader's night never loads it: `two_eyes_numbers.py` (its own
+numbers, hashed into the version stamp), `two_eyes_roles.py` (the box roles the archive
+needs), `two_eyes_adapter.py` (a read spoken in the old result shape, the one place the
+two vocabularies meet), `two_eyes_archive.py` (the dated-line archive columns, one
+producer for every writer) and `market_sessions.py` (the NYSE calendar, moved here from
+`core` so the leaf can read it). The door has three ways in — `evaluate_ticker` (the whole chain
 under its skip guard), `run_eval_chain` (the chain that raises, for callers that
 want the exception) and `read_box` (the box read alone, no pullback, no score) —
 plus `scan_worker`, which composes the scan's three lanes (the near-miss cohort, the

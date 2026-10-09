@@ -28,7 +28,7 @@ def _the_numbers_these_charts_were_drawn_at(monkeypatch):
     covers 1.70 ranges, a last supper digs 1.5). Build task 12b re-placed those two in the box's own range, from
     his marks. What this file tests is each rule's LOGIC, so its charts keep the numbers they were drawn at; the
     placing of the numbers is held to his marked bars in tests/engine/test_two_eyes_story.py."""
-    from engine_alpha.two_eyes import method_numbers
+    from engine_alpha import two_eyes_numbers as method_numbers
     monkeypatch.setattr(method_numbers, "LINE_WORD_SOS_MIN_GROUND_ATR", 1.70)
     monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_DIG_ATR", 1.5)
     monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_NAMED_DIG_ATR", 1.5)
@@ -371,7 +371,7 @@ def test_two_tops_falling_into_one_low_are_one_correction(u):
 def test_a_pause_that_ends_a_push_is_not_named_a_last_supper_unless_it_is_deep(monkeypatch):
     """"a noticeable deep correction" (Sat 03/10/2026): the push-ending floor and the naming floor are two numbers.
     A 1.2-range drop off a top over R ends a push at 1.03 but is no last supper at 1.32; a 1.4-range drop is one."""
-    from engine_alpha.two_eyes import method_numbers
+    from engine_alpha import two_eyes_numbers as method_numbers
     monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_DIG_ATR", 1.03)
     monkeypatch.setattr(method_numbers, "LINE_WORD_SUPPER_NAMED_DIG_ATR", 1.32)
     th = [{"top_bar": 5, "launch_bar": 0, "top_price": 14.5}]
@@ -736,3 +736,48 @@ def test_the_reader_reads_the_line_it_is_given_and_nothing_else(monkeypatch):
         monkeypatch.setattr(settings, name, value)
     assert W.read_line_words(df, box, 1.0, lps=lps) == rec, \
         "no box-height knob, hold clock or line flag moves a word"
+
+
+def test_the_story_and_word_recall_put_the_words_together_in_one_place(monkeypatch):
+    """The word rules were put together twice: the story's own chain, and `read_line_words` (word recall's), which
+    counted the upthrust's fifteen days from another start and built its own line, so word recall measured an
+    assembly the reader never ran (council review 2026-10-09, finding 13). Both now call `line_words.assemble`."""
+    import pandas as pd
+
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+    from engine_alpha import two_eyes
+
+    calls = []
+    real = W.assemble
+
+    def counted(*args, **kwargs):
+        calls.append(kwargs["start"])
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(W, "assemble", counted)
+    path = np.interp(np.arange(29), [0, 4, 15, 17, 19, 21, 24, 26, 28],
+                     [12.0, 9.8, 16.0, 9.0, 12.5, 11.2, 15.5, 14.6, 15.3])
+    W.read_line_words(_frame(path + 0.2, path - 0.2), _Box(start_bar=0, R=14.0, S=10.0), 1.0)
+    assert calls == [0], "read_line_words did not go through the one assembly"
+
+    frames, _ = load_sealed_fixture()
+    read = two_eyes.read("ALB", fixture_frame(frames, "ALB:2026-04-13", "ALB").loc[:pd.Timestamp("2026-04-07")])
+    assert read.events and len(calls) == 2, "the story did not go through the one assembly"
+
+
+def test_word_recall_reads_the_readers_own_line_in_the_boxs_own_range():
+    """Word recall built its own line (a scalar fallback) and read his box in the day's range six trading days back,
+    while the story reads the reader's line in the box's own range (the range of its second anchor's day): its
+    numbers could stay green while the reader's words drifted (council review 2026-10-09, finding 13, verify-5)."""
+    import pandas as pd
+
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
+    from engine_alpha.two_eyes import line as line_module
+    from tools.calibration import word_recall
+
+    frames, _ = load_sealed_fixture()
+    frame = word_recall._enriched(fixture_frame(frames, "ALB:2026-04-13", "ALB").loc[:pd.Timestamp("2026-04-13")])
+    assert word_recall._line(frame) == [(t.bar, t.kind, t.price, t.knowable_bar)
+                                        for t in line_module.build(frame).turns]
+    box = SimpleNamespace(r_anchor_bar=len(frame) - 60, s_anchor_bar=len(frame) - 55)
+    assert word_recall._box_unit(frame, box) == float(frame["ATR_10"].iloc[len(frame) - 55])

@@ -51,7 +51,7 @@ from typing import Optional
 
 import numpy as np
 
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes import swing_line
 from engine_alpha.two_eyes.frame import DAILY_RANGE
 

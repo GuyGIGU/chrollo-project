@@ -392,7 +392,10 @@ default as ours.
    their own yardstick — the unit his 1.35 was placed in: in it his six lows over
    resistance read what they read the day he ruled (his farthest, ST, 1.30), while in the
    box's own frozen range his ST would be refused (ours). Every other number about the
-   window is graded, never gated. A pullback that ended before the box was a box is not
+   window may be graded, never gated; none is read yet. His LPS trait *"Lowering (and
+   low) spread below average"* (Tue 08/09/2026) is measured by no stage, graded by no
+   rule and stored nowhere: whether it is kept as a raw value or dropped is his, at the
+   approval sitting (council review, Fri 09/10/2026, finding 4). A pullback that ended before the box was a box is not
    its LPS, and the universe door stands before every read: a fire is a box, an LPS and a
    trigger on a chart the door admits (ours). The mini may carry the read: *"the LPS read
    can be against it if it is inside/near it/resting on it and the trigger is always read

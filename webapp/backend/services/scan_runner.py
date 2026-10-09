@@ -171,6 +171,16 @@ def _result_status(result: ScanProcessResult) -> str:
     return "failed"
 
 
+def _lost_rows(status: str, result: ScanProcessResult) -> str | None:
+    """The error cell of a run that FINISHED: empty, unless its archive writer refused rows. Then the run's
+    own record says so (the registry and the status line read it), not only the log and the alert."""
+    from services.scan_diagnosis import refused_rows_error
+
+    if status == "ok" and result.n_refused:
+        return refused_rows_error(result.n_refused)
+    return None
+
+
 def _tail_error(output: str, limit: int = 1000) -> str | None:
     text = output.strip()
     if not text:
@@ -395,7 +405,7 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
         # (re-runnable, nothing broken) — never 'failed', which sends him
         # chasing a program error and fires an alert.
         status = "aborted" if job.cancelled else _result_status(result)
-        error = _tail_error(output) if status not in ("ok", "aborted") else None
+        error = _tail_error(output) if status not in ("ok", "aborted") else _lost_rows(status, result)
         scan_status.finish_run(job.run_id, status=status, n_setups=result.n_setups, error=error)
         # Set BEFORE the alert, and gating the except arm's finish_run below:
         # anything that throws from here on (alert_if_needed reads settings out
@@ -618,7 +628,7 @@ def run_scheduled_scan_and_forward_returns() -> None:
             # their own artifacts and are isolated from each other's failures.
             result = _run_scan_process_unlocked(["--all-universes"])
             status = _result_status(result)
-            error = _tail_error(result.output) if status != "ok" else None
+            error = _tail_error(result.output) if status != "ok" else _lost_rows(status, result)
             if status != "ok":
                 log.error("scheduled scan failed with exit code %s", result.returncode)
             scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)

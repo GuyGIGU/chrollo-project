@@ -23,7 +23,7 @@ def _iso(value) -> dt.date:
 def _walk_on_his_last_day(setup: dict):
     """The walk on his drawing, read on his last receding day, as the reader runs it."""
     from engine_alpha.two_eyes import build_line, prepare, walk
-    from engine_alpha.two_eyes import method_numbers as M
+    from engine_alpha import two_eyes_numbers as M
     from engine_alpha.two_eyes.frame import DAILY_RANGE
     from core.calibration.replay import fixture_frame, load_sealed_fixture
     from tools.calibration.yardstick import his_last_lps_day

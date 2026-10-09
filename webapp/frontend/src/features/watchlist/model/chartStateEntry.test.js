@@ -53,7 +53,7 @@ test('a word reads as it always has: the door\'s leg and its distance, or the li
   );
   assert.equal(
     chartStateLine(settledEntry('AAA', LINES)),
-    'lines, no LPS yet · R 101.25 / S 98.50 · open Mon 02/03/2026 · 48 days · turns 2 / 3',
+    'lines, no LPS yet · R 101.25 / S 98.50 · open Mon 02/03/2026 · box 48 days · turns 2 / 3',
   );
 });
 
@@ -63,6 +63,21 @@ test('the new reader\'s word carries the days that ride beside it, never written
       ticker: 'AAA', state: 'beyond R, undetermined', why: null, distance_ranges: null,
       R: 101.25, S: 98.5, open: '2026-03-02', days: 3,
     })),
-    'beyond R, undetermined (3 days) · R 101.25 / S 98.50 · open Mon 02/03/2026',
+    'beyond R, undetermined (3 days past the line) · R 101.25 / S 98.50 · open Mon 02/03/2026',
+  );
+});
+
+// Council review 2026-10-09, finding 15: today's engine already sends `days` (its right-edge run) beside `age` (the
+// box's) on its two undetermined words, so a live card showed "(4 days) ... 48 days" with neither saying what it
+// counts. Each count now says what it is.
+test('two day counts on one line each say what they count', () => {
+  assert.equal(
+    chartStateLine(settledEntry('AAA', { ...LINES, state: 'under S, undetermined', days: 4 })),
+    'under S, undetermined (4 days past the line) · R 101.25 / S 98.50 · open Mon 02/03/2026 · box 48 days'
+      + ' · turns 2 / 3',
+  );
+  assert.equal(
+    chartStateLine(settledEntry('AAA', { ticker: 'AAA', state: 'forming N of 15', days: 6 })),
+    'forming N of 15 (day 6 of 15)',
   );
 });

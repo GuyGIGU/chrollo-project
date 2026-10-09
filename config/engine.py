@@ -1048,10 +1048,11 @@ HTF_MONTHLY_WINDOWS = {
 #
 # Read in exactly ONE function, engine_alpha.reader.which_reader(). Every
 # stage is built (the line, the box, its life, the LPS and its trigger, with
-# the universe door before the read; the story, the mini and the grade), but
-# the screen block and the approval pack are not, so this is on for tests and
-# the measuring tools only. The flip is HIS, after the approval sitting;
-# nothing goes live piecemeal.
+# the universe door before the read; the story, the mini and the grade), and
+# so are the screen block and the approval pack (task 15). The nightly scan's
+# worker and the box-only read still refuse it (the scan's lanes are the
+# go-live plan's work), so this is on for tests and the measuring tools only.
+# The flip is HIS, after the approval sitting; nothing goes live piecemeal.
 TWO_EYES_READER_ENABLED = False
 
 # The new reader's ruleset version, BUMPED BY HAND with every change to how

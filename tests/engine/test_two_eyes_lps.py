@@ -174,7 +174,8 @@ _BMRN = [(57.05, 55.11), (57.71, 56.09), (56.89, 56.01),
 
 
 def test_a_run_longer_than_five_bars_is_read_on_its_last_five_from_their_highest_high():
-    from engine_alpha.two_eyes import lps, method_numbers as M
+    from engine_alpha.two_eyes import lps
+    from engine_alpha import two_eyes_numbers as M
 
     assert M.LPS_MAX_BARS == 5, 'his "2 - 5 bars"'
     high, low, ranges = _bars(_BMRN)
@@ -198,7 +199,8 @@ def test_a_run_longer_than_five_bars_is_read_on_its_last_five_from_their_highest
 # The unit                                                                    #
 # --------------------------------------------------------------------------- #
 def test_the_lps_is_measured_in_the_daily_range_five_trading_days_before_its_last_day():
-    from engine_alpha.two_eyes import lps, method_numbers as M
+    from engine_alpha.two_eyes import lps
+    from engine_alpha import two_eyes_numbers as M
 
     assert M.LPS_UNIT_DAYS_BACK == 5
     high, low, ranges = _bars(_SCENE)
@@ -265,7 +267,8 @@ def test_sentence_one_three_bars_each_wider_and_each_falling_further_is_sellers_
 
 
 def test_sentence_two_a_pullback_deeper_than_his_deepest_is_a_slice_of_a_bigger_swing_down():
-    from engine_alpha.two_eyes import lps, method_numbers as M
+    from engine_alpha.two_eyes import lps
+    from engine_alpha import two_eyes_numbers as M
 
     assert M.LPS_DEPTH_MAX_RANGES == 2.5
     # From the top at 101 down to 96.2: 2.4 daily ranges, a pullback.
@@ -296,7 +299,8 @@ def test_sentence_two_a_pullback_deeper_than_his_deepest_is_a_slice_of_a_bigger_
 
 
 def test_sentence_three_mostly_under_the_support_area_refuses_and_a_poke_under_it_does_not():
-    from engine_alpha.two_eyes import lps, method_numbers as M
+    from engine_alpha.two_eyes import lps
+    from engine_alpha import two_eyes_numbers as M
 
     assert M.LPS_UNDER_SUPPORT_SHARE == 0.5
     rows = [(96.0, 94.6)] * 6 + [(95.2, 94.0), (95.6, 94.2), (95.9, 94.4)]
@@ -309,7 +313,8 @@ def test_sentence_three_mostly_under_the_support_area_refuses_and_a_poke_under_i
 
 
 def test_sentence_four_more_than_his_ceiling_over_resistance_refuses_and_his_farthest_does_not():
-    from engine_alpha.two_eyes import lps, method_numbers as M
+    from engine_alpha.two_eyes import lps
+    from engine_alpha import two_eyes_numbers as M
 
     assert M.LPS_CEILING_RANGES == 1.35
     base = _QUIET + [(99.0, 97.0), (102.0, 99.5), (104.6, 102.4)]
@@ -567,7 +572,7 @@ def test_the_window_opens_where_he_shades_it_on_most_of_his_windows(his_windows)
 def test_the_numbers_are_re_derived_from_his_marks_in_the_unit_the_reader_uses(his_windows):
     """Each number sits where his own windows put it, measured in the reader's LPS unit on his own lines. When he
     redraws, this is the test that says a number no longer covers his marks."""
-    from engine_alpha.two_eyes import method_numbers as M
+    from engine_alpha import two_eyes_numbers as M
 
     got = [row["on_his_lines"] for row in his_windows if row["key"] not in _LAST_DAY_ADVANCES]
     over = {row["key"]: round(row["on_his_lines"].over_resistance, 2) for row in his_windows

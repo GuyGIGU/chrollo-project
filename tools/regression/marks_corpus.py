@@ -409,6 +409,68 @@ def corpus_provenance(paths: tuple[str, ...] = CORPUS_FILES) -> dict:
     return carriers[0][1] if carriers else {}
 
 
+def load_sealed_standard() -> tuple[list[dict], dict, dict]:
+    """His drawings and the bars they were frozen on, PROVED to be one set: ``(setups, frames, stamp)``.
+
+    The boards and the approval pack loaded the drawings file and the frozen bars separately and threw the
+    fixture's seal away, so between the export and ``--build-fixture`` a new drawing read as "no frame" and the
+    page could not say which drawings it measured (council review 2026-10-09, finding 7; EC-13). This refuses a
+    drawings file the bars were not sealed for, and ``stamp`` names exactly what a report measured: the
+    drawings' seal and fingerprint and the engine version that read them."""
+    from core.calibration.replay import load_sealed_fixture
+    from engine_alpha.freeze.manifest import manifest_hash
+
+    frames, baseline = load_sealed_fixture()
+    seal = corpus_sha256()
+    if seal != baseline.get("corpus_sha256"):
+        raise ValueError(
+            "the drawings file does not match the bars it was frozen on (corpus "
+            f"{seal[:12]}, the fixture was sealed for {str(baseline.get('corpus_sha256'))[:12]}): "
+            "rebuild the fixture first (python -m tools.regression.marks_corpus --build-fixture)")
+    stamp = {"drawings": None, "corpus_sha256": seal,
+             "marks_fingerprint": corpus_provenance().get("marks_fingerprint"),
+             "engine_config_version": manifest_hash()}
+    setups = load_corpus()
+    stamp["drawings"] = len(setups)
+    return setups, frames, stamp
+
+
+def stamp_line(stamp: dict) -> str:
+    """The one line a board prints above its numbers: which drawings, read by which engine."""
+    return (f"  his {stamp['drawings']} drawings · corpus {stamp['corpus_sha256'][:12]} · marks fingerprint "
+            f"{str(stamp.get('marks_fingerprint') or '?')[:12]} · engine {stamp['engine_config_version'][:12]}")
+
+
+def _rounded(value):
+    return None if value is None else round(float(value), 4)
+
+
+def scored_fields_of_marks(rows) -> dict:
+    """``{(ticker, as_of): (his buy price, his mini's R, his mini's S)}`` of his drawings in the marks DB: the
+    fields the boards SCORE against that the frozen seal leaves out (council review 2026-10-09, finding 8)."""
+    out = {}
+    for mark in rows:
+        minis = [e for e in mark.events if e.event_type == "mini_consolidation"]
+        band = (_rounded(minis[0].band_high), _rounded(minis[0].band_low)) if minis else (None, None)
+        out[(mark.ticker, str(mark.as_of_date))] = (_rounded(mark.trigger_price), *band)
+    return out
+
+
+def scored_fields_of_setups(setups) -> dict:
+    """The same fields as the corpus carries them (the export's ``trigger_price`` and ``mini.band``)."""
+    out = {}
+    for setup in setups:
+        band = (setup.get("mini") or {}).get("band") or {}
+        out[(setup["ticker"], setup["as_of"])] = (_rounded(setup.get("trigger_price")),
+                                                  _rounded(band.get("R")), _rounded(band.get("S")))
+    return out
+
+
+def scored_drift(live: dict, corpus: dict) -> list[str]:
+    """The drawings, in both, whose buy price or mini lines differ: ``['TICKER@as_of', ...]``."""
+    return sorted(f"{t}@{d}" for (t, d) in set(live) & set(corpus) if live[(t, d)] != corpus[(t, d)])
+
+
 def eval_windows(setup: dict) -> list[tuple[date, date, int]]:
     """The marked entry window(s) as (start, end, grace_sessions) triples —
     consumed by the CHRONOLOGY battery only (the gate grades on the replay
@@ -539,6 +601,16 @@ def population_is_current(corpus_fingerprint: str | None) -> tuple[bool, str]:
         # them.
         return True, "the marks DB here holds no drawings — corpus currency not checked"
     if fingerprint == corpus_fingerprint:
+        # The seal is frozen and leaves out his buy price and his mini's two lines (a re-pin is his, at a
+        # graduation sitting); the boards score against both, so they are checked here on their own
+        # (council review 2026-10-09, finding 8).
+        moved = scored_drift(scored_fields_of_marks(rows), scored_fields_of_setups(load_corpus()))
+        if moved:
+            return False, (
+                f"THE CORPUS IS STALE: his buy price or his mini's two lines moved on {', '.join(moved)}; the "
+                "drawings' fingerprint leaves those fields out, this check does not. Refresh it:\n"
+                "      python -m tools.calibration.guided_list_export\n"
+                "      python -m tools.regression.marks_corpus --build-fixture")
         return True, f"corpus matches the live marks DB ({len(rows)} box marks)"
     return False, (
         f"THE CORPUS IS STALE: the live calibration-marks DB holds {len(rows)} box marks "

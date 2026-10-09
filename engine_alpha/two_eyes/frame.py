@@ -41,7 +41,7 @@ import pandas as pd
 # engine is a leaf that may not import `core`; the pipeline's calendar
 # re-exports it under the name its callers have always used.
 from engine_alpha.market_sessions import session_gap
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.daily_range import calculate_atr
 
 OHLC = ("Open", "High", "Low", "Close")

@@ -95,6 +95,8 @@ lives in `core/calibration/` and `webapp/backend/domains/calibration/grading.py`
 | `engine_alpha/structure/` | Report facts about the chart: the box, phases, LPS, events, the reader, metrics, context. Subfolders: `box/`, `phases/`, `lps/`, `events/`, `narrative/`, `metrics/`, `context/`. | Assign points or decide whether a setup is good. |
 | `engine_alpha/scoring/` | Turn facts into points (`scoring.py`: `score_setup`, `compose_ta_grade`, `calculate_structure_tier`), name the sub-scores (`taxonomy.py`), and resolve chip verdicts (`tags.py`). | Read a chart. |
 | `engine_alpha/evaluation.py` | The one per-ticker chain: baseline filter, structure, LPS, scoring. The scan's worker processes pickle `_evaluate_ticker` by this name. | Fetch data or write files. |
+| `engine_alpha/reader.py` | The ONE door every caller asks which reader answers; the switch `TWO_EYES_READER_ENABLED` is read only in `which_reader`. | Change what a reader returns. |
+| `engine_alpha/two_eyes/` | The two-eyes reader (dark): the chart read in his order, stage by stage. A leaf inside the leaf: its numbers (`two_eyes_numbers.py`), box roles (`two_eyes_roles.py`), wire shape (`two_eyes_adapter.py`) and archive columns (`two_eyes_archive.py`) sit outside the package so the old reader's night never loads it. | Import `engine_alpha.structure`, `engine_alpha.scoring` or `engine_alpha.evaluation`. |
 | `engine_alpha/freeze/manifest.py` | The engine config hash: a hand-picked list of settings (`ENGINE_SETTINGS_KEYS`) that can move a detector decision. `python -m engine_alpha.freeze.manifest --hash` prints it. | Include ops settings (cache, scheduler, rate limits). |
 
 Settings:

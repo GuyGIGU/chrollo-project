@@ -2169,3 +2169,83 @@ def test_a_manual_scan_hands_the_refused_count_to_the_alert(monkeypatch):
     list(scan_runner._stream_process("manual"))
 
     assert alerts and alerts[0][5] == 2, f"the alert never heard the count: {alerts}"
+
+
+# ── A night that lost archive rows is not a clean night (council review 2026-10-09, finding 12) ──
+def _scheduled_night(monkeypatch, n_refused):
+    """The scheduled job on a scan that exited 0 having lost ``n_refused`` archive rows; returns its finishes."""
+    import services.scan_status as scan_status_mod
+    import app.core_settings as core_settings_mod
+
+    result = scan_runner.ScanProcessResult(returncode=0, output="ok", n_setups=3, n_errored=0,
+                                           n_refused=n_refused)
+    monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda *a, **k: result)
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
+    finishes = []
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger, kind="scan": 1 if kind == "scan" else 2)
+    monkeypatch.setattr(scan_status_mod, "finish_run",
+                        lambda run_id, status, n_setups=None, error=None: finishes.append((run_id, status, error)))
+    monkeypatch.setattr(core_settings_mod, "load_core_settings",
+                        lambda: SimpleNamespace(FORWARD_RETURNS_MIN_AGE_DAYS=5))
+    monkeypatch.setattr(archive_forward_returns, "update_forward_returns", lambda min_age_days=5: 0)
+    scan_runner.run_scheduled_scan_and_forward_returns()
+    return finishes
+
+
+def test_a_scheduled_night_that_lost_archive_rows_says_so_on_its_record(monkeypatch):
+    from services import scan_diagnosis
+
+    lost = next(f for f in _scheduled_night(monkeypatch, 2) if f[0] == 1)
+    assert lost[1] == "ok", "the scan itself finished: it is not a failed night"
+    described = scan_diagnosis.describe_run({"status": lost[1], "error": lost[2], "kind": "scan"})
+    assert described["verdict"] == scan_diagnosis.NEEDS_ATTENTION
+    assert "2" in described["reason"] and "archive" in described["reason"]
+
+    clean = next(f for f in _scheduled_night(monkeypatch, 0) if f[0] == 1)
+    assert clean == (1, "ok", None)
+    assert scan_diagnosis.describe_run({"status": "ok", "error": None})["verdict"] is None
+
+
+def test_a_manual_night_that_lost_archive_rows_says_so_on_its_record(monkeypatch):
+    import threading
+
+    import services.scan_status as scan_status_mod
+
+    gate = threading.Event()
+    gate.set()
+    _gated_scan_child(monkeypatch, gate, [
+        "line one\n",
+        'SCAN_RESULT_JSON:{"n_setups": 3, "n_archived": 1, "n_errored": 0, "n_refused": 2}\n',
+    ])
+    recorded = []
+    monkeypatch.setattr(scan_status_mod, "finish_run",
+                        lambda run_id, status, n_setups=None, error=None: recorded.append((status, error)))
+
+    list(scan_runner._stream_process("manual"))
+
+    from services import scan_diagnosis
+    assert recorded and recorded[0][0] == "ok"
+    assert scan_diagnosis.describe_run({"status": "ok", "error": recorded[0][1]})["verdict"] == \
+        scan_diagnosis.NEEDS_ATTENTION
+
+
+def test_health_flags_a_night_that_lost_archive_rows(tmp_path, monkeypatch):
+    """The run registry said "needs attention" while the pill said "Healthy" (verify-3 of the fix run for finding
+    12): a night that finished but lost rows is a failing last-scan check, with the run's own reason on the wire."""
+    from sqlalchemy import create_engine
+
+    recent = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health_lost.db'}"))
+    lost = health_service.scan_diagnosis.refused_rows_error(2)
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [{"status": "ok", "finished_at": recent, "n_setups": 12,
+                                          "kind": "scan", "error": lost}])
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
+
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+
+    failing = {check["key"]: check for check in report["failing"]}
+    assert "last_scan" in failing and report["status"] == "degraded"
+    assert "2 of the setups it read never reached the archive" in failing["last_scan"]["reason"]
+    assert failing["last_scan"]["verdict"] == health_service.scan_diagnosis.NEEDS_ATTENTION

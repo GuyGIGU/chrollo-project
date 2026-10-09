@@ -870,8 +870,8 @@ def test_read_fills_the_record_from_the_walk():
     and the state word: task 12a), then the story's one step and its events (stage 5, task 12b), then the grade's
     one step and the grade (stage 7, task 14), which change neither the boxes, the LPS nor the state word."""
     from engine_alpha import two_eyes
-    from engine_alpha.two_eyes import (frame as frame_module, grade, line as line_module, lps, mini, story, walk,
-                                       method_numbers as M)
+    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha.two_eyes import (frame as frame_module, grade, line as line_module, lps, mini, story, walk)
     from core.calibration.replay import load_sealed_fixture
 
     frames, _ = load_sealed_fixture()
@@ -933,7 +933,8 @@ def prepared_frames() -> dict:
 def _walk_on(prepared, read_bar=None):
     """The walk on a prepared frame as a reader standing on ``read_bar`` has it (the last bar by default), and
     the same read for any earlier day."""
-    from engine_alpha.two_eyes import frame as frame_module, line as line_module, walk, method_numbers as M
+    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha.two_eyes import frame as frame_module, line as line_module, walk
 
     line = line_module.build(prepared)
     ranges = prepared[frame_module.DAILY_RANGE].to_numpy(dtype=float)
@@ -1124,7 +1125,7 @@ def test_his_own_drawings_say_how_the_root_swing_behaves(his_reads):
     on past his FIRST line on 38 of 40, and in the box's first fifteen days the price is 1.25 ranges or more over
     his resistance on 3: both are TENDENCIES with his own exceptions named, never a rule that drops a pair. Under
     his support it dips more than a full range on ten, and he kept the line."""
-    from engine_alpha.two_eyes import method_numbers as M
+    from engine_alpha import two_eyes_numbers as M
 
     slow, deep, passed_first, ran_past = {}, [], [], {}
     for row in his_reads:

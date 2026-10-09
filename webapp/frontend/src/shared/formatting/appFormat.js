@@ -8,7 +8,10 @@ export const fmtScanTime = (value) => {
   return dateTimeShort(value) ?? 'unknown';
 };
 
-export const scanStatusColor = (status) => {
+// A finished run can still need him (a night that lost archive rows: council review 2026-10-09, finding 12): the
+// backend resolves that verdict and sends it; its tone is read off the wire's vocabulary, never worked out here.
+export const scanStatusColor = (status, verdict = null) => {
+  if (status === 'ok' && verdict && RUN_VERDICT_TONES[verdict]) return RUN_VERDICT_TONES[verdict];
   if (status === 'ok') return 'var(--success)';
   if (status === 'running') return 'var(--accent-blue)';
   // 'aborted' belongs on this arm: the backend's own health check counts it as
@@ -60,6 +63,8 @@ export const buildScanStatusText = (scanStatus) => {
   // The one status vocabulary, shared with the registry's Status column — the
   // pill used to translate stale_data here while the registry three inches
   // below printed the raw wire word.
-  const label = RUN_STATUS_LABELS[scanStatus.status] || scanStatus.status;
+  // A finished run the backend says needs attention carries that verdict's word, never a clean "ok".
+  const attention = scanStatus.status === 'ok' && RUN_VERDICT_LABELS[scanStatus.verdict];
+  const label = attention || RUN_STATUS_LABELS[scanStatus.status] || scanStatus.status;
   return `Last scan: ${when} | ${count} | ${label}`;
 };

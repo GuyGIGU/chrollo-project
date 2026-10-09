@@ -20,7 +20,7 @@ import pytest
 from core.calibration.replay import fixture_frame, load_sealed_fixture
 from engine_alpha import two_eyes
 from engine_alpha.two_eyes import record
-from engine_alpha.two_eyes import method_numbers as M
+from engine_alpha import two_eyes_numbers as M
 
 
 def _stage():
@@ -200,6 +200,28 @@ def test_his_setups_grade_s(key):
     days just beyond a line (MTLS, ST, ROIV, VLO)."""
     g = _his(key).grade
     assert g is not None and g.letter == "S" and g.holds, (key, g)
+
+
+#: The one of his 40 the grade does not read as he ruled: BODI's base reads C (11) on the reader's box, B 48 to A 51
+#: on his own (his February under the support). On his sitting list; pinned here so a change that moves it, either
+#: way, is seen.
+HIS_KNOWN_MISS = {"BODI:2026-04-21": "C"}
+
+
+def test_all_40_of_his_setups_carry_his_letter_by_name():
+    """His ruling of Mon 05/10/2026: "all of the 40 calibrated should be S tier in my book". The seven above were
+    the only ones pinned; the other 33 had no guard, and the approval pack's "S 39 · C 1" was a count its test fed
+    in by hand (council review 2026-10-09, finding 11). Every one is read here on his last receding day, by name."""
+    setups = load_corpus()
+    assert len(setups) == 40, f"his standard holds {len(setups)} drawings; re-read this pin against the new ones"
+    wrong = {}
+    for setup in setups:
+        key = setup_key(setup)
+        g = _his(key).grade
+        letter = None if g is None else g.letter
+        if letter != HIS_KNOWN_MISS.get(key, "S"):
+            wrong[key] = letter
+    assert not wrong, f"his letters moved (his ruling: all S; BODI the known miss): {wrong}"
 
 
 # --------------------------------------------------------------------------- #
