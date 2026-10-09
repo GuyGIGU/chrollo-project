@@ -163,6 +163,73 @@ def test_the_two_readers_fires_are_compared_name_by_name():
     assert "a trading day is missing from the middle 2" in board
 
 
+# --------------------------------------------------------------------------- #
+# The scan it replays                                                          #
+# --------------------------------------------------------------------------- #
+def _scan_payload(folder, *, night_day="2026-10-08", shown=("BBB",), removed=("AAA",)) -> str:
+    """The scan's own payload of a night, as the dashboard writes it: what it showed, its engine's stamp, its read
+    count, and what its market-cap floor took out after the read."""
+    path = os.path.join(str(folder), "screener_data.json")
+    payload = {"chart_data": {t: {} for t in shown}, "ordered_tickers": list(shown),
+               "market_context": {"market_cap_floor": {"checked": len(shown) + len(removed), "refused": len(removed),
+                                                       "unknown": 0, "refused_tickers": list(removed)},
+                                  "_scan_metrics": {"counts": {"evaluated_tickers": 2}}},
+               "scan_identity": {"scan_date": night_day, "universe_type": "us_equities",
+                                 "engine_config_version": "a2252c6c" + "0" * 56}}
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f)
+    return path
+
+
+def _fired(*tickers):
+    return [{"ticker": t, "fired": t in tickers, "failed": False, "seconds": 0.1, "tier": "A" if t in tickers else None,
+             "score": 60.0 if t in tickers else None, "trigger": 10.0 if t in tickers else None}
+            for t in ("AAA", "BBB", "CCC")]
+
+
+def test_the_replay_is_set_beside_the_scan_it_replays(tmp_path):
+    """The replay's old reader is THIS tree's engine; the scan that night ran the deployed one, with a cut after its
+    read (the market-cap floor). The night says what the scan showed and where the two differ, never the replay as
+    the night he saw (the task-15 blind check's P2: 121 here, 116 on his screen)."""
+    payload = _scan_payload(tmp_path, shown=("BBB",), removed=("AAA",))
+    scan = night.against_the_scan(payload, "2026-10-08", _fired("AAA", "BBB"))
+    assert scan == {"scan_date": "2026-10-08", "engine_config_version": "a2252c6c" + "0" * 56, "same_night": True,
+                    "read": 2, "fires": 1, "removed_after_the_read": ["AAA"], "replay_only": ["AAA"],
+                    "scan_only": []}
+    summary = night.summarize(_fired("AAA", "BBB"), 1.0, [dict(r, state="fired" if r["fired"] else "crossed")
+                                                         for r in _fired("AAA", "BBB")], 1.0)
+    summary["scan"] = scan
+    board = night.format_board(summary)
+    assert "the scan that night (engine a2252c6c): 1 fires shown of 2 read" in board
+    assert "its market-cap floor took out after the read: AAA" in board
+    assert "only in this replay: AAA; only in the scan: none" in board
+
+
+def test_a_payload_of_another_night_is_named_not_compared(tmp_path):
+    payload = _scan_payload(tmp_path, night_day="2026-10-07")
+    assert night.against_the_scan(payload, "2026-10-08", _fired("AAA")) == {
+        "scan_date": "2026-10-07", "engine_config_version": "a2252c6c" + "0" * 56, "same_night": False}
+
+
+def test_the_scans_payload_is_read_from_its_copy(tmp_path, outside_the_slot, monkeypatch):
+    """Copied with the panel, and only the copy read: the source is moved away the moment it is copied."""
+    panel, meta = _panel(tmp_path)
+    payload = _scan_payload(tmp_path / "source")
+    real_copy = night.copy_scan_payload
+
+    def copy_then_hide(source, out_dir):
+        copied = real_copy(source, out_dir)
+        os.replace(source, source + ".hidden")
+        return copied
+
+    monkeypatch.setattr(night, "copy_scan_payload", copy_then_hide)
+    out = tmp_path / "night"
+    summary = night.replay(panel, str(out), meta=meta, workers=0, payload=payload)
+    assert (out / "panel" / "screener_data.json").exists()
+    assert summary["scan"]["same_night"] is True and summary["scan"]["read"] == 2
+    assert json.loads((out / "night.json").read_text(encoding="utf-8"))["scan"] == summary["scan"]
+
+
 def test_it_never_writes_under_a_sealed_directory(tmp_path, outside_the_slot):
     from tools._bootstrap import _PROJECT_ROOT
 

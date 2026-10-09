@@ -178,12 +178,16 @@ def _figure(klass: str, page, caption: str) -> str:
 
 
 def _his_figure(row: dict) -> str:
+    """Green: read as he drew it. Amber: it fires on his day at his trigger, and something before differs (the
+    lines, the opening day). Red: no fire on his day at his trigger (the core sitting's sheets, the same colours)."""
     step = row.get("first_difference")
-    verdict = ("fires on your day at your trigger" if step is None
-               else STEP_WORDS.get(step, step) + (f" ({_e(row['why'])})" if row.get("why") else ""))
+    fires = ("fires on your day at your trigger" if row.get("strict")
+             else "no fire on your day at your trigger" + (f" ({_e(row['why'])})" if row.get("why") else ""))
+    said = "read as you drew it" if step is None else STEP_WORDS.get(step, step)
     grade = f" · grade {row['grade']} {row['score']:.0f}" if row.get("grade") and row.get("score") is not None else ""
-    return _figure("hit" if step is None else "miss", row.get("page"),
-                   f"<b>{_e(row['key'])}</b> — {verdict} · box {_e(row['box'])}{grade}")
+    klass = "hit" if step is None else "chance" if row.get("strict") else "miss"
+    return _figure(klass, row.get("page"),
+                   f"<b>{_e(row['key'])}</b> — {said} · {fires} · box {_e(row['box'])}{grade}")
 
 
 def _junk_figure(row: dict) -> str:
@@ -191,6 +195,24 @@ def _junk_figure(row: dict) -> str:
     said = (f"fires on {len(fires)} day(s) of its window, graded {' '.join(g or '-' for g in row.get('grades') or [])}"
             if fires else "silent on every day of its window")
     return _figure("miss" if fires else "hit", row.get("page"), f"<b>{_e(row['key'])}</b> — {_e(row['label'])} · {said}")
+
+
+def _scan_paragraph(night) -> str:
+    """The night he saw, beside the replay: the replay's old reader is this branch's engine, and the scan that
+    night may have run another, with a cut after the read."""
+    scan = night.get("scan")
+    if scan is None:
+        return "<p>The scan's own payload of this night was not copied: the replay is not set beside the night you saw.</p>"
+    if not scan.get("same_night"):
+        return f"<p>The scan's payload is of {_day(scan['scan_date'])}, not this night: not compared.</p>"
+    removed = scan.get("removed_after_the_read") or []
+    took = f"; its market-cap floor took out after the read: {_e(', '.join(removed))}" if removed else ""
+    return (f"<p><b>The scan you saw that night</b> (engine {_e(str(scan.get('engine_config_version') or '?')[:8])}):"
+            f" {scan['fires']} fires shown of {scan['read']} tickers read{took}. Today's engine here is this branch's"
+            f" (engine {_e(str(night['readers']['old'].get('engine_config_version') or '?')[:8])}):"
+            f" only in this replay: {_e(', '.join(scan['replay_only']) or 'none')};"
+            f" only in the scan: {_e(', '.join(scan['scan_only']) or 'none')}. The new reader's fires are counted"
+            " before any cut after the read.</p>")
 
 
 def _night_section(night) -> str:
@@ -223,6 +245,7 @@ def _night_section(night) -> str:
 <tr><td>failed reads</td><td>{old['failed']}</td><td>{new['failed']}</td></tr>
 <tr><td>why they failed</td><td>{failures(old)}</td><td>{failures(new)}</td></tr>
 <tr><td>wall clock</td><td>{old['wall_clock_s']:.0f} s</td><td>{new['wall_clock_s']:.0f} s</td></tr></table>
+{_scan_paragraph(night)}
 <p>Both fire on {len(night['both'])}: {_e(', '.join(night['both']) or 'none')}. Today's engine alone on
  {len(night['old_only'])}; the new reader alone on {len(night['new_only'])}.</p>
 <p>Today's engine fires: {fires(old)}.</p><p>The new reader fires: {fires(new)}.</p>
@@ -254,8 +277,11 @@ def write_index(out_dir: str) -> str:
         " four for your eye.",
     ]
     if night is not None:
+        scan = night.get("scan") or {}
+        seen = (f" (the scan you saw that night showed {scan['fires']}; why they differ is below)"
+                if scan.get("same_night") else "")
         summary.append(f"One real night, {_day(night['night'])}, both readers: today's engine"
-                       f" {len(night['readers']['old']['fires'])} fires, the new reader"
+                       f" {len(night['readers']['old']['fires'])} fires{seen}, the new reader"
                        f" {len(night['readers']['new']['fires'])}, both on {len(night['both'])}.")
     else:
         summary.append("One real night, both readers: not run yet.")
@@ -273,13 +299,15 @@ def write_index(out_dir: str) -> str:
  .meta{{color:#666}} ul.short li{{margin:4px 0}}
  .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:18px}}
  figure{{margin:0;padding:8px;border:2px solid #ddd;border-radius:6px;background:#fff}}
- figure.miss{{border-color:#d62728}} figure.hit{{border-color:#2e8b57}}
+ figure.miss{{border-color:#d62728}} figure.chance{{border-color:#e8a33d}} figure.hit{{border-color:#2e8b57}}
  img{{width:100%;height:auto}} figcaption{{padding-top:6px;font-size:13px}} .nopage{{color:#999;padding:30px}}
  table{{border-collapse:collapse}} td,th{{border:1px solid #ddd;padding:4px 10px;text-align:left}}
 </style>
 <h1>The two-eyes reader — the approval pack</h1>
 <p class="meta">Made {_e(record['made'])} from commit {_e(record.get('head') or '?')} · reader {_e(record['ruleset'])}
- · OHLC bars; red: your lines and your days; blue: the reader's box, thin blue its mini; green: its LPS and trigger.</p>
+ · OHLC bars; red: your lines and your days; blue: the reader's box, thin blue its mini; green: its LPS and trigger.
+ Frames: green, read as you drew it; amber, it fires on your day at your trigger and something before differs; red,
+ no fire on your day at your trigger.</p>
 <h2>In short</h2>
 <ul class="short">{''.join(f'<li>{line}</li>' for line in summary)}</ul>
 <h2>Your {record['marks']['drawings']} drawings — misses first, by the first step where the reader leaves yours</h2>

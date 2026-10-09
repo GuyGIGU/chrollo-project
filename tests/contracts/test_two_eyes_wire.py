@@ -32,7 +32,7 @@ for _p in (str(ROOT), str(ROOT / "webapp" / "backend")):
 # --------------------------------------------------------------------------- #
 # A two-eyes fire, built by hand: a parent, a mini, an LPS read against the mini, a grade                          #
 # --------------------------------------------------------------------------- #
-def _read(*, grade=True, width_frac=None, mini=True):
+def _read(*, grade=True, width_frac=None, mini=True, score=92.3, letter="S"):
     from engine_alpha.two_eyes import record
 
     d = dt.date
@@ -46,7 +46,7 @@ def _read(*, grade=True, width_frac=None, mini=True):
                                 opened_day=d(2026, 2, 10), daily_range=1.5, role=record.ROLE_MINI))
     lps = record.Lps(d(2026, 3, 2), d(2026, 3, 6), record.ROLE_MINI if mini else record.ROLE_PARENT,
                      trigger_price=98.4, how="on" if mini else None)
-    the_grade = record.Grade(score=92.3, letter="S", empty_days=2, base_days=41, holds=True) if grade else None
+    the_grade = record.Grade(score=score, letter=letter, empty_days=2, base_days=41, holds=True) if grade else None
     return record.Read(ticker="TWOEYES", as_of=d(2026, 3, 6), boxes=tuple(boxes), lps=lps, state="fired",
                        close=97.1, grade=the_grade)
 
@@ -183,6 +183,19 @@ def test_a_two_eyes_fire_keeps_its_chart_and_carries_the_one_block(monkeypatch):
     assert chart["two_eyes"] == result["_wire_two_eyes"]
     assert (chart["tier"], chart["score"], chart["ta_grade"]) == ("S", pytest.approx(92.3), 92.3)
     assert (chart["R"], chart["S"], chart["trigger"], chart["price"]) == (100.0, 90.0, 98.4, 97.1)
+
+
+def test_every_surface_shows_one_grade_number(monkeypatch):
+    """One row, ONE number: the list's chip and the glance read ``ta_grade``, the story panel reads the block's grade,
+    the archive keeps the score. A grade rounded at the wire beside its unrounded twin split the real night of Thu
+    08/10/2026 (NVEC, 500/11: 46 on the card, 45 in the panel), as it would any score whose fraction sits in
+    [.45, .5) (the task-15 blind check's P1)."""
+    from engine_alpha.two_eyes_adapter import to_result
+
+    result = to_result(_read(score=500 / 11, letter="B"))
+    chart = _payload(monkeypatch, result)
+    assert chart["ta_grade"] == chart["score"] == chart["two_eyes"]["grade"]["score"] == 45.5
+    assert result["Score"] == result["_ta_grade"] == 45.5
 
 
 def test_the_old_families_are_not_carried_on_a_two_eyes_row(monkeypatch):

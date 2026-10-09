@@ -15,6 +15,9 @@ would.
 * **Both readers through the ONE door** (`engine_alpha.reader.evaluate_ticker`), each in its own pass over the same
   frames (the scan's own frame preparation and eligibility), each with its own wall clock: the old reader as the
   scan's base read, the new one with its switch on.
+* **Beside the scan it replays.** The old reader here is THIS tree's engine, which need not be the engine that
+  scanned that night, nor its cuts after the read (the deployed market-cap floor). The scan's own payload of that
+  night is copied too, and the night says what the scan showed, under which engine, and which fires differ.
 
 Not the scan's lanes. Beside the old reader the scan runs its near-miss lane, which records refusals and moves no
 fire. Under the new reader the scan still refuses to start (`reader.scan_worker`): wiring the scan is the go-live
@@ -22,6 +25,7 @@ plan's, written after his approval.
 
     python -m tools.calibration.parallel_night OUT
     python -m tools.calibration.parallel_night OUT --panel PATH --meta PATH     # a panel other than the scan's own
+    python -m tools.calibration.parallel_night OUT --payload PATH               # the scan's payload, if not its own
 """
 from __future__ import annotations
 
@@ -104,12 +108,22 @@ def copy_panel(panel: str, meta: str, out_dir: str) -> dict:
             "bytes": os.path.getsize(copy), "sha256": _sha256(copy)}
 
 
+def copy_scan_payload(payload: str, out_dir: str) -> str | None:
+    """Copy the scan's own payload into OUT/panel beside the panel; None when there is none."""
+    if not payload or not os.path.exists(payload):
+        return None
+    copy = os.path.join(out_dir, "panel", os.path.basename(payload))
+    shutil.copyfile(payload, copy)
+    return copy
+
+
 def load_night(panel_copy: str, meta_copy: str, universe=None) -> tuple:
     """The night's frames, prepared as the scan prepares them, and the two market numbers the old reader scores
     with. Returns ``(frames, spy_6m_return, breadth_pct, night, tickers)``.
 
-    The market context is computed fresh from the copy and its cache file is written beside the copy, never over
-    the service's own (the scan's helper writes one wherever its setting points; here the setting points into OUT).
+    The market context is computed from the copy and its cache file is written beside the copy, never over the
+    service's own (the scan's helper writes one wherever its setting points; here the setting points into OUT). A
+    rerun into the same folder on the same night reuses that file, by the helper's own cache rule.
     """
     uni = resolve_universe(universe)
     data = pd.read_parquet(panel_copy, engine=settings.PARQUET_ENGINE)
@@ -222,6 +236,29 @@ def summarize(old_rows: list, old_seconds: float, new_rows: list, new_seconds: f
     }
 
 
+def against_the_scan(payload_copy: str | None, night: str, old_rows: list) -> dict | None:
+    """The scan's own payload of the night, set beside this replay's old reader: what the scan showed, under which
+    engine, what it took out after its read, and the fires only one of the two has. None without a payload; a
+    payload of another night is named, never compared."""
+    if payload_copy is None:
+        return None
+    with open(payload_copy, encoding="utf-8") as f:
+        payload = json.load(f)
+    identity = payload.get("scan_identity") or {}
+    scan = {"scan_date": identity.get("scan_date"), "engine_config_version": identity.get("engine_config_version")}
+    if scan["scan_date"] != night:
+        return {**scan, "same_night": False}
+    context = payload.get("market_context") or {}
+    shown = set(payload.get("ordered_tickers") or [])
+    replayed = {r["ticker"] for r in old_rows if r["fired"]}
+    return {**scan, "same_night": True,
+            "read": ((context.get("_scan_metrics") or {}).get("counts") or {}).get("evaluated_tickers"),
+            "fires": len(shown),
+            # The deployed scan's cut after the read, when its payload records one (the market-cap floor).
+            "removed_after_the_read": sorted((context.get("market_cap_floor") or {}).get("refused_tickers") or []),
+            "replay_only": sorted(replayed - shown), "scan_only": sorted(shown - replayed)}
+
+
 def _day(iso) -> str:
     return dt.date.fromisoformat(iso).strftime("%a %d/%m/%Y") if iso else "?"
 
@@ -234,6 +271,19 @@ def failure_reasons(failures: list) -> dict:
     """The failed reads counted by the rule that refused them (a reader's sentence is ``rule: detail``)."""
     counts = Counter(str(why or "no reason given").split(": ", 1)[0] for _ticker, why in failures)
     return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def _scan_lines(scan: dict | None, old: dict) -> list:
+    if scan is None:
+        return ["  the scan's own payload of this night was not copied: the replay is not set beside it"]
+    engine = str(scan.get("engine_config_version") or "?")[:8]
+    if not scan["same_night"]:
+        return [f"  the scan's payload is of {_day(scan['scan_date'])}, not this night: not compared"]
+    removed = (f"; its market-cap floor took out after the read: {_names(scan['removed_after_the_read'])}"
+               if scan["removed_after_the_read"] else "")
+    return [f"  the scan that night (engine {engine}): {scan['fires']} fires shown of {scan['read']} read{removed}",
+            f"  today's engine here (engine {str(old.get('engine_config_version') or '?')[:8]}): only in this replay: "
+            f"{_names(scan['replay_only'])}; only in the scan: {_names(scan['scan_only'])}"]
 
 
 def format_board(summary: dict) -> str:
@@ -254,6 +304,7 @@ def format_board(summary: dict) -> str:
     lines.append(f"  both readers fire on {len(summary['both'])}: {_names(summary['both'])}")
     lines.append(f"  the old reader alone on {len(summary['old_only'])}: {_names(summary['old_only'])}")
     lines.append(f"  the new reader alone on {len(summary['new_only'])}: {_names(summary['new_only'])}")
+    lines.extend(_scan_lines(summary.get("scan"), old))
     lines.append("  the new reader's words: " + " · ".join(f"{word} {n}" for word, n in new["states"].items()))
     for name, side in (("old", old), ("new", new)):
         lines.append(f"  the five slowest reads, {name}: "
@@ -270,8 +321,9 @@ def _version(two_eyes: bool) -> str:
 
 
 def replay(panel: str, out_dir: str, *, meta: str | None = None, workers: int | None = None,
-           universe=None) -> dict:
-    """The whole night: refuse a sealed folder and the slot, copy the panel, read it twice, write the side files."""
+           universe=None, payload: str | None = None) -> dict:
+    """The whole night: refuse a sealed folder and the slot, copy the panel (and the scan's payload, when given),
+    read it twice, set the old reader beside the scan, write the side files."""
     refuse_sealed_output(out_dir)
     if in_scan_slot(now_et()):
         raise RuntimeError("it is the scan slot: run the night outside it")
@@ -279,12 +331,14 @@ def replay(panel: str, out_dir: str, *, meta: str | None = None, workers: int | 
     if meta is None:
         meta = os.path.join(os.path.dirname(panel), os.path.basename(uni.cache_paths()[1]))
     copied = copy_panel(panel, meta, out_dir)
+    payload_copy = copy_scan_payload(payload, out_dir)
     frames, spy, breadth, night, tickers = load_night(copied["copy"], copied["meta"], uni)
     workers = (os.cpu_count() or 4) if workers is None else int(workers)
     old_rows, old_seconds = run_pass(read_old, frames, spy, breadth, workers)
     new_rows, new_seconds = run_pass(read_new, frames, spy, breadth, workers)
     summary = summarize(old_rows, old_seconds, new_rows, new_seconds)
     summary.update(night=night.isoformat(), panel={**copied, "tickers": tickers, "read": len(frames)})
+    summary["scan"] = against_the_scan(payload_copy, summary["night"], old_rows)
     summary["readers"]["old"]["engine_config_version"] = _version(False)
     summary["readers"]["new"]["engine_config_version"] = _version(True)
     with open(os.path.join(out_dir, "night.json"), "w", encoding="utf-8", newline="\n") as f:
@@ -299,6 +353,7 @@ def main(argv=None) -> int:
     ap.add_argument("out", help="the folder the copy and the side files go to")
     ap.add_argument("--panel", help="the market-data file to copy (default: the scan's own)")
     ap.add_argument("--meta", help="its meta file (default: the meta file beside the panel)")
+    ap.add_argument("--payload", help="the scan's payload of that night (default: the scan's own)")
     ap.add_argument("--workers", type=int, help="worker processes (default: one per core; 0 reads in this process)")
     args = ap.parse_args(argv)
     if in_scan_slot(now_et()):
@@ -306,7 +361,8 @@ def main(argv=None) -> int:
               f"{int(settings.SCAN_SCHEDULE_HOUR_ET) + SLOT_HOURS}:00 New York). Nothing was read or written.")
         return 2
     panel = args.panel or resolve_universe(None).cache_paths()[0]
-    summary = replay(panel, args.out, meta=args.meta, workers=args.workers)
+    payload = args.payload or resolve_universe(None).artifact_path()
+    summary = replay(panel, args.out, meta=args.meta, workers=args.workers, payload=payload)
     print(format_board(summary))
     return 0
 

@@ -97,6 +97,12 @@ def to_result(read: Read):
         return None
 
     box, lps, grade = read.parent, read.lps, read.grade
+    # The grade's number, rounded ONCE to the wire's grade precision (one
+    # decimal): the score, `_ta_grade` and the block all carry this one
+    # number, so the list's chip, the story panel and the archive cannot
+    # disagree (the task-15 blind check: an unrounded block beside its rounded
+    # twin showed the night's NVEC as 46 on the card and 45 in the panel).
+    score = round(float(grade.score), 1) if grade is not None else None
     base_end = box.end_day or read.as_of
     result = {
         "Ticker": read.ticker,
@@ -120,7 +126,7 @@ def to_result(read: Read):
         # watch sink to the screen. A fire of this reader is a box and its
         # last receding run: an LPS setup.
         "Setup": "LPS",
-        "Score": float(grade.score) if grade is not None else 0.0,
+        "Score": score if score is not None else 0.0,
         # The read day's real close. The resistance line stood in here once,
         # and the forward-returns backfill scales every trigger by this price.
         "Current Price": round(float(read.close), 2) if read.close is not None else None,
@@ -171,7 +177,7 @@ def to_result(read: Read):
         # measured", stored empty — but the KEY must exist, because the scan
         # sorts its results by this column. The old grade's raw sum and its
         # chapters are not this reader's: empty, never the score again.
-        "_ta_grade": float(grade.score) if grade is not None else None,
+        "_ta_grade": score,
         "_ta_grade_raw": None,
         # What the old engine has no word for, carried so the new reader's own
         # facts survive the crossing rather than being rebuilt from prices —
@@ -209,7 +215,7 @@ def _wire_block(read: Read, result: dict) -> dict:
         # The number that rides beside a word that counts days ("forming N of 15": N), never written into it.
         "state_days": read.state_days,
         "grade": None if grade is None else {
-            "score": float(grade.score), "letter": grade.letter,
+            "score": result["_ta_grade"], "letter": grade.letter,
             "empty_days": int(grade.empty_days), "base_days": int(grade.base_days), "holds": bool(grade.holds)},
     }
 

@@ -59,6 +59,10 @@ def _night() -> dict:
                     "states": {"no lines": 2800, "not scanned": 700, "lines, no LPS yet": 199, "fired": 1}},
         },
         "both": [], "old_only": ["AAA"], "new_only": ["BBB"],
+        # The scan that served this night: another engine, which took AAA out after its read.
+        "scan": {"scan_date": "2026-10-08", "engine_config_version": "a2252c6c" + "0" * 56, "same_night": True,
+                 "read": 3690, "fires": 0, "removed_after_the_read": ["AAA"], "replay_only": ["AAA"],
+                 "scan_only": []},
     }
 
 
@@ -82,7 +86,7 @@ def test_the_summary_comes_before_the_detail(tmp_path):
     assert headings[0].startswith("In short")
     assert [h.split(" ")[0] for h in headings[1:]] == ["Your", "The", "The", "One"]
     summary = html[html.index("In short"):html.index(headings[1])]
-    for fact in ("35 of 40", "S 39", "both readers", "Thu 08/10/2026"):
+    for fact in ("35 of 40", "S 39", "both readers", "Thu 08/10/2026", "the scan you saw that night showed 0"):
         assert fact in summary, fact
 
 
@@ -91,6 +95,19 @@ def test_his_rows_link_their_pictures_misses_first(tmp_path):
     pages = re.findall(r'src="(pages/his_[^"]+)"', html)
     assert pages[:2] == ["pages/his_DOOR.png", "pages/his_LINES.png"]
     assert pages[-1] == "pages/his_NKE.png"
+
+
+def test_each_drawing_says_whether_it_fires_on_his_day_whatever_differs_before():
+    """A box read from another opening day can still fire on his day at his trigger: the caption must say so, and
+    the frame is amber, not the red of a drawing with no fire."""
+    differs_but_fires = dict(_his("OPEN", "opening day"), strict=True)
+    silent = _his("FIRE", "no fire")
+    matched = _his("NKE", None, strict=True)
+    assert 'class="chance"' in pack._his_figure(differs_but_fires)
+    assert "fires on your day at your trigger" in pack._his_figure(differs_but_fires)
+    assert 'class="miss"' in pack._his_figure(silent)
+    assert "no fire on your day at your trigger" in pack._his_figure(silent)
+    assert 'class="hit"' in pack._his_figure(matched) and "read as you drew it" in pack._his_figure(matched)
 
 
 def test_the_junk_he_rules_and_the_junk_for_his_eye_are_named_apart(tmp_path):
@@ -108,6 +125,17 @@ def test_the_night_shows_both_readers_side_by_side(tmp_path):
     night = html[html.index('id="night"'):]
     for fact in ("3701", "610", "240", "no lines", "2800", "not scanned", "AAA", "BBB",
                  "a trading day is missing from the middle 1", "HOLE", "S 1"):
+        assert fact in night, fact
+
+
+def test_the_night_says_what_the_scan_showed_that_night(tmp_path):
+    """The night's "today's engine" is this tree's; the scan he saw ran the deployed engine and cut after its read.
+    The page says what that scan showed and which fires differ, never the replay as the night he saw (the task-15
+    blind check's P2: 121 on the page, 116 on his screen)."""
+    html = _write(tmp_path, _record(), _night())
+    night = html[html.index('id="night"'):]
+    for fact in ("The scan you saw that night", "a2252c6c", "3690", "only in this replay: AAA",
+                 "its market-cap floor took out after the read: AAA", "only in the scan: none"):
         assert fact in night, fact
 
 

@@ -508,14 +508,22 @@ ticker through the one door, from the repo folder in PowerShell with the repo ve
 ```
 
 - **Outside the scan slot.** It refuses to start from the scan's hour (`SCAN_SCHEDULE_HOUR_ET`, New
-  York) until two hours after it, while the nightly scan and its catch-up run.
-- **On a copy.** The scan's market-data file, its meta and the two eligibility ledgers beside it are
-  copied into the folder you name first, and only the copies are read; the night read is the night
-  copied (its sha256 is in the side file). The service's own files are never held open.
-- **Side files only.** `night.json` and `night.txt` in that folder (and the copy, and the market
-  context computed from it): both readers' fires, the new reader's state words, each reader's wall
-  clock and its five slowest reads, stamped with each reader's engine version. Nothing reaches the
-  archive, the screener payload or the screen.
+  York) until two hours after it, while the nightly scan and its catch-up run. The guard is that clock
+  window only: it does not see a scan started by hand at another hour, so look at the dashboard's scan
+  status before you run it.
+- **On a copy.** The scan's market-data file, its meta, the two eligibility ledgers beside it and the
+  scan's own payload of that night (`output/screener_data.json`; `--payload` names another) are copied
+  into the folder you name first, and only the copies are read; the night read is the night copied
+  (its sha256 is in the side file). The service's files are opened only for the length of that copy.
+- **Beside the scan it replays.** The old reader here is this checkout's engine, which need not be the
+  engine that scanned that night, nor its cuts after the read (the market-cap floor). The night says
+  what the scan showed, under which engine, what it took out after its read, and which fires only one
+  of the two has; a payload of another night is named, never compared.
+- **Side files only.** `night.json` and `night.txt` in that folder (and the copies, and the market
+  context computed from them, which a rerun into the same folder on the same night reuses): both
+  readers' fires, the new reader's state words, each reader's wall clock and its five slowest reads,
+  stamped with each reader's engine version. Nothing reaches the archive, the screener payload or the
+  screen.
 
 The approval pack folds the night into its one page:
 
