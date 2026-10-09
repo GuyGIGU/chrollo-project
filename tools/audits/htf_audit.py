@@ -18,10 +18,10 @@ import os
 import sys
 
 try:  # works under both `python -m tools.audits.htf_audit` and `python tools/audits/htf_audit.py`
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader
 
 configure_path()
 
@@ -102,6 +102,7 @@ def main():
     ap.add_argument("--cache", default=None, help="parquet path (default: settings, with 2y fallback)")
     a = ap.parse_args()
 
+    say_old_reader()
     path = a.cache or settings.CACHE_FILENAME
     if not os.path.exists(path) and os.path.exists("market_data_cache_2y.parquet"):
         path = "market_data_cache_2y.parquet"

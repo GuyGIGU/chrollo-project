@@ -62,10 +62,10 @@ from types import SimpleNamespace
 import numpy as np
 
 try:  # works under both `python -m tools.research.correspondence_census` and `python tools/research/correspondence_census.py`
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 
 _ROOT = configure_path(backend=True)
 
@@ -687,6 +687,7 @@ def main():
     ap.add_argument("--ticker", help="limit to one ticker")
     ap.add_argument("--json", metavar="PATH", help="JSON sidecar path")
     args = ap.parse_args()
+    say_old_reader()   # FIRST: it reads the OLD reader past the door (go-live plan, task 4)
     if args.json:
         # Tripwire at the door (EC-14, sibling shape): a mistyped sealed path
         # must fail before minutes of census work, not after.

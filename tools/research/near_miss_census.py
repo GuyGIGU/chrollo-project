@@ -48,10 +48,10 @@ import sys
 from collections import Counter
 
 try:  # works under both `python -m tools.research.near_miss_census` and `python tools/research/near_miss_census.py`
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 
 _PROJECT_ROOT = configure_path(backend=True)
 
@@ -479,6 +479,7 @@ def main() -> int:
     ap.add_argument("--from", dest="from_json",
                     help="re-render the report from cached rows (no engine walk)")
     args = ap.parse_args()
+    say_old_reader()   # FIRST: it reads the OLD reader past the door (go-live plan, task 4)
 
     modes = [bool(args.check), bool(args.json), bool(args.from_json)]
     if sum(modes) > 1:

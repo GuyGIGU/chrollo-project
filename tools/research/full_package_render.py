@@ -46,10 +46,10 @@ import os
 import sys
 
 try:  # works under both `python -m tools.research.full_package_render` and `python tools/research/full_package_render.py`
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 
 _ROOT = configure_path()
 
@@ -553,6 +553,7 @@ def main():
                     help="path to the market_data_cache_5y.parquet (default: "
                          "settings.CACHE_FILENAME in cwd)")
     a = ap.parse_args()
+    say_old_reader()   # FIRST: it reads the OLD reader past the door (go-live plan, task 4)
     render([t.upper() for t in a.tickers], window=a.window, out_dir=a.out,
            show_events=not a.no_events, show_macro=a.macro, cache=a.cache)
 

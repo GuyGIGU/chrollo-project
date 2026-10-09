@@ -197,7 +197,10 @@ Rules that go with this layout:
 
 Sealed ground truth is not in `research/`: the operator's marks are in `docs/marks/` and the
 regression baselines in `tests/baselines/`. `tools/_bootstrap.py` refuses any tool write
-into either. [`research/README.md`](../research/README.md) has the full lifecycle.
+into either. It also holds `say_old_reader`: a tool that reads the old engine straight, past
+the reader door (`engine_alpha/reader.py`), prints first on a new-reader night that it reads the
+OLD reader (`tests/engine/test_reader_door.py` finds the tools that must).
+[`research/README.md`](../research/README.md) has the full lifecycle.
 
 ## 9. Public entry points
 

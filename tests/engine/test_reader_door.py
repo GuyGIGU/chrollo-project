@@ -160,6 +160,30 @@ def test_every_shipping_and_gating_caller_goes_through_the_door(path):
     )
 
 
+#: Instruments that read the old engine past the door through a brick rather than an entry point (the guard
+#: above cannot see them): named, so they say which reader they read too.
+_READS_OLD_BRICKS = ("tools/research/correspondence_census.py",)
+
+
+def test_every_instrument_that_reads_the_old_box_past_the_door_says_so():
+    """Go-live plan, task 4. An instrument (not a gate: those go through the door) may keep reading the old
+    engine's box straight after the flip, but on a new-reader night it must say FIRST that it reads the OLD
+    reader (``tools._bootstrap.say_old_reader``), or its reading passes for a judgement of tonight's screen.
+    Found from the tree, not listed: a new instrument that reads the old box joins on its first commit."""
+    import glob
+
+    tools = sorted(os.path.relpath(p, _ROOT).replace(os.sep, "/")
+                   for p in glob.glob(os.path.join(_ROOT, "tools", "**", "*.py"), recursive=True))
+    old_box = [p for p in tools if "read_structure" in _reaches_the_old_reader(p)]
+    assert "tools/audits/doctrine_audit.py" in old_box, "the inventory lost its own anchor case"
+    silent = []
+    for path in old_box + list(_READS_OLD_BRICKS):
+        with open(os.path.join(_ROOT, path), encoding="utf-8") as f:
+            if "say_old_reader(" not in f.read():
+                silent.append(path)
+    assert not silent, f"these read the OLD reader past the door and never say so: {silent}"
+
+
 def test_the_guard_sees_a_reference_that_is_never_written_as_a_call(tmp_path):
     """The guard's own proof, kept beside it.
 
@@ -270,8 +294,10 @@ def test_the_switch_is_read_in_exactly_one_place():
     # night replay (task 15) reads one scan night with it off and then on, the
     # old reader and the new through the door: it measures, it decides nothing.
     # The failed-read test (council review 2026-10-09, finding 3) flips it to make
-    # the new reader refuse a chart through the seed and the manual add.
-    files -= {"config/settings.py", "config/engine.py", "engine_alpha/freeze/manifest.py",
+    # the new reader refuse a chart through the seed and the manual add. The go-live
+    # plan's tasks 4 and 5 flip it to make the tools, the audits and the workbench
+    # meet a new-reader night (refused charts, the notice, the miss's reason).
+    files -= {"tests/tooling/test_old_reader_tools.py", "tests/backend/test_workbench_new_reader.py","config/settings.py", "config/engine.py", "engine_alpha/freeze/manifest.py",
               "tests/contracts/test_inert_contract.py", "tests/archive/test_read_failed_is_said.py",
               "tests/engine/test_reader_door.py", "tests/engine/test_two_eyes_adapter.py",
               "tests/engine/test_two_eyes_skeleton.py", "tests/engine/test_two_eyes_lps.py",

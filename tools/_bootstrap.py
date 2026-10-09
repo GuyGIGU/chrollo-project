@@ -94,6 +94,31 @@ _SEALED_FILES = tuple(
 )
 
 
+def say_old_reader(payload=None):
+    """The line an instrument that reads the OLD reader straight, past the reader door, prints FIRST on a
+    new-reader night (go-live plan, task 4); ``None``, and nothing printed, on an old-reader night.
+
+    A new-reader night is the switch on (asked of the door, ``engine_alpha.reader.which_reader``, never read
+    here), or a payload the new reader read: a two-eyes fire's chart carries the ``two_eyes`` block
+    (``core/pipeline/screening/dashboard.py``, ``_two_eyes_chart``). These instruments are not rewritten for
+    the new reader: they say which reader they read, so the old reader's reading is never taken for a
+    judgement of the new reader's screen. Returns the line it printed."""
+    from engine_alpha import reader  # local: this module is imported before the repo root is on the path
+
+    why = []
+    if reader.which_reader() == reader.READER_NEW:
+        why.append("the new reader is switched on")
+    charts = (payload or {}).get("chart_data") or {}
+    if any(isinstance(chart, dict) and "two_eyes" in chart for chart in charts.values()):
+        why.append("the payload it reads was read by the new reader")
+    if not why:
+        return None
+    line = (f"NOTE: {' and '.join(why)}, but this tool reads the OLD reader (today's engine) straight, past the "
+            "reader door: what it prints is the old reader's reading, NOT a judgement of the new reader's screen.")
+    print(line, flush=True)
+    return line
+
+
 def _canonical_path(path: str) -> str:
     """Absolute, symlink-resolved, separator- AND case-normalized.
 
