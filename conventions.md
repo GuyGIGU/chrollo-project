@@ -173,6 +173,13 @@ These must be followed — flag violations as findings.
 ### EC-57: Assert on sealed bases; disclose live drift as a ruling row
 **Convention:** Gates ASSERT only on sealed bases (marks ratchet, shadow fixture, junk corpus, reader pin). Live or fleet drift is never asserted and never silently passed: it is DISCLOSED in a dated sidecar with its population fingerprint, as a ruling row for the operator — it may block a ruling, never a build.
 
+### EC-58: A page the operator approves from states every choice it rests on and what it measured
+**Convention:** An approval page (the approval pack and anything like it) lists every OURS default and every recorded-but-unbuilt ruling it rests on, each with its docs/decisions.md row date, and stamps the drawings' fingerprint and the engine version it measured; a part pasted in from another run (a night file) is refused or flagged when its stamp differs.
+**Scope:** tools/calibration/approval_pack.py, aronson, patterson
+**Origin:** Council review 2026-10-09 of the two-eyes reader branch (.council/reviews/2026-10-09-two-eyes-reader-branch.md, findings 4 and 7)
+**Anchor:** tools/calibration/approval_pack.py
+**Approved:** 2026-10-09 — the user said: "yes to both, then fix them all"
+
 ## Observed Failures (F) — historical evidence, never a rule
 
 ### F-1: A memory consolidation changed three rules while shortening them
@@ -183,6 +190,15 @@ These must be followed — flag violations as findings.
 **Verdict:** CONFIRMED
 **Anchor:** conventions.md
 **Approved:** 2026-09-30 — the user said: "yes to both, fix all four"
+
+### F-2: A "the old night never loads the new reader" guard that only imported modules missed a run-time import
+**Failure:** The two-eyes branch kept the new reader out of the old nightly scan's imports, and its leak guard checked only what loads at import. The engine version stamp imported `engine_alpha.two_eyes.method_numbers` inside `collect_manifest`, which ran the package door and loaded all 14 stage modules on every night with the switch off; the guard stayed green. Future check: a leak guard also CALLS the nightly entry points (the version stamp), not just imports them.
+**Scope:** engine_alpha/freeze/manifest.py, tests/archive/test_archive_second_reader.py
+**Origin:** Council review 2026-10-09 of the two-eyes reader branch (.council/reviews/2026-10-09-two-eyes-reader-branch.md, finding 1)
+**Evidence:** .council/runs/2026-10-09-193545-review/verify-1.md:5
+**Verdict:** CONFIRMED
+**Anchor:** engine_alpha/freeze/manifest.py
+**Approved:** 2026-10-09 — the user said: "yes to both, then fix them all"
 
 ## Proposed
 
