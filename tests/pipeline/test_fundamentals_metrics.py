@@ -170,6 +170,7 @@ def test_compute_metrics_all_missing_is_all_none():
         "eps_growth_accel": None,
         "earnings_surprise": None,
         "rs_rating": None,
+        "quarter_end": None,
     }
 
 
@@ -236,6 +237,20 @@ def test_compute_metrics_as_of_after_filing_includes_quarter():
         "AAA", as_of="2026-07-01", provider=_FakeProvider(_income_dated(ends, eps=eps), pd.DataFrame())
     )
     assert out["eps_growth_yoy"] == pytest.approx(8.99)
+
+
+def test_compute_metrics_names_the_quarter_the_growth_read_used():
+    # The quarter the reader sees is the newest one PAST the filing lag, not the
+    # newest one the vendor holds: a reported-but-lagged quarter is named as
+    # absent, so a screen can say "Dec quarter" instead of implying "latest".
+    ends = ["2026-03-31", "2025-12-31", "2025-09-30", "2025-06-30", "2025-03-31", "2024-12-31"]
+    stmt = _income_dated(ends, eps=[9.99, 1.20, 1.10, 1.05, 1.00, 1.00])
+    lagged = metrics.compute_metrics("AAA", as_of="2026-04-10",
+                                     provider=_FakeProvider(stmt, pd.DataFrame()))
+    filed = metrics.compute_metrics("AAA", as_of="2026-07-01",
+                                    provider=_FakeProvider(stmt, pd.DataFrame()))
+    assert lagged["quarter_end"] == "2025-12-31"
+    assert filed["quarter_end"] == "2026-03-31"
 
 
 def test_available_income_stmt_no_as_of_is_passthrough():

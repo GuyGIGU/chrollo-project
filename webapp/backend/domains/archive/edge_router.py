@@ -51,6 +51,8 @@ class EngineEdgeResponse(BaseModel):
     abnormal_median: Optional[float]
     tail: TailRates
     by_tier: Dict[str, TierEdge]
+    # His calibration setups beside the fires, never pooled (ruling 2026-10-03).
+    calibration: Optional[TierEdge] = None
 
 
 # Plain ``def`` on purpose: the archive read + pandas pass are CPU/IO-bound, so

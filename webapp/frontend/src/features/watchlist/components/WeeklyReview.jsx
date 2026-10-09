@@ -4,6 +4,7 @@ import useWatchlist from '../hooks/useWatchlist';
 import { fetchReplay, useWatchlistHistory } from '../hooks/useWatchlistHistory';
 import { adaptReplaySnapshot, replayProvenance } from '../../../shared/charts/glance/replayAdapter';
 import { toast } from '../../../shared/components/feedback';
+import { isTypingTarget } from '../../../shared/navigation/keyboardGuard';
 import { tierColor } from '../../../shared/presentation/theme';
 import { fx as fixed } from '../../../shared/formatting/format';
 import { fmtSignedPctFrac } from '../../../shared/formatting/format';
@@ -75,7 +76,9 @@ function WeeklyReview({ open, onClose, screenerData }) {
   return (
     <>
     <div style={overlayStyle} onClick={onClose}>
-      <div style={panelStyle} onClick={(event) => event.stopPropagation()}>
+      {/* role="dialog": the page-level keys (screener cards, '/') stand down while the review is open. */}
+      <div style={panelStyle} onClick={(event) => event.stopPropagation()}
+           role="dialog" aria-modal="true" aria-label="Weekly review">
         <div style={headerStyle}>
           <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-main)' }}>
             Weekly review
@@ -83,8 +86,8 @@ function WeeklyReview({ open, onClose, screenerData }) {
           <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>
             saves grouped by the scan week they pinned
           </span>
-          <button type="button" className="focus-ring" onClick={onClose} style={closeButtonStyle}
-                  aria-label="Close review">×</button>
+          <button type="button" className="btn btn-icon" style={{ marginLeft: 'auto' }} onClick={onClose}
+                  aria-label="Close review">✕</button>
         </div>
 
         {weeks == null && !error && <div style={mutedStyle}>Loading…</div>}
@@ -189,9 +192,11 @@ function ReplayViewer({ replay, screenerData, showCurrent, onFlip, onClose, onPr
     return () => document.removeEventListener('keydown', onKey);
   }, [mode, onClose]);
 
-  // The trained modal-pager rhythm: arrow keys walk the week's saves.
+  // The trained modal-pager rhythm: arrow keys walk the week's saves (never
+  // while typing in a box — the big chart's "what's off?" field moves its caret).
   useEffect(() => {
     const onKey = (event) => {
+      if (isTypingTarget(event.target)) return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         event.preventDefault();
         onNext();
@@ -209,7 +214,8 @@ function ReplayViewer({ replay, screenerData, showCurrent, onFlip, onClose, onPr
     // Nothing stored to draw: state it in place instead of a broken chart.
     return (
       <div style={fallbackOverlayStyle} onClick={onClose}>
-        <div style={fallbackCardStyle} onClick={(event) => event.stopPropagation()}>
+        <div style={fallbackCardStyle} onClick={(event) => event.stopPropagation()}
+             role="dialog" aria-modal="true" aria-label={`${save.ticker} saved setup`}>
           <div style={stampStyle}>
             SAVED {provenance.savedOn || '—'}
             {provenance.unstarred ? ' · unstarred' : ''} · {save.ticker}
@@ -217,13 +223,14 @@ function ReplayViewer({ replay, screenerData, showCurrent, onFlip, onClose, onPr
           <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             No stored snapshot for this save. {provenance.archiveNote}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          {/* Right-aligned whether or not the current chart is on offer. */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             {currentEntry && (
-              <button type="button" style={flipButtonStyle} onClick={onFlip}>
+              <button type="button" className="btn" onClick={onFlip}>
                 View current chart
               </button>
             )}
-            <button type="button" style={flipButtonStyle} onClick={onClose}>Close</button>
+            <button type="button" className="btn" onClick={onClose}>Close</button>
           </div>
         </div>
       </div>
@@ -258,10 +265,8 @@ function ReplayViewer({ replay, screenerData, showCurrent, onFlip, onClose, onPr
           )}
           <button
             type="button"
-            style={{
-              ...flipButtonStyle,
-              opacity: (mode === 'saved' ? currentEntry : adapted) ? 1 : 0.45,
-            }}
+            className="btn"
+            style={{ marginLeft: 'auto' }}
             disabled={mode === 'saved' ? !currentEntry : !adapted}
             title={mode === 'saved'
               ? (currentEntry ? 'Flip to the current chart' : 'Not in the latest scan')
@@ -294,12 +299,6 @@ const panelStyle = {
 
 const headerStyle = {
   alignItems: 'baseline', display: 'flex', gap: 10,
-};
-
-const closeButtonStyle = {
-  background: 'transparent', border: 'none', color: 'var(--text-muted)',
-  cursor: 'pointer', fontSize: 18, lineHeight: 1, marginLeft: 'auto',
-  padding: '2px 6px',
 };
 
 const weekHeaderStyle = {
@@ -370,16 +369,5 @@ const stampStyle = {
 };
 
 const noteStyle = { color: 'var(--text-muted)', fontSize: 12 };
-
-const flipButtonStyle = {
-  background: 'transparent',
-  border: '1px solid var(--border-color)',
-  borderRadius: 'var(--radius-sm)',
-  color: 'var(--text-main)',
-  cursor: 'pointer',
-  fontFamily: 'inherit', fontSize: 12,
-  marginLeft: 'auto',
-  padding: '4px 12px',
-};
 
 export default WeeklyReview;

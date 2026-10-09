@@ -691,6 +691,7 @@ def test_screener_data_endpoint_status_never_scanned(monkeypatch):
     assert out["universe"] == "commodities_etf"
     assert out["status"] == "never_scanned"  # no artifact -> distinct sentinel
     assert out["scanned_at"] is None
+    assert out["stale_after"] is None  # nothing scanned -> no staleness claim
 
 
 def test_screener_data_endpoint_status_ready(monkeypatch):
@@ -704,6 +705,11 @@ def test_screener_data_endpoint_status_ready(monkeypatch):
     assert out["universe"] == "us_stocks"
     assert out["status"] == "ready"  # artifact present -> ready, with a timestamp
     assert out["scanned_at"] is not None
+    # The stamp's verdict rides the payload: the next slot after the write, plus the
+    # allowance (2023-11-14 22:13 UTC is a Tuesday, 17:13 EST -> Wednesday's slot).
+    monkeypatch.setattr(screener_router.scan_diagnosis, "scan_slot", lambda: (17, 0))
+    out = screener_router.get_screener_data(universe="us_stocks")
+    assert out["stale_after"] == "2023-11-16T00:00:00+00:00"  # Wed 19:00 EST
 
 
 def _valid_health_member(**overrides):

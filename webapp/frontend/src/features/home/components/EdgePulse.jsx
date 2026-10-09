@@ -30,6 +30,31 @@ function Figure({ value, label }) {
   );
 }
 
+// His calibration setups (ruling 2026-10-03: archived setups too), measured like
+// fires and shown as their own line, never a tier: they were chosen for quality.
+// The same display floors as the tiers; the win rate rides in the tooltip with
+// its resolution rate, as there.
+function CalibrationLine({ b }) {
+  if (!b || !b.n) return null;
+  const mfe = b.mfe_n >= MFE_MIN_N ? pct(b.mfe_median) : `n=${b.mfe_n}`;
+  const tail = b.tail ?? { n: 0, bands: [] };
+  const band = (tail.bands ?? [])[0];
+  const tailCell = tail.n >= TAIL_MIN_N && band ? pct(band.rate) : `n=${tail.n}`;
+  const winPart = b.win_rate != null
+    ? ` Win ${pct(b.win_rate)} of the ${b.n_labelled} resolved (${pct(b.resolution_rate, 0)} of them).`
+    : '';
+  return (
+    <div
+      className="home-edge-cal"
+      title={`Your ${b.n} calibration setups, measured like fires from the day before your trigger. Compared with the tiers, never pooled.${winPart}`}
+    >
+      <span>Calibration setups ({b.n})</span>
+      <span>median MFE <b>{mfe}</b></span>
+      {band && <span>MFE {bandLabel(band)} in 20d <b>{tailCell}</b></span>}
+    </div>
+  );
+}
+
 export default function EdgePulse() {
   const { data, status } = useEdgePulse();
   const icon = <PulseIcon className="home-zone-iconsvg" />;
@@ -96,6 +121,7 @@ export default function EdgePulse() {
             );
           })}
         </div>
+        <CalibrationLine b={data.calibration} />
         <span className="home-edge-foot">
           median MFE, elapsed window · tier column {headBands[tierBandIdx] ? `= MFE ${bandLabel(headBands[tierBandIdx])} in 20d` : ''} · unbiased, excludes seed · n={n}
         </span>

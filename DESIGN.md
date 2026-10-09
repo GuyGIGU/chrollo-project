@@ -78,7 +78,8 @@ components:
     backgroundColor: "{colors.myth}"
     textColor: "{colors.myth-ink}"
     rounded: "{rounded.sm}"
-    padding: "0.6rem 1.2rem"
+    height: "30px"
+    padding: "0 14px"
   nav-link:
     textColor: "{colors.text-muted}"
     rounded: "{rounded.sm}"
@@ -344,13 +345,26 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 ### Buttons
 - **Shape:** Gently rounded (6px) for standard buttons; pill (9999px) for sidebar action buttons.
 - **Primary:** Mythril fill, dark #07211E ink (never white-on-mythril — it fails
-  contrast), `0.6rem 1.2rem` padding. This is the shape of every primary action:
+  contrast), 30px tall, `0 14px` padding. This is the shape of every primary action:
   Evaluate, Download, Connect IBKR, Add Setup, Save, Update Returns, confirm.
-- **Hover / Focus:** Standard buttons lift/tint on hover; focus shows a mythril soft
-  ring (`--glow-active`).
-- **Deprecated:** the old blue→violet gradient "trade action" button (`.btn-trade`
-  kit) is unused dead CSS and now off-doctrine (no ornamental gradients; action is
-  mythril). Don't revive it — a primary mythril button marks the consequential action.
+- **Kit:** `.btn` is the standard secondary (hairline, transparent, main ink, 30px);
+  `.btn-primary` is a mythril fill with #07211E ink; `.btn-danger` is for destructive
+  confirms (danger fill, the same dark ink); `.btn-sm` is 24px for dense rows;
+  `.btn-icon` is the 30px square glyph button, every dialog's ✕. All are defined once
+  in `index.css`; a new button uses the kit, never an inline style object.
+- **Disabled:** 45% opacity; a disabled primary greys to the hover surface with
+  muted ink.
+- **Hover / Focus:** Tint to the hover surface; focus = `--glow-active`.
+- **Deprecated:** the old blue→violet gradient "trade action" button (`.btn-trade`)
+  — its CSS is already gone; don't revive it. A primary mythril button marks the
+  consequential action.
+- **Pager:** `shared/components/Pager.jsx` shows ‹ Prev, seven fixed slots, Next ›,
+  so Next never moves; a compact ‹ n/N › where a header has no room; the current
+  page wears the selected state.
+- **Loading:** `shared/components/Skeleton.jsx` draws shimmer rows, or chart-shaped
+  `.skeleton-card` blocks on a card grid, the shape of what is coming; never a bare
+  "Loading…" line in a pane that will hold content; motion stops under
+  `prefers-reduced-motion`.
 
 ### Chips & Pills
 - **Score pill:** Monospace, 18px tall, elevated-surface background, hairline border;
@@ -388,12 +402,19 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 - **Section labels:** 9px uppercase, faint, wide tracking.
 
 ### Signature — The Screener Card
-The triage unit of the product: a header (tier-colored ticker + tier badge +
-sector ETF + as-of date on the first line, the weekly/monthly read and the live
-price on the second, with the watchlist star and the **like** heart floating in
-the top-right corner), a mini price chart, and a tag row. The setup label, score
-and sub-score pills live in the click-through modal, not on the card face — the
-card is for the chart.
+The triage unit of the product: a **two-row** header (on top, the tier-colored
+ticker + tier badge + sector ETF, then the as-of date, the live price and its
+daily %, and the watchlist star and the **like** heart at the far right; under
+it, the leadership read and the weekly/monthly read), a mini price chart, and a
+**one-row** tag strip whose overflow folds into `+N`. The header was one row from
+2026-10-02 (the operator circled the old two rows as space the chart should get)
+until 2026-10-04, when the leadership read crowded the weekly/monthly words into
+ellipses on every card; the health card and the Watchlist's clean card share the
+same 47px shell, so every card's chart starts at the same height. If a card is
+ever too narrow, the weekly/monthly words are what ellipsize, never the price or
+the toggles. The setup label, score and
+sub-score pills live in the click-through modal, not on the card face — the card
+is for the chart.
 
 **The like (♥, or `L`)** says "this is the kind of setup I want more of"
 (operator 2026-09-02). It replaced the neutral "considered" check-off, which now
@@ -403,20 +424,67 @@ app's operator-mark gold, never a tier hue, because it is *his* judgement and no
 the engine's. (An earlier draft of this section claimed cards dim to 50% when
 marked; they never did — no such rule was ever written.)
 
+**The big chart acts like the card** (operator 2026-10-03, suggestion #1), so he
+can walk the whole filtered list with Next and act on each chart without closing
+it. Its top bar ends `[☆/★] [♡/♥] [↗ TV]  12 / 37  [Prev] [Next] [✕]`, and while
+it is open **W** stars, **L** likes and **T** opens the chart on TradingView in a
+new tab (a held key does not repeat; Ctrl/Cmd/Alt combinations stay the
+browser's; keys typed into the "what's off?" box are text). The star and heart
+save to exactly the lists the card's buttons do; pressed, they wear the same
+operator-mark gold. **A control is drawn only where its host can act:** the star,
+the heart and the counter appear only in the Screener's lens (main grid and ETF
+drill-down), and W/L do nothing where they are not drawn; every other lens (Home,
+Archive, the weekly review) gets ↗ TV alone, which is the one TradingView link in
+a lens (Home's lens footers dropped theirs). A chart that leaves the list while
+open (un-starred on the Watchlist tier) keeps the counter's slot as "– / 36", so
+the star never slides out from under the pointer, and Next lands on the setup
+that slid into its place; Prev/Next stay while any other setup is in the list.
+A card left focused behind the open chart stands down (under a modal dialog
+only, not the command bar's popovers), so W/L act once, on the chart on screen.
+The "?" sheet lists T and Esc on every page that opens a big chart, and W, L and
+the arrows on the Screener's.
+
+**While Evaluate runs, the wall stays** (operator 2026-10-03): the cards on screen
+are the last finished scan, so they keep their place at 45% opacity and go `inert`
+(no open, star or like) until the new results have been fetched, then return at
+full strength. The Watchlist-tier table dims with them; the filter band stays live.
+A data download never dims them (it does not rewrite the scan). A failed run leaves
+the last finished scan at full strength under its error banner; a stopped run is not
+a failure, so it shows no banner: the cards stay dimmed through one re-fetch, then
+return at full strength (`.screener-stale`; the decision is `resultsStale` in the
+screener's `scanStream.js`).
+
 **The chart is the card, and its spare room is VERTICAL** (operator 2026-09-02).
-The target is **three-up on a 1536×864-effective monitor**: a 490px card carrying
-a 225px chart well — a **2.17:1** chart, within a rounding error of Finviz's own
-screener charts (2.1:1), which is the reference he rules by. A two-up 620px card
-was tried the same day and reverted: it made the chart wide and short (3.1:1), so
-a stock's whole run was squeezed into a strip and the rest read as a sliver in the
-corner. Widening the card is not how this chart gets better; heightening it is.
+**One card size on every monitor** (operator 2026-10-03, "retain the original
+size so the scaling looks the same, with the extra monitor space I could just ...
+see more of the website"): every card grid is `minmax(590px, 1fr)`, so a wider
+screen gets MORE cards, never bigger ones — three of 618px at 1920x1080, four of
+620px at 2560x1440. (The day before, "the clean 3 Charts per row rule" had been
+built as a three-card ceiling, which drew three 831px cards at 2560; his rule was
+the 1920 card, not the count.) **The big charts hold their 1920 size too**: the
+lens's chart band stays 567px tall (its daily pane 1318x566) and the Watchlist
+D/W/M band 1850x805, never a taller chart. The lens itself still fills the
+screen's height, so on the bigger screen its read panel takes the extra room
+(300px at 1920, ~660px at 2560: the whole read without scrolling). The
+chart well is locked to the card's **width**, not the viewport's height: a
+**1.9:1** well (`--card-chart-aspect`) — "slightly more a cube like" than the
+~2.2:1 well it replaced, and the same proportions on every monitor, so a setup is
+the same shape on his 1920 and his 2560 screen. Finviz's own screener charts
+(2.1:1) are the reference he rules by. A two-up 620px card was tried on
+2026-09-02, on the 1536px screen he had then, and reverted: before the well was
+locked to the width it made the chart wide and short (3.1:1), so a stock's
+whole run was squeezed into a strip and the rest read as a sliver in the corner.
+Widening the card is not how this chart gets better; heightening it is.
 
 Density stays the point, and it means *honest bars per trading day*: the window is
-set by the consolidation the engine found (a 24-day rest gets ~83 days, a 33-day
-rest ~109), never by a fixed span, so a wide choppy setup and a tight coil can
-never occupy the same width. See
-[docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md); the knobs are
-`CHART_FRAMING` and `uiScale.CARD_MIN_PX`.
+set by the consolidation the engine found (on the card a 24-day rest gets ~65
+days, a 33-day rest ~85 — closer since 2026-10-02, "I want more close up on the
+setups themselves"), never by a fixed span, so a wide choppy setup and a tight
+coil can never occupy the same width. The card's price band takes 88% of the well;
+volume is a thin strip under the bars. See
+[docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md) (its 2026-10-02
+revision); the knobs are `CHART_FRAMING`, `--card-chart-aspect`,
+`uiScale.CARD_MIN_PX`, and the lens / `.wl-top` caps (pinned in `uiScale.test.js`).
 
 ## 6. Do's and Don'ts
 

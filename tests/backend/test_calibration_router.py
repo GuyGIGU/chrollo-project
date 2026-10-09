@@ -560,6 +560,119 @@ def test_chart_happy_path_provenance_and_resolution(monkeypatch, tmp_path):
     assert len(out["candles"]) == 4 and len(out["volumes"]) == 4
 
 
+_SKYT_DATES = ["2025-09-08", "2025-09-09", "2025-09-10", "2025-09-12", "2025-09-15"]
+
+
+def test_chart_draws_the_preserved_copy_when_the_vendor_has_nothing(monkeypatch, tmp_path):
+    # SKYT, 2026-08-28: the vendor stopped serving a ticker the operator had
+    # already marked, and the chart refused although its bars sat frozen on disk.
+    first = _chart(monkeypatch, _frame(_SKYT_DATES), tmp_path, as_of="2025-09-10")
+    assert first["source"] == "vendor"
+
+    gone = _chart(monkeypatch, _frame([]), tmp_path, as_of="2025-09-10")
+    assert (gone["source"], gone["preserved_reason"]) == ("preserved", "no_data")
+    assert first["preserved_reason"] is None
+    assert gone["warnings"][0].startswith("preserved copy")
+    # The same bars, the same basis: the whole frozen window (forward bars too).
+    for key in ("as_of_session", "frame_digest", "bar_count", "forward_bars",
+                "frame_start", "frame_end", "prev_session", "next_session",
+                "anchor_close", "candles", "volumes"):
+        assert gone[key] == first[key], key
+
+
+def test_preserved_copy_answers_a_throttled_vendor_too(monkeypatch, tmp_path):
+    from core.pipeline.market_data import rate_limit
+    _chart(monkeypatch, _frame(_SKYT_DATES), tmp_path, as_of="2025-09-10")
+    import domains.market_data.candle_cache as candle_cache
+    monkeypatch.setattr(candle_cache, "_CACHE", {})
+    monkeypatch.setattr(rate_limit, "in_cooldown", lambda: True)
+    out = calibration_chart(ticker="KLAC", as_of="2025-09-10")
+    assert (out["source"], out["preserved_reason"]) == ("preserved", "rate_limited")
+    # A throttle is not a lost ticker: the words say so, and the page keeps such
+    # a copy out of its sitting cache so the next lookup tries the vendor again.
+    assert "throttling" in out["warnings"][0] and "no data" not in out["warnings"][0]
+
+
+def test_preserved_copy_reaches_a_nearby_typed_date_but_not_another_chart(
+        monkeypatch, tmp_path):
+    # Frozen on Friday 2025-09-12; the frozen window runs on to Monday 09-15.
+    _chart(monkeypatch, _frame(_SKYT_DATES), tmp_path, as_of="2025-09-12")
+    # The weekend after it is not a session, so it still finds Friday...
+    for weekend in ("2025-09-13", "2025-09-14"):
+        near = _chart(monkeypatch, _frame([]), tmp_path, as_of=weekend)
+        assert (near["source"], near["as_of_session"]) == ("preserved", "2025-09-12")
+        assert any("resolved to 2025-09-12" in w for w in near["warnings"])
+        assert near["forward_bars"] == 1  # Monday, counted the same as the vendor path
+    # ...but Monday is a REAL session of its own (it is in the frozen window as a
+    # forward bar), so drawing Friday's chart and calling Monday "not a session"
+    # would be a lie: refused, naming the date that IS loadable (review 2026-10-02).
+    for other_chart in ("2025-09-15", "2025-10-15"):
+        with pytest.raises(HTTPException) as err:
+            _chart(monkeypatch, _frame([]), tmp_path, as_of=other_chart)
+        assert err.value.detail["class"] == "no_data"
+        assert "preserved copy exists for 2025-09-12" in err.value.detail["message"]
+
+
+def test_a_vendor_crash_falls_back_too_and_never_500s(monkeypatch, tmp_path):
+    import domains.market_data.service as market_data
+
+    def boom(*a, **k):
+        raise RuntimeError("vendor chain exploded")
+
+    _chart(monkeypatch, _frame(_SKYT_DATES), tmp_path, as_of="2025-09-10")
+    import domains.market_data.candle_cache as candle_cache
+    monkeypatch.setattr(candle_cache, "_CACHE", {})
+    monkeypatch.setattr(market_data, "daily_candle_frame", boom)
+    assert calibration_chart(ticker="KLAC", as_of="2025-09-10")["source"] == "preserved"
+    # With no frozen copy the crash is a named refusal, not a bare 500.
+    with pytest.raises(HTTPException) as err:
+        calibration_chart(ticker="NOPE", as_of="2025-09-10")
+    assert (err.value.status_code, err.value.detail["class"]) == (503, "vendor_error")
+
+
+def test_an_unreadable_preserved_copy_is_skipped_not_raised(monkeypatch, tmp_path):
+    import frame_store
+    _chart(monkeypatch, _frame(_SKYT_DATES), tmp_path, as_of="2025-09-10")
+
+    def torn(*a, **k):
+        raise OSError("torn parquet")
+
+    monkeypatch.setattr(frame_store, "load_preserved_chart", torn)
+    with pytest.raises(HTTPException) as err:
+        _chart(monkeypatch, _frame([]), tmp_path, as_of="2025-09-10")
+    assert err.value.detail["class"] == "no_data"
+    # Never "a preserved copy exists for 2025-09-10 — load it" about the very
+    # date that just failed to read.
+    assert "copy for 2025-09-10 could not be read" in err.value.detail["message"]
+
+
+def test_preserved_copy_draws_the_rendering_the_marks_are_bound_to(monkeypatch, tmp_path):
+    # A vendor restatement froze a second rendering beside the first; the saved
+    # marks sit on the second. The preserved chart must draw THAT one, or the
+    # operator's next edit would be refused as a rebind (409).
+    first = _chart(monkeypatch, _frame(_SKYT_DATES, close=100.0), tmp_path, as_of="2025-09-10")
+    restated = _chart(monkeypatch, _frame(_SKYT_DATES, close=90.0), tmp_path, as_of="2025-09-10")
+    assert restated["frame_digest"] != first["frame_digest"]
+
+    monkeypatch.setattr(calibration, "_bound_digest", lambda *a: restated["frame_digest"])
+    out = _chart(monkeypatch, _frame([]), tmp_path, as_of="2025-09-10")
+    assert out["frame_digest"] == restated["frame_digest"]
+    assert out["anchor_close"] == 90.0 and out["forward_bars"] == restated["forward_bars"]
+
+    monkeypatch.setattr(calibration, "_bound_digest", lambda *a: None)
+    unbound = _chart(monkeypatch, _frame([]), tmp_path, as_of="2025-09-10")
+    assert unbound["frame_digest"] == first["frame_digest"]  # no marks: the first freeze
+
+
+def test_a_mark_saved_on_the_preserved_copy_binds(monkeypatch, tmp_path, db):
+    _chart(monkeypatch, _frame(_SKYT_DATES), tmp_path, as_of="2025-09-10")
+    out = _chart(monkeypatch, _frame([]), tmp_path, as_of="2025-09-10")
+    saved = create_mark(_payload(out["frame_digest"], ticker="KLAC",
+                                 as_of_date="2025-09-10", box_start_date="2025-09-08",
+                                 box_end_date="2025-09-10", events=[]), db)
+    assert saved.frame_digest == out["frame_digest"]
+
+
 def test_chart_freezes_a_loadable_forward_grading_frame(monkeypatch, tmp_path):
     # A chart load must also freeze the forward-inclusive grading frame (Task 2),
     # so a later Trigger grade — a buy AFTER as-of — can replay frozen-only.

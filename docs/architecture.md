@@ -75,7 +75,7 @@ lives in `core/calibration/` and `webapp/backend/domains/calibration/grading.py`
 | `core/archive/` | The SQLite archive: writing rows, maturing outcomes, analysis, seeding, purging. | Production |
 | `core/backtest/` | The edge report and backtest statistics. The backend's edge tile and `core/archive/analyze_stats.py` import it. | Production |
 | `core/calibration/` | Replaying the engine on frozen calibration frames (`replay.py`) and the mark-agreement taxonomy (`agreement.py`), shared by the backend's workbench chips and the calibration tools. | Production |
-| `core/regime/`, `core/fundamentals/` | Relative strength, sector ranking and fundamentals. Dark behind flags (see [`flag_ledger.md`](flag_ledger.md)). | Production (dark) |
+| `core/regime/`, `core/fundamentals/` | Relative strength, sector ranking and fundamentals. The RS rating is live (display and archive, no flag, since 2026-10-02) and so are the fundamentals (display and archive, `FUNDAMENTALS_ENABLED`, since 2026-10-03); the RS line and sector ranking are dark behind flags (see [`flag_ledger.md`](flag_ledger.md)). | Production (RS rating and fundamentals live; the rest dark) |
 | `config/` | Every default setting, split by domain; `settings.py` is the one namespace. | Production |
 | `webapp/backend/` | The HTTP API, the database, the scheduler, the IBKR link. | Production |
 | `webapp/frontend/` | The React app. | Production |
@@ -123,7 +123,7 @@ results on.
 | `market_data/` | Providers; downloads (`downloads.py`, `fetch_data`'s cache state machine; `panel_fetch.py`, cold and incremental panel builds and their repairs; `yahoo_download.py`, Yahoo requests, retry and the shared rate limit; `price_regime.py`, as-traded vs adjusted prices); the parquet cache, freshness, the market calendar, rate limiting, the cache file lock, fetch health. |
 | `universe/` | Universe descriptors, ticker lists, ticker admission. |
 | `context/` | Market regime (`market_context.py`) and the sector health board. |
-| `screening/` | `screener.py` (`run_screener`: evaluate every ticker in a process pool), `scan_job.py` (scan, then payload, then archive; the nightly job), `dashboard.py` and `terminal.py` (the payload writers). |
+| `screening/` | `screener.py` (`run_screener`: evaluate every ticker in a process pool), `scan_job.py` (scan, then payload, then archive; the nightly job), `dashboard.py` and `terminal.py` (the payload writers), `market_cap_floor.py` (the $300M floor on the fires, after the read). |
 | `telemetry/` | Scan stage timings. |
 | `json_safety.py` | Making payloads safe for stdlib JSON. |
 
@@ -164,7 +164,7 @@ Outside the domains:
 
 | Path | Owns |
 |---|---|
-| `app/` | `App.jsx` (the route table), the shell (`components/`), appearance and UI scale. |
+| `app/` | `App.jsx` (the route table), the shell (`components/`), appearance and UI scale, the top nav's last-place memory (`navigation/lastPlace.js`), and the keyboard key list (`keyboard/keyMap.js`, what the "?" sheet shows). |
 | `features/<name>/` | One screen each: `home`, `screener`, `watchlist`, `journal` (the `/dashboard` route), `options`, `portfolio`, `archive`, `calibration`, plus `ibkr` (status and controls used by the shell). Each has a `<Name>Route.jsx` where it is a page, and `components/`, `hooks/`, `model/` (pure logic) and `presentation/` (labels and formatting) as needed. |
 | `shared/` | Only code used by unrelated features: `charts/`, `components/`, `formatting/` (the one null guard `fx` is in `shared/formatting/format.js`; `portfolioFormat.js`, the portfolio money format the journal also uses), `hooks/` (`screenerStore.js`, the scan data cache the screener, home and watchlist read), `navigation/`, `presentation/`, `setup/` (the setup card, lens and chip catalog `tagCatalog.js`). |
 | `api/base.js` | `API_BASE`, the one backend URL. |
@@ -188,6 +188,7 @@ Rules that go with this layout:
 | Daily observation | One archive row per ticker per scan day per universe. | `core/archive/writer.py` writes it; `setup_archive` table |
 | Episode | A base re-flagged day after day, collapsed into one event. Every statistic should count episodes. | `core/archive/episodes.py` |
 | Outcome | Forward returns, MFE/MAE, trigger, barrier label, filled once a row is old enough. | `core/archive/forward_returns.py`, `core/archive/outcomes.py` |
+| Calibration setup | His drawn setup from the calibration tab, an archived setup too (ruling 2026-10-03): measured like a fire into its own table, read by every study as its own group. | `core/archive/calibration_outcomes.py`; `calibration_outcomes` table |
 | Analysis | The winner fingerprint and signal-edge read. | `python -m core.archive.analyze` (`analyze_features.py`, `analyze_stats.py` and `analyze_report.py` hold its columns, numbers and text) |
 | Backtest statistics | Edge report, null model, in-sample/out-of-sample split; the signal-edge layer (deflated Sharpe, event-study CAR, scaled-exit simulation) that only the `tools/research/backtest_*` harnesses read. Production code, not a scratch area. | `core/backtest/` |
 | Instruments | Census and study scripts that produce evidence. | `tools/research/` |

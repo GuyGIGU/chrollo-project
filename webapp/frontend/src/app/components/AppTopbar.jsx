@@ -1,7 +1,8 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { scanStatusColor } from '../../shared/formatting/appFormat';
 import { confirmLeaveWithDialog, shouldInterceptNavClick } from '../../shared/navigation/leaveGuard';
+import { goesNowhere, placeFor, rememberPlace } from '../navigation/lastPlace.js';
 import IbkrModeControls from '../../features/ibkr/components/IbkrModeControls';
 import AppearanceControl from './AppearanceControl';
 import {
@@ -35,19 +36,28 @@ const NAV_GROUPS = [
 // surface has armed the leave guard (calibration marks today), untouched for
 // modified/middle clicks so open-in-new-tab still works, and untouched for the
 // tab you are already on — that click discards nothing.
+// Each tab links to its surface's LAST address (lastPlace.js), query included;
+// the guard still compares the raw path, and active matching ignores the query.
+// A plain click on the tab you are on is swallowed: it goes nowhere, and the
+// router would replace the entry and drop its history state (lastPlace.js).
 function NavTab({ to, end, label, Icon }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const target = placeFor(to, location);
 
   const handleClick = (event) => {
-    if (!shouldInterceptNavClick(event, to, pathname)) return;
+    if (goesNowhere(event, to, location)) {
+      event.preventDefault();
+      return;
+    }
+    if (!shouldInterceptNavClick(event, to, location.pathname)) return;
     event.preventDefault();
-    confirmLeaveWithDialog().then(ok => { if (ok) navigate(to); });
+    confirmLeaveWithDialog().then(ok => { if (ok) navigate(target); });
   };
 
   return (
     <NavLink
-      to={to}
+      to={target}
       end={end}
       onClick={handleClick}
       className={({ isActive }) => `topnav-link ${isActive ? 'active' : ''}`}
@@ -72,6 +82,11 @@ function AppTopbar({
   importingCsv,
   onCsvImport,
 }) {
+  const location = useLocation();
+  useEffect(() => {
+    rememberPlace(location.pathname, location.search);
+  }, [location.pathname, location.search]);
+
   return (
     <header className="app-topnav">
       <div className="topnav-brand" title="Chrollo">

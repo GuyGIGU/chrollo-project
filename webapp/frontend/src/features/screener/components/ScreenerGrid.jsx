@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import HealthBoard from './HealthBoard';
 import ScreenerCard from '../../../shared/setup/ScreenerCard';
 import ScreenerModal from '../../../shared/setup/ScreenerModal';
-import ScreenerPager from './ScreenerPager';
+import Pager from '../../../shared/components/Pager';
 import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
 import ScreenerWatchlistPanel from '../../watchlist/components/ScreenerWatchlistPanel';
@@ -15,11 +15,24 @@ import useScreenerData, { DEFAULT_UNIVERSE } from '../hooks/useScreenerData';
 import useScreenerFilters from '../hooks/useScreenerFilters';
 import useWatchlist from '../../watchlist/hooks/useWatchlist';
 import useDrilldown from '../hooks/useDrilldown';
+import useCardKeyboard from '../hooks/useCardKeyboard';
+import useDocumentTitle from '../../../shared/hooks/useDocumentTitle';
+import { isTypingTarget } from '../../../shared/navigation/keyboardGuard';
+import {
+  PUSHED_BY_DRILLDOWN,
+  PUSHED_BY_LENS,
+  applyParamPatch,
+  closesByPop,
+  pushedEntry,
+} from '../model/screenerUrlState.js';
+import { canStepLens, lensPosition, stepTicker } from '../model/lensStepping.js';
 
 const ScreenerGrid = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   // The operator's place lives in the URL: ?u= universe, ?dd= drill-down ETF,
-  // ?t= open modal ticker — F5 / back-button never lose it.
+  // ?t= open modal ticker — F5 / back-button never lose it. ?tier= ?setup=
+  // ?tag= (repeated) ?sort= ?q= ?p= hold the filters and the page, all written
+  // with REPLACE (model/screenerUrlState.js).
   const universe = searchParams.get('u') || DEFAULT_UNIVERSE;
   const activeModalTicker = searchParams.get('t');
   const drilldownEtf = searchParams.get('dd');
@@ -27,7 +40,21 @@ const ScreenerGrid = () => {
   const { watchlist, toggleWatchlist } = useWatchlist();
   const { liked, toggleLiked } = useReviews();
   const { screenerData, status, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData(universe);
-  const filters = useScreenerFilters(screenerData, watchlist);
+
+  const navigate = useNavigate();
+  // Opens PUSH a tagged entry (model/screenerUrlState.js); closing pops it; cycling and
+  // every filter/page write REPLACE, keeping the entry's tag. Built on the LIVE address
+  // bar: react-router 7's setSearchParams updater gets the render-time params, so two
+  // writes in one click would undo each other. Side benefit: navigate is stable, so
+  // openModal etc. stop changing identity.
+  const patchParams = useCallback((patch, { replace = false, state } = {}) => {
+    const next = applyParamPatch(window.location.search, patch).toString();
+    // react-router keeps an entry's state under history.state.usr; a replace that
+    // dropped it would turn a close back into a replace (a duplicate entry).
+    const entryState = state !== undefined ? state : (replace ? window.history.state?.usr : undefined);
+    navigate({ search: next ? `?${next}` : '' }, { replace, state: entryState });
+  }, [navigate]);
+  const filters = useScreenerFilters(screenerData, watchlist, { searchParams, patchParams });
   const scan = useScanRunner(fetchScreener, universe);
   const { drilldown, openDrilldown, closeDrilldown } = useDrilldown();
 
@@ -54,24 +81,19 @@ const ScreenerGrid = () => {
     [toggleWatchlist, drilldownScanDate],
   );
 
-  // Patch individual params without clobbering the others. Opens PUSH (so the
-  // browser Back closes the modal/drill-down); closes and in-modal cycling
-  // REPLACE (Back shouldn't walk through every viewed ticker).
-  const patchParams = useCallback((patch, { replace = false } = {}) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      for (const [key, value] of Object.entries(patch)) {
-        if (value == null || value === '') next.delete(key);
-        else next.set(key, value);
-      }
-      return next;
-    }, { replace });
-  }, [setSearchParams]);
-
-  const openModal = useCallback((ticker) => patchParams({ t: ticker }), [patchParams]);
+  const openModal = useCallback(
+    (ticker) => patchParams({ t: ticker }, { state: pushedEntry(PUSHED_BY_LENS) }),
+    [patchParams],
+  );
   const cycleModal = useCallback((ticker) => patchParams({ t: ticker }, { replace: true }), [patchParams]);
-  const closeModal = useCallback(() => patchParams({ t: null }, { replace: true }), [patchParams]);
-  const backToGrid = useCallback(() => patchParams({ dd: null, t: null }, { replace: true }), [patchParams]);
+  const closeModal = useCallback(() => {
+    if (closesByPop(window.history.state?.usr, PUSHED_BY_LENS)) navigate(-1);
+    else patchParams({ t: null }, { replace: true });
+  }, [navigate, patchParams]);
+  const backToGrid = useCallback(() => {
+    if (closesByPop(window.history.state?.usr, PUSHED_BY_DRILLDOWN)) navigate(-1);
+    else patchParams({ dd: null, t: null }, { replace: true });
+  }, [navigate, patchParams]);
 
   // The ?dd= param drives the drill-down fetch state, so a reload restores it.
   useEffect(() => {
@@ -86,13 +108,14 @@ const ScreenerGrid = () => {
   const savedScrollRef = useRef(null);
 
   // The selected universe lives in the URL (?u=) so it survives reload. Switching
-  // resets the page AND the filters (a tag/setup/tier valid in one universe need
-  // not exist in another — a stale filter would fake a "no matches" empty state)
-  // and drops ?dd=/?t= wholesale, so the switch is never silently masked.
+  // PUSHES fresh params, which drops the page AND the filters (a tag/setup/tier
+  // valid in one universe need not exist in another — a stale filter would fake a
+  // "no matches" empty state) and ?dd=/?t= wholesale, so the switch is never
+  // silently masked. No resetFilters() first: that would REPLACE the old
+  // universe's history entry with a cleared copy, so Back would return without
+  // its filters.
   const handleUniverseChange = (key) => {
     if (key === universe) return;
-    filters.resetFilters();
-    filters.setCurrentPage(1);
     // Dropping ?dd= here closes any open drill-down; without clearing the saved
     // offset, the restore effect would apply a scroll position captured on the
     // PREVIOUS universe to the freshly-loaded one. Only a real back-to-grid restores.
@@ -103,7 +126,7 @@ const ScreenerGrid = () => {
   const handleDrilldown = useCallback((etf) => {
     const el = document.querySelector('.content-scroll');
     savedScrollRef.current = el ? el.scrollTop : null;
-    patchParams({ dd: etf, t: null });
+    patchParams({ dd: etf, t: null }, { state: pushedEntry(PUSHED_BY_DRILLDOWN) });
   }, [patchParams]);
 
   useEffect(() => {
@@ -124,6 +147,9 @@ const ScreenerGrid = () => {
     () => (drilldown ? (drilldown.ordered_tickers || []) : filters.filteredTickers),
     [drilldown, filters.filteredTickers],
   );
+  // The lens on screen, gated exactly like its render and the keydown handler.
+  const lensTicker = activeModalTicker && modalChart[activeModalTicker] ? activeModalTicker : null;
+  useDocumentTitle('Screener', lensTicker);
 
   // Fetch the next-earnings date only for the ticker whose detail lens is open
   // (not the whole page — the card face no longer shows it). The store dedups,
@@ -132,26 +158,35 @@ const ScreenerGrid = () => {
     if (activeModalTicker) fetchEarnings([activeModalTicker]);
   }, [activeModalTicker, fetchEarnings]);
 
-  const handleNextModal = useCallback(() => {
-    if (!activeModalTicker || modalTickers.length === 0) return;
-    const currentIndex = modalTickers.indexOf(activeModalTicker);
-    const nextIndex = (currentIndex + 1) % modalTickers.length;
-    cycleModal(modalTickers[nextIndex]);
-  }, [activeModalTicker, modalTickers, cycleModal]);
+  // The last place the lens ticker had in the list: un-starring it with W on the
+  // Watchlist tier drops it from the list while the lens stays open, and Next
+  // then lands on the setup that slid into that place (model/lensStepping.js).
+  const lensIndexRef = useRef(null);
+  useEffect(() => {
+    const index = modalTickers.indexOf(activeModalTicker);
+    if (index >= 0) lensIndexRef.current = index;
+  }, [activeModalTicker, modalTickers]);
 
-  const handlePrevModal = useCallback(() => {
-    if (!activeModalTicker || modalTickers.length === 0) return;
-    const currentIndex = modalTickers.indexOf(activeModalTicker);
-    const prevIndex = (currentIndex - 1 + modalTickers.length) % modalTickers.length;
-    cycleModal(modalTickers[prevIndex]);
-  }, [activeModalTicker, modalTickers, cycleModal]);
+  // Prev/Next only when another setup is in the list: one match that is the chart on
+  // screen has nowhere to go, so the lens hides the buttons and the arrows stay put too.
+  const canStep = canStepLens(modalTickers, activeModalTicker);
+  const stepModal = useCallback((delta) => {
+    if (!activeModalTicker || !canStep) return;
+    const ticker = stepTicker(modalTickers, activeModalTicker, lensIndexRef.current, delta);
+    if (ticker) cycleModal(ticker);
+  }, [activeModalTicker, canStep, modalTickers, cycleModal]);
+  const handleNextModal = useCallback(() => stepModal(1), [stepModal]);
+  const handlePrevModal = useCallback(() => stepModal(-1), [stepModal]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       // Gate exactly like the render: a stale ?t= naming a ticker absent from
-      // the current chart_data must not keep arrow/Escape armed with no modal
+      // the current chart_data must not keep the arrows armed with no modal
       // on screen (it would hijack keys inside the weekly-review replay).
       if (!activeModalTicker || !modalChart[activeModalTicker]) return;
+      // Keys typed into the lens's own "what's off?" box move its caret, never the
+      // setup.
+      if (isTypingTarget(event.target)) return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         event.preventDefault();
         handleNextModal();
@@ -160,20 +195,48 @@ const ScreenerGrid = () => {
         event.preventDefault();
         handlePrevModal();
       }
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeModal();
-      }
+      // NO Escape here: the lens's own window listener is its one Escape closer.
+      // closeModal POPS the entry the open pushed, so a second closer on the same
+      // keystroke popped twice and Escape left the Screener for the page before it.
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeModalTicker, modalChart, handleNextModal, handlePrevModal, closeModal]);
+  }, [activeModalTicker, modalChart, handleNextModal, handlePrevModal]);
+
+  const rootRef = useRef(null);
+  useCardKeyboard(rootRef);
+
+  // Closing the lens (X, Escape or Back) lands on the card it last showed. Prev/Next walk the
+  // whole filtered list, so go to that card's page first; the next pass lands. Instant scroll
+  // (Chromium won't animate under the CSS zoom, see WatchlistPage). The focus is the landing
+  // mark: the card's own lock-on, and Enter reopens it. Keyed on the lens DRAWN, not on
+  // ?t=: a close that pops back to an address naming a chart the lens cannot draw still lands.
+  const lensTickerRef = useRef(null);
+  const { currentPage, pageOf, setCurrentPage } = filters;
+  useEffect(() => {
+    if (lensTicker) {
+      lensTickerRef.current = lensTicker;
+      return;
+    }
+    const ticker = lensTickerRef.current;
+    if (!ticker) return;
+    const page = drilldown ? null : pageOf(ticker);
+    if (page != null && page !== currentPage) {
+      setCurrentPage(page);
+      return;
+    }
+    lensTickerRef.current = null;
+    const card = rootRef.current?.querySelector(`.screener-card[data-ticker="${CSS.escape(ticker)}"]`);
+    if (!card) return;
+    card.scrollIntoView({ block: 'nearest' });
+    card.focus({ preventScroll: true });
+  }, [lensTicker, drilldown, currentPage, pageOf, setCurrentPage]);
 
   return (
     // Screener-only full-bleed: negative margins cancel the content area's 2rem
     // side padding so the chart wall runs edge-to-edge; a small inner padding
     // keeps cards off the very edge. Other tabs keep their padding.
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '0 -2rem', padding: '0 1rem' }}>
+    <div ref={rootRef} style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '0 -2rem', padding: '0 1rem' }}>
       {/* Main folded the universe switcher INTO the toolbar; the switcher + data
           ops stay live so an ETF universe can always be navigated away from, while
           the filter cluster + "N matched" count are firing-grid concepts that hide
@@ -202,12 +265,13 @@ const ScreenerGrid = () => {
       )}
 
       {!showHealthBoard && filters.tierFilter === 'WATCHLIST' && (
-        <ScreenerWatchlistPanel
-          watchlist={watchlist}
-          screenerData={screenerData}
-          isScanning={scan.isEvaluating}
-          onToggleWatchlist={handleToggleWatchlist}
-        />
+        <div className={scan.resultsStale ? 'screener-stale' : undefined} inert={scan.resultsStale}>
+          <ScreenerWatchlistPanel
+            watchlist={watchlist}
+            screenerData={screenerData}
+            onToggleWatchlist={handleToggleWatchlist}
+          />
+        </div>
       )}
 
       <ScreenerScanProgress
@@ -239,12 +303,14 @@ const ScreenerGrid = () => {
           scannedAt={screenerData?.scanned_at}
           onDrilldown={handleDrilldown}
         />
-      ) : (!scan.isEvaluating && !scan.scanError && (
-        <>
-          {status === 'loading' && (
-            <EmptyState message={etfUniverse
-              ? 'Loading…'
-              : 'Loading screener data… (if this takes more than a moment, evaluate the cached data above.)'} />
+      ) : (
+        // Evaluate keeps the last finished scan on screen, dimmed and inert, until
+        // the new one is fetched. A failed run leaves it at full strength under the
+        // error banner; a stopped run is not a failure (no banner): it stays dimmed
+        // through one re-fetch, then returns at full strength.
+        <div style={resultsStyle} className={scan.resultsStale ? 'screener-stale' : undefined} inert={scan.resultsStale}>
+          {status === 'loading' && !scan.resultsStale && !scan.scanError && (
+            <GridSkeleton hint={etfUniverse ? null : 'If this takes more than a moment, evaluate the cached data above.'} />
           )}
           {status === 'error' && (
             <EmptyState message="Couldn't load this screener. Check the backend is running and try again." />
@@ -277,11 +343,7 @@ const ScreenerGrid = () => {
                   />
                 ))}
               </div>
-              <ScreenerPager
-                currentPage={filters.currentPage}
-                totalPages={filters.totalPages}
-                onPageChange={filters.setCurrentPage}
-              />
+              <Pager page={filters.currentPage} pageCount={filters.totalPages} onPage={filters.setCurrentPage} label="Setup pages" />
             </>
           )}
           {/* The watch lane (point 22): apart from the leaderboard, present on
@@ -289,8 +351,8 @@ const ScreenerGrid = () => {
           {(status === 'ready' || status === 'empty') && (
             <WatchLanePanel watch={screenerData?.market_context?.watch} />
           )}
-        </>
-      ))}
+        </div>
+      )}
 
       {activeModalTicker && modalChart[activeModalTicker] && (
         <ScreenerModal
@@ -303,8 +365,15 @@ const ScreenerGrid = () => {
           // review 2026-08-05, finding 4).
           scanIdentity={drilldown ? (drilldown.scan_identity ?? null) : (screenerData?.scan_identity ?? null)}
           onClose={closeModal}
-          onNext={handleNextModal}
-          onPrev={handlePrevModal}
+          onNext={canStep ? handleNextModal : undefined}
+          onPrev={canStep ? handlePrevModal : undefined}
+          // The card's star and heart in the top bar, saving to the same lists
+          // (the drill-down's star carries its own scan identity, EC-37).
+          watchlisted={watchlist.has(activeModalTicker)}
+          onToggleWatchlist={drilldown ? handleToggleWatchlistDrilldown : handleToggleWatchlist}
+          liked={liked.has(activeModalTicker)}
+          onToggleLike={toggleLiked}
+          position={lensPosition(modalTickers, activeModalTicker)}
         />
       )}
     </div>
@@ -315,6 +384,19 @@ function EmptyState({ message }) {
   return (
     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
       {message}
+    </div>
+  );
+}
+
+// A card-wall-shaped placeholder (the one loading look, shared Skeleton's card form):
+// 4 blocks = one row at 2560, 3+1 at 1920. Reuses gridStyle, so no extra copy of the card minimum.
+function GridSkeleton({ hint }) {
+  return (
+    <div role="status" aria-label="Loading setups">
+      <div className="screener-grid" style={gridStyle}>
+        {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton-block skeleton-card" />)}
+      </div>
+      {hint && <EmptyState message={hint} />}
     </div>
   );
 }
@@ -336,7 +418,7 @@ function DrilldownView({ dd, onBack, onCardClick, watchlist, toggleWatchlist, li
           {' · from the US-Stocks scan'}
         </span>
       </div>
-      {status === 'loading' && <EmptyState message="Loading related stocks…" />}
+      {status === 'loading' && <GridSkeleton />}
       {status === 'error' && <EmptyState message="Couldn't load related stocks. Go back and try again." />}
       {status === 'empty' && basis === 'none' && <EmptyState message={`No curated stock mapping for ${dd.etf} yet.`} />}
       {status === 'empty' && basis !== 'none' && (
@@ -407,23 +489,10 @@ function ScanErrorBanner({ message, onRetry }) {
       <span style={{ fontSize: '13px' }}>
         <strong style={{ color: 'var(--danger)' }}>Action failed.</strong> {message}
       </span>
-      <button onClick={onRetry} style={retryButtonStyle}>Try again</button>
+      <button type="button" className="btn btn-primary" onClick={onRetry}>Try again</button>
     </div>
   );
 }
-
-const retryButtonStyle = {
-  background: 'var(--accent-active)',
-  border: 'none',
-  borderRadius: 'var(--radius-sm)',
-  color: 'var(--myth-ink)',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-  fontSize: '12px',
-  fontWeight: 600,
-  padding: '6px 14px',
-  whiteSpace: 'nowrap',
-};
 
 // Honest-instrument note for the ETF universes: the regime/breadth on screen is
 // borrowed from the broad market, not measured over the handful of ETFs.
@@ -437,18 +506,24 @@ const etfNoteStyle = {
   marginTop: '-8px',
 };
 
+// Keeps the grid, pager and watch-lane spacing equal to the outer column's gap.
+const resultsStyle = { display: 'flex', flexDirection: 'column', gap: '20px' };
+
 const gridStyle = {
   display: 'grid',
-  // Responsive "reading room": fit as many ~480px cards as the screen allows and
-  // stretch them to fill the row — THREE per row at 1536 effective, a 490px card
-  // and a ~435px plot. Briefly widened to 620 (two-up) on 2026-09-02 and put back
-  // the same day: two-up made the chart wide and short, so a stock's whole run was
-  // squeezed into a strip and the rest read as a sliver in the corner. The height,
-  // not the width, is where the card had room (see --card-chart-h). Keep this in
-  // sync with uiScale.CARD_MIN_PX and index.html's pre-paint copy; HealthBoard and
-  // .wl-card-grid must match too, or a surface sharing ScreenerMiniChart frames the
-  // same window in half the pane. uiScale.test.js pins all five.
-  gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))',
+  // ONE CARD SIZE ON EVERY SCREEN (operator 2026-10-03, "retain the original size
+  // so the scaling looks the same, with the extra monitor space I could just ...
+  // see more of the website"): cards of at least 590px stretched to fill the row —
+  // three of 618px on his 1920 screen, four of 620px on his 2560 one. It replaces
+  // the 2026-10-02 three-card ceiling, which drew three 831px cards at 2560. (A
+  // 620px minimum on 2026-09-02 was a different thing: on the 1536px screen he
+  // had then it meant TWO wide, short cards, and was put back the same day.) The
+  // well is locked to the card's width at --card-chart-aspect, so the same card
+  // size is the same setup shape. Keep this in sync with uiScale.CARD_MIN_PX and
+  // index.html's pre-paint copy; HealthBoard and .wl-card-grid must match too, or
+  // a surface sharing ScreenerMiniChart frames the same window in a different
+  // pane. uiScale.test.js pins all five.
+  gridTemplateColumns: 'repeat(auto-fill, minmax(590px, 1fr))',
   gap: '14px',
   width: '100%',
 };

@@ -28,7 +28,7 @@ export function paneBody(loading, failure) {
     const hint = FAILURE_HINTS[failure.class];
     return hint ? `${failure.message}. ${hint}` : failure.message;
   }
-  return 'Enter a ticker and an as-of date. The chart renders on Chrollo’s own '
+  return 'Pick a setup on the right, or enter a ticker and a date. The chart renders on Chrollo’s own '
     + 'data — marks drawn here are born on the exact frame the engine replays.';
 }
 
@@ -63,4 +63,25 @@ export function engineTitle(engineRead) {
     return `engine detail: ${engineRead.reason}`;
   }
   return undefined;
+}
+
+// The pane's provenance chip (top-left): which frame is on screen. It moved
+// out of the command band (operator ask 2026-10-02: the band "got to much dead
+// space"). Figures change on every load, so the chip renders them mono.
+export function provenanceLine(chartData) {
+  return `${chartData.ticker} @ ${chartData.as_of_session} · close ${fx(chartData.anchor_close, 2)}`
+    + ` · ${chartData.bar_count} bars · ${chartData.data_regime}`;
+}
+
+// A chart served from the preserved copy (the vendor lost the ticker — SKYT,
+// 2026-10-02) says so on the chip itself, not only in the dismissible notice.
+export const PRESERVED_LABEL = 'preserved copy';
+const PRESERVED_WHY = {
+  no_data: 'the vendor no longer serves the ticker',
+  rate_limited: 'the vendor was throttling — reload the date later for its latest bars',
+  vendor_error: 'the vendor failed on this request — reload the date later for its latest bars',
+};
+export function preservedTitle(reason) {
+  return 'Drawn from the bars frozen when this chart was first loaded — '
+    + `${PRESERVED_WHY[reason] ?? PRESERVED_WHY.no_data}. Marking and engine tests work as usual.`;
 }

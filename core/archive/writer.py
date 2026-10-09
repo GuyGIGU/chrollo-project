@@ -211,7 +211,7 @@ _NEW_COLUMNS: dict[str, str] = {
     "regime_qqq_50d_slope_pct":     "FLOAT",
 }
 # NOTE: the Lane E advisory columns (fund_*, days_to_earnings, rs_rating,
-# rs_line_*, sector_rank_*) are intentionally NOT hand-listed here. Like
+# rs_line_*, sector_rank_*, market_cap) are intentionally NOT hand-listed here. Like
 # engine_config_version, they are MODEL-ONLY adds: the backend's Track B
 # auto-migration (app/migrations/additive._apply_model_add_columns) and this writer's own
 # model-derived second pass in _ensure_new_columns ADD them from
@@ -838,6 +838,7 @@ def archive_scan_results(
                 rs_rating=row.get("_rs_rating"),
                 rs_line_latest=row.get("_rs_line_latest"),
                 rs_line_new_high=_bool_int(row.get("_rs_line_new_high")),
+                market_cap=row.get("_market_cap"),
                 **sector_rank_columns(sector_etf),
                 engine_config_version=engine_config_version,
                 source="screener",

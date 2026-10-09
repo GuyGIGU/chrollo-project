@@ -309,6 +309,38 @@ class EpisodeOut(SetupOut):
     review_note: Optional[str] = None
 
 
+class CalibrationSetupOut(BaseModel):
+    """One of his calibration setups as the Archive screen lists it (operator
+    ruling 2026-10-03: archived setups too). His marks plus the outcome measured
+    like a fire's; every outcome is None until the maturation pass measures it."""
+
+    mark_id: int
+    ticker: str
+    as_of_date: str
+    label: Optional[str] = None
+    box_start_date: Optional[str] = None
+    resistance: Optional[float] = None
+    support: Optional[float] = None
+    his_trigger_date: Optional[str] = None
+    his_trigger_price: Optional[float] = None
+    anchor_date: Optional[str] = None      # the outcome clock's start
+    entry_close: Optional[float] = None
+    triggered: Optional[int] = None
+    fwd_return_20d: Optional[float] = None
+    fwd_return_60d: Optional[float] = None
+    mfe_20d: Optional[float] = None
+    mfe_60d: Optional[float] = None
+    mfe_to_date: Optional[float] = None
+    r_multiple_20d: Optional[float] = None
+    barrier_label: Optional[str] = None
+    win_barrier: Optional[str] = None
+    days_to_15pct: Optional[int] = None
+    days_to_2_5r: Optional[int] = None
+    days_to_stop: Optional[int] = None
+    bars_to_date: Optional[int] = None
+    computed_at: Optional[str] = None
+
+
 class LabelUpdate(BaseModel):
     quality_label: Optional[str] = None
     notes: Optional[str] = None

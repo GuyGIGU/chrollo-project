@@ -64,14 +64,21 @@ function resolveColor(value) {
   return resolveColor(token(alias[1]));
 }
 
-// The `color:` declaration of a CSS rule, by selector.
-function ruleInk(selector) {
+// A colour declaration (`prop`) of a CSS rule, by selector, resolved to a hex.
+// The selector must open its own rule: folded into a selector list, the rule is
+// "not found" rather than silently measuring some other block.
+function ruleDecl(selector, prop) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const block = CSS.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`));
   assert.ok(block, `rule not found: ${selector}`);
-  const color = block[1].match(/(?:^|[;{\s])color:\s*([^;]+);/);
-  assert.ok(color, `no color declaration in ${selector}`);
-  return resolveColor(color[1]);
+  const decl = block[1].match(new RegExp(`(?:^|[;{\\s])${prop}:\\s*([^;]+);`));
+  assert.ok(decl, `no ${prop} declaration in ${selector}`);
+  return resolveColor(decl[1]);
+}
+
+// The `color:` declaration of a CSS rule, by selector.
+function ruleInk(selector) {
+  return ruleDecl(selector, 'color');
 }
 
 test('the fill-entry BUY/SELL chips clear AA against their semantic fills', () => {
@@ -81,6 +88,21 @@ test('the fill-entry BUY/SELL chips clear AA against their semantic fills', () =
     assert.ok(
       ratio >= AA_NORMAL,
       `fill-side-btn ink ${ink} on --${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
+    );
+  }
+});
+
+test('the shared primary and danger buttons take dark ink on their own fills', () => {
+  // The button kit (index.css BUTTONS, 2026-10-03): the confirm dialog's danger
+  // button wore white on --danger at 3.18:1; the kit's dark ink measures 5.31:1
+  // there and 8.88:1 on the mythril primary.
+  for (const selector of ['.btn-primary', '.btn-danger']) {
+    const ink = ruleDecl(selector, 'color');
+    const fill = ruleDecl(selector, 'background');
+    const ratio = contrastRatio(ink, fill);
+    assert.ok(
+      ratio >= AA_NORMAL,
+      `${selector} ink ${ink} on ${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
     );
   }
 });

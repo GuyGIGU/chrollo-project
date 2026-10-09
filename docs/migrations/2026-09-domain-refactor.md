@@ -4,14 +4,14 @@ The refactor on `claude/domain-refactor` grouped the code by what it does. It ru
 
 The machine-readable map is [2026-09-domain-refactor.json](2026-09-domain-refactor.json). [apply_move_map.py](../../tools/maintenance/apply_move_map.py) reads it to port a branch, and [test_apply_move_map.py](../../tests/tooling/test_apply_move_map.py) checks that the rewrite is idempotent, that every import it writes resolves, and that every file move in the JSON has a row on this page. The tables below are generated from the JSON; if you edit one, edit the other.
 
-The JSON records 575 file moves, 134 Python module moves, 10 whole-folder moves and 16 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; eleven of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
+The JSON records 574 file moves, 134 Python module moves, 10 whole-folder moves and 17 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; twelve of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
 
 | Area | Files moved |
 |---|---|
 | Engine | 28 |
 | Pipeline | 21 |
 | Backend | 47 |
-| Frontend | 220 |
+| Frontend | 219 |
 | Tests | 150 |
 | Tools | 42 |
 | Research evidence | 67 |
@@ -185,6 +185,8 @@ Also on 2026-09-24, the Windows event-log resolver left `webapp/backend/services
 
 On 2026-09-25 the final-method branch (`claude/method-steps-7-12`) was merged onto this layout, and with it the operator's ruling of Sat 19/09/2026 (build step 12, point 25) that deletes the Power Play species lane. Eleven files the refactor had moved went with it: the engine module `engine_alpha/structure/context/power_play.py`, three tools (`tools/research/power_play_census.py`, `tools/regression/power_play_fixture.py`, `tools/research/power_play_sheets.py`) and seven test files. Their moves are no longer in the JSON's `file_moves` and `module_moves`, because the porter must never write a path that does not exist; each old path is in `deleted` instead, with the home it had, and the four modules (`engine_alpha.structure.power_play`, `tools.power_play_census`, `tools.power_play_fixture`, `tools.power_play_sheets`) are reported notes, so a branch that still imports one is told the module is gone rather than pointed at a file that is not there. Nothing replaces them: `POWER_PLAY_STORY_FORM_ENABLED` stays in `config/engine.py` for the contraction rescue, and the `pp_*` archive columns stay on the model.
 
+On Sat 03/10/2026 the operator's UX round (his suggestion 8: one pager for the whole app) deleted a twelfth: `webapp/frontend/src/features/screener/components/ScreenerPager.jsx`, whose job `webapp/frontend/src/shared/components/Pager.jsx` now does for the screener, the archive table, the journal and the calibration list. Its move left `file_moves` the same way, and its old path is in `deleted`; the porter no longer rewrites an import of it to a file that is not there, so a branch that still imports it is ported to the new pager by hand (its props differ: `page`, `pageCount`, `onPage`, `label`).
+
 ## What was deleted, and why
 
 | Path | Why |
@@ -205,6 +207,7 @@ On 2026-09-25 the final-method branch (`claude/method-steps-7-12`) was merged on
 | `tools/power_play_census.py` | The refactor moved it to tools/research/power_play_census.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
 | `tools/power_play_fixture.py` | The refactor moved it to tools/regression/power_play_fixture.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
 | `tools/power_play_sheets.py` | The refactor moved it to tools/research/power_play_sheets.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
+| `webapp/frontend/src/components/ScreenerPager.jsx` | The refactor moved it to webapp/frontend/src/features/screener/components/ScreenerPager.jsx; it was then DELETED when the shared webapp/frontend/src/shared/components/Pager.jsx replaced the app's four pagers (the operator's UX round, his suggestion 8, Sat 03/10/2026; claude/leadership-read). |
 
 Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webapp/backend/ibkr/`, which the first commit had left behind as aliases. Across the whole refactor git pairs each of them with its new home, so they appear as moves in the tables below, not here.
 
@@ -545,7 +548,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/ScreenerGrid.jsx` | `webapp/frontend/src/features/screener/components/ScreenerGrid.jsx` |
 | `webapp/frontend/src/components/ScreenerMiniChart.jsx` | `webapp/frontend/src/shared/charts/ScreenerMiniChart.jsx` |
 | `webapp/frontend/src/components/ScreenerModal.jsx` | `webapp/frontend/src/shared/setup/ScreenerModal.jsx` |
-| `webapp/frontend/src/components/ScreenerPager.jsx` | `webapp/frontend/src/features/screener/components/ScreenerPager.jsx` |
 | `webapp/frontend/src/components/ScreenerScanProgress.jsx` | `webapp/frontend/src/features/screener/components/ScreenerScanProgress.jsx` |
 | `webapp/frontend/src/components/ScreenerStockLens.jsx` | `webapp/frontend/src/shared/setup/ScreenerStockLens.jsx` |
 | `webapp/frontend/src/components/ScreenerToolbar.jsx` | `webapp/frontend/src/features/screener/components/ScreenerToolbar.jsx` |

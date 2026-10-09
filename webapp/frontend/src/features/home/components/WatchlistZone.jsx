@@ -252,7 +252,6 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
           data={chartData[peek]}
           scanIdentity={screenerData?.scan_identity ?? null}
           onClose={() => setPeek(null)}
-          footer={<BridgeOut ticker={peek} />}
         />
       )}
       {replay?.entry && (
@@ -274,8 +273,9 @@ export default function WatchlistZone({ screenerData, prices = {}, priceErr = fa
 // speaks over the identical envelope — same words, same faint mono stamp, no
 // color: the chart's palette is spoken for, and two different phrasings for one
 // fact would read as two different facts.
+// (Its ↗ TradingView link went 2026-10-03: the lens's top bar carries ↗ TV.)
 function ReplayFooter({ replay }) {
-  const { provenance, ticker } = replay;
+  const { provenance } = replay;
   return (
     <div style={{
       alignItems: 'center',
@@ -298,7 +298,6 @@ function ReplayFooter({ replay }) {
       {provenance?.archiveNote ? (
         <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{provenance.archiveNote}</span>
       ) : null}
-      <span style={{ marginLeft: 'auto' }}><BridgeOut ticker={ticker} /></span>
     </div>
   );
 }

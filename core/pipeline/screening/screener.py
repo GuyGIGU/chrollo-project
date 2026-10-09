@@ -330,6 +330,21 @@ def run_screener(mode: str = "download",
             "counts": {k: int(v) for k, v in sorted(watch_sink["stats"].items())},
         }
 
+    # The market-cap floor (operator 2026-10-03): the one entry rule the price
+    # data cannot answer, checked on the fires only, BEFORE the post-passes so
+    # no vendor call is spent on a fire that leaves. A crash keeps every fire
+    # (the floor is lost for the night, never the scan).
+    from core.pipeline.screening.market_cap_floor import apply_market_cap_floor
+    t0_cap = time.perf_counter()
+    try:
+        market_cap_counts = apply_market_cap_floor(results, uni, provider=get_provider())
+    except Exception as e:  # noqa: BLE001 — the passenger never owns the job
+        print(f"  [market-cap floor errored] {type(e).__name__}: {e}", file=sys.stderr)
+        market_cap_counts = {"pass_errored": 1}
+    if market_cap_counts is not None:
+        timer.phases["market_cap_floor"] = round(time.perf_counter() - t0_cap, 2)
+        market_context["market_cap_floor"] = market_cap_counts
+
     # Conductor-level fundamentals/RS-line post-pass (species program Task 12):
     # ONE process, the provider's one throttle, the FIRING set only — the
     # in-worker attach point is retired. None when every advisory flag is off
@@ -351,12 +366,16 @@ def run_screener(mode: str = "download",
         timer.phases["fundamentals"] = round(time.perf_counter() - t0_fund, 2)
         market_context["fundamentals"] = fundamentals_counts
 
-    # Universe-level ADVISORY post-pass: turn each firing setup's trailing return
-    # into a universe-relative in-house RS rating (percentile across the firing
-    # set). No-op + zero added fields when FUNDAMENTALS_ENABLED is OFF, so the
-    # flags-OFF scan output stays byte-identical. Never changes Score/Tier.
+    # Universe-level ADVISORY post-pass: the in-house RS rating, each firing
+    # setup's twelve-month strength ranked against every stock this scan read
+    # (the leadership read, live 2026-10-02). Display + archive only — it never
+    # changes a fire, Score or Tier. Like the fundamentals post-pass above, the
+    # passenger never owns the scan night: a crash costs the ratings, not the scan.
     from core.regime.scan_context import attach_rs_ratings
-    attach_rs_ratings(results)
+    try:
+        attach_rs_ratings(results, ticker_frames)
+    except Exception as e:  # noqa: BLE001 — the passenger never owns the job
+        print(f"  [rs-rating pass errored] {type(e).__name__}: {e}", file=sys.stderr)
 
     print()
 

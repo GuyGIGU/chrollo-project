@@ -54,6 +54,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "MIN_PRICE",
     "MIN_VOLUME_50D",
     "MIN_YEARLY_RETURN",
+    "MIN_MARKET_CAP",
     # The 50-day dip exception (miss program 2026-08-28, dark)
     "SMA50_DIP_EXCEPTION_ENABLED",
     "SMA50_DIP_MAX_SESSIONS",

@@ -533,5 +533,14 @@ score_rs_bonus              42        -  unknown           -  unknown
   one you are paid for BEFORE down-weighting anything above.
 
 ========================================================================
+  7. CALIBRATION SETUPS BESIDE THE ENGINE'S FIRES
+========================================================================
+His drawn setups from the calibration tab, measured like fires: from the
+trading day before his trigger, with his trigger and his support as the
+stop's rail. Chosen for quality, so they are compared, never pooled.
+
+No calibration setups in this archive yet.
+
+========================================================================
   END OF REPORT
 ========================================================================

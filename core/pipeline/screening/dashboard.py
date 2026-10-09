@@ -34,6 +34,8 @@ import json
 import math
 import sys
 
+import pandas as pd
+
 from config import settings
 from core.archive.writer import load_sector_etf_cache, save_sector_etf_cache
 from core.pipeline.market_data.candles import chart_candles, clean_daily_frame, daily_candles
@@ -101,13 +103,15 @@ def _round_opt(value, digits):
 
 
 # The advisory facts the scan attaches to ANY firing row after the read (the
-# fundamentals and RS-line post-pass, the universe RS rating) — graded chip
-# data, NOT scored, NOT a veto, None while their flags are off. Whichever
-# reader fired, the row carries them, so both chart shapes take this ONE list.
+# fundamentals and RS-line post-pass, the market cap the $300M floor stamps on
+# the fires it kept) — graded chip data, NOT scored, NOT a veto, None while
+# their flags are off. Whichever reader fired, the row carries them, so both
+# chart shapes take this ONE list. The universe RS rating rides in the old
+# chart's leadership block, so the two-eyes chart names it on its own.
 ADVISORY_KEYS = (
     'fund_eps_growth_yoy', 'fund_sales_growth_yoy', 'fund_eps_growth_accel',
-    'fund_earnings_surprise', 'days_to_earnings', 'rs_rating', 'rs_line_latest',
-    'rs_line_new_high',
+    'fund_earnings_surprise', 'fund_quarter_end', 'days_to_earnings',
+    'market_cap', 'rs_line_latest', 'rs_line_new_high',
 )
 
 
@@ -143,10 +147,48 @@ def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf):
         'sector_name': SECTOR_ETF_NAMES.get(sector_etf) if sector_etf else None,
         'price': round(float(row['Current Price']), 2),
         'trigger': round(float(row['_trigger_price']), 2),
+        'rs_rating': row.get('_rs_rating'),
         **{key: row.get('_' + key) for key in ADVISORY_KEYS},
         'ta_grade': _round_opt(row.get('_ta_grade'), 1),
         'two_eyes': block,
     }
+
+
+def _dollar_volume_50d(df):
+    """Average daily dollar volume (close x volume) over the last 50 trading
+    days — the liquidity half of the leadership read. Display only: it gates
+    nothing (the entry filter's floor is in shares). None when unreadable."""
+    traded = [float(v) for v in (df["Close"] * df["Volume"]).iloc[-50:]
+              if math.isfinite(v)]
+    return round(sum(traded) / len(traded)) if traded else None
+
+
+def _volume_vs_50d(df, day):
+    """The volume on ``day`` against the 50-day average ending on it (that day
+    included, as the engine's Vol_50 counts it). Volume at a key point, display
+    only. None when the day is not in the frame or the average is unreadable."""
+    if not day:
+        return None
+    try:
+        pos = df.index.get_loc(pd.Timestamp(day))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not isinstance(pos, int):
+        return None
+    volume = float(df["Volume"].iloc[pos])
+    average = float(df["Volume"].iloc[max(0, pos - 49): pos + 1].mean())
+    if not (math.isfinite(volume) and math.isfinite(average)) or average <= 0:
+        return None
+    return round(volume / average, 2)
+
+
+def _lps_volume_ratio(vol_contraction):
+    """The LPS pullback's average volume against the 50-day average. The LPS
+    read archives its dry-up as 1 minus that ratio (``vol_contraction``)."""
+    if vol_contraction is None:
+        return None
+    value = float(vol_contraction)
+    return round(1.0 - value, 2) if math.isfinite(value) else None
 
 
 def _json_safe(obj):
@@ -293,6 +335,25 @@ def _extract_chart_data(data, results_df, tickers):
                 'price': round(float(row['Current Price']), 2),
                 'trigger': round(float(row['_trigger_price']), 2),
                 'sub_scores': sub_payload,
+                # The leadership read (operator go-ahead 2026-10-02): the STOCK,
+                # kept apart from the setup's grade — none of it is scored or
+                # gated. The RS rating ranks twelve-month strength against every
+                # stock the scan read; the trend template is Minervini's seven
+                # price criteria passed (the archived count); the dollar volume
+                # is the 50-day liquidity. Two of the template's own measures
+                # ride along for the stage read (go-ahead 2026-10-03): the
+                # fraction above the 52-week low and the 200-day average's
+                # one-month change in percent (archive names, archive values).
+                'rs_rating': row.get('_rs_rating'),
+                'stage2_trend_pass_count': row.get('_stage2_trend_pass_count'),
+                'stage2_52w_low_pct': row.get('_stage2_52w_low_pct'),
+                'stage2_ma200_slope_1m_pct': row.get('_stage2_ma200_slope_1m_pct'),
+                'dollar_volume_50d': _dollar_volume_50d(df),
+                # Volume at key points (operator go-ahead 2026-10-04): his key
+                # points, the LPS pullback and the Phase C spring, each against
+                # the 50-day average. Shown, never graded (his answer 10).
+                'lps_volume_ratio': _lps_volume_ratio(row.get('_vol_contraction')),
+                'spring_volume_ratio': _volume_vs_50d(df, row.get('_bin_c_event_date')),
                 'phase_d_inner': bool(row.get('_phase_d_inner', False)),
                 # Volume-around-touches signature → drives no_supply /
                 # spring_strength / heavy_resistance tags on the card.
@@ -398,6 +459,8 @@ def _extract_chart_data(data, results_df, tickers):
                 # Fundamentals are point-in-time (filing-lag gated). The held
                 # frontend lane maps these to ⚡ RS Leader / Earnings Accel /
                 # days-to-earnings chips.
+                # market_cap is stamped by the market-cap floor on the fires it
+                # kept (None when the lookup missed or the universe is ETFs).
                 **{key: row.get('_' + key) for key in ADVISORY_KEYS},
                 # ── Technical Analysis Grade v2 block (task 9) — key-ABSENT
                 # while TA_SCORE_V2 is off (the setup_quality presence pattern; the

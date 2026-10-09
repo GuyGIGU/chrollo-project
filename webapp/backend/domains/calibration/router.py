@@ -71,10 +71,8 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
 
     import pandas as pd
 
-    from core.pipeline.market_data.downloads import _price_regime, price_auto_adjust  # noqa: PLC0415 — lazy, yfinance-heavy chain
-    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from core.pipeline.market_data.downloads import price_auto_adjust  # noqa: PLC0415 — lazy, yfinance-heavy chain
     from domains.market_data.candle_cache import load_candles  # noqa: PLC0415 — session cache + resilient fetch
-    from domains.market_data.service import chart_candles  # noqa: PLC0415
 
     as_of_ts = pd.Timestamp(as_of)
     start = (as_of_ts - pd.Timedelta(days=_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
@@ -84,16 +82,35 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
     # calm, distinct class (never the scary "delisted?" copy) with any loaded
     # chart left up. The cache is display-only — the freeze below reads this
     # frame, but the digest is computed exactly as before.
-    raw, fetch_status = load_candles(symbol, start, end, price_auto_adjust())
+    try:
+        raw, fetch_status = load_candles(symbol, start, end, price_auto_adjust())
+    except Exception:
+        # A crash inside the vendor chain degrades like an empty answer (EC-6),
+        # so it too can fall back to the preserved copy instead of a bare 500 —
+        # with the traceback in the service log, so a real bug is not hidden.
+        logger.warning("chart vendor_error ticker=%s as_of=%s", symbol, as_of, exc_info=True)
+        raw, fetch_status = pd.DataFrame(), "vendor_error"
+    if fetch_status != "ok" or raw.empty:
+        # The vendor cannot serve this chart (throttled, or the symbol is gone —
+        # delisted, renamed, merged). A chart that was ever frozen is drawn from
+        # the preserved copy instead: the setup's bars outlive the vendor.
+        reason = "no_data" if fetch_status == "ok" else fetch_status
+        preserved = _preserved_chart(symbol, as_of, reason)
+        if preserved is not None:
+            return preserved
     if fetch_status == "rate_limited":
         _refuse(503, "rate_limited",
                 "the market-data vendor is throttling right now — any chart you "
                 "already loaded stays up; wait a few seconds and retry", symbol, as_of)
+    if fetch_status == "vendor_error":
+        _refuse(503, "vendor_error",
+                "the market-data vendor failed on this request — retry in a moment"
+                + _preserved_hint(symbol, as_of), symbol, as_of)
     if raw.empty:
         _refuse(404, "no_data",
                 "no data for this ticker — it may be unknown or delisted, or the "
-                "vendor may be briefly throttling; wait a moment and retry",
-                symbol, as_of)
+                "vendor may be briefly throttling; wait a moment and retry"
+                + _preserved_hint(symbol, as_of), symbol, as_of)
 
     frame = raw[raw.index <= as_of_ts]
     if frame.empty:
@@ -103,20 +120,11 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
                 symbol, as_of)
 
     as_of_session = frame.index[-1].strftime("%Y-%m-%d")
-    anchor_close = frame.iloc[-1]["Close"]
-    try:
-        anchor_close = float(anchor_close)
-    except (TypeError, ValueError):
-        anchor_close = float("nan")
-    if not (anchor_close == anchor_close and anchor_close > 0):  # NaN-safe
+    anchor_close = _finite_close(frame)
+    if anchor_close is None:
         _refuse(404, "no_data", f"no finite close on {as_of_session}", symbol, as_of)
 
-    warnings = []
-    if as_of_session != as_of:
-        warnings.append(f"{as_of} is not a session; resolved to {as_of_session}")
-    if len(frame) < _SHORT_FRAME_BARS:
-        warnings.append(f"short history ({len(frame)} bars): the engine's 2y frame "
-                        "is truncated here — marks may grade edge-uncertain")
+    warnings = _frame_warnings(as_of, as_of_session, frame)
 
     # Freeze the replay-relevant (<= as-of) frame and bind the mark to what
     # the operator is LOOKING at (Task 7). A digest divergence means the
@@ -149,6 +157,44 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
     except Exception:
         logger.info("grading-frame freeze skipped %s@%s", symbol, as_of_session)
 
+    return _chart_payload(symbol, as_of, frame, raw, current_digest, warnings,
+                          anchor_close, source="vendor")
+
+
+def _finite_close(frame):
+    """The as-of bar's close as a positive float, or None (NaN-safe)."""
+    try:
+        close = float(frame.iloc[-1]["Close"])
+    except (TypeError, ValueError):
+        return None
+    return close if close == close and close > 0 else None
+
+
+def _frame_warnings(as_of: str, as_of_session: str, frame) -> list:
+    warnings = []
+    if as_of_session != as_of:
+        warnings.append(f"{as_of} is not a session; resolved to {as_of_session}")
+    if len(frame) < _SHORT_FRAME_BARS:
+        warnings.append(f"short history ({len(frame)} bars): the engine's 2y frame "
+                        "is truncated here — marks may grade edge-uncertain")
+    return warnings
+
+
+def _chart_payload(symbol, as_of, frame, raw, digest, warnings, anchor_close, source,
+                   preserved_reason=None):
+    """The one chart response, whichever door the bars came through.
+
+    ``frame`` is the <= as-of slice, ``raw`` the whole window it sits in.
+    ``source`` is ``"vendor"`` (fetched just now) or ``"preserved"`` (drawn from
+    the frozen copy because the vendor could not serve it); ``preserved_reason``
+    says why (``no_data`` / ``rate_limited`` / ``vendor_error``), so the page can
+    word it and keep a throttle-time copy out of its sitting cache."""
+    import pandas as pd
+
+    from core.pipeline.market_data.downloads import _price_regime  # noqa: PLC0415 — lazy, yfinance-heavy chain
+    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from domains.market_data.service import chart_candles  # noqa: PLC0415
+
     candles, volumes = chart_candles(
         raw,
         up_color="rgba(38, 166, 154, 0.5)",
@@ -166,21 +212,126 @@ def calibration_chart(ticker: str = Query(...), as_of: str = Query(...)):
     return {
         "ticker": symbol,
         "as_of": as_of,
-        "as_of_session": as_of_session,
+        "as_of_session": frame.index[-1].strftime("%Y-%m-%d"),
         "prev_session": prev_session,
         "next_session": next_session,
         "anchor_close": anchor_close,
         "bar_count": int(len(frame)),
-        "forward_bars": int((raw.index > as_of_ts).sum()),
+        "forward_bars": int((raw.index > pd.Timestamp(as_of)).sum()),
         "frame_start": raw.index[0].strftime("%Y-%m-%d"),
         "frame_end": raw.index[-1].strftime("%Y-%m-%d"),
         "data_regime": _price_regime(),
         "engine_config_version": manifest_hash(),
-        "frame_digest": current_digest,
+        "frame_digest": digest,
+        "source": source,
+        "preserved_reason": preserved_reason,
         "warnings": warnings,
         "candles": candles,
         "volumes": volumes,
     }
+
+
+# A typed date a few days past a frozen session (a weekend, a holiday) still
+# finds it — but only across days that are NOT sessions: if the frozen window
+# holds a real bar between the frozen session and the typed date, the typed
+# date is a different chart, and drawing the older one would be a lie.
+_PRESERVED_REACH_DAYS = 7
+
+_PRESERVED_WORDS = {
+    "no_data": "the vendor has no data for {symbol} (delisted, renamed or merged?)",
+    "rate_limited": "the vendor is throttling right now — reload this date later for its latest bars",
+    "vendor_error": "the vendor failed on this request — reload this date later for its latest bars",
+}
+
+
+def _preserved_chart(symbol: str, as_of: str, reason: str = "no_data"):
+    """The chart drawn from the frozen copy, or None when no copy is near as_of.
+
+    Read-only — nothing is fetched or frozen. The digest IS the frozen frame's,
+    so a mark saved or edited on this chart binds exactly as it would on a
+    vendor chart (``_reject_unbound`` finds the same file). Never raises: a
+    preserved copy that cannot be read is simply not served, and the caller's
+    own refusal stands."""
+    try:
+        return _read_preserved_chart(symbol, as_of, reason)
+    except Exception:
+        logger.warning("chart preserved-copy read failed ticker=%s as_of=%s",
+                       symbol, as_of, exc_info=True)
+        return None
+
+
+def _bound_digest(symbol: str, as_of: str):
+    """The frame digest the saved marks at (symbol, as_of) are bound to — the
+    most recently edited one — or None. A vendor restatement freezes a second
+    rendering beside the first; the preserved chart must draw the one the
+    operator's marks were drawn on, or an edit would be refused as a rebind.
+    Best-effort: an unreadable archive means "no preference" (the first freeze),
+    never a lost chart."""
+    from database import SessionLocal  # noqa: PLC0415
+
+    try:
+        with SessionLocal() as db:
+            row = (db.query(CalibrationMark.frame_digest)
+                   .filter(CalibrationMark.ticker == symbol,
+                           CalibrationMark.as_of_date == as_of,
+                           CalibrationMark.frame_digest.isnot(None))
+                   .order_by(CalibrationMark.updated_at.desc())
+                   .first())
+    except Exception as exc:
+        logger.info("chart preserved-copy digest lookup skipped ticker=%s: %s",
+                    symbol, exc.__class__.__name__)
+        return None
+    return row[0] if row else None
+
+
+def _read_preserved_chart(symbol: str, as_of: str, reason: str):
+    from datetime import date  # noqa: PLC0415
+
+    from domains.calibration.frame_store import (  # noqa: PLC0415 — file I/O module, lazy
+        load_preserved_chart, ohlcv_digest, preserved_as_ofs)
+
+    asked = date.fromisoformat(as_of)
+    near = [d for d in preserved_as_ofs(symbol)
+            if d <= as_of and (asked - date.fromisoformat(d)).days <= _PRESERVED_REACH_DAYS]
+    if not near:
+        return None
+    loaded = load_preserved_chart(symbol, near[-1], _bound_digest(symbol, near[-1]))
+    if loaded is None:
+        return None
+    frame, window = loaded
+    import pandas as pd  # noqa: PLC0415
+
+    between = window[(window.index > frame.index[-1]) & (window.index <= pd.Timestamp(as_of))]
+    if not between.empty:
+        return None  # the typed date is a real session of its own, never frozen
+    anchor_close = _finite_close(frame)
+    if anchor_close is None:
+        return None
+    as_of_session = frame.index[-1].strftime("%Y-%m-%d")
+    warnings = _frame_warnings(as_of, as_of_session, frame)
+    why = _PRESERVED_WORDS.get(reason, _PRESERVED_WORDS["no_data"]).format(symbol=symbol)
+    warnings.insert(0, f"preserved copy: {why}, so this chart is drawn from the bars frozen "
+                       f"when it was first loaded ({window.index[0]:%Y-%m-%d} to "
+                       f"{window.index[-1]:%Y-%m-%d}) — marking and engine tests work as usual")
+    logger.info("chart preserved ticker=%s as_of=%s served from frozen %s (%s)",
+                symbol, as_of, as_of_session, reason)
+    return _chart_payload(symbol, as_of, frame, window, ohlcv_digest(frame), warnings,
+                          anchor_close, source="preserved", preserved_reason=reason)
+
+
+def _preserved_hint(symbol: str, asked: str | None = None) -> str:
+    """Names the frozen dates when the asked one has none — a delisted ticker's
+    setups are still loadable, just not at an arbitrary date. If the asked date
+    IS frozen, its copy failed to read (the warning log has the traceback)."""
+    from domains.calibration.frame_store import preserved_as_ofs  # noqa: PLC0415 — file I/O module, lazy
+
+    dates = preserved_as_ofs(symbol)
+    if not dates:
+        return ""
+    if asked in dates:
+        return f" (its preserved copy for {asked} could not be read — see the service log)"
+    shown = ", ".join(dates[-5:])
+    return f" (a preserved copy exists for {shown} — load one of those dates)"
 
 
 # ── Engine-read overlay ──────────────────────────────────────────────

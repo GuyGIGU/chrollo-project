@@ -42,6 +42,13 @@ N = 60
 LO, HI = 100.0, 125.0
 
 
+@pytest.fixture(autouse=True)
+def _no_vendor_post_pass(monkeypatch):
+    # The run_screener tests below run on fakes; the live fundamentals
+    # post-pass (2026-10-03) would fetch and write output/fundamentals_cache.json.
+    monkeypatch.setattr(settings, "FUNDAMENTALS_ENABLED", False)
+
+
 def _frame(n=N):
     idx = pd.bdate_range("2026-01-05", periods=n)
     close = 110.0 + np.sin(np.arange(n) / 3.0)

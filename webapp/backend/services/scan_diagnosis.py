@@ -23,7 +23,7 @@ scan-status routes.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 _log = logging.getLogger("chrollo.diagnosis")
 
@@ -555,6 +555,48 @@ def current_missed_slot_notice() -> str | None:
     except Exception as exc:  # pragma: no cover - defensive
         _log.info("missed-slot notice skipped (%s)", exc.__class__.__name__)
         return None
+
+
+# ------------------------------------------------------------ stale after ---
+
+def scan_stale_after(scanned_at, hour: int, minute: int) -> datetime | None:
+    """When the scan written at ``scanned_at`` stops being the latest one, UTC.
+
+    The next weekday New York slot after the write, plus the hang allowance: by
+    then the next scan has either landed or is known to be stuck. It is the
+    verdict behind the screener's scan-date stamp and Home's "· stale" (the
+    frontend only reads the clock against it, EC-28). Keyed to the slot, not to
+    the viewer's midnight: a calendar-day rule read every Sunday and Monday as
+    stale, and in the weeks one country's daylight saving has moved and the
+    other's has not, a slot landing at 23:00 local read stale all the next day
+    (review 2026-10-03). No market-holiday calendar: the cron runs Monday to
+    Friday regardless. None when the stamp is missing or unreadable.
+    """
+    # Local import, as in missed_slot_notice: services.scheduler pulls in the
+    # scan runner.
+    from zoneinfo import ZoneInfo
+
+    from services.scheduler import next_weekday_slot
+
+    written = parse_iso(scanned_at)
+    if written is None:
+        return None
+    slot = next_weekday_slot(written.astimezone(ZoneInfo("America/New_York")), hour, minute)
+    return (slot + timedelta(hours=HUNG_RUNNING_HOURS)).astimezone(timezone.utc)
+
+
+def current_scan_stale_after(scanned_at) -> str | None:
+    """``scan_stale_after`` against the live slot, as a UTC ISO stamp.
+
+    Best-effort: /screener-data must serve even when the settings file cannot be
+    read, and a missing value only means the stamp never turns amber.
+    """
+    try:
+        stale_after = scan_stale_after(scanned_at, *scan_slot())
+    except Exception as exc:  # pragma: no cover - defensive
+        _log.info("stale-after skipped (%s)", exc.__class__.__name__)
+        return None
+    return stale_after.isoformat() if stale_after is not None else None
 
 
 # ---------------------------------------------------------------- shared ---

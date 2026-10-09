@@ -22,6 +22,23 @@ export const scanStatusColor = (status, verdict = null) => {
   return 'var(--text-muted)';
 };
 
+// "stale" = a newer scan was due and is not what this screen shows. WHEN it was
+// due is the backend's verdict (the payload's `stale_after`: the next weekday New
+// York slot after the artifact was written, plus the hang allowance —
+// services/scan_diagnosis.scan_stale_after); this only reads the clock against it
+// (EC-28). It replaced a calendar-day rule that read every Sunday and Monday as
+// stale, and every day of a week where one country's daylight saving had moved
+// and the other's had not (review 2026-10-03). Still keyed to the ARTIFACT (its
+// scanned_at), never the latest run's finished_at: a failed run stamps a fresh
+// finished_at while the screen still reads the old artifact. The ONE freshness
+// rule, shared by the Home Action Center and the screener's scan-date stamp.
+export const scanIsStale = (staleAfter, now = new Date()) => {
+  if (!staleAfter) return false;
+  const due = new Date(staleAfter);
+  if (Number.isNaN(due.getTime())) return false;
+  return now >= due;
+};
+
 // The failing, operator-relevant health checks — a PASS-THROUGH of the verdict
 // the backend already resolved (`/health` -> `failing`), shared by the topbar
 // pill's tooltip and the registry's "What is wrong right now" block. Which

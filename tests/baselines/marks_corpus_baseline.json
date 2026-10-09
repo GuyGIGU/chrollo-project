@@ -5,7 +5,7 @@
   "population": "guided-list",
   "marks_fingerprint": "ebfe0f0191269ee29d6b80e9d17ff24a34feae53da985ab6d71aa898c8e438b8",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "d22a4760271fda6c58a4e847fb6c043ced74bcdb293edea1385c64314478aa06",
+  "engine_config_version": "8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
