@@ -244,6 +244,8 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
     """
     if mark["verdict"] != "box":
         return [None for _ in variants]
+    for variant in variants:        # before any read: a knob variant is the old reader's, refused by name
+        replay.refuse_old_knobs(variant)
 
     from webapp.backend import frame_store
     from engine_alpha.evaluation import EVAL_ERROR

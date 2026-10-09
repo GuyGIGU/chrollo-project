@@ -26,6 +26,10 @@ answered" can be printed on a board or asserted in a test without appearing in
 a result dict, an archive row or a wire payload.
 
 **The switch is read in ONE function**, :func:`which_reader`, and nowhere else.
+
+**A read only one reader can give refuses the other by name** (:class:`NotThisReader`): the old
+reader's box read, :func:`read_box`, under the new reader; the new reader's record,
+:func:`read_record` (the workbench's "why did this mark miss", go-live plan task 5), under the old.
 """
 from __future__ import annotations
 
@@ -61,6 +65,15 @@ class ReadFailed(ValueError):
     A ValueError, so every caller that already skips a date on a crash keeps
     doing so; one that must SAY why (the manual add, the seed's count) catches
     this first (council review 2026-10-09, finding 3)."""
+
+
+class NotThisReader(NotImplementedError):
+    """A read the reader that is switched on cannot give: refused by name, never answered "no box".
+
+    The old reader's box-only read (its box and its trace, :func:`read_box`) and the replay seam's knob
+    variants (they set the old reader's settings) have no answer under the new reader; the new reader's
+    record (:func:`read_record`) has none under the old. A NotImplementedError, so a caller that already
+    refused the gap keeps doing so (go-live plan, task 5)."""
 
 
 def _stamp(stamp: Optional[dict], reader: str) -> None:
@@ -207,28 +220,52 @@ def scan_worker(*, near_miss_lane: bool, watch_lane: bool, rescue_lane: bool = F
 
 def read_box(df: pd.DataFrame, atr: float, *, bricks=None, trace=None,
              near_miss=None, stamp: Optional[dict] = None):
-    """The box read alone: no pullback, no score, no verdict.
+    """The OLD reader's box read alone: no pullback, no score, no verdict.
 
-    The calibration workbench, its grading and the replay seam read a chart
-    this way — they want the lines and the reasons, not a fire. (The doctrine
-    audit reads the old engine directly, not through here.)
+    The calibration workbench's grading (the concordance chip and the engine
+    overlay, through the replay seam), the yardstick's old arm and word
+    recall's engine basis read a chart this way — they want the old reader's
+    box shape and its trace, not a fire. (The doctrine audit reads the old
+    engine directly, not through here.) The workbench's "why did this mark
+    miss" reads the new reader's own record instead, :func:`read_record`.
     """
     from engine_alpha.structure.narrative import read_structure
 
     answering = which_reader()
     _stamp(stamp, answering)
     if answering == READER_NEW:
-        # Refused out loud, as the scan's worker does. Its callers (the
-        # workbench's "why did this mark miss", its grading, the replay seam)
-        # read the OLD reader's box shape and trace; this
-        # door used to read the chart with the new reader, throw the read away
-        # and answer None — "no box" — for every chart, which looks like a real
-        # answer (council review 2026-10-09, finding 2). Giving them the new
-        # reader's box is the go-live plan's work.
-        raise NotImplementedError(
-            "the two-eyes reader has no box-only read for the old reader's "
-            "callers yet (the calibration workbench and the replay seam): that "
-            "is the go-live plan's work. Flip "
-            "TWO_EYES_READER_ENABLED for the tests and the measuring tools only.")
+        # Refused by name. This door used to read the chart with the new
+        # reader, throw the read away and answer None — "no box" — for every
+        # chart, which looks like a real answer (council review 2026-10-09,
+        # finding 2). The new reader's box is not this shape: a caller that
+        # wants it in the new reader's words asks read_record.
+        raise NotThisReader(
+            "the box-only read is the OLD reader's (its box shape and its "
+            "trace); the new reader is switched on and answers with its own "
+            "record (reader.read_record), never with this shape.")
     return read_structure(df, atr, **_only_given(bricks=bricks, trace=trace,
                                                  near_miss=near_miss))
+
+
+def read_record(ticker: str, df: pd.DataFrame, *, watch: Optional[dict] = None,
+                stamp: Optional[dict] = None):
+    """The NEW reader's own record of a chart: its boxes and its trail, for a
+    caller that wants the reasons, not a fire (the workbench's "why did this
+    mark miss", go-live plan task 5).
+
+    The read goes through the same path as the scan's (the frame contract,
+    then the universe door, then the reader). Returns the ``Read`` — a failed
+    one says so (``failed``, ``refusal``) — or ``None`` when the universe door
+    refused the chart, which the reader then never read; the leg is in
+    ``watch["why"]``. Under the old reader it refuses by name: the old reader
+    has no such record, its box read is :func:`read_box`.
+    """
+    answering = which_reader()
+    _stamp(stamp, answering)
+    if answering == READER_OLD:
+        raise NotThisReader(
+            "the reader's own record (its boxes and its trail) is the new "
+            "reader's; the old reader is switched on, and its box read is "
+            "reader.read_box.")
+    read, _ = _two_eyes(ticker, df, watch)
+    return read
