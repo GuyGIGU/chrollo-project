@@ -171,16 +171,18 @@ def test_the_night_says_what_the_scan_showed_that_night(tmp_path):
 
 
 def test_the_night_says_why_the_replay_reads_more_charts_than_the_scan(tmp_path):
-    """The replay reads the copied panel's own tickers; the scan read that night's list, which is not kept on disk.
-    The page says so whenever the two counts differ (verify-15b: 5,520 here, 5,502 in the scan), and only then."""
+    """The replay reads every chart of the copied panel its ledgers admit; the scan read the names of its ticker list
+    it admitted that night, a set it does not keep (verify-15c: the list itself is on disk). The page says so whenever
+    the two counts differ (verify-15b: 5,520 here, 5,502 in the scan), and only then."""
     night = _night()
     html = _write(tmp_path, _record(), night)
-    assert ("This replay reads the 3701 charts of the copied panel; the scan read 3690, from that night's list of "
-            "tickers, which is not kept on disk.") in html[html.index('id="night"'):]
+    assert ("This replay reads every chart of the copied panel its ledgers admit (3701); the scan read the names of "
+            "its ticker list it admitted that night (3690), a set it does not keep on disk."
+            ) in html[html.index('id="night"'):]
     night["scan"]["read"] = 3701
     (tmp_path / "night" / "night.json").write_text(json.dumps(night), encoding="utf-8")
     with open(pack.write_index(str(tmp_path)), encoding="utf-8") as f:
-        assert "charts of the copied panel" not in f.read()
+        assert "every chart of the copied panel" not in f.read()
 
 
 def test_the_stamp_says_when_the_pack_was_built_from_a_changed_tree(monkeypatch):

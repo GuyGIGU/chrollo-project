@@ -100,6 +100,7 @@ configure_path(backend=True)
 from engine_alpha import two_eyes  # noqa: E402
 from engine_alpha.two_eyes import method_numbers as M  # noqa: E402
 from engine_alpha.two_eyes import record  # noqa: E402
+from engine_alpha.two_eyes.grade import whole_points  # noqa: E402
 from tools.calibration.core_board import junk_rows, run_board  # noqa: E402
 from tools.regression.marks_corpus import load_corpus  # noqa: E402
 from core.calibration.replay import load_sealed_fixture  # noqa: E402
@@ -511,7 +512,7 @@ def fixed_ends_probe(charts: list, table: dict, is_junk: np.ndarray, junk: list,
            f"  K{n}  {quartiles(table['K' + n][~is_junk]):<40}{quartiles(table['K' + n][is_junk]):<44}{a:>6.3f}"
            f"{l:>7.3f}  {'passes' if passes else 'fails'}"]
     for c in charts:
-        c["grade_" + n] = c["loco_grade_" + n] = grader(c["m"])        # fixed ends: left out, the same grade
+        c["grade_" + n] = c["loco_grade_" + n] = whole_points(grader(c["m"]))  # fixed ends: left out, the same grade
         c["letter_" + n] = c["loco_letter_" + n] = letter(c["grade_" + n])
     title = (f"THE GRADE, THE {name} READING (his to approve)" if passes else
              f"THE {name} READING'S GRADE, for the record (it fails the strictest bar)")
@@ -580,7 +581,7 @@ def grade_all(charts: list, table: dict, is_junk: np.ndarray, kept: list, sfx: s
         keep = np.ones(len(charts), dtype=bool)
         keep[i] = False
         own = ramps({m: v[keep] for m, v in table.items()}, is_junk[keep], kept)
-        c["grade" + sfx], c["loco_grade" + sfx] = grader(c["m"], ends), grader(c["m"], own)
+        c["grade" + sfx], c["loco_grade" + sfx] = whole_points(grader(c["m"], ends)), whole_points(grader(c["m"], own))
         c["letter" + sfx] = letter(c["grade" + sfx]) if ends else ""
         c["loco_letter" + sfx] = letter(c["loco_grade" + sfx]) if own else ""
     return ends
@@ -653,7 +654,8 @@ def format_grades(charts: list, junk: list, ends: dict, sfx: str = "", title: st
     for j in junk:
         if j["ticker"] not in BAR or not j["m"]:
             continue
-        days = [f"{day:%d/%m} {grader(m, ends):.0f} {letter(grader(m, ends))}" for day, m in j["every"] if m]
+        days = [f"{day:%d/%m} {whole_points(grader(m, ends)):.0f} {letter(whole_points(grader(m, ends)))}"
+                for day, m in j["every"] if m]
         out.append(f"    {j['key']}: {', '.join(days)}")
     return out
 

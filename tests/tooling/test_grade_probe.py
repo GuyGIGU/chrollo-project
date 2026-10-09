@@ -521,6 +521,36 @@ def frph_fires() -> list:
     return core_board.junk_row(case, junk_frames["FRPH"])["fires"]
 
 
+def test_the_sheet_cuts_each_letter_on_the_whole_point_it_prints():
+    """verify-15c: the pack's grade sheet printed a reading `:.0f` beside a letter cut on the raw number, so a 74.55
+    read "75 A" there while the screen read "75 S". Each reading the sheet prints is read to the whole point, and its
+    letter is cut on that number, as the reader's own grade is."""
+    from tools.calibration.grade_probe import fixed_ends_probe
+
+    m = {"holds4": True, "Dh_days": 55, "Dw_empty": [0] * 7}
+    charts = [{"key": "X", "junk": False, "m": m}, {"key": "J", "junk": True, "m": {**m, "holds4": False}}]
+    out, _, _ = fixed_ends_probe(charts, {"K5": np.array([0.1, 0.9])}, np.array([False, True]), [], 1, "FIFTH", "",
+                                 "", "5", lambda *args: (True, (0.5, 0.5), (0.6, 0.6)),
+                                 lambda m, ends=None: 74.545 if m["holds4"] else 0.0, {"Dw": (0.0, 0.5)}, "Dw")
+    assert (charts[0]["grade_5"], charts[0]["letter_5"]) == (75.0, "S")
+    assert "  his under S on the fifth reading: 0" in out
+
+
+def test_the_sheets_other_grades_are_read_to_the_whole_point_too():
+    """The same for the grade the sheet prints beside it ("as written") and for the bar's lines on the board."""
+    import datetime as dt
+
+    from tools.calibration.grade_probe import format_grades, grade_all
+
+    charts = [{"key": k, "junk": k.startswith("J"), "m": {"D": float(k.startswith("J"))}}
+              for k in ("X1", "X2", "J1", "J2")]
+    grade_all(charts, {"D": np.array([0.0, 0.0, 1.0, 1.0])}, np.array([False, False, True, True]), ["D"], "",
+              grader=lambda m, ends: 74.545)
+    assert [(c["grade"], c["letter"], c["loco_grade"]) for c in charts] == [(75.0, "S", 75.0)] * 4
+    junk = [{"ticker": "COLM", "key": "COLM", "m": {"D": 1.0}, "every": [(dt.date(2026, 6, 22), {"D": 1.0})]}]
+    assert "    COLM: 22/06 75 S" in format_grades([], junk, {"D": (0.0, 1.0)}, grader=lambda m, ends: 74.545)
+
+
 def test_the_readers_own_grade_is_the_probes_fifth_reading(colm_fires, frph_fires, unf_and_frph):
     """The grade entry in the reader (stage 7) is the reading measured here, not a re-typed cousin of it: on COLM's
     and FRPH's fire days and on his UNF, the record's grade is the probe's fifth reading read to the whole point, day

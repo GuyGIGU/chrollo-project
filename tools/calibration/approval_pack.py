@@ -165,7 +165,8 @@ def build(out_dir: str) -> dict:
     page_of = {row["key"]: _page(path, out_dir) for row, path in his_pages + junk_pages}
     rescues = rescue_rows(out_dir)
 
-    # The grade sheet, ranked by the grade that passed its bar (the probe's fifth reading is the reader's own).
+    # The grade sheet, ranked by the grade that passed its bar (the probe's fifth reading, read to the whole point,
+    # is the reader's own).
     his_m, junk_m, silent = grade_probe.collect()
     _, charts, summary = grade_probe.board(his_m, junk_m, silent, grade_probe.SHUFFLES)
     third = grade_probe.graded_by(*(summary[n]["passes"] for n in ("fifth", "fourth", "third")))
@@ -278,8 +279,9 @@ def _scan_paragraph(night) -> str:
     removed = scan.get("removed_after_the_read") or []
     took = f"; its market-cap floor took out after the read: {_e(', '.join(removed))}" if removed else ""
     here = night["readers"]["old"].get("read")
-    why = (f" This replay reads the {here} charts of the copied panel; the scan read {scan['read']}, from that night's"
-           " list of tickers, which is not kept on disk." if here != scan.get("read") else "")
+    why = (f" This replay reads every chart of the copied panel its ledgers admit ({here}); the scan read the names of"
+           f" its ticker list it admitted that night ({scan['read']}), a set it does not keep on disk."
+           if here != scan.get("read") else "")
     return (f"<p><b>The scan you saw that night</b> (engine {_e(str(scan.get('engine_config_version') or '?')[:8])}):"
             f" {scan['fires']} fires shown of {scan['read']} tickers read{took}. Today's engine here is this branch's"
             f" (engine {_e(str(night['readers']['old'].get('engine_config_version') or '?')[:8])}):"

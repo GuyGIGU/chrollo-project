@@ -518,9 +518,10 @@ ticker through the one door, from the repo folder in PowerShell with the repo ve
 - **Beside the scan it replays.** The old reader here is this checkout's engine, which need not be the
   engine that scanned that night, nor its cuts after the read (the market-cap floor). The night says
   what the scan showed, under which engine, what it took out after its read, and which fires only one
-  of the two has; a payload of another night is named, never compared. The replay reads the copied
-  panel's own tickers and the scan read that night's list, which is not kept on disk, so the two counts
-  can differ (5,520 against 5,502 on Thu 08/10/2026); the pack's page says so when they do.
+  of the two has; a payload of another night is named, never compared. The replay reads every chart
+  of the copied panel its ledgers admit; the scan read the names of its ticker list it admitted that
+  night, a set it does not keep on disk, so the two counts can differ (5,520 against 5,502 on Thu
+  08/10/2026); the pack's page says so when they do.
 - **Side files only.** `night.json` and `night.txt` in that folder (and the copies, and the market
   context computed from them, which a rerun into the same folder on the same night reuses): both
   readers' fires, the new reader's state words, each reader's wall clock and its five slowest reads,
