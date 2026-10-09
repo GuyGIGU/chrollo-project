@@ -185,6 +185,17 @@ def test_the_night_says_why_the_replay_reads_more_charts_than_the_scan(tmp_path)
         assert "every chart of the copied panel" not in f.read()
 
 
+def test_the_page_states_the_grade_he_approves(tmp_path):
+    """verify-15d: the sheet showed every chart's grade and letter, never the rule that makes them, and he is asked to
+    approve that rule. The page states it beside the sheet, from the reader's own numbers."""
+    html = _write(tmp_path, _record(), _night())
+    grade = html[html.index('id="grade"'):html.index('id="night"')]
+    for fact in ("misses the box by more than half its daily range", "100 when no day of the base is empty",
+                 "0 when half the base is empty", "0 when the base did not hold", "S from 75, A from 50, B from 25",
+                 "yours to approve"):
+        assert fact in grade, fact
+
+
 def test_the_stamp_says_when_the_pack_was_built_from_a_changed_tree(monkeypatch):
     """The page stamps the commit it was built at; a tracked file changed since that commit is said, never hidden
     (the task-15 blind check: a page stamped with a commit, written by a tool not yet committed)."""

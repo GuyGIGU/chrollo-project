@@ -268,6 +268,22 @@ def _rescue_section(rescues) -> str:
                    f"<div class=\"grid\">{''.join(_rescue_figure(row) for row in rescues)}</div>")
 
 
+def _grade_rule() -> str:
+    """The grade's rule and weights, stated where he approves them, from the reader's own numbers (verify-15d: the
+    sheet showed every chart's grade, never the rule that makes it)."""
+    from engine_alpha.two_eyes import method_numbers as M
+
+    def share(x: float) -> str:
+        return "half" if x == 0.5 else f"{x:g} of"
+
+    return (f"<p><b>How the grade reads</b>: a day of the base is empty when its bar misses the box by more than"
+            f" {share(M.LINE_WORD_AREA_ATR)} its daily range, outside every named event's own swing. 100 when no day"
+            f" of the base is empty, 0 when {share(M.GRADE_EMPTY_ZERO)} the base is empty, a straight line between; 0"
+            f" when the base did not hold (after the SOS's top, a low beyond the support's area and under the base's"
+            f" own lowest low). Read to the whole point: S from {M.GRADE_S:g}, A from {M.GRADE_A:g}, B from"
+            f" {M.GRADE_B:g}, C under. These numbers are yours to approve.</p>")
+
+
 def _scan_paragraph(night) -> str:
     """The night he saw, beside the replay: the replay's old reader is this branch's engine, and the scan that
     night may have run another, with a cut after the read."""
@@ -397,6 +413,7 @@ def write_index(out_dir: str) -> str:
 <p>Your drawings: {_letters(record['grade']['his'])}. The junk's fire days: {_letters(record['grade']['junk'])}.
  <a href="{_e(record['grade']['sheet'])}">The sheet</a>: your drawings and the junk fires ranked together by the
  grade.</p>
+{_grade_rule()}
 {_night_section(night)}
 """
     path = os.path.join(out_dir, "index.html")
