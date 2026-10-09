@@ -657,7 +657,7 @@ def _junk_days(key: str) -> list:
     return [(ts.date(), raw.loc[:ts]) for ts in sessions]
 
 
-def test_aef_the_pullback_he_refused_fires_on_no_day_and_each_refusal_names_his_sentence():
+def test_aef_the_pullback_he_refused_fires_only_on_its_first_day_and_each_later_refusal_names_his_sentence():
     """His AEF words (Mon 14/09/2026): "3 bars with huge increases in both spread and price changes meaning the
     pull back is increasing with sellers, not to mention you cut the move off and it's a part of a bigger swing
     downwards that reaches support". That pullback runs from Wed 03/06/2026; from its second day on it is refused,

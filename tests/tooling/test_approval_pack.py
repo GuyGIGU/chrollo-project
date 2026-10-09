@@ -41,6 +41,12 @@ def _record() -> dict:
             for key in ("FRPH", "COLM", "KWR", "DBD", "SPCB", "ENIC", "DGII", "ABEV", "BBVA@2026-06-05", "BMRN")
         ],
         "grade": {"his": {"S": 39, "C": 1}, "junk": {"S": 17, "A": 8, "B": 6, "C": 12}, "sheet": "grade/index.html"},
+        "rescues": [
+            {"key": "BWAY", "day": "2026-08-13", "fired": True, "state": "fired", "against": "mini", "how": "near",
+             "trigger": 17.29, "grade": "S", "score": 100.0, "page": "pages/rescue_BWAY.png"},
+            {"key": "FRBA", "day": "2026-07-30", "fired": False, "state": "crossed", "against": None, "how": None,
+             "trigger": None, "grade": None, "score": None, "page": "pages/rescue_FRBA.png"},
+        ],
     }
 
 
@@ -84,7 +90,7 @@ def test_the_summary_comes_before_the_detail(tmp_path):
     html = _write(tmp_path, _record(), _night())
     headings = re.findall(r"<h2[^>]*>(.*?)</h2>", html)
     assert headings[0].startswith("In short")
-    assert [h.split(" ")[0] for h in headings[1:]] == ["Your", "The", "The", "One"]
+    assert [h.split(" ")[0] for h in headings[1:]] == ["Your", "The", "Three", "The", "One"]
     summary = html[html.index("In short"):html.index(headings[1])]
     for fact in ("35 of 40", "S 39", "both readers", "Thu 08/10/2026", "the scan you saw that night showed 0"):
         assert fact in summary, fact
@@ -118,6 +124,30 @@ def test_the_junk_he_rules_and_the_junk_for_his_eye_are_named_apart(tmp_path):
     assert re.findall(r"<b>([^<]+)</b>", rule) == ["ABEV", "ENIC", "DGII", "DBD"]
     assert re.findall(r"<b>([^<]+)</b>", eye) == ["SPCB", "BBVA@2026-06-05", "KWR", "COLM"]
     assert "<b>FRPH</b>" in rest and "<b>BMRN</b>" in rest
+
+
+def test_the_three_charts_named_for_this_sheet_are_the_records():
+    """The task-13 blind check named three charts he never drew that fire ONLY by the small box's "near" while the big
+    box refuses (docs/decisions.md, 2026-10-03): "named for task 15's sheet before any go-live"."""
+    assert pack.MINI_RESCUES == (("BWAY", "2026-08-13"), ("FRBA", "2026-07-30"), ("TEVA", "2026-09-25"))
+
+
+def test_the_charts_he_never_drew_that_fire_by_the_small_boxs_near_are_shown(tmp_path):
+    html = _write(tmp_path, _record(), _night())
+    section = html[html.index('id="rescues"'):html.index('id="grade"')]
+    assert 'src="pages/rescue_BWAY.png"' in section
+    assert "fires on Thu 13/08/2026 at 17.29, read against the small box (near it)" in section
+    assert "grade S 100" in section
+    # What the reader says today, never the record's word: a chart that no longer fires says so.
+    assert "no fire on Thu 30/07/2026 (crossed)" in section
+
+
+def test_a_pack_made_before_its_night_says_where_the_three_charts_come_from(tmp_path):
+    record = dict(_record(), rescues=None)
+    html = _write(tmp_path, record, None)
+    section = html[html.index('id="rescues"'):html.index('id="grade"')]
+    assert "run the night first" in section
+    assert pack.rescue_rows(str(tmp_path)) is None, "no copied panel, no read"
 
 
 def test_the_night_shows_both_readers_side_by_side(tmp_path):

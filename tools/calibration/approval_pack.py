@@ -15,14 +15,16 @@ One run makes the numbers and the pictures, so a page can never disagree with th
 * the grade sheet: his drawings and the junk fires ranked together by the grade (`grade_probe`), and the reader's
   own letters tallied;
 * the night replayed by both readers, read from ``OUT/night/night.json`` (`parallel_night`, run on its own: it reads
-  the whole universe twice and must run outside the scan slot).
+  the whole universe twice and must run outside the scan slot);
+* three charts he never drew that fire only by the small box's "near" (`MINI_RESCUES`), read on their fire days from
+  the night's copied panel, so the night runs first.
 
 The run's numbers go to ``OUT/pack.json``; ``OUT/index.html`` is written from that record and the night's side file,
 so the page is rewritten without reading a chart again (``--index-only``). Offline, read-only, sidecars only (EC-46).
 
+    python -m tools.calibration.parallel_night OUT/night          # the night first, outside the scan slot
     python -m tools.calibration.approval_pack OUT
-    python -m tools.calibration.parallel_night OUT/night          # the night, outside the scan slot
-    python -m tools.calibration.approval_pack OUT --index-only    # the page again, with the night in it
+    python -m tools.calibration.approval_pack OUT --index-only    # the page again, after another night
 """
 from __future__ import annotations
 
@@ -61,6 +63,10 @@ STEP_WORDS = {
 LETTERS = ("S", "A", "B", "C")
 ARM_WORDS = {"today": "today's engine", "method": "the twelve-step method", "two-eyes": "the new reader"}
 NIGHT_COMMAND = "python -m tools.calibration.parallel_night OUT/night"
+#: Three charts he never drew that fire ONLY because the pullback rests near the small box's top where the big box
+#: refuses it: his "near it / resting on it" (the mini, task 13), on no picture of his. The task-13 blind check named
+#: them "for task 15's sheet before any go-live" (docs/decisions.md, 2026-10-03).
+MINI_RESCUES = (("BWAY", "2026-08-13"), ("FRBA", "2026-07-30"), ("TEVA", "2026-09-25"))
 
 
 def misses_first_by_step(rows: list) -> list:
@@ -83,6 +89,41 @@ def _tally(letters) -> dict:
 
 def _page(path: str, out_dir: str) -> str:
     return os.path.relpath(path, out_dir).replace(os.sep, "/")
+
+
+def rescue_rows(out_dir: str) -> list | None:
+    """The three charts of `MINI_RESCUES`, each read on its day from the night's copied panel (``OUT/night/panel``,
+    the scan's own frame preparation) and drawn as the board draws; None when the night has not been copied yet."""
+    import pandas as pd
+    from core.pipeline.screening.screener import _prepare_ticker_frames
+    from core.pipeline.universe.descriptor import resolve_universe
+    from tools.calibration import core_board
+
+    uni = resolve_universe(None)
+    panel = os.path.join(out_dir, "night", "panel", os.path.basename(uni.cache_paths()[0]))
+    if not os.path.exists(panel):
+        return None
+    data = pd.read_parquet(panel)
+    if getattr(data.index, "tz", None) is not None:
+        data.index = data.index.tz_localize(None)
+    frames = _prepare_ticker_frames([ticker for ticker, _day in MINI_RESCUES], data, uni)
+    rows = []
+    for ticker, day in MINI_RESCUES:
+        row = core_board.read_day(ticker, frames[ticker], dt.date.fromisoformat(day)) if ticker in frames else None
+        read = None if row is None else row["read"]
+        lps = None if read is None else read.lps
+        page = None
+        if row is not None and row["prepared"] is not None:
+            page = _page(core_board.render_read(row, os.path.join(out_dir, "pages", f"rescue_{ticker}.png"),
+                                                f"{ticker}  —  read on {_day(day)}"), out_dir)
+        rows.append({"key": ticker, "day": day, "fired": bool(row and row["fired"]),
+                     "state": None if read is None else read.state,
+                     "against": None if lps is None else lps.read_against, "how": None if lps is None else lps.how,
+                     "trigger": None if lps is None else round(float(lps.trigger_price), 2),
+                     "grade": None if read is None or read.grade is None else read.grade.letter,
+                     "score": None if read is None or read.grade is None else round(read.grade.score, 1),
+                     "page": page})
+    return rows
 
 
 def _head() -> str | None:
@@ -118,6 +159,7 @@ def build(out_dir: str) -> dict:
     junk = core_board.junk_rows()
     his_pages, junk_pages = core_board.render_pages(rows, junk, os.path.join(out_dir, "pages"))
     page_of = {row["key"]: _page(path, out_dir) for row, path in his_pages + junk_pages}
+    rescues = rescue_rows(out_dir)
 
     # The grade sheet, ranked by the grade that passed its bar (the probe's fifth reading is the reader's own).
     his_m, junk_m, silent = grade_probe.collect()
@@ -149,6 +191,7 @@ def build(out_dir: str) -> dict:
         "grade": {"his": _tally(grade_of(row["on_last"]["read"]) for row in rows),
                   "junk": _tally(grade_of(f["read"]) for row in junk for f in row["fires"]),
                   "sheet": _page(sheet, out_dir)},
+        "rescues": rescues,
         "seconds": round(time.perf_counter() - started, 1),
     }
     with open(os.path.join(out_dir, "pack.json"), "w", encoding="utf-8", newline="\n") as f:
@@ -195,6 +238,29 @@ def _junk_figure(row: dict) -> str:
     said = (f"fires on {len(fires)} day(s) of its window, graded {' '.join(g or '-' for g in row.get('grades') or [])}"
             if fires else "silent on every day of its window")
     return _figure("miss" if fires else "hit", row.get("page"), f"<b>{_e(row['key'])}</b> — {_e(row['label'])} · {said}")
+
+
+def _rescue_figure(row: dict) -> str:
+    """What the reader says on that day now, never the record's word: a chart that no longer fires says so."""
+    if row.get("fired"):
+        box = "the small box" if row.get("against") == "mini" else "the big box"
+        said = f"fires on {_day(row['day'])} at {row['trigger']:.2f}, read against {box}" + (
+            f" ({_e(row['how'])} it)" if row.get("how") else "")
+    else:
+        said = f"no fire on {_day(row['day'])} ({_e(row.get('state') or 'no read')})"
+    grade = f" · grade {row['grade']} {row['score']:.0f}" if row.get("grade") and row.get("score") is not None else ""
+    return _figure("fleet", row.get("page"), f"<b>{_e(row['key'])}</b> — {said}{grade}")
+
+
+def _rescue_section(rescues) -> str:
+    head = "<h2 id=\"rescues\">Three charts you never drew, fired by the small box's \"near\"</h2>"
+    if rescues is None:
+        return head + ("<p>Read from the night's copied panel: run the night first, then the pack "
+                       f"(<code>{_e(NIGHT_COMMAND)}</code>).</p>")
+    return head + ("<p>Each fires only because its pullback rests just over the small box's top, where the big box "
+                   "alone refuses it (your \"near it / resting on it\"). No drawing of yours shows this rule at work: "
+                   "these are the charts that do.</p>"
+                   f"<div class=\"grid\">{''.join(_rescue_figure(row) for row in rescues)}</div>")
 
 
 def _scan_paragraph(night) -> str:
@@ -300,6 +366,7 @@ def write_index(out_dir: str) -> str:
  .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:18px}}
  figure{{margin:0;padding:8px;border:2px solid #ddd;border-radius:6px;background:#fff}}
  figure.miss{{border-color:#d62728}} figure.chance{{border-color:#e8a33d}} figure.hit{{border-color:#2e8b57}}
+ figure.fleet{{border-color:#4a6fa5}}
  img{{width:100%;height:auto}} figcaption{{padding-top:6px;font-size:13px}} .nopage{{color:#999;padding:30px}}
  table{{border-collapse:collapse}} td,th{{border:1px solid #ddd;padding:4px 10px;text-align:left}}
 </style>
@@ -307,7 +374,7 @@ def write_index(out_dir: str) -> str:
 <p class="meta">Made {_e(record['made'])} from commit {_e(record.get('head') or '?')} · reader {_e(record['ruleset'])}
  · OHLC bars; red: your lines and your days; blue: the reader's box, thin blue its mini; green: its LPS and trigger.
  Frames: green, read as you drew it; amber, it fires on your day at your trigger and something before differs; red,
- no fire on your day at your trigger.</p>
+ no fire on your day at your trigger; blue, a chart you never drew.</p>
 <h2>In short</h2>
 <ul class="short">{''.join(f'<li>{line}</li>' for line in summary)}</ul>
 <h2>Your {record['marks']['drawings']} drawings — misses first, by the first step where the reader leaves yours</h2>
@@ -316,6 +383,7 @@ def write_index(out_dir: str) -> str:
 <h3 id="junk-rule">For you to rule</h3><div class="grid">{group(JUNK_TO_RULE)}</div>
 <h3 id="junk-eye">For your eye</h3><div class="grid">{group(JUNK_FOR_EYE)}</div>
 <h3 id="junk-rest">The rest of the junk</h3><div class="grid">{group(rest)}</div>
+{_rescue_section(record.get('rescues'))}
 <h2 id="grade">The grade sheet</h2>
 <p>Your drawings: {_letters(record['grade']['his'])}. The junk's fire days: {_letters(record['grade']['junk'])}.
  <a href="{_e(record['grade']['sheet'])}">The sheet</a>: your drawings and the junk fires ranked together by the

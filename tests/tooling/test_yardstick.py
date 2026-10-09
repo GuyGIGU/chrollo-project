@@ -430,6 +430,13 @@ def test_his_buy_is_the_day_after_his_last_receding_day_priced_off_it():
 #: sufficient for them but not necessary — the blessed alternative's exact
 #: lines are settled with him at task 9's sitting, from pictures, and are
 #: deliberately not invented here.
+#: These pins read the METHOD arm, which is frozen: they record its misses and
+#: can never turn green there. The stage that answers them is the new reader's
+#: (stage 10 of the two-eyes reader), whose own pins for the same six charts
+#: are in tests/engine/test_two_eyes_walk.py (VIK and SYRE read his pair to the
+#: cent; ALB, FOSL, MSGS and ROIV are strict expected failures within half a
+#: range of his). The converge of the build found this list naming the wrong
+#: debtor (Fri 09/10/2026).
 _STAGE_OF = {
     "VIK": "stage 10 — the election: the day the pair became a box",
     "SYRE": "stage 10 — the election: the day the pair became a box",
@@ -476,8 +483,9 @@ def test_the_named_charts_are_not_read_his_way_yet(ticker, _engine_lines_on_his_
             f"{ticker} now reads as he drew it ({want_r}/{want_s}) — "
             f"{_STAGE_OF[ticker]} has landed. Remove {ticker} from _STAGE_OF "
             "and move its line into the board's kept ground.")
-    pytest.xfail(f"{ticker}: engine draws {got_r}/{got_s}, he drew "
-                 f"{want_r}/{want_s} — owed by {_STAGE_OF[ticker]}")
+    pytest.xfail(f"{ticker}: the frozen method arm draws {got_r}/{got_s}, he drew "
+                 f"{want_r}/{want_s} — answered by the new reader's {_STAGE_OF[ticker]} "
+                 "(its own pin: tests/engine/test_two_eyes_walk.py)")
 
 
 @pytest.mark.parametrize("ticker", sorted(_HIS_LINES))

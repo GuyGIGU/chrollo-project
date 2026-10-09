@@ -571,6 +571,18 @@ def render_pages(rows: list, junk: list, out_dir: str) -> tuple:
     return his_pages, junk_pages
 
 
+def render_read(row: dict, path: str, title: str) -> str:
+    """One day's read (``read_day``) as the board's own picture, for a chart that is neither his nor the junk's."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from tools.research.full_package_render import _draw_bars
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    _render(plt, _draw_bars, row, path, title, _words(row["read"], row["door"]))
+    return path
+
+
 def write_contact_sheet(his_pages: list, junk_pages: list, out_dir: str) -> str:
     def cell(klass, path, caption):
         return (f'<figure class="{klass}"><img src="{os.path.basename(path)}" loading="lazy">'

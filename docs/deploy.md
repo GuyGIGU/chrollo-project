@@ -525,13 +525,15 @@ ticker through the one door, from the repo folder in PowerShell with the repo ve
   stamped with each reader's engine version. Nothing reaches the archive, the screener payload or the
   screen.
 
-The approval pack folds the night into its one page:
+The approval pack folds the night into its one page. The night runs first: the pack reads three charts he
+never drew (the small box's "near" at work) from the night's copied panel.
 
 ```powershell
-.\.venv\Scripts\python.exe -m tools.calibration.approval_pack output\approval-pack
 .\.venv\Scripts\python.exe -m tools.calibration.parallel_night output\approval-pack\night
-.\.venv\Scripts\python.exe -m tools.calibration.approval_pack output\approval-pack --index-only
+.\.venv\Scripts\python.exe -m tools.calibration.approval_pack output\approval-pack
 ```
+
+After another night, `--index-only` rewrites the page without reading a chart again.
 
 ## Service Commands
 
