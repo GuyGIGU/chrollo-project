@@ -43,3 +43,14 @@ def test_the_boards_refuse_a_sealed_pages_folder_before_reading(monkeypatch, mod
     monkeypatch.setattr(sys, "argv", [module, "--pages", target])
     with pytest.raises(ValueError, match="sealed"):
         board.main()
+
+
+@pytest.mark.parametrize("flag", ["--out", "--pictures"])
+@pytest.mark.parametrize("target", SEALED)
+def test_the_way_back_board_refuses_a_sealed_target_before_reading(monkeypatch, flag, target):
+    """The way-back board (go-live task 6) writes its board and its pictures where it is told: never a sealed path."""
+    from tools.calibration import way_back_board
+
+    monkeypatch.setattr(way_back_board, "collect", _never)
+    with pytest.raises(ValueError, match="sealed"):
+        way_back_board.main([flag, target])
