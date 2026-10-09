@@ -161,7 +161,9 @@ def read_new(ticker: str, df, spy_6m_return: float, breadth_pct) -> dict:
     with flag_capture(TWO_EYES_READER_ENABLED=True):
         result = reader.evaluate_ticker(ticker, df, spy_6m_return, breadth_pct, watch=watch, stamp=stamp)
     row = _row(ticker, result, time.perf_counter() - started, stamp)
-    if not row["failed"]:
+    if row["failed"]:
+        row["why"] = watch.get("refusal")      # the reader's own sentence: the go-live has to see each one
+    else:
         row["state"] = watch.get("state")
     return row
 
@@ -193,10 +195,14 @@ def _reader_summary(rows: list, seconds: float, words: bool) -> dict:
         "fires": sorted(fires, key=lambda f: (-(f["score"] or 0.0), f["ticker"])),
         "silent": sum(1 for r in rows if not r["fired"] and not r["failed"]),
         "failed": sum(1 for r in rows if r["failed"]),
+        # Each failed read and the sentence the reader refused it with (the old reader's skip guard keeps none).
+        "failures": [[r["ticker"], r.get("why")] for r in rows if r["failed"]],
+        "tiers": dict(sorted(Counter(f["tier"] for f in fires if f["tier"]).items())),
         "wall_clock_s": round(seconds, 1),
         "median_read_s": round(statistics.median(r["seconds"] for r in rows), 4) if rows else None,
         "slowest": [[r["ticker"], r["seconds"]] for r in sorted(rows, key=lambda r: (-r["seconds"], r["ticker"]))[:5]],
     }
+    out["failure_reasons"] = failure_reasons(out["failures"])
     if words:
         tally = Counter(r.get("state") for r in rows if not r["failed"])
         out["states"] = dict(sorted(tally.items(), key=lambda kv: (-kv[1], str(kv[0]))))
@@ -224,6 +230,12 @@ def _names(names: list) -> str:
     return ", ".join(names) if names else "none"
 
 
+def failure_reasons(failures: list) -> dict:
+    """The failed reads counted by the rule that refused them (a reader's sentence is ``rule: detail``)."""
+    counts = Counter(str(why or "no reason given").split(": ", 1)[0] for _ticker, why in failures)
+    return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
 def format_board(summary: dict) -> str:
     """The night in plain words."""
     panel = summary.get("panel") or {}
@@ -234,6 +246,11 @@ def format_board(summary: dict) -> str:
     for name, side in (("the old reader", old), ("the new reader", new)):
         lines.append(f"  {name}: {len(side['fires'])} fires of {side['read']} read, {side['failed']} failed reads, "
                      f"wall clock {side['wall_clock_s']:.0f} s (median read {side['median_read_s']} s)")
+        tiers = " · ".join(f"{tier} {n}" for tier, n in side["tiers"].items()) or "none"
+        lines.append(f"    its fires by tier: {tiers}")
+        if side["failures"]:
+            reasons = " · ".join(f"{rule} {n}" for rule, n in side["failure_reasons"].items())
+            lines.append(f"    its failed reads, by the rule that refused them: {reasons}")
     lines.append(f"  both readers fire on {len(summary['both'])}: {_names(summary['both'])}")
     lines.append(f"  the old reader alone on {len(summary['old_only'])}: {_names(summary['old_only'])}")
     lines.append(f"  the new reader alone on {len(summary['new_only'])}: {_names(summary['new_only'])}")

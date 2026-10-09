@@ -144,15 +144,23 @@ def test_the_two_readers_fires_are_compared_name_by_name():
                 "score": 90.0 if fired else None, "trigger": 10.0 if fired else None, **extra}
 
     old = [row("AAA", True), row("BBB", True), row("CCC", False)]
+    hole = "a trading day is missing from the middle: 1 session(s) between 2026-03-02 and 2026-03-04"
     new = [row("AAA", True, state="fired"), row("BBB", False, state="crossed"),
-           row("CCC", True, state="fired"), {"ticker": "DDD", "fired": False, "failed": True, "seconds": 0.2}]
+           row("CCC", True, state="fired"),
+           {"ticker": "DDD", "fired": False, "failed": True, "seconds": 0.2, "why": hole},
+           {"ticker": "EEE", "fired": False, "failed": True, "seconds": 0.2, "why": hole}]
     summary = night.summarize(old, 1.5, new, 2.5)
     assert summary["both"] == ["AAA"] and summary["old_only"] == ["BBB"] and summary["new_only"] == ["CCC"]
     assert summary["readers"]["new"]["states"] == {"fired": 2, "crossed": 1}
-    assert summary["readers"]["new"]["failed"] == 1 and summary["readers"]["new"]["silent"] == 1
+    assert summary["readers"]["new"]["failed"] == 2 and summary["readers"]["new"]["silent"] == 1
+    # Each failed read keeps the reader's own sentence, and the night counts them by the rule that refused them.
+    assert summary["readers"]["new"]["failures"] == [["DDD", hole], ["EEE", hole]]
+    assert summary["readers"]["new"]["failure_reasons"] == {"a trading day is missing from the middle": 2}
+    assert summary["readers"]["old"]["tiers"] == {"S": 2} and summary["readers"]["new"]["tiers"] == {"S": 2}
     assert (summary["readers"]["old"]["wall_clock_s"], summary["readers"]["new"]["wall_clock_s"]) == (1.5, 2.5)
     board = night.format_board(summary)
     assert "both readers fire on 1" in board and "the new reader alone on 1" in board
+    assert "a trading day is missing from the middle 2" in board
 
 
 def test_it_never_writes_under_a_sealed_directory(tmp_path, outside_the_slot):

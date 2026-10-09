@@ -202,6 +202,15 @@ def _night_section(night) -> str:
     def fires(side):
         return ", ".join(f"{_e(f['ticker'])} {_e(f.get('tier') or '')}" for f in side["fires"]) or "none"
 
+    def tiers(side):
+        return " · ".join(f"{_e(tier)} {n}" for tier, n in (side.get("tiers") or {}).items()) or "none"
+
+    def failures(side):
+        if not side.get("failures"):
+            return "none"
+        reasons = " · ".join(f"{_e(rule)} {n}" for rule, n in (side.get("failure_reasons") or {}).items())
+        return f"{reasons} ({_e(', '.join(ticker for ticker, _why in side['failures']))})"
+
     words = "".join(f"<tr><td>{_e(word)}</td><td>{count}</td></tr>" for word, count in new.get("states", {}).items())
     panel = night.get("panel") or {}
     return f"""<h2 id="night">One real scan night, both readers — {_day(night['night'])}</h2>
@@ -210,7 +219,9 @@ def _night_section(night) -> str:
 <table class="night"><tr><th></th><th>today's engine</th><th>the new reader</th></tr>
 <tr><td>tickers read</td><td>{old['read']}</td><td>{new['read']}</td></tr>
 <tr><td>fires</td><td>{len(old['fires'])}</td><td>{len(new['fires'])}</td></tr>
+<tr><td>fires by tier</td><td>{tiers(old)}</td><td>{tiers(new)}</td></tr>
 <tr><td>failed reads</td><td>{old['failed']}</td><td>{new['failed']}</td></tr>
+<tr><td>why they failed</td><td>{failures(old)}</td><td>{failures(new)}</td></tr>
 <tr><td>wall clock</td><td>{old['wall_clock_s']:.0f} s</td><td>{new['wall_clock_s']:.0f} s</td></tr></table>
 <p>Both fire on {len(night['both'])}: {_e(', '.join(night['both']) or 'none')}. Today's engine alone on
  {len(night['old_only'])}; the new reader alone on {len(night['new_only'])}.</p>

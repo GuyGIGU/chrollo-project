@@ -52,8 +52,11 @@ def _night() -> dict:
             "old": {"read": 3701, "fires": [{"ticker": "AAA", "tier": "A", "score": 61.0, "trigger": 10.0}],
                     "silent": 3699, "failed": 1, "wall_clock_s": 610.0, "slowest": [["AAA", 2.0]]},
             "new": {"read": 3701, "fires": [{"ticker": "BBB", "tier": "S", "score": 92.3, "trigger": 20.0}],
-                    "silent": 3700, "failed": 0, "wall_clock_s": 240.0, "slowest": [["BBB", 0.9]],
-                    "states": {"no lines": 2800, "not scanned": 700, "lines, no LPS yet": 200, "fired": 1}},
+                    "silent": 3699, "failed": 1, "wall_clock_s": 240.0, "slowest": [["BBB", 0.9]],
+                    "tiers": {"S": 1},
+                    "failures": [["HOLE", "a trading day is missing from the middle: 1 session(s) between ..."]],
+                    "failure_reasons": {"a trading day is missing from the middle": 1},
+                    "states": {"no lines": 2800, "not scanned": 700, "lines, no LPS yet": 199, "fired": 1}},
         },
         "both": [], "old_only": ["AAA"], "new_only": ["BBB"],
     }
@@ -103,7 +106,8 @@ def test_the_junk_he_rules_and_the_junk_for_his_eye_are_named_apart(tmp_path):
 def test_the_night_shows_both_readers_side_by_side(tmp_path):
     html = _write(tmp_path, _record(), _night())
     night = html[html.index('id="night"'):]
-    for fact in ("3701", "610", "240", "no lines", "2800", "not scanned", "AAA", "BBB"):
+    for fact in ("3701", "610", "240", "no lines", "2800", "not scanned", "AAA", "BBB",
+                 "a trading day is missing from the middle 1", "HOLE", "S 1"):
         assert fact in night, fact
 
 
