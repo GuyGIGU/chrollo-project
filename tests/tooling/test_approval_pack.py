@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import re
+from types import SimpleNamespace
 
 from tools.calibration import approval_pack as pack
 
@@ -167,6 +168,30 @@ def test_the_night_says_what_the_scan_showed_that_night(tmp_path):
     for fact in ("The scan you saw that night", "a2252c6c", "3690", "only in this replay: AAA",
                  "its market-cap floor took out after the read: AAA", "only in the scan: none"):
         assert fact in night, fact
+
+
+def test_the_night_says_why_the_replay_reads_more_charts_than_the_scan(tmp_path):
+    """The replay reads the copied panel's own tickers; the scan read that night's list, which is not kept on disk.
+    The page says so whenever the two counts differ (verify-15b: 5,520 here, 5,502 in the scan), and only then."""
+    night = _night()
+    html = _write(tmp_path, _record(), night)
+    assert ("This replay reads the 3701 charts of the copied panel; the scan read 3690, from that night's list of "
+            "tickers, which is not kept on disk.") in html[html.index('id="night"'):]
+    night["scan"]["read"] = 3701
+    (tmp_path / "night" / "night.json").write_text(json.dumps(night), encoding="utf-8")
+    with open(pack.write_index(str(tmp_path)), encoding="utf-8") as f:
+        assert "charts of the copied panel" not in f.read()
+
+
+def test_the_stamp_says_when_the_pack_was_built_from_a_changed_tree(monkeypatch):
+    """The page stamps the commit it was built at; a tracked file changed since that commit is said, never hidden
+    (the task-15 blind check: a page stamped with a commit, written by a tool not yet committed)."""
+    said = {"rev-parse": "abc1234\n", "status": " M tools/calibration/approval_pack.py\n"}
+    monkeypatch.setattr(pack.subprocess, "run", lambda args, **kwargs: SimpleNamespace(
+        stdout=said["rev-parse" if "rev-parse" in args else "status"]))
+    assert pack._head() == "abc1234+dirty"
+    said["status"] = ""
+    assert pack._head() == "abc1234"
 
 
 def test_a_pack_without_its_night_says_how_to_make_it(tmp_path):

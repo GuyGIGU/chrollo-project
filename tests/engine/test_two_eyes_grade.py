@@ -145,6 +145,18 @@ def test_the_score_runs_from_no_empty_day_to_half_the_base_and_the_letters_follo
         record.Grade(score=101.0, letter="S", empty_days=0, base_days=2, holds=True)
 
 
+def test_the_letter_is_cut_on_the_whole_point_every_surface_shows():
+    """The screen, the pack and the trail show the grade to the whole point. Cut on the raw score, 7 empty days of 55
+    (74.55) showed "75" beside an A (verify-15b); the score is read to the whole point, half up, and the letter is
+    cut on that one number."""
+    under = (9.3, 9.0)
+    near, _ = _grade([under] * 7 + [INSIDE] * 48)                 # 100 * (1 - 7 / 55 / 0.5) = 74.55
+    below, _ = _grade([under] * 6 + [INSIDE] * 41)                # 100 * (1 - 6 / 47 / 0.5) = 74.47
+    assert (near.score, near.letter) == (75.0, "S")
+    assert (below.score, below.letter) == (74.0, "A")
+    assert "the grade: S (75)" in _stage().record(near)[0].saying
+
+
 # --------------------------------------------------------------------------- #
 # His marked bars                                                             #
 # --------------------------------------------------------------------------- #

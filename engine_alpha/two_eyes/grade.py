@@ -26,7 +26,8 @@ The rules, each measured on his 40 and the 14 junk fires before it was built (th
 4. The base holds unless, after THE SOS's top, a low falls beyond the support's area AND under the base's own
    lowest low: a lower level than the base ever made.
 5. The grade is 100 with no empty day and 0 when half the base is empty, a straight line between; 0 when the base
-   did not hold, whatever its days. S from 75, A from 50, B from 25, C under.
+   did not hold, whatever its days. It is read to the whole point, half up, and the letter is cut on that number:
+   S from 75, A from 50, B from 25, C under.
 
 It reads the bars' highs and lows, never a close. It decides nothing: a fire is settled before it runs and
 ``Read.fired`` reads no grade; a grade that cannot be read is a missing grade and a step on the trail, never a
@@ -71,6 +72,12 @@ def letter(score: float) -> str:
     return "S" if score >= M.GRADE_S else "A" if score >= M.GRADE_A else "B" if score >= M.GRADE_B else "C"
 
 
+def whole_points(raw: float) -> float:
+    """The score read to the whole point, half up: the one number every surface shows and the letter is cut on (cut
+    on the raw score, a 74.55 showed "75" beside an A: verify-15b)."""
+    return float(np.floor(raw + 0.5))
+
+
 def read(high, low, days, turns, events, *, R: float, S: float, unit: float, opening_bar: int,
          read_bar: int) -> Grade:
     """The grade of the box shown (R, S, its frozen daily range ``unit``, its opening day ``opening_bar``) as of
@@ -89,7 +96,8 @@ def read(high, low, days, turns, events, *, R: float, S: float, unit: float, ope
         lowest = float(np.min(low[days.index(sos.day) + 1:read_bar + 1]))
         floor = float(np.min(low[opening_bar:end + 1]))
         holds = lowest >= S - area or lowest >= floor                       # not beyond the area, or not lower
-    score = 0.0 if not holds else 100.0 * min(1.0, max(0.0, 1.0 - empty / base / M.GRADE_EMPTY_ZERO))
+    raw = 0.0 if not holds else 100.0 * min(1.0, max(0.0, 1.0 - empty / base / M.GRADE_EMPTY_ZERO))
+    score = whole_points(raw)
     return Grade(score=score, letter=letter(score), empty_days=empty, base_days=base, holds=holds)
 
 

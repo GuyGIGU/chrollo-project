@@ -127,11 +127,15 @@ def rescue_rows(out_dir: str) -> list | None:
 
 
 def _head() -> str | None:
+    """The commit the pack is built at, "+dirty" when a tracked file has changed since it."""
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=_ROOT, capture_output=True, text=True,
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=_ROOT, capture_output=True, text=True,
                               check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=_ROOT,
+                               capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return None
+    return f"{head}+dirty" if dirty else head
 
 
 def build(out_dir: str) -> dict:
@@ -273,12 +277,15 @@ def _scan_paragraph(night) -> str:
         return f"<p>The scan's payload is of {_day(scan['scan_date'])}, not this night: not compared.</p>"
     removed = scan.get("removed_after_the_read") or []
     took = f"; its market-cap floor took out after the read: {_e(', '.join(removed))}" if removed else ""
+    here = night["readers"]["old"].get("read")
+    why = (f" This replay reads the {here} charts of the copied panel; the scan read {scan['read']}, from that night's"
+           " list of tickers, which is not kept on disk." if here != scan.get("read") else "")
     return (f"<p><b>The scan you saw that night</b> (engine {_e(str(scan.get('engine_config_version') or '?')[:8])}):"
             f" {scan['fires']} fires shown of {scan['read']} tickers read{took}. Today's engine here is this branch's"
             f" (engine {_e(str(night['readers']['old'].get('engine_config_version') or '?')[:8])}):"
             f" only in this replay: {_e(', '.join(scan['replay_only']) or 'none')};"
             f" only in the scan: {_e(', '.join(scan['scan_only']) or 'none')}. The new reader's fires are counted"
-            " before any cut after the read.</p>")
+            f" before any cut after the read.{why}</p>")
 
 
 def _night_section(night) -> str:

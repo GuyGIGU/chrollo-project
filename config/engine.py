@@ -1059,4 +1059,4 @@ TWO_EYES_READER_ENABLED = False
 # names and the scoring registry - but NO reader code, so without this two
 # different builds of the new reader would stamp the same version and an
 # archive row could not say which one wrote it.
-TWO_EYES_RULESET = "two-eyes-0.9.0-grade"
+TWO_EYES_RULESET = "two-eyes-0.9.1-grade"
