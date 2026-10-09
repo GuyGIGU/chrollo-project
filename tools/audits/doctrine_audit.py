@@ -55,10 +55,10 @@ import numpy as np
 import pandas as pd
 
 try:  # works under both `python -m tools.audits.doctrine_audit` and `python tools/audits/doctrine_audit.py`
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader
 
 _PROJECT_ROOT = configure_path()
 
@@ -262,6 +262,8 @@ def _audit_setup(tk, daily, atr, s, cause_up, payload_fields, check):
 
 def run_audit() -> int:
     payload = json.load(open(_PAYLOAD))
+    # FIRST: on a new-reader night this gate checks the OLD reader's reading, not the screen's (go-live task 4).
+    say_old_reader(payload)
     cd = payload["chart_data"]
     cache = pd.read_parquet(_CACHE)
     cached = set(cache.columns.get_level_values(0))

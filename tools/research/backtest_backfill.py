@@ -54,6 +54,7 @@ from core.archive.forward_returns import (
 )
 from core.archive.seed import _evaluate_at_date, _close_series, _ticker_frame
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
+from engine_alpha.reader import ReadFailed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.backtest_backfill")
@@ -168,28 +169,35 @@ def _init_worker(cache_path: str, parquet_engine: str,
     _W_SPY6 = dict(spy6)
 
 
-def _eval_ticker_grid(ticker: str) -> list[dict]:
-    """Replay the engine on ``ticker`` at every grid date; return fire payloads.
+def _eval_ticker_grid(ticker: str) -> dict:
+    """Replay the engine on ``ticker`` at every grid date: ``{"fires": [...], "refused": [...]}``.
 
-    Each payload = {scan_date, result, fwd_returns} where ``result`` is the
+    Each fire payload = {scan_date, result, fwd_returns} where ``result`` is the
     seed-shaped canonical evaluation dict and ``fwd_returns`` are the offline
     outcomes over the cache's forward bars. The parent assembles DB rows from these
-    (keeps the worker DB-free / purely numeric)."""
+    (keeps the worker DB-free / purely numeric). A date the reader REFUSED is not
+    a date that did not fire, and it costs the ticker none of its other dates: it is
+    kept as ``"<date>: <reason>"`` in ``refused`` (go-live plan, task 4)."""
+    out: dict = {"fires": [], "refused": []}
     if _W_CACHE is None:
-        return []
+        return out
     try:
         frame = _ticker_frame(_W_CACHE, ticker)
     except (KeyError, AttributeError):
-        return []
+        return out
     if frame.empty or "Close" not in frame:
-        return []
+        return out
 
-    fires: list[dict] = []
+    fires: list[dict] = out["fires"]
     for t in _W_GRID:
         df_slice = frame[frame.index <= t]
         if len(df_slice) < MIN_BARS:
             continue
-        result = _evaluate_at_date(df_slice, spy_6m_return=_W_SPY6.get(t, 0.0))
+        try:
+            result = _evaluate_at_date(df_slice, spy_6m_return=_W_SPY6.get(t, 0.0))
+        except ReadFailed as exc:
+            out["refused"].append(f"{t:%Y-%m-%d}: {exc}")
+            continue
         if result is None:
             continue
 
@@ -216,7 +224,7 @@ def _eval_ticker_grid(ticker: str) -> list[dict]:
             "result": result,
             "fwd_returns": fwd_returns,
         })
-    return fires
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -393,6 +401,7 @@ def run_backfill(db_path: str, cadence: str = "weekly",
     from sqlalchemy import text
     n_workers = workers or max(1, (os.cpu_count() or 4) - 1)
     total_fires = 0
+    total_refused = 0
     processed = 0
 
     with ProcessPoolExecutor(
@@ -404,10 +413,15 @@ def run_backfill(db_path: str, cadence: str = "weekly",
         for fut in as_completed(futures):
             ticker = futures[fut]
             try:
-                fires = fut.result()
+                out = fut.result()
             except Exception as exc:  # a bad ticker frame must not kill the run
                 log.warning(f"  {ticker}: worker error {type(exc).__name__}: {exc}")
-                fires = []
+                out = {"fires": [], "refused": []}
+            fires, refused = out["fires"], out["refused"]
+            if refused:
+                # Its other dates are kept; these were never read, which is not "no fire".
+                log.warning(f"  {ticker}: the read FAILED on {len(refused)} grid date(s) - first: {refused[0]}")
+                total_refused += len(refused)
             for payload in fires:
                 row = _assemble_row(ticker, payload, trend.get(
                     pd.Timestamp(payload["scan_date"]), "unknown"), ecv)
@@ -423,7 +437,8 @@ def run_backfill(db_path: str, cadence: str = "weekly",
         session.close()
 
     log.info(f"Backfill complete: {total_fires} fires from {len(todo)} tickers "
-             f"over {len(grid)} dates -> {db_path}")
+             f"over {len(grid)} dates -> {db_path}; the read FAILED on {total_refused} "
+             "ticker-date(s), counted, never read as no fire")
     return total_fires
 
 

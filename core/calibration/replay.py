@@ -224,8 +224,22 @@ def flag_capture(**overrides):
         yield
 
 
+def refuse_old_knobs(overrides: dict) -> None:
+    """The seam's knob variants set the OLD reader's settings: under the new
+    reader a variant with any knob in it refuses by name (go-live plan, task 5),
+    rather than reading the new reader as if the knobs had moved nothing. The
+    baseline variant (no knob) passes; what it reads is the caller's door."""
+    if overrides and reader.which_reader() == reader.READER_NEW:
+        raise reader.NotThisReader(
+            f"the knob variant {sorted(overrides)} sets the old reader's "
+            "settings; the new reader is switched on and reads none of them")
+
+
 def read_structure_under(df: pd.DataFrame, atr: float, overrides: dict):
-    """One structure read under the given flag overrides (self-restoring)."""
+    """One OLD-reader structure read under the given flag overrides
+    (self-restoring). Under the new reader it refuses by name: a knob variant
+    here (``refuse_old_knobs``), the box read itself at the door."""
+    refuse_old_knobs(overrides)
     with flag_capture(**overrides):
         return reader.read_box(df, atr)
 

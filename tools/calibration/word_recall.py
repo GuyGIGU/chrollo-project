@@ -11,7 +11,7 @@ no commit can reach it. Not in pytest: CI has no marks DB.
 It imports no piece of the old chart reader directly. The words, the line and the daily range are the new
 reader's copies, which change on purpose from here, so this is the instrument that says when they first read
 differently. The engine basis takes the OLD engine's election through the door, ``engine_alpha.reader`` (its
-box-only read refuses the new reader, so this basis runs with the switch off), fed the old engine's own daily range
+box-only read refuses the new reader, so this basis runs with the switch off; on, it is reported "not read"), fed the old engine's own daily range
 through the shared instrument enrichment, so a change to the daily-range copy never moves the box it reports. The words and the line it reads
 on that box are the copies', as on his rails: a copy that changes on purpose moves both bases' words.
 
@@ -209,7 +209,10 @@ def read_mark(mk):
     # The engine basis reads on HIS fire day, the last day of his last LPS window: his read day is often the buy
     # day or later, where no LPS is live and the engine returns nothing. Only words he drew by then are scored.
     eng_rows, eng, structure = [], None, None
-    if last:
+    # The engine basis is the OLD reader's box read: under the new reader it is not read (the door refuses it by
+    # name), and the facts say "not read" (None), never "no box" (go-live plan, task 5).
+    old_basis = reader.which_reader() == reader.READER_OLD
+    if last and old_basis:
         fire = last[1]
         wf = old.iloc[:fire + 1]
         uf = float(wf["ATR_10"].iloc[-MARK_ATR_OFFSET])
@@ -229,7 +232,7 @@ def read_mark(mk):
              "upthrust": (None if rec["the_upthrust"] is None else
                           f"{day(rec['the_upthrust']['swing_bar'])} -> {day(rec['the_upthrust']['top_bar'])} "
                           f"+{rec['the_upthrust']['poke_ranges']:.2f} over R"),
-             "engine_box": structure is not None}
+             "engine_box": (structure is not None) if old_basis else None}
     if lps_windows:
         his_first = min([lps_windows[0][0]] + [s0 for (s0, _) in sos_windows])
         pcs = [e for e in evs if e.event_type == "phase_c"]
@@ -281,8 +284,11 @@ def main(argv=None):
     facts = [f for _, _, f in out]
     print(f"WORD RECALL on his {len(marks)} marks, his read day (fingerprint {fp[:12]})")
     _report("HIS RAILS, fed his drawn LPS windows:", rows)
-    _report(f"ENGINE ELECTION at his read day (a box on {sum(f['engine_box'] for f in facts)} of {len(facts)}):",
-            eng_rows)
+    if any(f["engine_box"] is None for f in facts):
+        print("ENGINE ELECTION: not read. It is the OLD reader's box read, and the new reader is switched on.")
+    else:
+        _report(f"ENGINE ELECTION at his read day (a box on {sum(f['engine_box'] for f in facts)} of "
+                f"{len(facts)}):", eng_rows)
     per10 = lambda k: median(f[k] / f["days"] * 10 for f in facts)
     print(f"  per 10 trading days in his boxes: thrusts {per10('thrusts'):.2f}; last suppers named "
           f"{sum(f['last_suppers'] for f in facts)} on {sum(f['last_suppers'] > 0 for f in facts)} of his boxes; "
