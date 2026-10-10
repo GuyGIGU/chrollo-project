@@ -1054,9 +1054,11 @@ HTF_MONTHLY_WINDOWS = {
 # so are the screen block and the approval pack (task 15). Since go-live task 2
 # the nightly scan reads with it (no old-engine lane rides: the near-miss lane
 # goes quiet, the dark watch and rescue lanes refuse by name); the box-only
-# read still refuses it (go-live task 5). It stays off here.
-# The flip is HIS, after the approval sitting; nothing goes live piecemeal.
-TWO_EYES_READER_ENABLED = False
+# read still refuses it (go-live task 5).
+# THE FLIP (the go-live plan's flip commit, landed on his word): the switch is on, so the nightly scan reads with the new reader and
+# its rows carry the stamp cdb7ee2d (docs/flag_ledger.md, "The engine stamps of
+# the flip"). The undo is the checklist in docs/deploy.md, "The Flip".
+TWO_EYES_READER_ENABLED = True
 
 # The new reader's ruleset version, BUMPED BY HAND with every change to how
 # it reads. The engine's version stamp hashes the listed settings, their

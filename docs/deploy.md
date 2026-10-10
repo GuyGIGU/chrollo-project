@@ -509,7 +509,8 @@ dashboard stays broker-free at boot exactly as before.
 
 ## The Flip (the two-eyes reader goes live)
 
-**Not yet: built, dark, his word pending.** Only after his approval sitting. Every command below is
+**Not yet: built, his word pending** (the flip commit waits on `claude/two-eyes-flip`). Only after
+his approval sitting. Every command below is
 his, run in this order from the repo folder (PowerShell, the repo venv). The stamps named are the ones
 written down in [`flag_ledger.md`](flag_ledger.md), "The engine stamps of the flip"; both undos were
 rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and came back to them.
@@ -532,16 +533,16 @@ rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and 
    git push origin main
    ```
 3. **Flip, between two scan dates** (after a night's scan has finished, before the next one at 17:00
-   New York): the one config line, `TWO_EYES_READER_ENABLED = False` → `True` in `config\engine.py`,
-   then
+   New York): the flip commit, prepared on `claude/two-eyes-flip`, lands on `main` as ONE commit:
    ```powershell
-   git diff --stat
-   git commit -am "Flip: the two-eyes reader reads the nightly scan"
+   git cherry-pick claude/two-eyes-flip
+   git show --stat HEAD
    ```
-   `git diff --stat` must show `config/engine.py | 2 +-` and nothing else. The suite pins the switch
-   off (seven tests found on the rehearsal: the switch, the inert contract, the ledger's dark-flag
-   table, the settings quick-reference, the door's forwarding pins); the change that moves those pins
-   rides with the flip and is prepared for him on his word.
+   It is the one config line (`TWO_EYES_READER_ENABLED = True` in `config\engine.py`) with every pin
+   of "off" moved in the same commit: the switch test, the inert contract, the reader door's list,
+   the old-reader tests now asking for the old reader by name (`tests/conftest.py`, `old_reader`),
+   the yardstick's old arms, the settings quick-reference, this file, the flag ledger and the
+   current state. Nothing else.
 4. **Deploy:** double-click `update_dashboard.bat`. It refuses unless the checkout is `main` with
    nothing uncommitted. From the next night the screen and the archive carry the stamp `cdb7ee2d`.
 5. **The first morning's check, after 19:00 New York** on the first new-reader night: the morning

@@ -27,6 +27,10 @@ import sys
 import pandas as pd
 import pytest
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 from _paths import REPO_ROOT as ROOT
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

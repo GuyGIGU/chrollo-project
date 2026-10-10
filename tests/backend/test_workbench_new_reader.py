@@ -154,7 +154,7 @@ def test_the_engine_overlay_refuses_by_name_under_the_new_reader(new_reader, mon
     assert refused.value.detail["class"] == "old_reader_only"
 
 
-def test_the_new_readers_record_refuses_the_old_reader_by_name():
+def test_the_new_readers_record_refuses_the_old_reader_by_name(old_reader):
     """The door's other half: the record is the new reader's, so it is never answered by the old one."""
     from engine_alpha import reader
 

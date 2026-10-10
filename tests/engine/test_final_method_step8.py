@@ -36,6 +36,10 @@ from engine_alpha.structure.narrative import Structure, read_structure
 from engine_alpha.structure.metrics.pivots import turns_at_rails
 from core.calibration.replay import flag_capture
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 SWITCH = "LPS_LEAVES_ELECTION_ENABLED"
 FLOOR = "WATCH_LANE_MIN_TURNS_PER_RAIL"
 N = 60

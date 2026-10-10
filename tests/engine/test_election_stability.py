@@ -18,6 +18,10 @@ from engine_alpha import stability
 from core.pipeline.screening.screener import _evaluate_ticker
 from core.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 
 def _fire_frame():
     """A pinned corpus hit sliced to its frozen first-fire session."""

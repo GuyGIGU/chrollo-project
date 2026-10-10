@@ -11,6 +11,10 @@ import core.pipeline.telemetry.scan_metrics as scan_metrics
 import core.pipeline.screening.screener as screener_module
 import pytest
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 
 @pytest.fixture(autouse=True)
 def _no_vendor_post_pass(monkeypatch):

@@ -21,6 +21,10 @@ from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 from engine_alpha.scoring import taxonomy
 from engine_alpha.scoring.scoring import calculate_structure_tier, score_setup
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 SWITCH = "GRADE_LEDGER_ENABLED"
 NAMES = ("GRADE_LEDGER_CAPS", "BOX_HEIGHT_FULL_RANGES", "BOX_HEIGHT_ZERO_RANGES", "TURNS_POINT_RATE",
          "LPS_SPREAD_FULL_RANGES", "LPS_SPREAD_ZERO_RANGES", "TIER_S_MAX_HEIGHT_RANGES")

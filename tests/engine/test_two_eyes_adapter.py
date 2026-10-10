@@ -184,11 +184,13 @@ def test_the_adapter_is_not_part_of_the_leaf():
 # --------------------------------------------------------------------------- #
 # The switch, and the version stamp                                           #
 # --------------------------------------------------------------------------- #
-def test_the_switch_exists_and_is_off():
-    """Every flip is his. It ships off, and the ledger carries its row."""
+def test_the_switch_is_on_since_the_flip():
+    """Every flip is his: this commit is the flip (go-live plan), prepared for
+    his word. The switch back is the first undo (docs/deploy.md, "The Flip"),
+    and reverting this commit restores the pin it replaced (the switch off)."""
     from config import settings
 
-    assert settings.TWO_EYES_READER_ENABLED is False
+    assert settings.TWO_EYES_READER_ENABLED is True
 
 
 def test_the_ruleset_string_is_hand_bumped_and_in_the_manifest():

@@ -53,7 +53,9 @@ from tools.regression.marks_corpus import _FROZEN_BREADTH  # noqa: E402
 from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture  # noqa: E402
 from core.calibration.replay import fixture_frame  # noqa: E402
 
-pytestmark = pytest.mark.regression
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = [pytest.mark.regression, pytest.mark.usefixtures("old_reader")]
 
 
 # Three pinned identities: the two story-caused fires (the only rows whose

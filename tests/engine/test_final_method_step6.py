@@ -17,6 +17,10 @@ from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 from engine_alpha.structure.narrative import bricks
 from engine_alpha.structure.narrative import Structure, read_structure
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 N = 60
 
 

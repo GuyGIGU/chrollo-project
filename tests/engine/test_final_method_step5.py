@@ -27,6 +27,10 @@ from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
 from engine_alpha.structure.events import line_words as W
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 V, P = "valley", "peak"
 STEP5_FLAGS = ("LINE_WORD_SOS_ENABLED", "LINE_WORD_UPTHRUST_ENABLED", "LINE_WORD_LAST_SUPPER_ENABLED",
                "LINE_WORD_PHASE_C_ENABLED", "LINE_WORD_PHASE_D_ENABLED", "LINE_WORD_MINI_ENABLED")

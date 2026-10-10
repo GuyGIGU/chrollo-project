@@ -217,8 +217,12 @@ def test_every_enrolled_name_is_a_default_off_engine_flag():
     # does not exist as named — and read as covered. The manifest is where
     # every engine flag is registered before its first read, so it is the one
     # list this checks against.
-    stray = ((set(DECLARED_ADDITIVE_FIELDS) | REPLACES_THE_READER)
-             - _default_off_engine_flags() - ENROLLED_THEN_FLIPPED_LIVE)
+    # The reader switch is named here by its registration alone: since the flip
+    # it defaults ON, and a switch that replaces the reader was never an
+    # additive lane to begin with (its own guards are just below).
+    stray = ((set(DECLARED_ADDITIVE_FIELDS) - _default_off_engine_flags()
+              - ENROLLED_THEN_FLIPPED_LIVE)
+             | (REPLACES_THE_READER - set(ENGINE_SETTINGS_KEYS)))
     assert not stray, (
         f"{sorted(stray)} declare an additive field set but are not default-off "
         "engine flags (engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS, default "
@@ -253,6 +257,7 @@ def test_the_two_eyes_switch_really_replaces_the_reader(monkeypatch):
 
     frames, _ = load_sealed_fixture()
     cut = frames["ALB:2026-04-13"].loc[:pd.Timestamp("2026-04-07")]
+    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", False)
     off = reader.evaluate_ticker("ALB", cut)
     monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True)
     on = reader.evaluate_ticker("ALB", cut)

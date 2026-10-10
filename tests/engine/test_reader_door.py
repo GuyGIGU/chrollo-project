@@ -316,7 +316,9 @@ def test_the_switch_is_read_in_exactly_one_place():
     # plan's tasks 4 and 5 flip it to make the tools, the audits and the workbench
     # meet a new-reader night (refused charts, the notice, the miss's reason).
     # The morning check (task 9) flips it to read the night twice, new and old: it measures.
-    files -= {"tests/tooling/test_old_reader_tools.py", "tests/backend/test_workbench_new_reader.py",
+    # Since the flip, tests/conftest.py's `old_reader` fixture sets it off for the tests
+    # written for the old reader (the switch back is the first undo).
+    files -= {"tests/conftest.py", "tests/tooling/test_old_reader_tools.py", "tests/backend/test_workbench_new_reader.py",
               "config/settings.py", "config/engine.py", "engine_alpha/freeze/manifest.py",
               "tests/contracts/test_inert_contract.py", "tests/archive/test_read_failed_is_said.py",
               "tests/pipeline/test_scan_under_the_new_reader.py",
@@ -378,7 +380,7 @@ def test_the_scan_names_the_reader_it_ran():
         "night' is then a claim with no line behind it")
 
 
-def test_the_door_makes_the_same_call_the_caller_used_to_make(monkeypatch):
+def test_the_door_makes_the_same_call_the_caller_used_to_make(monkeypatch, old_reader):
     """No uninvited keywords.
 
     The old call sites passed four positional arguments and nothing else. The
@@ -402,7 +404,7 @@ def test_the_door_makes_the_same_call_the_caller_used_to_make(monkeypatch):
     assert seen == ["A", "B"]
 
 
-def test_the_door_forwards_without_touching_the_answer(monkeypatch):
+def test_the_door_forwards_without_touching_the_answer(monkeypatch, old_reader):
     """Whatever the engine returns is what the caller gets — no wrapping."""
     from engine_alpha import evaluation, reader
 

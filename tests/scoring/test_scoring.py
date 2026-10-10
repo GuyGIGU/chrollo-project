@@ -19,6 +19,10 @@ sys.path.insert(1, str(BACKEND_DIR))
 from engine_alpha.structure.metrics.indicators import trend_template
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 
 def test_trend_template_full_pass_on_clean_uptrend():
     n = 252

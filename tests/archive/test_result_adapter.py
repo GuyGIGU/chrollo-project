@@ -14,6 +14,11 @@ to the unprefixed key shape the seed archive writer consumes. These tests pin:
    rather than silently degrade the election.
 """
 import math
+import pytest
+
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
 
 from core.archive.result_adapter import seed_row_from_result
 

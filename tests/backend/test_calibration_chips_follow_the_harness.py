@@ -33,6 +33,10 @@ from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: E4
 from core.calibration import agreement  # noqa: E402
 from tools.calibration import calibration_harness as harness  # noqa: E402
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 AS_OF = "2026-04-06"
 
 

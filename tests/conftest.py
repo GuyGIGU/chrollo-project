@@ -55,6 +55,20 @@ def _discard_the_throwaway_database():
 
 
 @pytest.fixture
+def old_reader(monkeypatch):
+    """The OLD reader answers this test, whatever the switch's default.
+
+    Since the flip (go-live plan) TWO_EYES_READER_ENABLED defaults to True. The
+    old reader still exists, because the switch back is the first undo, so the
+    tests written for it keep testing it: they ask for this fixture (or carry
+    ``pytestmark = pytest.mark.usefixtures("old_reader")``) instead of each
+    flipping the switch by hand. The new reader's own tests do not use it."""
+    from config import settings
+
+    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", False)
+
+
+@pytest.fixture
 def _contraction_frame():
     """Build an OHLCV frame from a list of close levels (±0.5 High/Low band)."""
     def _build(levels, volumes):

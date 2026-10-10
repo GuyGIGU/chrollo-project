@@ -34,7 +34,9 @@ from engine_alpha.structure.events.event_map import (
 )
 from engine_alpha.structure.metrics.pivots import _find_pivots
 
-pytestmark = pytest.mark.regression
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = [pytest.mark.regression, pytest.mark.usefixtures("old_reader")]
 
 _TAPE_ONLY = ("region", "describes_bar", "knowable_bar", "in_progress",
               "edge_uncertain")

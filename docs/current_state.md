@@ -59,9 +59,11 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   the approval pack built, dark) and the branch review's fixes followed; next are his approval sitting and
   a go-live plan. His FRPH ruling of Fri 09/10/2026 was DROPPED on Sat 10/10/2026, in his words "just leave these two
   behind": no reader rule, nothing on the go-live list. None of it is live here.
-- **The two-eyes flip — built, dark, his word pending (Sat 10/10/2026).** The go-live plan
+- **The two-eyes flip — built, his word pending (Sat 10/10/2026).** The go-live plan
   (`.council/plans/two-eyes-go-live.md`) joins the reader branch with the live branch on
-  `claude/sweet-napier-461716`, `TWO_EYES_READER_ENABLED` still False. The flip is his, after his
+  `claude/sweet-napier-461716`, `TWO_EYES_READER_ENABLED` still False there. The flip commit (the
+  switch on, every pin of "off" moved with it) is prepared on `claude/two-eyes-flip`; on the night it
+  lands, the scan reads with the new reader and stamps `cdb7ee2d`. The flip is his, after his
   approval sitting, by the checklist in [`deploy.md`](deploy.md), "The Flip"; both undos were rehearsed
   on a copy of the archive. The engine stamps it moves through are written in
   [`flag_ledger.md`](flag_ledger.md): the live scan stamps `a2252c6c` (not the `0bbadfac` above, which

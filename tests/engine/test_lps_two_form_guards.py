@@ -33,7 +33,9 @@ from tools.regression.marks_corpus import _FROZEN_BREADTH
 from tools.regression.marks_corpus import _load_fixture as _load_marks_fixture
 from core.calibration.replay import fixture_frame
 
-pytestmark = pytest.mark.regression
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = [pytest.mark.regression, pytest.mark.usefixtures("old_reader")]
 
 
 # The Task-8 acceptance battery's proven conversion points, re-grounded on the

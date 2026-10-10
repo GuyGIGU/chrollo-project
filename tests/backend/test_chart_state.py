@@ -63,7 +63,7 @@ def test_a_frame_the_cache_cannot_serve_is_not_scanned_with_the_reason(monkeypat
     assert out["as_of"] is None and out["close"] is None
 
 
-def test_a_read_that_raises_is_a_screen_state_never_one_of_his_words(monkeypatch):
+def test_a_read_that_raises_is_a_screen_state_never_one_of_his_words(old_reader, monkeypatch):
     """The two-eyes build, task 15: *"a failed or pending read is a screen state, never one of your ten words"*.
     It used to answer "no lines", the word for a chart that genuinely has none, so a broken read and an empty chart
     looked the same on the card."""
@@ -141,7 +141,7 @@ def test_the_lane_row_facts_ride_without_the_display_floor(monkeypatch):
     assert evaluation._lane_row("ABC", watch, "lines, no LPS yet")["turns_at_r"] == 0, "the setting is the default floor"
 
 
-def test_the_service_carries_the_lane_facts_for_a_chart_with_lines(monkeypatch):
+def test_the_service_carries_the_lane_facts_for_a_chart_with_lines(old_reader, monkeypatch):
     frame = _frame(n=60, band=0.2)
     fake_structure = SimpleNamespace(R=101.0, S=99.0, box=SimpleNamespace(start_bar=10, r_anchor_bar=12, s_anchor_bar=15))
 
@@ -199,7 +199,7 @@ def _first_fire(monkeypatch):
     pytest.fail("no fire on the fixture")
 
 
-def test_the_descent_tail_refuses_flag_off_and_comments_under_the_switch(monkeypatch):
+def test_the_descent_tail_refuses_flag_off_and_comments_under_the_switch(old_reader, monkeypatch):
     from core.pipeline.screening.screener import _evaluate_ticker
 
     ticker, df, spy, breadth, off = _first_fire(monkeypatch)

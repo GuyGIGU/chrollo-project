@@ -117,10 +117,13 @@ RAIL_TOLERANCE_RANGES = 0.5
 
 def arm_overrides(arm: str) -> dict:
     """Every method switch, set to what this arm means."""
+    # The two old-engine arms name the reader too: since the flip the switch
+    # defaults on, and an arm that left it to the default would read the new
+    # reader under the old arm's name.
     if arm == ARM_TODAY:
-        return {name: False for name in METHOD_SWITCHES}
+        return {**{name: False for name in METHOD_SWITCHES}, "TWO_EYES_READER_ENABLED": False}
     if arm == ARM_METHOD:
-        return {name: True for name in METHOD_SWITCHES}
+        return {**{name: True for name in METHOD_SWITCHES}, "TWO_EYES_READER_ENABLED": False}
     if arm == ARM_NEW:
         # The method's switches are the old engine's; the new reader reads none
         # of them, and they are off so that nothing of the old method can be

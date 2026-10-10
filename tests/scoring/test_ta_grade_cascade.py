@@ -26,6 +26,10 @@ from engine_alpha.scoring.scoring import (
 )
 from tools.regression import shadow_diff
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 
 def _first_fired_result():
     """The first shadow-fixture ticker that fires, evaluated through the real

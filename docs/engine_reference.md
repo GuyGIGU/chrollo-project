@@ -925,7 +925,8 @@ was built and measured, and as the source the copies are taken from.
 
 The new reader lives in `engine_alpha/two_eyes/` (a leaf: it imports nothing from the old
 chart reader), behind the one door `engine_alpha/reader.py` and the switch
-`TWO_EYES_READER_ENABLED` (off; the flip is his, at the approval sitting). Its numbers are its
+`TWO_EYES_READER_ENABLED` (ON in the flip commit, prepared on `claude/two-eyes-flip` for his word
+after the approval sitting; the old reader stays for the switch back). Its numbers are its
 own (`two_eyes_numbers.py`, hashed into the version stamp); its proven pieces arrived by copy
 (task 7) and the old reader is frozen (`tests/engine/test_old_engine_frozen.py`). Stage by stage,
 in his order; a stage's rules are in the theory, its mechanics here.
@@ -1875,7 +1876,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c`_
+_engine_config_version: `cdb7ee2d98a8aab687c04a70a7ddc41c2271fa7286517ac61ab4dde3da4836d1`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -1976,7 +1977,7 @@ LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR = 0.1
 LPS_BUY_DAY_READS_HIGH_ENABLED = False
 LPS_REFUSALS_TO_GRADES_ENABLED = False
 LPS_SELLERS_RISING_FATAL_ENABLED = False
-TWO_EYES_READER_ENABLED = False
+TWO_EYES_READER_ENABLED = True
 TWO_EYES_RULESET = 'two-eyes-0.9.1-grade'
 TURN_LINE_ENABLED = False
 TURN_LINE_TREND_ENABLED = False

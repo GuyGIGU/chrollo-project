@@ -9,6 +9,10 @@ from datetime import datetime, timezone
 import pandas as pd
 import pytest
 
+# Written for the OLD reader: since the flip it keeps testing it (the switch back
+# is the first undo). tests/conftest.py, old_reader.
+pytestmark = pytest.mark.usefixtures("old_reader")
+
 from _paths import REPO_ROOT as ROOT
 BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))

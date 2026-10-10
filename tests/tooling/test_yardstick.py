@@ -56,7 +56,9 @@ def test_the_two_arms_are_all_off_and_all_on():
 
     today = yardstick.arm_overrides(yardstick.ARM_TODAY)
     method = yardstick.arm_overrides(yardstick.ARM_METHOD)
-    assert set(today) == set(method) == set(yardstick.METHOD_SWITCHES)
+    # Both old-engine arms also name the reader, off: since the flip the switch defaults on.
+    assert set(today) == set(method) == set(yardstick.METHOD_SWITCHES) | {"TWO_EYES_READER_ENABLED"}
+    assert today.pop("TWO_EYES_READER_ENABLED") is False and method.pop("TWO_EYES_READER_ENABLED") is False
     assert not any(today.values()), "today's engine is every method switch OFF"
     assert all(method.values()), "the method arm is every method switch ON"
     with pytest.raises(ValueError):
