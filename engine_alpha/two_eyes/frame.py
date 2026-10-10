@@ -53,11 +53,15 @@ DAILY_RANGE = "ATR_10"
 
 
 class FrameRefused(ValueError):
-    """A chart that may not be read, and the reason, in one sentence."""
+    """A chart that may not be read, and the reason, in one sentence. ``rule`` is the rule's own name alone (the
+    sentence's first half), so a night can count its refusals by rule without taking the sentence apart."""
+    rule: str = ""
 
 
 def _refuse(rule: str, detail: str) -> None:
-    raise FrameRefused(f"{rule}: {detail}")
+    refusal = FrameRefused(f"{rule}: {detail}")
+    refusal.rule = rule
+    raise refusal
 
 
 def check(df: pd.DataFrame) -> None:

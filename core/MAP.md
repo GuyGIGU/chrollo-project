@@ -123,7 +123,9 @@ Two readers exist side by side (today's engine, and the two-eyes reader of the
 2026-09-20 rewrite: every stage built, dark), so **every shipping path and every gate
 asks the same door which reader answers**, and the switch is read in exactly one
 function (`which_reader`). With the switch on, `scan_worker` hands the scan the door's own
-`evaluate_ticker` and no lane (every lane is an old-engine twin: the near-miss lane goes
+`scan_read` (`evaluate_ticker`, except that a chart whose frame the reader would not read comes
+back as `NotRead`, by name and reason, listed apart from crashes: go-live plan task 3) and no
+lane (every lane is an old-engine twin: the near-miss lane goes
 quiet and says so, a dark lane switched on refuses the scan by name, `refuse_old_engine_lanes`;
 go-live plan task 2), `read_box` refuses out loud (a new-reader box for the old callers is
 the go-live plan's work), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a

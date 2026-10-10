@@ -22,6 +22,7 @@ scan-status routes.
 """
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -50,6 +51,11 @@ FAILURE_KINDS = (
 PENDING_KIND = "interrupted_unknown"
 #: The start of an OK run's error cell when its archive writer refused rows (`refused_rows_error`).
 REFUSED_ROWS_MARKER = "archive rows refused: "
+#: The start of the part of an OK run's error cell that counts, by rule, the charts the new reader would not read
+#: (`finished_run_error`; go-live plan task 3). Its rest is a JSON object, rule -> how many.
+NOT_READ_MARKER = "charts not read: "
+#: Between the parts of a finished run's error cell. No part's own text contains it.
+_CELL_PARTS = "; "
 
 # ------------------------------------------------------------- verdict ----
 
@@ -293,29 +299,80 @@ def refused_rows_error(n_refused: int) -> str:
     return f"{REFUSED_ROWS_MARKER}{int(n_refused)}"
 
 
-def _refused_rows(row: dict) -> int | None:
-    error = row.get("error") or ""
-    if row.get("status") != "ok" or not error.startswith(REFUSED_ROWS_MARKER):
+def finished_run_error(n_refused: int, not_read: list | None) -> str | None:
+    """The error cell of a run that FINISHED: the archive rows it lost (`refused_rows_error`, unchanged when it is
+    the only part) and, beside them, how many charts the new reader would not read, by rule (go-live plan task 3).
+    ``not_read`` is the night's list as the scan records it (``{"ticker", "rule", "reason"}`` each). None for a
+    clean night. The cell stores counts; the words are made here, at the publisher, when the run is described."""
+    by_rule: dict[str, int] = {}
+    for chart in not_read or []:
+        rule = str(chart.get("rule") or chart.get("reason") or "unknown")
+        by_rule[rule] = by_rule.get(rule, 0) + 1
+    parts = [refused_rows_error(n_refused)] if n_refused else []
+    if by_rule:
+        parts.append(NOT_READ_MARKER + json.dumps(by_rule, sort_keys=True))
+    return _CELL_PARTS.join(parts) or None
+
+
+def _cell_part(row: dict, marker: str) -> str | None:
+    """The rest of an OK run's error-cell part that starts with ``marker``, or None."""
+    if row.get("status") != "ok":
         return None
+    for part in (row.get("error") or "").split(_CELL_PARTS):
+        if part.startswith(marker):
+            return part[len(marker):]
+    return None
+
+
+def _refused_rows(row: dict) -> int | None:
+    rest = _cell_part(row, REFUSED_ROWS_MARKER)
     try:
-        return int(error[len(REFUSED_ROWS_MARKER):])
+        return None if rest is None else int(rest)
     except ValueError:
         return None
+
+
+def _not_read(row: dict) -> str | None:
+    """The sentence "N charts not read: <rule>." — the charts the new reader would not read on a finished night, in his words;
+    each rule counted when there is more than one. None when there were none."""
+    rest = _cell_part(row, NOT_READ_MARKER)
+    try:
+        by_rule = json.loads(rest) if rest is not None else None
+    except ValueError:
+        return None
+    if not isinstance(by_rule, dict) or not by_rule:
+        return None
+    total = sum(int(n) for n in by_rule.values())
+    rules = (", ".join(by_rule) if len(by_rule) == 1
+             else ", ".join(f"{rule} ({int(n)})" for rule, n in by_rule.items()))
+    return f"{total} chart{'' if total == 1 else 's'} not read: {rules}."
+
+
+#: What to do about charts the new reader would not read: nothing.
+NOT_READ_SOLUTION = (
+    "Nothing to fix. A chart is not read when a trading day is missing from its prices (a stock that was halted "
+    "really has that gap), and it is never patched up to be read. The scan's log names each chart and why."
+)
 
 
 def _describe_run(row: dict) -> dict:
     row = row or {}
     status = row.get("status")
     lost = _refused_rows(row)
+    not_read = _not_read(row)
     if lost:
         job = row.get("kind")
         return {
             "verdict": NEEDS_ATTENTION,
             "reason": _in_words(
-                "{Job} finished, but " + f"{lost} of the setups it read never reached the archive.", job),
+                "{Job} finished, but " + f"{lost} of the setups it read never reached the archive.", job)
+            + (f" {not_read}" if not_read else ""),
             "solution": "Those setups are missing from that night's record, and a re-run cannot add them "
                         "back. The service log names each row the archive refused.",
         }
+    if not_read:
+        # A finished night: nothing for him to do, so no verdict; the reason says what was not read.
+        return {"verdict": None, "reason": not_read, "solution": NOT_READ_SOLUTION}
     if status in (None, "ok", "running", "never"):
         return {"verdict": None, "reason": None, "solution": None}
     kind = _interruption_kind(row)

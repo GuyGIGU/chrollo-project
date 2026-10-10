@@ -29,6 +29,7 @@ a result dict, an archive row or a wire payload.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Optional
 
 import pandas as pd
@@ -61,6 +62,19 @@ class ReadFailed(ValueError):
     A ValueError, so every caller that already skips a date on a crash keeps
     doing so; one that must SAY why (the manual add, the seed's count) catches
     this first (council review 2026-10-09, finding 3)."""
+
+
+@dataclass(frozen=True)
+class NotRead:
+    """A chart the new reader would not read: its frame broke the frame contract (a trading day missing from the
+    middle, the same day twice, ...), named, with the rule and the whole reason (go-live plan task 3).
+
+    Never a crash and never "no setup": a halted stock's gap is real, so the chart is not repaired, and the night
+    lists it apart from the crashes, which alert. Only the scan's worker (:func:`scan_read`) answers with it; every
+    other entry point keeps its own three answers."""
+    ticker: str
+    rule: str
+    reason: str
 
 
 def _stamp(stamp: Optional[dict], reader: str) -> None:
@@ -104,9 +118,23 @@ def evaluate_ticker(ticker: str, df: pd.DataFrame,
     answering = which_reader()
     _stamp(stamp, answering)
     if answering == READER_NEW:
-        return _two_eyes(ticker, df, watch)[1]
+        result = _two_eyes(ticker, df, watch)[1]
+        return evaluation.EVAL_ERROR if isinstance(result, NotRead) else result
     return evaluation._evaluate_ticker(ticker, df, spy_6m_return, breadth_pct,
                                        **_only_given(watch=watch))
+
+
+def scan_read(ticker: str, df: pd.DataFrame,
+              spy_6m_return: float = 0.0,
+              breadth_pct: Optional[float] = None):
+    """The new reader's worker for the nightly scan's pool (go-live plan task 3).
+
+    :func:`evaluate_ticker`'s three answers, and a fourth only the scan takes: a chart whose frame the reader would
+    not read comes back as :class:`NotRead`, by name and reason, so the night lists it apart from the crashes
+    (``EVAL_ERROR``, which still alert). The two market arguments are the pool's fixed call; the new reader reads
+    neither. Module-level, so the pool pickles it by name.
+    """
+    return _two_eyes(ticker, df, None)[1]
 
 
 def _two_eyes(ticker: str, df, watch: Optional[dict]):
@@ -121,28 +149,36 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
     scanned", with the leg named, and is never read. It is one of the few
     hard things in his method, and a fire that ignored it would not be a fire
     the scan could ever show. The frame contract comes before the door: a
-    frame that is not a chart is a counted failure, never "not scanned".
+    frame that is not a chart is a failed read, never "not scanned" — and
+    it is a refusal, not a crash: the result is then a :class:`NotRead`
+    (go-live plan task 3), which :func:`evaluate_ticker` answers as the
+    counted failure and the scan lists apart. A fire carries the stock's
+    trend template, read on the frame the door admitted
+    (``two_eyes_adapter.to_result``'s ``frame``).
     Returns ``(read, result)``; both None when the door refused.
     """
     from engine_alpha import evaluation, two_eyes, two_eyes_adapter
 
+    refused = None
     try:
         two_eyes.check_frame(df)
         admitted, reason = evaluation.apply_baseline_filters_with_reason(df)
-    except two_eyes.FrameRefused:
-        admitted = True                 # not a chart: the read below refuses it by name, a counted failure
+    except two_eyes.FrameRefused as refusal:
+        refused, admitted = refusal, None   # not a chart: the read below refuses it by name
     except Exception as exc:            # a chart the door cannot ask about: a counted failure too
         read = two_eyes.crashed(ticker, None, "the universe door could not read the frame: "
                                               f"{type(exc).__name__}: {exc}")
         two_eyes_adapter.fill_watch(read, watch)
         return read, two_eyes_adapter.to_result(read)
-    if admitted is None:
+    if admitted is None and refused is None:
         if watch is not None:
             watch.update(two_eyes=True, state="not scanned", why=reason[0])
         return None, None
     read = two_eyes.read(ticker, df)
     two_eyes_adapter.fill_watch(read, watch)
-    return read, two_eyes_adapter.to_result(read)
+    if refused is not None and read.failed:
+        return read, NotRead(ticker, refused.rule or str(refused), read.refusal or str(refused))
+    return read, two_eyes_adapter.to_result(read, frame=None if admitted is None else admitted[0])
 
 
 def run_eval_chain(ticker: str, df: pd.DataFrame,
@@ -225,11 +261,14 @@ def scan_worker(*, near_miss_lane: bool, watch_lane: bool, rescue_lane: bool = F
     in one module. The result is picklable (module-level functions and a
     ``partial`` of one), which the ``ProcessPoolExecutor`` requires.
 
-    Under the new reader the worker is this door's own :func:`evaluate_ticker`
+    Under the new reader the worker is this door's own :func:`scan_read`
     and no lane rides (go-live plan, task 2): every lane is an old-engine
     twin, so a lane asked for is refused by name
     (:func:`refuse_old_engine_lanes`). The scan turns the live near-miss lane
     off itself and says so; the dark watch and rescue lanes refuse the scan.
+    ``scan_read`` is :func:`evaluate_ticker` but for a chart the reader would
+    not read, which it names (:class:`NotRead`, task 3) instead of counting
+    it a crash.
     """
     from functools import partial
 
@@ -238,7 +277,7 @@ def scan_worker(*, near_miss_lane: bool, watch_lane: bool, rescue_lane: bool = F
     if which_reader() == READER_NEW:
         refuse_old_engine_lanes(near_miss_lane=near_miss_lane,
                                 watch_lane=watch_lane, rescue_lane=rescue_lane)
-        return evaluate_ticker
+        return scan_read
     worker = evaluation.evaluate_ticker_with_near_miss if near_miss_lane else evaluate_ticker
     if watch_lane:
         worker = partial(evaluation.evaluate_ticker_with_watch, inner=worker)
