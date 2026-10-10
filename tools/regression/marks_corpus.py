@@ -82,7 +82,7 @@ _PROJECT_ROOT = configure_path(backend=True)
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
 from engine_alpha.freeze.manifest import manifest_hash
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo
@@ -520,6 +520,7 @@ def _lps_spans(setup: dict) -> list[tuple[str, str]]:
     return spans
 
 
+@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:
     """Replay one graduated setup on the ONE fired-policy window from the
     replay seam — the SAME pops-up-live criterion the agreement harness

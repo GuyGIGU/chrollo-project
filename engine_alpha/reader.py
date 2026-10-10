@@ -33,6 +33,7 @@ reader's box read, :func:`read_box`, under the new reader; the new reader's reco
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional
 
@@ -58,6 +59,22 @@ def which_reader() -> str:
     if getattr(settings, "TWO_EYES_READER_ENABLED", False):
         return READER_NEW
     return READER_OLD
+
+
+@contextmanager
+def the_old_reader_answers():
+    """Inside this block (or a function it decorates) the OLD reader answers, whatever the switch.
+
+    Since the flip the switch defaults on. The regression ratchets (the junk corpus, the fleet
+    shadow, the marks corpus, the cause-veto corpus) hold the old reader's baselines, and the
+    switch back is the first undo, so they keep testing the old reader by asking for it here,
+    the switch's one home, instead of each flipping it."""
+    before = getattr(settings, "TWO_EYES_READER_ENABLED", False)
+    settings.TWO_EYES_READER_ENABLED = False
+    try:
+        yield
+    finally:
+        settings.TWO_EYES_READER_ENABLED = before
 
 
 class ReadFailed(ValueError):

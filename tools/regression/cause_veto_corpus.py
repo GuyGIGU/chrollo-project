@@ -47,7 +47,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
 from core.calibration import replay
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
@@ -73,6 +73,7 @@ CASES: tuple[dict, ...] = (
 )
 
 
+@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def _fires_off_rejects_on(ticker: str, df: pd.DataFrame, spy_6m: float,
                           breadth: float) -> tuple[object, object]:
     """Evaluate the frame with the veto OFF then ON, each in a self-restoring

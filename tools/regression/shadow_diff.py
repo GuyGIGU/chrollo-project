@@ -50,7 +50,7 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
 from core.archive.db_path import archive_db_path
 from core.calibration.replay import fired_window_walk
 
@@ -175,6 +175,7 @@ def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
     return frames, scalars
 
 
+@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def run_fixture() -> dict:
     """Run the real per-ticker pipeline over the frozen fixture, every ticker
     walked on its fired-policy window (``core.calibration.replay.fired_window_walk``).
@@ -241,6 +242,7 @@ def _recent_firing_tickers(db_path: str) -> list[str]:
         con.close()
 
 
+@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def build_fixture(cache_path: str = _CACHE_PATH, db_path: str = _DB_PATH,
                   extra_tickers: list[str] | None = None) -> dict:
     """Freeze a fixture from the live data cache + the archive's firing set.
