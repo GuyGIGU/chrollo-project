@@ -54,6 +54,9 @@ REFUSED_ROWS_MARKER = "archive rows refused: "
 #: The start of the part of an OK run's error cell that counts, by rule, the charts the new reader would not read
 #: (`finished_run_error`; go-live plan task 3). Its rest is a JSON object, rule -> how many.
 NOT_READ_MARKER = "charts not read: "
+#: The start of an OK run's error cell on an undo night (archiving off; `scan_runner.NOT_ARCHIVED_NOTE`, go-live
+#: plan task 8).
+NOT_ARCHIVED_MARKER = "not archived: "
 #: Between the parts of a finished run's error cell. No part's own text contains it.
 _CELL_PARTS = "; "
 
@@ -370,6 +373,12 @@ def _describe_run(row: dict) -> dict:
             "solution": "Those setups are missing from that night's record, and a re-run cannot add them "
                         "back. The service log names each row the archive refused.",
         }
+    if _cell_part(row, NOT_ARCHIVED_MARKER) is not None:
+        # An undo night: it re-read and showed the screen and wrote nothing to the archive, on purpose.
+        return {"verdict": None,
+                "reason": "An undo night: the screen was read again and nothing was archived."
+                          + (f" {not_read}" if not_read else ""),
+                "solution": "Nothing to fix. The archive keeps the night it already had."}
     if not_read:
         # A finished night: nothing for him to do, so no verdict; the reason says what was not read.
         return {"verdict": None, "reason": not_read, "solution": NOT_READ_SOLUTION}

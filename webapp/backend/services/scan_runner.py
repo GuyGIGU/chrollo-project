@@ -182,8 +182,8 @@ def _result_status(result: ScanProcessResult) -> str:
 
 
 #: The error cell of an OK undo-night run (go-live task 8): it read and showed, and archived nothing.
-NOT_ARCHIVED_NOTE = ("not archived: this run re-read the screen with archiving off (--no-archive); "
-                     "the archive keeps the night it already had")
+NOT_ARCHIVED_NOTE = ("not archived: this run re-read the screen with archiving off (--no-archive), "
+                     "and the archive keeps the night it already had")
 
 
 def _finished_run_error(status: str, result: ScanProcessResult, kind: str = "scan") -> str | None:
@@ -197,7 +197,9 @@ def _finished_run_error(status: str, result: ScanProcessResult, kind: str = "sca
     if status != "ok":
         return None
     if not getattr(result, "archived", True):
-        return NOT_ARCHIVED_NOTE          # an undo night (go-live task 8): it read and showed, archived nothing
+        # An undo night (go-live task 8): it read and showed, archived nothing; its charts not read still count.
+        rest = finished_run_error(0, _last_not_read() if kind == "scan" else None)
+        return NOT_ARCHIVED_NOTE + ("; " + rest if rest else "")
     return finished_run_error(result.n_refused or 0, _last_not_read() if kind == "scan" else None)
 
 

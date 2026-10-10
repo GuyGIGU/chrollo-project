@@ -165,6 +165,20 @@ def test_every_shipping_and_gating_caller_goes_through_the_door(path):
 _READS_OLD_BRICKS = ("tools/research/correspondence_census.py",)
 
 
+def _binds_the_old_election(path: str) -> bool:
+    """The file imports one of the old election's private doors from the old engine (they are not reader entry
+    points, so `_reaches_the_old_reader` does not follow them)."""
+    with open(os.path.join(_ROOT, path), "r", encoding="utf-8") as f:
+        tree = ast.parse(f.read(), filename=path)
+    return any(isinstance(node, ast.ImportFrom) and node.module == "engine_alpha.evaluation"
+               and any(a.name in _OLD_ELECTION_DOORS for a in node.names) for node in ast.walk(tree))
+
+
+#: The old election's private doors (verify-2 of the go-live build: an audit that reached the election through
+#: `_resolve_structure_context` slipped past the first version of the guard below).
+_OLD_ELECTION_DOORS = ("_resolve_structure_context", "_prepare_eval_frame")
+
+
 def test_every_instrument_that_reads_the_old_box_past_the_door_says_so():
     """Go-live plan, task 4. An instrument (not a gate: those go through the door) may keep reading the old
     engine's box straight after the flip, but on a new-reader night it must say FIRST that it reads the OLD
@@ -174,7 +188,9 @@ def test_every_instrument_that_reads_the_old_box_past_the_door_says_so():
 
     tools = sorted(os.path.relpath(p, _ROOT).replace(os.sep, "/")
                    for p in glob.glob(os.path.join(_ROOT, "tools", "**", "*.py"), recursive=True))
-    old_box = [p for p in tools if "read_structure" in _reaches_the_old_reader(p)]
+    # The box read itself, and the two private doors to the old election (verify-2 of the go-live build: an
+    # audit that reached the election through `_resolve_structure_context` slipped past the first version).
+    old_box = [p for p in tools if "read_structure" in _reaches_the_old_reader(p) or _binds_the_old_election(p)]
     assert "tools/audits/doctrine_audit.py" in old_box, "the inventory lost its own anchor case"
     silent = []
     for path in old_box + list(_READS_OLD_BRICKS):

@@ -127,8 +127,8 @@ function (`which_reader`). With the switch on, `scan_worker` hands the scan the 
 back as `NotRead`, by name and reason, listed apart from crashes: go-live plan task 3) and no
 lane (every lane is an old-engine twin: the near-miss lane goes
 quiet and says so, a dark lane switched on refuses the scan by name, `refuse_old_engine_lanes`;
-go-live plan task 2), `read_box` refuses out loud (a new-reader box for the old callers is
-the go-live plan's work), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a
+go-live plan task 2), `read_box` stays the OLD reader's and refuses by name under the new one
+(`NotThisReader`; the new reader's own record is `read_record`, go-live plan task 5), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a
 failed read is never told as "no setup".
 
 **The two-eyes reader and its doors.** `engine_alpha/two_eyes/` is the reader itself,

@@ -102,3 +102,15 @@ def test_the_evaluate_route_passes_the_undo_flag_through(monkeypatch):
     screener_router.run_cached_evaluation_stream()
 
     assert seen == [False, True]
+
+
+def test_an_undo_nights_row_keeps_the_charts_not_read(monkeypatch):
+    """verify-2: the "not archived" note returned early and dropped the night's charts-not-read part."""
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(scan_runner, "_last_not_read",
+                        lambda: [{"ticker": "ATTT", "rule": "a trading day is missing from the middle"}])
+    result = SimpleNamespace(n_refused=0, archived=False)
+    cell = scan_runner._finished_run_error("ok", result, "scan")
+    assert cell.startswith(scan_runner.NOT_ARCHIVED_NOTE + "; ")
+    assert "charts not read: " in cell

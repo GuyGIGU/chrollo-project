@@ -36,10 +36,10 @@ import sys
 import pandas as pd
 
 try:  # works under both `python -m tools.audits.event_map_chronology` and `python tools/audits/event_map_chronology.py`
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader  # type: ignore
 
 _PROJECT_ROOT = configure_path()
 
@@ -184,6 +184,7 @@ def main() -> None:
     ap.add_argument("--check", action="store_true",
                     help="Exit 1 if any committed label mutated or vanished.")
     args = ap.parse_args()
+    say_old_reader()   # it reads the OLD reader's election straight (go-live plan task 4)
     ok = run(check=args.check)
     if args.check:
         sys.exit(0 if ok else 1)

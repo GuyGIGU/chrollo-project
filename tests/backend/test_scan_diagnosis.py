@@ -1104,3 +1104,18 @@ def test_lost_rows_still_need_him_when_charts_were_also_not_read():
     assert described["verdict"] == diag.NEEDS_ATTENTION
     assert "3 of the setups it read never reached the archive" in described["reason"]
     assert "2 charts not read: a trading day is missing from the middle." in described["reason"]
+
+
+def test_an_undo_night_is_worded_and_keeps_its_charts_not_read():
+    """Go-live plan task 8, verify-2: an undo night's row said "not archived" but nothing worded it, and its
+    charts-not-read count was dropped from the cell."""
+    import services.scan_runner as scan_runner
+
+    not_read = [{"ticker": "ATTT", "rule": "a trading day is missing from the middle", "reason": "9 sessions"}]
+    cell = scan_runner.NOT_ARCHIVED_NOTE + "; " + diag.finished_run_error(0, not_read)
+    described = diag._describe_run({"status": "ok", "kind": "scan", "error": cell})
+    assert described["verdict"] is None
+    assert described["reason"].startswith("An undo night: the screen was read again and nothing was archived.")
+    assert "1 chart not read: a trading day is missing from the middle." in described["reason"]
+    alone = diag._describe_run({"status": "ok", "kind": "scan", "error": scan_runner.NOT_ARCHIVED_NOTE})
+    assert alone["reason"] == "An undo night: the screen was read again and nothing was archived."
