@@ -22,12 +22,14 @@ import { UNIVERSES } from '../../../shared/presentation/universeSwitcherData';
 import { fx } from '../../../shared/formatting/format';
 import { tierColor } from '../../../shared/presentation/theme';
 import { toast } from '../../../shared/components/feedback';
+import useDocumentTitle from '../../../shared/hooks/useDocumentTitle';
+import { isPageKeystroke } from '../../../shared/navigation/keyboardGuard';
 import WatchlistCardGrid from './WatchlistCardGrid';
 import WatchlistChartCluster from './WatchlistChartCluster';
 
 // The dedicated Watchlist page: one selected ticker in three panes (Monthly +
 // Weekly stacked in a narrow left column, the big Daily pane taking the rest),
-// a right-hand ticker rail, and below the fold a full screener-style card grid
+// a right-hand ticker rail, and below the charts a full screener-style card grid
 // of every starred name (the page scrolls vertically). This shell owns the
 // page's SINGLE live-price poller (the Home single-owner mandate) and threads
 // the price map down as props; zones never mount their own.
@@ -64,6 +66,8 @@ function WatchlistPage() {
   const railRef = useRef(null);
 
   const selected = resolveRenderedSelection(chosen, records);
+  // Before the empty-list early return below: the hook count must not change when the list loads.
+  useDocumentTitle('Watchlist', selected);
 
   const tickers = useMemo(() => records.map((r) => r.ticker), [records]);
 
@@ -93,7 +97,7 @@ function WatchlistPage() {
     }
   }, [pinKeys]);
 
-  // A card click happens below the fold — swap the big chart AND bring it
+  // A card click usually happens below the fold — swap the big chart AND bring it
   // back into view, so the click always has a visible result. Instant, not
   // smooth: Chromium won't animate element scrolls under the app's CSS zoom
   // (--ui-scale), so a smooth request silently never moves.
@@ -185,12 +189,10 @@ function WatchlistPage() {
   useEffect(() => {
     const onKey = (event) => {
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-      const target = event.target;
-      // Never fight a focused form control or anything inside a dialog
-      // surface (the shell's calculator modal floats over this route).
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
-        || target.tagName === 'SELECT' || target.isContentEditable
-        || target.closest?.('[role="dialog"]'))) return;
+      // The app's one page-key rule: not while typing, not with a command
+      // modifier, not while ANY dialog is up (the trade drawer, the review, the
+      // calculator) — focus may still sit outside the dialog that opened.
+      if (!isPageKeystroke(event)) return;
       if (!tickers.length) return;
       event.preventDefault();
       const current = resolveRenderedSelection(chosen, records) || tickers[0];

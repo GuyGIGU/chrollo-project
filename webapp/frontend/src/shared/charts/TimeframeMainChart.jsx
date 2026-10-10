@@ -20,9 +20,14 @@ const chartOptions = (width, height, interactive) => {
     : CHART_FRAMING.htfPreview.scaleMargins;
   return {
     ...base,
+    // Container-sized and range-locked, like the daily pane beside it: a UI-scale
+    // change or a monitor move re-fits the pane and keeps its framed bars
+    // (review 2026-10-02).
+    autoSize: true,
     crosshair: interactive ? { mode: 1 } : { horzLine: { visible: false }, vertLine: { visible: false } },
     rightPriceScale: { ...base.rightPriceScale, scaleMargins: margins, autoScale: true },
-    timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false },
+    timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false,
+                 lockVisibleTimeRangeOnResize: true },
     handleScroll: interactive,
     handleScale: interactive,
   };
@@ -106,9 +111,6 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
           volumeScaleTop: interactive ? 0.84 : CHART_FRAMING.htfPreview.volumeScaleTop,
           showSma: true,
           onReady,
-          onResize: (chart, container) =>
-            chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }),
-          resizeDelayMs: 100,
           onError: (err) => console.error('[TimeframeMainChart] init failed:', err),
           deps: [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd, interactive],
         }}

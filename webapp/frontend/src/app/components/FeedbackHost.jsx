@@ -81,16 +81,13 @@ function ConfirmDialog({ confirm }) {
         {confirm.message}
       </div>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
-        <button type="button" style={cancelButtonStyle} onClick={() => settleConfirm(false)}>
+        <button type="button" className="btn" onClick={() => settleConfirm(false)}>
           {confirm.cancelLabel}
         </button>
+        {/* The kit's danger confirm wears dark ink: white on --danger measured 3.18:1, dark ink 5.31:1. */}
         <button
           type="button"
-          style={{
-            ...confirmButtonStyle,
-            background: confirm.danger ? 'var(--danger)' : 'var(--accent-active)',
-            color: confirm.danger ? '#fff' : 'var(--myth-ink)',
-          }}
+          className={confirm.danger ? 'btn btn-danger' : 'btn btn-primary'}
           onClick={() => settleConfirm(true)}
         >
           {confirm.confirmLabel}
@@ -135,26 +132,4 @@ const confirmShellStyle = {
   maxWidth: 460,
   padding: '18px 20px',
   width: 'min(460px, 92vw)',
-};
-
-const buttonBase = {
-  border: 'none',
-  borderRadius: 'var(--radius-sm)',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-  fontSize: 12,
-  fontWeight: 600,
-  padding: '7px 16px',
-};
-
-const cancelButtonStyle = {
-  ...buttonBase,
-  background: 'transparent',
-  border: '1px solid var(--border-color)',
-  color: 'var(--text-main)',
-};
-
-const confirmButtonStyle = {
-  ...buttonBase,
-  color: '#fff',
 };

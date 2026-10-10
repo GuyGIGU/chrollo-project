@@ -7,6 +7,7 @@ import {
   fmtNum,
   fmtInt,
   fmtMoneyUsd,
+  fmtMoneyCompact,
   fmtPct,
   fmtPctFrac,
   fmtSignedPctFrac,
@@ -50,6 +51,17 @@ test('fmtMoneyUsd: sign placement and currency suffix', () => {
   assert.equal(fmtMoneyUsd(-1234.5), '-$1,234.50'); // sign OUTSIDE the $
   assert.equal(fmtMoneyUsd(10, 'CAD'), '$10.00 CAD');
   assert.equal(fmtMoneyUsd(10, 'USD'), '$10.00'); // USD suffix suppressed
+});
+
+test('fmtMoneyCompact: one unit per size, rounding up into the next unit', () => {
+  assert.equal(fmtMoneyCompact(null), EMPTY);
+  assert.equal(fmtMoneyCompact(850), '$850');
+  assert.equal(fmtMoneyCompact(999.6), '$1K');
+  assert.equal(fmtMoneyCompact(850_400), '$850K');
+  assert.equal(fmtMoneyCompact(999_600), '$1.0M');
+  assert.equal(fmtMoneyCompact(32_620_000), '$32.6M');
+  assert.equal(fmtMoneyCompact(999_960_000), '$1.0B');
+  assert.equal(fmtMoneyCompact(1_240_000_000), '$1.2B');
 });
 
 test('fmtPct: value already in percent units (no multiply)', () => {

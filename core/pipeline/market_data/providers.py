@@ -28,6 +28,7 @@ Canonical panel shape (the contract every provider must satisfy):
 """
 from __future__ import annotations
 
+import math
 import threading
 from typing import Optional, Protocol
 
@@ -116,6 +117,10 @@ class MarketDataProvider(Protocol):
 
     def info(self, ticker: str) -> dict:
         """Return the raw yfinance ``.info`` dict for ``ticker`` (or ``{}``)."""
+        ...
+
+    def market_cap(self, ticker: str) -> Optional[float]:
+        """Return the current market capitalization in dollars (or ``None``)."""
         ...
 
     def get_income_stmt(self, ticker: str, *, quarterly: bool = True) -> pd.DataFrame:
@@ -323,6 +328,23 @@ class YahooProvider:
         rate_limit.throttle()
         info = yf.Ticker(ticker).info
         return dict(info) if info else {}
+
+    def market_cap(self, ticker: str) -> Optional[float]:
+        """Current market cap in dollars (shares outstanding times the last
+        price, yfinance ``fast_info``), bounded. ``None`` on a miss."""
+        return _run_bounded(lambda: self._market_cap_impl(ticker), _INFO_TIMEOUT_S)
+
+    @staticmethod
+    def _market_cap_impl(ticker: str) -> Optional[float]:
+        import yfinance as yf
+
+        rate_limit.throttle()
+        value = yf.Ticker(ticker).fast_info.get("marketCap")
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return None
+        return value if math.isfinite(value) and value > 0 else None
 
     def get_income_stmt(self, ticker: str, *, quarterly: bool = True) -> pd.DataFrame:
         """Quarterly (or annual) income-statement frame for ``ticker``.

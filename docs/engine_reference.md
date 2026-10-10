@@ -302,6 +302,19 @@ Reject the ticker entirely if any check fails. Run in this order:
 
 While computing baselines we attach `SMA_50`, `SMA_200`, `Vol_50`, and `Spread = High - Low` to the DataFrame for downstream use.
 
+**The market-cap floor (live 2026-10-03, operator).** `MIN_MARKET_CAP = 300_000_000`
+dollars. It is the one entry rule the price data cannot answer, so it is NOT a leg of
+this gate: `core/pipeline/screening/market_cap_floor.py` runs in `run_screener` on the
+FIRES, after the read and before the advisory post-passes, looking each one up through
+the provider (`market_cap`, yfinance `fast_info`, shares times last price). A fire under
+the floor leaves the scan (not shown, not archived); a fire whose cap cannot be read
+stays (a missing number never refuses, this gate's NaN rule). Kept fires carry
+`_market_cap` onto the wire and into `setup_archive.market_cap`. A curated ETF universe
+(`ticker_source == "csv"`) skips it. Counts ride `market_context["market_cap_floor"]`.
+Measured on the 2026-10-02 scan before it went live: 7 of 82 fires under $300M (3 S,
+4 A), all trading under $2M a day. The floor reads today's cap, so it is a live-scan
+rule only; replays and the calibration harness never apply it.
+
 **The 50-day dip exception (`SMA50_DIP_EXCEPTION_ENABLED`, dark — miss program
 2026-08-28).** An `sma50` refusal is admitted into chart reading when the dip
 under the 50-day is a bounded, recent, already-recovered event
@@ -1234,11 +1247,56 @@ Fields: `_stage2_ma_stack_pass`, `_stage2_ma200_slope_1m_pct`,
 (all 7). Minervini's 8th criterion (RS rating ≥ 70, a *universe percentile*) is
 **deliberately omitted from the count** — the live scoring path measures relative
 strength SPY-relatively via `excess_return_6m` — so the count is out of 7.
-Context only; no gate, no score. **Correction 2026-07-26:** a universe-percentile
-RS rank DOES exist in the tree (`core/regime/percentile.py` + `scan_context.attach_rs_ratings`,
-wired at `screener.py` and archived as `rs_rating`); it is dormant only because
-`RS_LINE_ENABLED` / `SECTOR_RANKING_ENABLED` are False. Do not rebuild it — the
-action is a flag flip plus a shadow re-capture.
+Context only; no gate, no score. Since 2026-10-02 the count also reaches the wire
+(`stage2_trend_pass_count`) for the card's leadership read, and since 2026-10-03 two
+of its measures do too (`stage2_52w_low_pct`, a fraction; `stage2_ma200_slope_1m_pct`,
+in percent), shown in the detail panel's Leadership section as "Off 52-week low" and
+"200-day trend". The base count (`trend_base_count`) stays off the screen: it reads 1
+on every archived fire (8,804 of 8,804 by 2026-10-03), because the up-segment it
+counts inside, the swing labeller's latest confirmed up-leg, is only weeks long and
+holds no earlier base.
+
+**The RS rating (live 2026-10-02, the leadership read).** `scan_context.attach_rs_ratings`
+(called once per scan in `screener.py`) ranks each fire's twelve-month strength (four
+quarter returns of `RS_RATING_LOOKBACK // 4` days, the latest counted double) against
+every frame the scan read that has a year of history and a close at or above
+`MIN_PRICE`, and writes `_rs_rating` (0–100), archived as `rs_rating` and shown on the
+card on a 1–99 scale. No flag: it is display and archive only, never a gate, a score or
+a tier input. A frame with no readable close is left unrated, and a crash in the pass
+costs that night's ratings, never the scan (the same seam catch as the fundamentals
+post-pass). Until that day it ranked only the firing set and sat behind
+`FUNDAMENTALS_ENABLED` (the 2026-07-26 note here named the wrong flags); no archived
+row ever carried the old meaning.
+
+**Volume at key points (live 2026-10-04, operator: display only).** The payload writer
+(`core/pipeline/screening/dashboard.py`) carries two ratios against the 50-day average
+volume: `lps_volume_ratio`, the LPS pullback's average volume (1 minus the LPS read's
+`vol_contraction`, so it is the same pullback the read elects), and `spring_volume_ratio`,
+the Phase C spring day's volume against the 50 days ending on it (`_bin_c_event_date`;
+None without a spring). The detail panel shows them as "Volume at key points". Neither is
+archived anew (the dry-up is already `setup_archive.vol_contraction`, the spring volume
+`bin_c_spring_vol_z`) and neither moves the grade, a gate or the election. Why these two:
+they are his key points (2026-09-13), and on 2026-10-04 the LPS dry-up was the one volume
+read that separated the +25% moves (decisions.md, Nulls). The breakout day's volume is not
+shown: a fire is read before its breakout; the outcome job records it per fire
+(`trigger_volume_ratio`).
+
+**The fundamentals (live 2026-10-03, operator: display and archive only).**
+`FUNDAMENTALS_ENABLED = True`: the conductor post-pass
+(`core/fundamentals/post_pass.py`) writes the four filing-gated metrics
+(`_fund_eps_growth_yoy`, `_fund_sales_growth_yoy`, `_fund_eps_growth_accel`,
+`_fund_earnings_surprise`), `_days_to_earnings`, and `_fund_quarter_end` (the period
+end of the quarter the growth reads describe) onto each fire. They reach the wire, the
+detail panel's Fundamentals section (beside the market cap) and `setup_archive`
+(`fund_*`, `days_to_earnings`; the quarter end is wire only). Never scored, never a
+filter. Two facts measured on 30 fires of the 2026-10-02 scan: yfinance returns five
+or six quarters, so EPS growth filled 28, sales growth 26 and the surprise 29, but
+acceleration (six quarters) only 5; and the 75-day filing lag can hold a just-reported
+quarter out for weeks, which is why the quarter is named. Fixed in the same change: the
+reporting-event cache now also lets go on the day a newer quarter can clear the lag
+(`_next_quarter_visible`, cached quarter end + 90 days + the lag). Keyed on the next
+earnings date alone, a fetch made while the new quarter was still lagged froze the
+previous quarter until the FOLLOWING report.
 
 All Stage-2A fields persist to `setup_archive` (writer + seed parity) and are
 surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
@@ -1565,6 +1623,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 - **The stored absolutes are re-scaled before they are graded.** `trigger_price` and `s_level` sit on the SCAN-TIME price scale; the freshly downloaded series may not. `_price_scale_factor` recovers the factor from the stored scan close vs the re-read one, and has THREE outcomes: agree (1.0), a usable factor, and **UNKNOWN** when the implied factor lands outside `[0.2, 5.0]`. Unknown is an abstention, not a claim of "same scale" — a 10-for-1 split, or a 1-for-10 reverse split among the sub-$5 names, cannot be told from a bad stored close. On unknown, every column derived from a stored absolute (`triggered` / `trigger_date` / `days_to_*` / `trigger_volume_ratio` / `r_multiple_*` / `barrier_label` / `win_barrier`) is written NULL and the refusal is logged; the ratio metrics read only the fresh close and stay valid. `near_miss_outcomes` applies the same rule — an unknown scale never records "never triggered".
 - By default skips rows that already have `fwd_return_1d` populated; `--force` re-computes everything.
 - CLI: `python -m core.archive.forward_returns [--min-age N] [--force]`.
+- **Two contained passengers ride the same run** and never own its status: the near-miss lane's outcomes, and (since 2026-10-03) his calibration setups' (`run_calibration_maturation` → [core/archive/calibration_outcomes.py](../core/archive/calibration_outcomes.py)). A calibration setup is measured with the fires' own `_compute_returns`, anchored on the trading day BEFORE his trigger (the fire-day analog), with his trigger as the trigger, his support as the stop's rail, and the same price-scale guard (his `anchor_close` is the as-of close he drew on). Rows land in `calibration_outcomes`, one per mark, never in `setup_archive`; a mark is re-measured when it is new, redrawn (a new `revision`) or still inside the 60-bar window, and a deleted mark takes its outcome with it. `load_calibration_setups` is the one read-only loader the report card (section 7), the Home edge tile (`calibration`) and the Archive screen (`GET /archive/calibration-setups`) share; each shows them as their own group, never pooled into the fires. The in-process nightly path (`services/scan_runner.py`) runs the calibration pass too; the near-miss pass rides only the standalone job.
 
 ---
 
@@ -1586,13 +1645,14 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `ef5de2f09ccec50d77c60eaf6ab823bbf99a6c65dae10373b6f8dfb8b4832591`_
+_engine_config_version: `a2252c6c00159557c36adfff344cdf7c302b3c1e128ab6992aad5e33a02f143b`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
 MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50000
 MIN_YEARLY_RETURN = -0.2
+MIN_MARKET_CAP = 300000000
 SMA50_DIP_EXCEPTION_ENABLED = False
 SMA50_DIP_MAX_SESSIONS = 25
 SMA50_DIP_MAX_ATR = 1.0
@@ -1810,7 +1870,7 @@ TOUCH_VOL_Z_NO_SUPPLY = -0.3
 TOUCH_VOL_Z_SPRING = 0.3
 TOUCH_VOL_Z_HEAVY_R = 0.5
 TA_WARN_WEAK_MONTHLY = 1.0
-FUNDAMENTALS_ENABLED = False
+FUNDAMENTALS_ENABLED = True
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12
 FUNDAMENTALS_FILING_LAG_DAYS = 75
 RS_LINE_ENABLED = False

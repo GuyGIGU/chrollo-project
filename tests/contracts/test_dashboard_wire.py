@@ -121,6 +121,9 @@ BASE_WIRE_KEYS = (
     "candles",
     "contraction_count", "contraction_quality", "contraction_vol_trend",
     "days_to_earnings",
+    # + dollar_volume_50d / stage2_trend_pass_count 2026-10-02 (the
+    # leadership read reaching the wire — deliberate edit, operator go-ahead)
+    "dollar_volume_50d",
     "elected_pool", "election_trace",
     "event_map_alternations", "event_map_completed_r", "event_map_completed_s",
     "event_map_episode_nan_bars", "event_map_episode_profile",
@@ -132,6 +135,9 @@ BASE_WIRE_KEYS = (
     "event_map_zone_coverage",
     "final_contraction_depth",
     "fund_earnings_surprise", "fund_eps_growth_accel", "fund_eps_growth_yoy",
+    # + fund_quarter_end 2026-10-03 (which quarter the growth reads describe,
+    # with the fundamentals going live — deliberate edit, operator go-ahead)
+    "fund_quarter_end",
     "fund_sales_growth_yoy",
     "higher_low_frac",
     "htf_m_box_r", "htf_m_box_s", "htf_m_box_width", "htf_m_daily_nested",
@@ -160,6 +166,9 @@ BASE_WIRE_KEYS = (
     "lps_swing_type", "lps_terminal_low_tolerance",
     "lps_window_high", "lps_window_low", "lps_window_range_pct_box",
     "lps_zone_type",
+    # + market_cap 2026-10-03 (the market-cap floor's lookup, shown in the
+    # lens's Fundamentals section — deliberate edit, operator go-ahead)
+    "market_cap",
     "monthly_box", "monthly_candles", "monthly_volumes",
     "phase_d_evidence_json", "phase_d_inner",
     "price",
@@ -167,10 +176,16 @@ BASE_WIRE_KEYS = (
     "rs_line_latest", "rs_line_new_high", "rs_rating",
     "s_anchor", "s_touch_vol_z",
     "score", "sector_etf", "sector_name", "setup",
+    # + stage2_52w_low_pct / stage2_ma200_slope_1m_pct 2026-10-03 (the
+    # stage read in the lens's Leadership section — deliberate edit)
+    "stage2_52w_low_pct", "stage2_ma200_slope_1m_pct",
+    "stage2_trend_pass_count",
     "story_admission_profile", "sub_scores", "support_slope_atr",
     "tier", "traversal_density", "trigger",
     "volumes",
     "weekly_box", "weekly_candles", "weekly_volumes",
+    # Volume at key points (2026-10-04): the LPS pullback and the Phase C spring.
+    "lps_volume_ratio", "spring_volume_ratio",
 )
 
 
@@ -179,6 +194,66 @@ def test_wire_ungraded_key_set_snapshot(monkeypatch):
     until the snapshot is updated deliberately in the same change."""
     chart = _payload(monkeypatch)
     assert tuple(sorted(chart.keys())) == tuple(sorted(BASE_WIRE_KEYS))
+
+
+def test_wire_carries_the_leadership_read(monkeypatch):
+    chart = _payload(monkeypatch, v2_overlay={
+        "_rs_rating": 84.21, "_stage2_trend_pass_count": 7,
+        "_stage2_52w_low_pct": 0.8412, "_stage2_ma200_slope_1m_pct": -1.25})
+    assert chart["rs_rating"] == 84.21
+    assert chart["stage2_trend_pass_count"] == 7
+    assert chart["stage2_52w_low_pct"] == 0.8412
+    assert chart["stage2_ma200_slope_1m_pct"] == -1.25
+
+
+def test_wire_carries_the_fundamentals_and_market_cap(monkeypatch):
+    chart = _payload(monkeypatch, v2_overlay={
+        "_fund_eps_growth_yoy": 0.45, "_fund_quarter_end": "2026-06-30",
+        "_market_cap": 1.25e9})
+    assert chart["fund_eps_growth_yoy"] == 0.45
+    assert chart["fund_quarter_end"] == "2026-06-30"
+    assert chart["market_cap"] == 1.25e9
+
+
+def test_wire_carries_volume_at_key_points(monkeypatch):
+    # The LPS read's dry-up is 1 - (LPS volume / 50-day average): 0.38 -> 0.62x.
+    # The spring sits on the fixture's sixth day (2026-01-08): volume 1055.6
+    # against the 1027.8 average of the six days the frame holds up to it.
+    chart = _payload(monkeypatch, v2_overlay={
+        "_vol_contraction": 0.38, "_bin_c_event_date": "2026-01-08"})
+    assert chart["lps_volume_ratio"] == 0.62
+    assert chart["spring_volume_ratio"] == 1.03
+    bare = _payload(monkeypatch)
+    assert bare["lps_volume_ratio"] is None and bare["spring_volume_ratio"] is None
+
+
+def test_spring_volume_is_read_against_the_50_days_ending_on_it():
+    # 70 days: ten loud ones (10,000), then 59 at 100 and the spring at 250. The
+    # 50 days ending on the spring average (49 x 100 + 250) / 50 = 103, so the
+    # spring is 2.43x; a window reaching back to the loud days would read ~0.24x.
+    dates = pd.date_range("2026-01-01", periods=70, freq="B")
+    frame = pd.DataFrame({"Volume": [10_000.0] * 10 + [100.0] * 59 + [250.0]}, index=dates)
+    assert dashboard_module._volume_vs_50d(frame, str(dates[-1].date())) == 2.43
+    assert dashboard_module._volume_vs_50d(frame, "2025-01-01") is None   # not in the frame
+    assert dashboard_module._volume_vs_50d(frame, None) is None
+
+
+def test_lps_volume_ratio_is_one_minus_the_dry_up():
+    assert dashboard_module._lps_volume_ratio(0.38) == 0.62
+    assert dashboard_module._lps_volume_ratio(-0.25) == 1.25   # a loud pullback
+    assert dashboard_module._lps_volume_ratio(None) is None
+    assert dashboard_module._lps_volume_ratio(float("nan")) is None
+
+
+def test_dollar_volume_averages_the_last_50_trading_days():
+    # Ten loud days, then 25 days at 100 shares and 25 at 300, all at $10:
+    # the last 50 days trade $2,000 a day. A 60-day window would pull in the
+    # loud days; a 20-day one would read only the 300s ($3,000).
+    volume = [1_000_000.0] * 10 + [100.0] * 25 + [300.0] * 25
+    frame = pd.DataFrame({"Close": [10.0] * 60, "Volume": volume})
+    assert dashboard_module._dollar_volume_50d(frame) == 2000
+    unreadable = pd.DataFrame({"Close": [np.nan] * 3, "Volume": [1.0] * 3})
+    assert dashboard_module._dollar_volume_50d(unreadable) is None
 
 
 # ── Task 9: the flag-ON v2 block + coverage/drift tripwires ─────────────────

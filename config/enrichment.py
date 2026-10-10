@@ -18,8 +18,10 @@ and existing monkeypatches continue to share one settings namespace.
 # Fundamentals: the 5 per-ticker metrics (core/fundamentals/metrics.py) — qtr EPS
 # growth YoY, qtr sales growth YoY, EPS-growth acceleration, earnings surprise %,
 # in-house RS rating. Null-safe (missing -> None). Read via the provider's
-# get_income_stmt / get_earnings_dates / info accessors.
-FUNDAMENTALS_ENABLED = False
+# get_income_stmt / get_earnings_dates / info accessors. LIVE 2026-10-03 on the
+# operator's word, display + archive only: shown in the detail panel's
+# Fundamentals section, archived as fund_*, never scored, never a filter.
+FUNDAMENTALS_ENABLED = True
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12   # quarters of earnings history to request
 # Point-in-time filing lag: yfinance carries no per-quarter SEC filing date, so a
 # quarter keyed by its PERIOD-END date would be read before it was actually filed

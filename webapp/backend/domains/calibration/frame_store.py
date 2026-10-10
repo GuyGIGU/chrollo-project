@@ -249,3 +249,48 @@ def load_grading_frame(ticker: str, as_of: str, base_digest: str):
     if ohlcv_digest(le) != base_digest:
         return None
     return frame
+
+
+# ── The preserved copy (a chart the vendor can no longer serve) ──────
+#
+# Every chart the operator ever loaded was frozen above: the <= as-of frame plus
+# the whole forward-inclusive window. That makes the store a VAULT as well as a
+# replay basis — when a ticker is delisted, renamed or merged and the vendor
+# returns nothing (SKYT, from 2026-08-28), the setup's bars are still here and
+# the chart can be drawn from them. Read-only: nothing below ever writes.
+
+
+def preserved_as_ofs(ticker: str) -> list[str]:
+    """The as-of dates a chart for ``ticker`` was frozen at, oldest first.
+
+    Only the canonical base files count (``{ticker}_{as_of}.parquet``) — a
+    restated sibling or a grading frame always sits beside one."""
+    try:
+        names = os.listdir(FRAMES_DIR)
+    except OSError:
+        return []
+    prefix, suffix = f"{ticker}_", ".parquet"
+    dates = []
+    for name in names:
+        if name.startswith(prefix) and name.endswith(suffix):
+            as_of = name[len(prefix):-len(suffix)]
+            if len(as_of) == 10 and as_of[4] == "-" and as_of[7] == "-":
+                dates.append(as_of)
+    return sorted(dates)
+
+
+def load_preserved_chart(ticker: str, as_of: str, digest: str | None = None):
+    """``(le_frame, window)`` for a frozen chart, or None if it was never frozen.
+
+    ``le_frame`` is the <= as-of frame matching ``digest`` (the rendering a saved
+    mark is bound to) when given and present, else the first-frozen canonical
+    base; ``window`` is its forward-inclusive grading frame when one was frozen,
+    else the base alone. Both are finite (visible) bars, exactly as the chart
+    rendered them."""
+    le_frame = load_frame(ticker, as_of, digest) if digest else None
+    if le_frame is None:
+        le_frame = load_frame(ticker, as_of)
+    if le_frame is None or le_frame.empty:
+        return None
+    window = load_grading_frame(ticker, as_of, ohlcv_digest(le_frame))
+    return le_frame, (window if window is not None and not window.empty else le_frame)

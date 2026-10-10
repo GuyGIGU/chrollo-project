@@ -171,11 +171,12 @@ is a trap on this machine (`docs/deploy.md` §2).
 | `analyze.py` | `-m core.archive.analyze` | The report card: winner fingerprint, what predicted returns, bias warnings. |
 | `analyze_features.py` | (shared) | The report's column lists and the engine-epoch seam. |
 | `analyze_stats.py` | (shared) | The report's numbers: outcomes, signal edge, suggested weights. |
-| `analyze_report.py` | (shared) | The report's six sections as text. |
+| `analyze_report.py` | (shared) | The report's seven sections as text (the seventh: his calibration setups beside the fires). |
 | `purge.py` | `-m core.archive.purge` | Cleans uncurated rows out of the archive. |
 | `seed_recall.py` | `-m core.archive.seed_recall --hermetic-check` | Does the engine still re-find every known seed winner? The hermetic form replays committed data offline. |
 | `near_miss_writer.py` | (automatic) | Records the setups the engine narrowly refused (the near-miss lane). Measure-only. |
 | `near_miss_outcomes.py` | (automatic) | Fills in what happened after each near-miss, with the same outcome math. |
+| `calibration_outcomes.py` | (automatic) | Fills in what happened after each of his calibration setups, measured like a fire (ruling 2026-10-03: archived setups too), and loads them for every study as their own group. |
 | `outcomes.py` | (shared) | The ONE home of outcome math (returns, MFE/MAE, trigger), used by the updater and the backtest alike. |
 | `episodes.py` | (shared) | Collapses a base re-flagged day after day into one episode, so it counts once in any win rate. |
 | `missed_winners.py` | (dashboard) | Did the engine flag winners the operator never engaged with? Its standalone edge against his discretion. |

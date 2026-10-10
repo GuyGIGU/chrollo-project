@@ -1,17 +1,8 @@
 import ErrorBoundary from '../../../shared/components/ErrorBoundary';
+import Skeleton from '../../../shared/components/Skeleton';
 
-// Skeleton + message helpers so every zone speaks the same loading/empty/error
-// language and the layout doesn't reflow as data lands.
-export function ZoneSkeleton({ rows = 3 }) {
-  return (
-    <div className="home-skeleton">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="home-skeleton-row" />
-      ))}
-    </div>
-  );
-}
-
+// Message helper so every zone speaks the same empty/error language (loading
+// is the shared Skeleton, so the layout doesn't reflow as data lands).
 export function ZoneMessage({ tone = 'muted', children }) {
   return (
     <div className="home-zone-msg" style={{ color: tone === 'error' ? 'var(--danger)' : 'var(--text-muted)' }}>
@@ -38,7 +29,7 @@ export default function HomeZone({ title, icon, link, status = 'ready', error, e
           {link}
         </div>
         <div className="home-zone-body">
-          {status === 'loading' && <ZoneSkeleton rows={skeletonRows} />}
+          {status === 'loading' && <Skeleton rows={skeletonRows} label={`Loading ${title}`} />}
           {status === 'error' && <ZoneMessage tone="error">{error || 'Could not load.'}</ZoneMessage>}
           {status === 'empty' && <ZoneMessage>{empty || 'Nothing to show.'}</ZoneMessage>}
           {status === 'ready' && children}

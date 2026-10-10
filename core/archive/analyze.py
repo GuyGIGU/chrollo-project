@@ -27,6 +27,9 @@ human-readable report answering the questions that actually matter for tuning:
      return) and flags each as BENEFICIAL / INERT / HARMFUL via an n-aware
      noise floor. The actionable shortlist for "subtract harmful signals".
      Read-only: flags candidates, never changes a weight.
+  7. CALIBRATION SETUPS - his drawn setups (calibration_outcomes) beside the
+     engine's fires, as their own group: archived setups too (operator ruling
+     2026-10-03), compared and never pooled.
 
 This module loads the archive and runs the report. The columns it reads are
 named in ``analyze_features``, the numbers come from ``analyze_stats`` and the
@@ -53,6 +56,7 @@ from core.archive.analyze_report import (
     _LINES,
     emit,
     header,
+    section_calibration,
     section_composition,
     section_correlations,
     section_fingerprint,
@@ -60,6 +64,7 @@ from core.archive.analyze_report import (
     section_signal_edge,
     section_tightness,
 )
+from core.archive.calibration_outcomes import load_calibration_setups
 from core.archive.db_path import archive_db_path
 from core.archive.episodes import SetupRow, build_episodes, canonical_ids
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
@@ -176,6 +181,7 @@ def run(source: Optional[str] = None, min_rows: int = 30, md_path: Optional[str]
     section_correlations(df, comp["valid_corr"])
     section_tightness(df, comp["valid_outcome"])
     section_signal_edge(df, comp["valid_corr"])
+    section_calibration(df, load_calibration_setups(_DB_PATH))
 
     header("END OF REPORT")
 

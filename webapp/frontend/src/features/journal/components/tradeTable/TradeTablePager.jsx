@@ -1,3 +1,7 @@
+import Pager from '../../../../shared/components/Pager';
+
+// The journal's pager row: the "Showing a-b of n" summary plus the shared Pager.
+// No First/Last: the pager's window always shows page 1 and the last page.
 export default function TradeTablePager({ currentPage, pageCount, pageEnd, pageStart, totalTrades, onPageChange }) {
   if (pageCount <= 1) return null;
 
@@ -6,13 +10,7 @@ export default function TradeTablePager({ currentPage, pageCount, pageEnd, pageS
       <span>
         Showing {pageStart + 1}-{pageEnd} of {totalTrades}
       </span>
-      <div className="pager-actions">
-        <button type="button" onClick={() => onPageChange(1)} disabled={currentPage === 1}>First</button>
-        <button type="button" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>Previous</button>
-        <span>Page {currentPage} of {pageCount}</span>
-        <button type="button" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === pageCount}>Next</button>
-        <button type="button" onClick={() => onPageChange(pageCount)} disabled={currentPage === pageCount}>Last</button>
-      </div>
+      <Pager page={currentPage} pageCount={pageCount} onPage={onPageChange} label="Trade pages" />
     </div>
   );
 }

@@ -8,8 +8,8 @@ export const ArchiveAnalysisModal = ({ open, text, loading, error, onRefresh, on
       <div style={headerStyle}>
           <div style={{ fontWeight: 700 }}>📊 Archive Analysis</div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button onClick={onRefresh} disabled={loading} style={refreshButtonStyle(loading)}>↻ Refresh</button>
-            <button onClick={onClose} style={closeButtonStyle}>✕</button>
+            <button type="button" className="btn btn-sm" onClick={onRefresh} disabled={loading}>↻ Refresh</button>
+            <button type="button" className="btn btn-icon" onClick={onClose} aria-label="Close">✕</button>
           </div>
         </div>
         {loading ? (
@@ -31,13 +31,8 @@ const backdropStyle = {
 const analysisPanelStyle = { width: 'min(900px, 94vw)', maxHeight: '85vh', overflow: 'auto', padding: '18px' };
 const headerStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' };
 const mutedTextStyle = { color: 'var(--text-muted)', fontSize: '12px' };
-const closeButtonStyle = { background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' };
 const errorTextStyle = { color: 'var(--danger)', fontSize: '12px', whiteSpace: 'pre-wrap' };
 const preStyle = {
   fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'pre',
   overflowX: 'auto', color: 'var(--text-main)', lineHeight: 1.5, margin: 0,
 };
-const refreshButtonStyle = (loading) => ({
-  background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)',
-  padding: '4px 10px', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '11px',
-});

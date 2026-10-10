@@ -27,6 +27,28 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   next boot, and older rows stay NULL): `sentence_*` (PR #11) and ten `eq_*` outside-bar descriptors
   (engine-eyes Task 1, no flag). The reader-pin readings also gained one additive key,
   `role_labels.events` (a copy of `box_events`, consolidation-method Task 9); nothing else in them moved.
+- **The leadership read** (branch `claude/leadership-read`, 2026-10-02, display only, no flag): the
+  card and the detail panel show the RS rating (twelve-month strength ranked against every stock
+  the scan reads, archived as `rs_rating`), the trend-template count and the 50-day dollar volume,
+  and the screener sorts by RS. None of it gates, scores or tiers; no dollar-volume floor (his word).
+  2026-10-03 the detail panel adds the distance above the 52-week low and the 200-day average's
+  one-month change. The base count is NOT shown: it reads 1 on every archived fire.
+- **The market-cap floor and the fundamentals** (2026-10-03, his yes): a fire under $300M market
+  cap leaves the scan (`MIN_MARKET_CAP`, checked on the fires after the read; a cap that cannot be
+  read keeps the fire), and `FUNDAMENTALS_ENABLED` is live, display and archive only: the detail
+  panel's Fundamentals section shows market cap, EPS and sales growth, EPS acceleration and the
+  earnings surprise, naming the quarter. Next on his word (2026-10-03, "yes also for #3"): after a
+  few weeks of archived fires, measure which leadership / fundamentals combination finds the
+  winners, then define the stock grade from that. More grade work on both reads is planned.
+- **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
+  panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
+  display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated
+  outcomes in the archive (decisions.md Nulls, 2026-10-04).
+- **His calibration setups are archived setups too** (2026-10-03, his ruling; built 2026-10-04):
+  each is measured like a fire from the day before his trigger (`calibration_outcomes`, filled by the nightly outcome job as a contained passenger) and
+  shown as its own group, never pooled: report card section 7, a line on the Home edge tile, and
+  the Archive screen's "Calibration setups" filter. Live after `update_dashboard.bat` and the next
+  outcome run (or the Archive's Update Forward Returns button).
 - **Scoring:** tier comes from the TA grade against 62 / 52 / 42 / 32, with the
   `S_MAX_BOX_WIDTH` cap (0.15) on top (`config/scoring.py`). RS and uptrend weights are 0;
   the re-opened A/B recommends keeping them there, and the operator's answer is owed ([`asks.md`](asks.md)).
@@ -50,9 +72,10 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 | State | `*_ENABLED` flags (value in `config/*.py`) |
 |---|---|
 | LIVE, engine | `CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `EVENT_MAP`, `SENTENCE_ARCHIVE` (measure-only `sentence_*` archive columns) |
+| LIVE, advisory (display + archive, never scored) | `FUNDAMENTALS` (2026-10-03) |
 | LIVE, infrastructure | `HEALTH_BOARD`, `TICKER_ADMISSION`, `YAHOO_RATE_LIMIT`, `QUARANTINE` |
 | DARK, final method, kill-by 2026-11-30 | `RESPECT_WHOLE_BAR`, `DWELL_GRADED`, `BOX_HANDOVER_RANGES`, `SPRING_BOUNDS_LIFTED`, `LPS_RANGES_YARDSTICK`, `LPS_GRADED_TRAITS`, `LPS_WINDOW_RECEDING`, `LPS_BUY_DAY_READS_HIGH`, `LPS_REFUSALS_TO_GRADES`, `LPS_SELLERS_RISING_FATAL`, `TURN_LINE`, `TURN_LINE_TREND`, the six `LINE_WORD_*`, `BASE_AGE_FROM_ANCHOR`, `BOX_WIDTH_CAPS_GRADED`, `DEPTH_CAPS_GRADED`, `RESPECT_GRADED`, `LPS_LEAVES_ELECTION`, `BOX_OPENS_ON_ANCHORS`, `CLIMAX_FIRST_WALK`, `BOX_END`, `GRADE_LEDGER` |
-| DARK, kill-by 2026-11-30 | `FUNDAMENTALS`, `RS_LINE`, `SECTOR_RANKING`, `ELECTION_TRACE_EXPORT`, `STRATEGY_READ`, `ELECTION_STABILITY` (all re-dated from 2026-09-30 / 2026-09-15 with written reasons, [`flag_ledger.md`](flag_ledger.md)) |
+| DARK, kill-by 2026-11-30 | `RS_LINE`, `SECTOR_RANKING`, `ELECTION_TRACE_EXPORT`, `STRATEGY_READ`, `ELECTION_STABILITY` (all re-dated from 2026-09-30 / 2026-09-15 with written reasons, [`flag_ledger.md`](flag_ledger.md)) |
 | DARK, kill-by 2026-10-31 | `CONTRACTION_RESCUE`, `BAR_POSTURE_RESCUE`, `SMA50_DIP_EXCEPTION`, `BOTTOMING_BASE_LANE`, `LPS_CEILING_REST`, `POWER_PLAY_STORY_FORM` |
 | RETIRED (key deleted) | `POWER_PLAY_PRESET` (2026-09-19, with the species lane), `TREND_TERMINAL_BOX_GATE`, `AR_FIRST_REACTION` (both 2026-09-08), `PIP_PIVOTS`, `LPS_REQUIRE_PEAK_DOWN`, `TA_SCORE_V2`, `EQ_DWELL_BAR_BASIS`, and the seven keys folded 2026-07-18 |
 

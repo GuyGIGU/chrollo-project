@@ -106,8 +106,16 @@ export function TagRow({ data, maxTags, compact = false, rows = 1, style }) {
       const measure = measureRef.current;
       if (!container || !measure) return;
 
-      const widths = Array.from(measure.children).map(child => child.getBoundingClientRect().width);
-      setFitCount(fitTags(container.clientWidth, widths, rows));
+      // Both sides in LAYOUT px, inside the padding. getBoundingClientRect
+      // answers in screen px (already multiplied by the app's --ui-scale zoom)
+      // while clientWidth answers pre-zoom and counts the padding no chip can
+      // use. On the screener card's ONE-row strip (2026-10-02) either error lets
+      // the last chip or the +N wrap out of sight instead of folding into the +N.
+      const zoom = container.getBoundingClientRect().width / container.offsetWidth || 1;
+      const styles = window.getComputedStyle(container);
+      const usable = container.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+      const widths = Array.from(measure.children).map(child => child.getBoundingClientRect().width / zoom);
+      setFitCount(fitTags(usable, widths, rows));
     };
 
     updateFitCount();

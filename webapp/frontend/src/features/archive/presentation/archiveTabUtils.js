@@ -1,5 +1,6 @@
 import { fmtPctFrac, fx } from '../../../shared/formatting/format.js';
 import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary';
+import { CALIBRATION_SOURCE } from '../model/calibrationList.js';
 
 // Sort keys mirror the archive table columns (see ArchiveTable COLUMNS) so the
 // header-click sort and the filter dropdown stay in sync. 'scan_date' is the
@@ -37,6 +38,8 @@ export const SOURCE_FILTERS = [
   ['seed', 'Seed', 'seed'],
   ['manual', 'Manual', 'manual'],
   ['screener', 'Screener', 'screener'],
+  // His calibration setups: their own list (model/calibrationList.js).
+  [CALIBRATION_SOURCE, 'Calibration setups', CALIBRATION_SOURCE],
 ];
 
 // Archive dialect: forward returns arrive as fractions; `fixed` is the house fx.

@@ -96,21 +96,7 @@ function ErrorMessage({ text }) {
 
 function ModalButton({ children, disabled, onClick, primary }) {
   return (
-    <button
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        background: primary && !disabled ? 'var(--accent-active)' : primary ? 'var(--bg-hover)' : 'transparent',
-        border: primary ? 'none' : '1px solid var(--border-color)',
-        borderRadius: '6px',
-        color: primary && !disabled ? 'var(--myth-ink)' : primary ? 'var(--text-muted)' : 'var(--text-main)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '12px',
-        fontWeight: primary ? '600' : '400',
-        padding: '8px 14px',
-      }}
-    >
+    <button type="button" className={primary ? 'btn btn-primary' : 'btn'} disabled={disabled} onClick={onClick}>
       {children}
     </button>
   );

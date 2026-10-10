@@ -289,6 +289,8 @@ def _apply_migrations(bind) -> None:
 _MIGRATED_ARCHIVE_MODELS = (
     ("setup_archive", lambda: archive_models.SetupArchive),
     ("near_miss_archive", lambda: archive_models.NearMissArchive),
+    # His calibration setups' outcomes (operator ruling 2026-10-03), at birth.
+    ("calibration_outcomes", lambda: archive_models.CalibrationOutcome),
     # Registered when it gained its first model-only column (grade_verdict,
     # TA-grade build task 14).
     ("read_verdicts", lambda: models.ReadVerdict),

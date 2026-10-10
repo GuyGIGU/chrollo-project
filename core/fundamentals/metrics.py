@@ -280,7 +280,10 @@ def compute_metrics(
 
     Returns a dict with keys ``eps_growth_yoy``, ``sales_growth_yoy``,
     ``eps_growth_accel``, ``earnings_surprise``, ``rs_rating`` — each ``float`` or
-    ``None``. ``rs_rating`` is passed THROUGH (it is a universe-relative percentile
+    ``None`` — plus ``quarter_end``, the ISO period end of the newest quarter
+    the growth reads used (``None`` when no quarter was available). It lets a
+    reader see WHICH quarter a growth number describes while the filing lag
+    still hides a newer one. ``rs_rating`` is passed THROUGH (it is a universe-relative percentile
     the caller computes via ``core.regime.percentile`` over trailing returns;
     there is no single-ticker RS rating). Data is read through the provider seam;
     any miss degrades the affected metric to ``None``.
@@ -313,4 +316,14 @@ def compute_metrics(
         "eps_growth_accel": eps_growth_accel(stmt),
         "earnings_surprise": earnings_surprise(earnings),
         "rs_rating": _finite(rs_rating),
+        "quarter_end": latest_quarter_end(stmt),
     }
+
+
+def latest_quarter_end(stmt: pd.DataFrame) -> Optional[str]:
+    """ISO period-end date of the newest quarter in ``stmt`` (the quarter the
+    growth reads describe once the as-of gate has run), or ``None``."""
+    if stmt is None or getattr(stmt, "empty", True):
+        return None
+    period_end = pd.to_datetime(stmt.columns[0], errors="coerce")
+    return None if pd.isna(period_end) else str(period_end.date())

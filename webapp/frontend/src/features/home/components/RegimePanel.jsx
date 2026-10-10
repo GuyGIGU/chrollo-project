@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Skeleton from '../../../shared/components/Skeleton';
 import MarketRegimeDetailModal from './MarketRegimeDetailModal';
 import {
   STATE_META,
@@ -48,7 +49,7 @@ export default function RegimePanel({ marketContext }) {
     return (
       <section className="rp-card instrument-tile">
         <span className="rp-eyebrow">Market Regime</span>
-        <div className="home-skeleton">{[0, 1, 2].map((i) => <div key={i} className="home-skeleton-row" />)}</div>
+        <Skeleton rows={3} label="Loading market regime" />
       </section>
     );
   }

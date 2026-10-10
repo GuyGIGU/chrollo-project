@@ -97,7 +97,6 @@ def test_fields_attach_with_explicit_as_of_and_counters(tmp_path, monkeypatch):
     # The filing-gated YoY reads the latest AVAILABLE quarter (2025-12-31).
     assert results[0]["_fund_eps_growth_yoy"] == pytest.approx(0.20)
     assert results[0]["_days_to_earnings"] == 21
-    assert "_rs_trailing_return" in results[0]
     assert counts["attempted"] == 1 and counts["populated"] == 1
     assert counts["failed"] == 0 and counts["cache_hits"] == 0
 
@@ -121,9 +120,7 @@ def test_provider_failure_is_contained_and_counted(tmp_path, monkeypatch):
     assert counts == {"attempted": 1, "populated": 0, "cache_hits": 0,
                       "refused_no_as_of": 0, "rs_attempted": 0,
                       "rs_populated": 0, "errored": 0, "failed": 1}
-    # "attempted, all failed" is VISIBLE — and the paying row is untouched
-    # except the price-local trailing return (no vendor involved).
-    results[0].pop("_rs_trailing_return", None)
+    # "attempted, all failed" is VISIBLE — and the paying row is untouched.
     assert results == before
 
 
@@ -145,6 +142,45 @@ def test_reporting_event_cache_reuses_then_refetches(tmp_path, monkeypatch):
     late = {"AAA": _prices(end="2026-05-05")}
     _run([{"Ticker": "AAA"}], late, provider, tmp_path, monkeypatch)
     assert len(provider.calls) > calls_after_first
+
+
+def test_the_cache_lets_go_when_a_lagged_quarter_clears_the_lag(tmp_path, monkeypatch):
+    # Fetched 2026-04-10, the March quarter is reported but still inside the
+    # 75-day lag, so the read describes December. The next earnings date is far
+    # off (July 30); keyed on it alone, the cache served December until then.
+    # The March quarter clears the lag on 2026-06-14: from that day the cache
+    # must refetch and the read must move to March.
+    provider = _provider()
+    provider.next_earnings = "2026-07-30"
+    first = {"Ticker": "AAA"}
+    _run([first], {"AAA": _prices()}, provider, tmp_path, monkeypatch)
+    assert first["_fund_quarter_end"] == "2025-12-31"
+    assert first["_fund_eps_growth_yoy"] == pytest.approx(0.20)
+
+    before_release = {"Ticker": "AAA"}
+    counts = _run([before_release], {"AAA": _prices(end="2026-06-12")},
+                  provider, tmp_path, monkeypatch)
+    assert counts["cache_hits"] == 1                   # nothing new can be visible
+
+    after_release = {"Ticker": "AAA"}
+    counts = _run([after_release], {"AAA": _prices(end="2026-06-15")},
+                  provider, tmp_path, monkeypatch)
+    assert counts["cache_hits"] == 0
+    assert after_release["_fund_quarter_end"] == "2026-03-31"
+    assert after_release["_fund_eps_growth_yoy"] == pytest.approx(8.99)
+
+
+def test_a_quarter_label_alone_is_not_a_populated_read(tmp_path, monkeypatch):
+    # Two quarters name a quarter but hold no YoY: that is "attempted, failed",
+    # visibly, and never a cached fact.
+    provider = _FakeProvider(
+        stmt=_income(["2025-12-31", "2025-09-30"], [1.2, 1.1], [120.0, 118.0]),
+        next_earnings="2026-05-01")
+    row = {"Ticker": "AAA"}
+    counts = _run([row], {"AAA": _prices()}, provider, tmp_path, monkeypatch)
+    assert row["_fund_quarter_end"] == "2025-12-31"
+    assert counts["populated"] == 0 and counts["failed"] == 1
+    assert json.loads((tmp_path / "fund_cache.json").read_text()) == {}
 
 
 def test_vendor_outage_is_never_cached_as_a_fact(tmp_path, monkeypatch):
