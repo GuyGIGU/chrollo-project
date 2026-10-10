@@ -562,6 +562,25 @@ the log line and the file stamp still say it). Nothing is edited: the next night
 Archiving off also skips the freshness gate that stops a stale zero-setup read from blanking the
 screen, so run it on the night's own data (`--cached`), never after a failed download.
 
+## The Morning Check (a night checks itself)
+
+The morning after a scan night (any time from 19:00 New York that night until the next scan at 17:00 New York),
+from the repo folder:
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.ops.morning_check
+```
+
+It copies the scan's market-data file into `output\morning_check\panel` and replays that copy with the reader
+whose engine stamp the night's screen carries (the scan's own worker), then applies the market-cap floor from the
+scan's own recorded removals (no market cap is looked up again, nothing goes to the network). It says whether the
+screen's fires equal the replay, whether every fire is in the archive for that night under the same engine stamp
+(the archive is opened read-only), and lists the charts the scan did not read. `output\morning_check\ledger.txt`
+keeps one line a night, `clean` or `NOT CLEAN - ` and the named differences (checking a night again replaces its
+line), and the board counts the clean new-reader nights in a row against the ten wanted. It refuses inside the scan
+slot, exits 0 when clean and 1 when not, and writes nothing outside `output\morning_check`. Run it before the next
+scan: once that scan rewrites the screen and the market data, the night is gone.
+
 ## Service Commands
 
 ```powershell
