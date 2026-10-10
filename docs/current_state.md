@@ -60,6 +60,14 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   a go-live plan. On that plan's list as a READER task: his FRPH ruling of Fri 09/10/2026 (a box that failed into
   its own lower level for two months is not tied to the box any more; its late return is no test and no SOS),
   recorded and NOT built — the approval pack names the fires that rest on that way back. None of it is live here.
+- **The two-eyes flip — built, dark, his word pending (Sat 10/10/2026).** The go-live plan
+  (`.council/plans/two-eyes-go-live.md`) joins the reader branch with the live branch on
+  `claude/sweet-napier-461716`, `TWO_EYES_READER_ENABLED` still False. The flip is his, after his
+  approval sitting, by the checklist in [`deploy.md`](deploy.md), "The Flip"; both undos were rehearsed
+  on a copy of the archive. The engine stamps it moves through are written in
+  [`flag_ledger.md`](flag_ledger.md): the live scan stamps `a2252c6c` (not the `0bbadfac` above, which
+  predates the market-cap floor), the joined tree `8cae6fd9` with the switch off and `cdb7ee2d` on.
+  The deploy now refuses a checkout that is not `main` or has uncommitted tracked files.
 - **Research:** the 2026-09-03 "no standalone edge" verdict has not been re-run on the
   corrected statistics ([`edge_denominator_2026-09-08.md`](edge_denominator_2026-09-08.md), [`asks.md`](asks.md)).
   Archive counts come from `python -m core.archive.analyze`; do not quote them from memory.

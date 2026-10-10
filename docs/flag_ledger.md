@@ -136,6 +136,44 @@ engine's chain. Under `TWO_EYES_READER_ENABLED` none of them rides; each is deci
 | `LPS_LEAVES_ELECTION_ENABLED` (the watch lane) | off | REFUSES the scan by name, before a price is fetched | its row needs the old reader's frame, unit, box and forming read, which the new reader's watch fill does not give |
 | `CONTRACTION_RESCUE_ENABLED` / `BAR_POSTURE_RESCUE_ENABLED` (the rescue lanes) | off | REFUSE the scan by name, before a price is fetched | they re-read the old reader's refusals with the old engine |
 
+## The engine stamps of the flip (go-live plan task 7, Sat 10/10/2026)
+
+**Where the flip stands (Sat 10/10/2026): built, dark, his word pending.** The go-live plan's
+tasks are built on `claude/sweet-napier-461716` with `TWO_EYES_READER_ENABLED` False. The flip is
+his, after his approval sitting, by the checklist in [`deploy.md`](deploy.md), "The Flip". Both undos
+were rehearsed on a copy of the archive (task 10): the switch back returned stamp #2 and the old
+reader's fires, the join reverted returned stamp #1 and the live scan's fires.
+
+Every archive row carries the stamp of the engine that wrote it (`engine_config_version`, the
+sha256 of the settings manifest). The stamp hashes the SETTINGS, `TWO_EYES_READER_ENABLED` and
+`TWO_EYES_RULESET` among them, and **no reader code**. So the flip moves the stamp, the switch back
+returns it, and a fixed reader re-flipped under the same ruleset string would stamp its nights
+exactly like the bad night it replaced. The stamps below were written down before anything flips;
+each was computed by the command beside it (run from the tree named, with the repo venv).
+
+| # | The night | Stamp | Computed by |
+|---|---|---|---|
+| 1 | **The live engine before the join**: `claude/leadership-read` at `f045780`, tonight's live scan. Undo 2 (the join reverted) returns here. | `a2252c6c00159557c36adfff344cdf7c302b3c1e128ab6992aad5e33a02f143b` | in a checkout of `f045780`: `.\.venv\Scripts\python.exe -m engine_alpha.freeze.manifest --hash` |
+| 2 | **The joined tree, switch off** (the integration branch at `2a968db`: the join, go-live tasks 2, 3, 4, 5, 8). Undo 1 (the switch back) returns here. | `8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c` | in the joined tree: `.\.venv\Scripts\python.exe -m engine_alpha.freeze.manifest --hash` |
+| 3 | **The joined tree, switch on** (ruleset `two-eyes-0.9.1-grade`): the first new-reader night. | `cdb7ee2d98a8aab687c04a70a7ddc41c2271fa7286517ac61ab4dde3da4836d1` | in-process, no config edited: `.\.venv\Scripts\python.exe -c "from config import settings; settings.TWO_EYES_READER_ENABLED = True; from engine_alpha.freeze.manifest import manifest_hash; print(manifest_hash())"` |
+| 4 | **A re-flip** after an undo: the reader fixed, the switch on again. Its ruleset is BUMPED first, so its stamp is a new one and never #3. Example, with the string `two-eyes-0.9.2-reflip-example`: | `ea3c0b3164c8f4376dff0b5d7a4e5f16d995b8fdc9df932d035a1e96648901b9` | as #3, adding `settings.TWO_EYES_RULESET = "two-eyes-0.9.2-reflip-example";` before the hash. With the SAME string the command prints #3's stamp: that is the hiding this row exists to prevent |
+
+- **A ruleset string is spent once used.** `tests/engine/test_two_eyes_adapter.py`
+  (`SPENT_RULESETS`, `test_a_ruleset_string_is_never_reused`) lists every string ever committed,
+  oldest first, and fails when the one in `config/engine.py` is not the newest of them: going back
+  to a spent string fails, and so does a new string nobody appended. A bump appends.
+- **A bad night is left out, never deleted.** Its rows keep their stamp; the winner report and the
+  edge read read the archive as if that stamp's nights never ran:
+  `.\.venv\Scripts\python.exe -m core.archive.analyze --leave-out-stamp cdb7ee2d` and
+  `.\.venv\Scripts\python.exe -m tools.research.backtest_engine --leave-out-stamp cdb7ee2d`
+  (the full hash or its first 8+ characters; the rows go before the re-flags are collapsed, so a
+  setup first seen on that night counts from its first good night).
+- **`0bbadfac` is not a live stamp.** It is the stamp `docs/current_state.md` and the live branch's
+  committed baselines still carried from before the market-cap floor joined the manifest; the live
+  scan has stamped `a2252c6c` since.
+- **These stamps belong to these trees.** A later change to any listed setting moves #2 and #3;
+  recompute them with the same commands before the flip and write the new ones here.
+
 ## THE 2026-07-18 rotation (behavior-identical; a named archive seam)
 
 The Purity Pass Task 11 rotation retired the seven folded flag keys in ONE

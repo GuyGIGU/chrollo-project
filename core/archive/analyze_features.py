@@ -144,6 +144,28 @@ def engine_epochs(df: pd.DataFrame) -> list:
     return sorted(df["engine_config_version"].fillna("?").astype(str).unique())
 
 
+#: The shortest name a stamp may be left out by: the flag ledger prints the
+#: first 8 characters, and anything shorter could name several stamps.
+STAMP_NAME_MIN = 8
+
+
+def leave_out_stamp(df: pd.DataFrame, stamp: str) -> tuple[pd.DataFrame, int]:
+    """Drop the rows one engine stamp wrote, by its full hash or its first 8+
+    characters; return the rows kept and how many were left out.
+
+    A bad night after a flip keeps its rows (the evidence is never deleted), so
+    the winner report and the edge read leave it out by name instead (go-live
+    plan task 7). Call it BEFORE the episode collapse, so a setup first seen on
+    the left-out night anchors on its first night that still counts."""
+    if len(stamp) < STAMP_NAME_MIN:
+        raise ValueError(f"name a stamp by at least {STAMP_NAME_MIN} characters, "
+                         f"not {stamp!r}: a shorter name could match several stamps")
+    if "engine_config_version" not in df.columns:
+        return df, 0
+    hit = df["engine_config_version"].fillna("").astype(str).str.startswith(stamp)
+    return df[~hit].copy(), int(hit.sum())
+
+
 def current_epoch(df: pd.DataFrame):
     """The epoch that produced the MOST RECENT rows — the one whose numbers
     describe today's reader. Config hashes carry no ordering, so recency comes
