@@ -315,6 +315,7 @@ def test_the_switch_is_read_in_exactly_one_place():
     # through the whole scan and into a throwaway archive, and back off. The go-live
     # plan's tasks 4 and 5 flip it to make the tools, the audits and the workbench
     # meet a new-reader night (refused charts, the notice, the miss's reason).
+    # The morning check (task 9) flips it to read the night twice, new and old: it measures.
     files -= {"tests/tooling/test_old_reader_tools.py", "tests/backend/test_workbench_new_reader.py",
               "config/settings.py", "config/engine.py", "engine_alpha/freeze/manifest.py",
               "tests/contracts/test_inert_contract.py", "tests/archive/test_read_failed_is_said.py",
@@ -324,7 +325,8 @@ def test_the_switch_is_read_in_exactly_one_place():
               "tests/engine/test_two_eyes_mini.py",
               "tests/tooling/test_core_board.py",
               "tests/tooling/test_yardstick.py", "tools/calibration/yardstick.py",
-              "tools/calibration/parallel_night.py"}
+              "tools/calibration/parallel_night.py",
+                  "tools/ops/morning_check.py"}
     assert files == {"engine_alpha/reader.py"}, (
         f"the reader switch is read in {sorted(files)}; it belongs in "
         "engine_alpha.reader.which_reader() alone")
