@@ -24,6 +24,7 @@ Usage:
     python -m tools.research.backtest_engine --source screener   # unbiased (live) only
     python -m tools.research.backtest_engine --json out.json     # also dump structured JSON
     python -m tools.research.backtest_engine --db PATH           # point at a fixture DB
+    python -m tools.research.backtest_engine --leave-out-stamp 8cae6fd9   # as if that stamp's nights never ran
 
 Read-only: never writes to the DB. Offline: never hits the network.
 """
@@ -47,13 +48,14 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path()
 
 from core.archive.analyze import derive_outcomes, safe_rank_corr  # reused verbatim
+from core.archive.analyze_features import leave_out_stamp as _leave_out_stamp
 from core.archive.missed_winners import (  # reused verbatim
     Engagement,
     EpisodeOutcome,
     summarize,
 )
 from core.backtest import deflated_sharpe, edge_report, event_study, is_oos, null_model, stats
-from core.backtest.loader import DEFAULT_DB_PATH, load_episodes
+from core.backtest.loader import DEFAULT_DB_PATH, collapse_to_episodes, load_archive, load_episodes
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 
 # Tier cuts / horizons the DSR section treats as the candidate-config search (the
@@ -684,7 +686,8 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         spy_col: Optional[str] = None,
         json_path: Optional[str] = None,
         cache_path: Optional[str] = None,
-        universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE) -> dict:
+        universe_type: Optional[str] = DEFAULT_UNIVERSE_TYPE,
+        leave_out_stamp: Optional[str] = None) -> dict:
     _LINES.clear()
     out = None
     if json_path:
@@ -693,18 +696,32 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
     # Stock-only standalone-edge population by default: the ETF universes now
     # archive under source='screener' too, so pin universe_type to keep this
     # calibration ground truth uncontaminated (mirrors domains/archive/edge.py).
-    df = load_episodes(db_path=db_path, source=source, universe_type=universe_type)
+    left_out = None
+    if leave_out_stamp:
+        # One engine stamp's rows left out BEFORE the episode collapse, so a setup
+        # first seen on that night anchors on its first night that still counts
+        # (go-live plan task 7: a bad night keeps its rows, the read leaves it out).
+        raw, n_out = _leave_out_stamp(
+            load_archive(db_path=db_path, source=source, universe_type=universe_type),
+            leave_out_stamp)
+        df = collapse_to_episodes(raw)
+        left_out = {"stamp": leave_out_stamp, "rows": n_out}
+    else:
+        df = load_episodes(db_path=db_path, source=source, universe_type=universe_type)
 
     header("CHROLLO STANDALONE-EDGE BACKTEST HARNESS  (PRELIMINARY)")
     emit(f"DB: {db_path or DEFAULT_DB_PATH}  (read-only)")
     if source:
         emit(f"Filtered to source = '{source}'")
+    if left_out:
+        emit(f"Left out engine stamp {left_out['stamp']}: {left_out['rows']} rows "
+             "(read as if its nights never ran)")
 
     comp = section_composition(df, source=source)
     if comp["n"] == 0:
         report = "\n".join(_LINES)
         _safe_print(report)
-        return {"composition": comp}
+        return {"composition": comp, "left_out_stamp": left_out}
 
     edge = section_edge(df, source=source)
     # The null model treats its frame as the screener-fired set; on a default
@@ -745,7 +762,7 @@ def run(db_path: Optional[str] = None, source: Optional[str] = None,
         "is_oos": split, "abnormal_vs_spy": abnormal,
         "haircut": haircut, "missed_winners": missed,
         "regime": regime, "event_study_car": car, "deflated_sharpe": dsr,
-        "trigger_gated": trigger,
+        "trigger_gated": trigger, "left_out_stamp": left_out,
     }
     if json_path:
         with open(out, "w", encoding="utf-8") as f:
@@ -769,6 +786,9 @@ def main() -> None:
     ap.add_argument("--json", default=None, help="also write a structured JSON report here")
     ap.add_argument("--cache", default=None,
                     help="price panel parquet for CAR/DSR (default: settings.CACHE_FILENAME)")
+    ap.add_argument("--leave-out-stamp", default=None, metavar="STAMP",
+                    help="leave out the rows one engine stamp wrote (its full hash or first 8+ "
+                         "characters, as docs/flag_ledger.md prints them): a bad night after a flip")
     args = ap.parse_args()
     universe_returns = None
     if args.universe:
@@ -776,7 +796,8 @@ def main() -> None:
         universe_returns = pd.read_parquet(path)
     run(db_path=args.db, source=args.source, metric_col=args.metric,
         seed=args.seed, spy_col=args.spy_col, json_path=args.json,
-        universe_returns=universe_returns, cache_path=args.cache)
+        universe_returns=universe_returns, cache_path=args.cache,
+        leave_out_stamp=args.leave_out_stamp)
 
 
 if __name__ == "__main__":

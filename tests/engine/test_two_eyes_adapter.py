@@ -219,6 +219,52 @@ def test_bumping_the_ruleset_string_moves_the_version_stamp(monkeypatch):
     assert manifest_hash() != before
 
 
+#: Every TWO_EYES_RULESET string ever committed, oldest first (read from
+#: `git log --all -G'TWO_EYES_RULESET *=' -- config/`). The LAST one is the
+#: string in config now. A string once used is spent: the stamp hashes the
+#: settings and not the reader's code, so a fixed reader re-flipped under a spent
+#: string would stamp its nights with the same version as the bad night it
+#: replaced (go-live plan task 7). A bump APPENDS its new string here.
+SPENT_RULESETS = (
+    "two-eyes-0.1.0-skeleton",
+    "two-eyes-0.2.0-line",
+    "two-eyes-0.3.0-walk",
+    "two-eyes-0.4.0-life",
+    "two-eyes-0.5.0-lps",
+    "two-eyes-0.5.1-lps",
+    "two-eyes-0.6.0-pair",
+    "two-eyes-0.6.1-pair",
+    "two-eyes-0.6.2-pair",
+    "two-eyes-0.7.0-words",
+    "two-eyes-0.7.1-story",
+    "two-eyes-0.7.2-state",
+    "two-eyes-0.7.3-check",
+    "two-eyes-0.8.0-mini",
+    "two-eyes-0.8.1-once",
+    "two-eyes-0.8.2-deep",
+    "two-eyes-0.9.0-grade",
+    "two-eyes-0.9.1-grade",
+)
+
+
+def test_a_ruleset_string_is_never_reused():
+    """The string in config is the newest entry of the spent list, and appears
+    there once: going back to an older string (a re-flip that forgot its bump)
+    fails, and so does a new string nobody appended."""
+    from config import settings
+
+    assert len(set(SPENT_RULESETS)) == len(SPENT_RULESETS), (
+        "a ruleset string is listed twice: a string once used is spent")
+    current = settings.TWO_EYES_RULESET
+    assert current == SPENT_RULESETS[-1], (
+        f"TWO_EYES_RULESET is {current!r}. "
+        + (f"That string is SPENT (used before, at position {SPENT_RULESETS.index(current) + 1}); "
+           "a re-flip must bump to a NEW string, or its nights share the bad night's stamp."
+           if current in SPENT_RULESETS else
+           "A new string: append it to SPENT_RULESETS in this file.")
+    )
+
+
 def test_the_flag_ledger_carries_the_new_switch():
     """EC-8: a new engine flag ships with the full protocol in ONE change."""
     import os

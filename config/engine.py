@@ -1062,5 +1062,8 @@ TWO_EYES_READER_ENABLED = False
 # it reads. The engine's version stamp hashes the listed settings, their
 # names and the scoring registry - but NO reader code, so without this two
 # different builds of the new reader would stamp the same version and an
-# archive row could not say which one wrote it.
+# archive row could not say which one wrote it. A string once used is SPENT:
+# a bump appends its new string to SPENT_RULESETS in
+# tests/engine/test_two_eyes_adapter.py, and a re-flip after an undo always
+# bumps (docs/flag_ledger.md, "The engine stamps of the flip").
 TWO_EYES_RULESET = "two-eyes-0.9.1-grade"
