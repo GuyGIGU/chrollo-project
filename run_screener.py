@@ -28,17 +28,28 @@ from core.pipeline.screening.scan_job import (
     run_scan_and_export,
 )
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_KEY
+from config import settings
 
 
-def _print_result_json(n_setups: int, n_archived: int, n_errored: int = 0,
-                       fundamentals: dict | None = None) -> None:
-    payload = {"n_setups": n_setups, "n_archived": n_archived, "n_errored": n_errored}
+def _print_result_json(n_setups: int | None, n_archived: int, n_errored: int = 0,
+                       fundamentals: dict | None = None,
+                       n_refused: int = 0) -> None:
+    # n_refused rides the SAME payload as n_errored and for the same reason:
+    # a night that lost a row must say so where the alert can read it. It is a
+    # required key (0 on a clean night) because "absent" and "none" must not
+    # look alike for something this cheap to report.
+    payload = {"n_setups": n_setups, "n_archived": n_archived,
+               "n_errored": n_errored, "n_refused": n_refused}
     # Fundamentals counters ride as an OPTIONAL key: absent when dark, so the
     # flag-off line stays byte-identical. The gate is None-ness, NEVER
     # truthiness — a pass that ran and populated nothing publishes an EMPTY
     # block, distinguishable from "dark" (2026-08-17 review, Ramírez).
     if fundamentals is not None:
         payload["fundamentals"] = fundamentals
+    # The undo night's mark on the line the service reads (go-live task 8):
+    # present only when archiving was off, so a normal night's line is unchanged.
+    if not settings.ARCHIVE_LIVE_SCANS:
+        payload["archived"] = False
     print("SCAN_RESULT_JSON:" + json.dumps(payload), flush=True)
 
 
@@ -74,11 +85,21 @@ def _parse_args() -> argparse.Namespace:
                         help="scan a single universe by key (default: us_stocks)")
     parser.add_argument("--all-universes", action="store_true",
                         help="scan every universe sequentially (US-Stocks first)")
+    parser.add_argument("--no-archive", action="store_true",
+                        help="the undo night: read and rewrite the screen, archive nothing "
+                             "(this run only; no config file is edited)")
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
+    if args.no_archive:
+        # The undo night (go-live task 8): an archived re-scan of a bad night
+        # would overwrite the evidence of it. Off in THIS process only - the
+        # config file is not touched, so the next night archives as always.
+        settings.ARCHIVE_LIVE_SCANS = False
+        print("Archiving is OFF for this run only (--no-archive): the screen is "
+              "rewritten, the archive is not touched.", flush=True)
     try:
         if args.download_only:
             download_result = refresh_market_data_cache()
@@ -93,17 +114,37 @@ def main() -> None:
             # universe's (which prints its own timing line last).
             results = run_all_universe_scans(mode=mode)
             primary = results.get(DEFAULT_UNIVERSE_KEY)
+            # n_refused is the ONE count summed over every universe. The
+            # others stay the primary's on purpose (an ETF universe's clean
+            # timing line must not mask a US-Stocks crash count), but a row
+            # the archive refused is a lost row whichever universe it was in,
+            # and a lost night cannot be re-run.
+            refused_tonight = sum(r.n_refused for r in results.values() if r is not None)
             _print_result_json(primary.n_setups if primary else 0,
                                primary.n_archived if primary else 0,
                                primary.n_errored if primary else 0,
-                               primary.fundamentals_counts if primary else None)
+                               primary.fundamentals_counts if primary else None,
+                               refused_tonight)
             return
         result = run_scan_and_export(mode=mode, universe=args.universe)
     except StaleMarketDataError as exc:
-        _print_result_json(exc.n_setups or 0, 0)
+        # The other universes may have archived and refused rows before the
+        # stale primary was re-raised; their count rides the line regardless.
+        _print_result_json(exc.n_setups or 0, 0, n_refused=exc.n_refused)
+        raise
+    except Exception as exc:
+        # Any other failure: the night is recorded failed either way, but
+        # rows the archive refused before it — in this universe or another
+        # — still ride the line, so the alert names them. A failure that
+        # carries no refusals prints nothing, exactly as before.
+        # The setup count is NOT known on this path: null, which the screen
+        # shows as unknown — never a zero nobody counted.
+        refused = getattr(exc, "n_refused", 0)
+        if refused:
+            _print_result_json(getattr(exc, "n_setups", None), 0, n_refused=refused)
         raise
     _print_result_json(result.n_setups, result.n_archived, result.n_errored,
-                       result.fundamentals_counts)
+                       result.fundamentals_counts, result.n_refused)
 
 
 if __name__ == '__main__':

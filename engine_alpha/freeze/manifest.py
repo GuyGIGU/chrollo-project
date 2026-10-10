@@ -7,13 +7,14 @@ detector decision (which setups fire, how they score/rank, where the phase
 boundaries land), gathered into a sorted dict whose sha256 is the engine config
 version. An archived signal stamped with that hash can later be traced to the
 exact config that produced it, and a freeze + backtest can assert the config
-hasn't silently drifted. TWO non-settings blocks ride along, both for the same
+hasn't silently drifted. THREE non-settings blocks ride along, all for the same
 reason — they decide what the DATA MEANS, so they rotate the version like any
 weight: the TA-grade story-chapter taxonomy (term→chapter membership + order,
 derived from the scoring registry — re-chaptering changes what the grade's
-breakdown means), and the sentence family's signed word/verdict vocabulary
+breakdown means), the sentence family's signed word/verdict vocabulary
 (derived from the ONE event-vocabulary declaration — a signed re-wording
-changes what an archived sentence SAYS).
+changes what an archived sentence SAYS), and the new reader's own numbers,
+which its copied pieces read instead of settings.
 
 Design rules (deliberate, audited):
 
@@ -180,6 +181,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "LPS_BUY_DAY_READS_HIGH_ENABLED",
     "LPS_REFUSALS_TO_GRADES_ENABLED",
     "LPS_SELLERS_RISING_FATAL_ENABLED",
+    "TWO_EYES_READER_ENABLED",
+    "TWO_EYES_RULESET",
     "TURN_LINE_ENABLED",
     "TURN_LINE_TREND_ENABLED",
     "TURN_LINE_FLOOR_ATR",
@@ -496,7 +499,7 @@ def collect_manifest() -> Dict[str, Any]:
     # to which chapter (and the ruled left→right order) changes what the grade's
     # breakdown MEANS, so a re-chaptering must rotate engine_config_version like
     # any weight. Derived lazily FROM the one registry (never a second map) —
-    # the only non-settings block in the manifest, on the same lazy-import rule.
+    # a non-settings block, on the same lazy-import rule.
     from engine_alpha.scoring import taxonomy
 
     manifest["TA_GRADE_CHAPTER_ORDER"] = list(taxonomy.CHAPTER_ORDER)
@@ -530,6 +533,19 @@ def collect_manifest() -> Dict[str, Any]:
     from engine_alpha.structure.events import event_vocabulary
 
     manifest["SENTENCE_VOCABULARY"] = event_vocabulary.vocabulary_manifest()
+    # The new reader's own numbers (two-eyes-reader task 7). Its copied pieces
+    # read them from two_eyes_numbers, not settings — a shared key would move the
+    # frozen original with them — so without this block a tuned number would
+    # change the reading and keep the version. The numbers live OUTSIDE the
+    # package (a module with no imports): this stamp runs on every night's
+    # payload and archive write, and importing them from inside the package ran
+    # its door, which loads every stage — so a broken stage stopped the old
+    # reader's night with the switch off (council review 2026-10-09, finding 1).
+    from engine_alpha import two_eyes_numbers
+
+    manifest["TWO_EYES_METHOD_NUMBERS"] = {
+        name: _canonical(value)
+        for name, value in vars(two_eyes_numbers).items() if name.isupper()}
     return manifest
 
 

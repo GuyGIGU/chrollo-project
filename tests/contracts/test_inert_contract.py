@@ -37,6 +37,7 @@ from engine_alpha.structure.box.trace_export import ELECTION_TRACE_COLUMN_SQL
 from engine_alpha.structure.context.strategy_read import STRATEGY_COLUMN_SQL
 from engine_alpha.structure.events.event_vocabulary import SENTENCE_COLUMN_SQL
 from engine_alpha.structure.events.line_words import _WORDS_BY_FLAG
+from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL
 from tools.regression.shadow_diff import CANONICAL_FIELDS
 
 # The declared additive field sets — result-row keys each lane may ADD.
@@ -128,6 +129,18 @@ DECLARED_ADDITIVE_FIELDS: dict[str, frozenset[str]] = {
     "SECTOR_RANKING_ENABLED": frozenset(),
 }
 
+# Switches that REPLACE the reader rather than add a lane to it: "additive
+# only" is not their contract and never could be. Turned on, the two-eyes
+# reader answers every canonical field itself — on his ALB (sealed bars, read on
+# Tue 07/04/2026, a day both readers fire) the score, the tier (A to S) and the
+# base length move, 207 of the old row's keys go and `_wire_two_eyes`, the
+# screen block, arrives. It used to be enrolled here as an additive lane
+# "measured empty: the skeleton draws no lines", which every law in this file
+# read as "turning it on changes nothing he sees" (council review 2026-10-09,
+# finding 10). Its OFF-state is still the shadow guard's and the ratchet's; its
+# ON-state is the approval sitting's.
+REPLACES_THE_READER = frozenset({"TWO_EYES_READER_ENABLED"})
+
 # Flags enrolled while dark that have since FLIPPED LIVE without dissolving.
 # Their entry stays: this contract is what their proofs re-scope into when
 # they do dissolve. A live flag joins only by a deliberate edit here.
@@ -187,7 +200,8 @@ def test_every_default_off_engine_flag_is_enrolled():
     # The enrollment rule (docs/flag_ledger.md): a new dark lane declares, in
     # the same change, the result-row keys it may add. Without an entry it has
     # no inert contract to re-scope into at its dissolution.
-    unenrolled = _default_off_engine_flags() - set(DECLARED_ADDITIVE_FIELDS)
+    unenrolled = (_default_off_engine_flags() - set(DECLARED_ADDITIVE_FIELDS)
+                  - REPLACES_THE_READER)
     assert not unenrolled, (
         f"{sorted(unenrolled)} default off and are registered engine flags "
         "(engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS) but declare no "
@@ -203,8 +217,8 @@ def test_every_enrolled_name_is_a_default_off_engine_flag():
     # does not exist as named — and read as covered. The manifest is where
     # every engine flag is registered before its first read, so it is the one
     # list this checks against.
-    stray = (set(DECLARED_ADDITIVE_FIELDS) - _default_off_engine_flags()
-             - ENROLLED_THEN_FLIPPED_LIVE)
+    stray = ((set(DECLARED_ADDITIVE_FIELDS) | REPLACES_THE_READER)
+             - _default_off_engine_flags() - ENROLLED_THEN_FLIPPED_LIVE)
     assert not stray, (
         f"{sorted(stray)} declare an additive field set but are not default-off "
         "engine flags (engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS, default "
@@ -218,3 +232,33 @@ def test_the_flipped_live_exemption_names_only_live_enrolled_engine_flags():
         assert flag in ENGINE_SETTINGS_KEYS, f"{flag} is not a registered engine flag"
         assert getattr(settings, flag) is True, (
             f"{flag} is exempted as flipped live but defaults to {getattr(settings, flag)!r}")
+
+
+
+def test_a_switch_that_replaces_the_reader_is_never_an_additive_lane():
+    assert "TWO_EYES_READER_ENABLED" not in DECLARED_ADDITIVE_FIELDS, (
+        "the two-eyes switch replaces the reader; it cannot be an additive lane")
+    assert not REPLACES_THE_READER & set(DECLARED_ADDITIVE_FIELDS)
+
+
+def test_the_two_eyes_switch_really_replaces_the_reader(monkeypatch):
+    """The reason it is not an additive lane, read through the real door on his
+    own chart: switched on, it moves canonical fields and adds a key outside the
+    archive family. If this ever reads "nothing moved", the reader answered with
+    the old engine under the new name — the door's split brain."""
+    import pandas as pd
+
+    from core.calibration.replay import load_sealed_fixture
+    from engine_alpha import reader
+
+    frames, _ = load_sealed_fixture()
+    cut = frames["ALB:2026-04-13"].loc[:pd.Timestamp("2026-04-07")]
+    off = reader.evaluate_ticker("ALB", cut)
+    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True)
+    on = reader.evaluate_ticker("ALB", cut)
+    assert isinstance(off, dict) and isinstance(on, dict), "both readers fire on his ALB that day"
+    moved = [k for k in CANONICAL_FIELDS if on.get(k) != off.get(k)]
+    assert {"Score", "Tier", "Base Len"} <= set(moved), moved
+    family = {"_" + col for col in TWO_EYES_COLUMN_SQL}
+    assert "_wire_two_eyes" in set(on) - set(off) - family
+

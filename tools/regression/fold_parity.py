@@ -41,7 +41,7 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 configure_path()
 
 from engine_alpha.evaluation import EVAL_ERROR
-from core.pipeline.screening.screener import _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
 from tools.regression.shadow_diff import _load_fixture
 
 _REJECT = "__REJECT__"

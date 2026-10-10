@@ -117,6 +117,73 @@ that scoped overrides and tests patch.
 | `stability.py` | Measure-only and dark (`ELECTION_STABILITY_ENABLED`): does the elected reading survive moving the evaluation day back? Real structures persist; junk flickers. |
 | `election_identity.py` | The one test of whether two elected structures are the SAME reading, shared by the operator-agreement harness and the stability read. |
 
+## 2b. `engine_alpha/reader.py` — the ONE door to the chart reader
+
+Two readers exist side by side (today's engine, and the two-eyes reader of the
+2026-09-20 rewrite: every stage built, dark), so **every shipping path and every gate
+asks the same door which reader answers**, and the switch is read in exactly one
+function (`which_reader`). With the switch on, `scan_worker` hands the scan the door's own
+`scan_read` (`evaluate_ticker`, except that a chart whose frame the reader would not read comes
+back as `NotRead`, by name and reason, listed apart from crashes: go-live plan task 3) and no
+lane (every lane is an old-engine twin: the near-miss lane goes
+quiet and says so, a dark lane switched on refuses the scan by name, `refuse_old_engine_lanes`;
+go-live plan task 2), `read_box` stays the OLD reader's and refuses by name under the new one
+(`NotThisReader`; the new reader's own record is `read_record`, go-live plan task 5), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a
+failed read is never told as "no setup".
+
+**The two-eyes reader and its doors.** `engine_alpha/two_eyes/` is the reader itself,
+a leaf inside the leaf: it imports nothing of the old reader (`structure`, `scoring`,
+`evaluation`), and its stages run in his order (`frame`, `line`, `walk`, `lps`, `story`,
+`mini`, `grade`, `state`; `record.py` is the shape of a read). Around it, each OUTSIDE
+the package so the old reader's night never loads it: `two_eyes_numbers.py` (its own
+numbers, hashed into the version stamp), `two_eyes_roles.py` (the box roles the archive
+needs), `two_eyes_adapter.py` (a read spoken in the old result shape, the one place the
+two vocabularies meet), `two_eyes_archive.py` (the dated-line archive columns, one
+producer for every writer) and `market_sessions.py` (the NYSE calendar, moved here from
+`core` so the leaf can read it). The door has three ways in — `evaluate_ticker` (the whole chain
+under its skip guard), `run_eval_chain` (the chain that raises, for callers that
+want the exception) and `read_box` (the box read alone, no pullback, no score) —
+plus `scan_worker`, which composes the scan's three lanes under the old reader (the
+near-miss cohort, the watch-lane recorder and the rescue lanes' cost twin, outermost). The reader's NAME rides
+an optional `stamp` sink, never the result, so flag-off output stays byte-identical.
+
+**Who reads a chart, and how** (surveyed 2026-09-20; the earlier list of five was
+a lower bound, and two of these bypass the scan's entry point entirely):
+
+| Caller | Through the door | Why it reads |
+|---|---|---|
+| `core/pipeline/screening/screener.py` | `scan_worker` | the nightly scan |
+| `core/archive/seed.py` | `run_eval_chain` | the archive seed, and a single row's re-read from `webapp/backend/domains/archive/actions.py` |
+| `webapp/backend/domains/screener/chart_state.py` | `run_eval_chain` | one ticker's state word, on demand |
+| `webapp/backend/domains/calibration/fired.py` | `read_box` | the calibration workbench's "why did this mark miss" |
+| `webapp/backend/domains/calibration/grading.py` | `evaluate_ticker`, `read_box` | the workbench's grading, which the agreement harness (`tools/calibration/calibration_harness.py`) shares |
+| `core/calibration/replay.py` | `evaluate_ticker`, `read_box` | the seam the gates share |
+| `tools/regression/marks_corpus.py` · `tools/regression/negative_corpus.py` · `tools/regression/shadow_diff.py` | `evaluate_ticker` | the marks ratchet, the junk corpus, the fleet shadow |
+| `tools/regression/fold_parity.py` · `tools/regression/cause_veto_corpus.py` | `evaluate_ticker` | the fold-parity gate and the cause-before-effect bite gate |
+
+Instruments (the censuses, the A/Bs, `tools/audits/doctrine_audit.py`,
+`tools/audits/structure_case_audit.py`, `tools/research/full_package_render.py`) may still
+name the old engine directly while both readers exist — they measure one reader on
+purpose. `tools/calibration/word_recall.py` reads the new reader's copies and asks the door
+for the old engine's election (task 7). `core/pipeline/screening/screener.py` still exports
+`_evaluate_ticker`, the door under the scan's old name, for the tests that call it by it.
+
+**What the door does NOT reach.** `tools/regression/reader_pin.py` takes the engine's event
+vocabulary straight from the bricks and never asks for a chart read, so the switch
+does not touch it. `webapp/backend/domains/archive/actions.py` re-reads one archived
+row through `core/archive/seed.py`'s `_evaluate_at_date`, which does go through the
+door.
+
+The reader's name is a sink, so it answers the caller that asked. The nightly scan
+reads in a process pool and its results cross that boundary in a fixed shape, so the
+scan does not stamp per ticker: the switch is read once per process and cannot change
+mid-run, so one `which_reader()` names the whole night.
+
+`tests/engine/test_reader_door.py` holds the shipping-and-gating list and fails if one of
+them can reach the old engine — **calling it, or handing it to something that will**.
+The reference rule is the one that matters: the scan never wrote a call at all, it
+picked the twin by name and gave it to the pool.
+
 ## 3. `core/pipeline/` — the Conductor ("runs the screen")
 
 The only part that knows the *order of operations*. For each stock it: filters the

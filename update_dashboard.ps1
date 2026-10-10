@@ -19,10 +19,26 @@
 # service's broker-free configuration. It only rebuilds dist/ and bounces the
 # service, so the dashboard stays broker-free at boot exactly as before.
 # (The import-main smoke does not run the app lifespan — no scheduler, no broker.)
+#
+# It REFUSES, before asking for administrator rights, a checkout that is not on
+# the release branch or that has uncommitted tracked files (tools\ops\
+# deploy_guard.ps1): the service runs whatever this checkout holds. The release
+# branch is named in ONE place, -ReleaseBranch below (default 'main');
+# -AllowAnyCheckout deploys anyway and says what it overrode.
 
-param([switch]$Rollback, [switch]$Force)
+param([switch]$Rollback, [switch]$Force,
+      [string]$ReleaseBranch = 'main', [switch]$AllowAnyCheckout)
 
 $ErrorActionPreference = 'Stop'
+
+# --- the release checkout, before anything else ---------------------------------
+$guardArgs = @{ Repo = $PSScriptRoot; ReleaseBranch = $ReleaseBranch }
+if ($AllowAnyCheckout) { $guardArgs.AllowAnyCheckout = $true }
+& (Join-Path $PSScriptRoot 'tools\ops\deploy_guard.ps1') @guardArgs
+if ($LASTEXITCODE -ne 0) {
+    Read-Host "Press Enter to close"
+    exit 1
+}
 
 # --- self-elevate -------------------------------------------------------------
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
@@ -36,6 +52,9 @@ if (-not $isAdmin) {
     # Forward -Force too: the elevated child is the process that runs the
     # checks, so a switch dropped here would silently re-arm them.
     if ($Force) { $argList += '-Force' }
+    # The same for the release checkout: the child runs the guard again.
+    $argList += @('-ReleaseBranch', "`"$ReleaseBranch`"")
+    if ($AllowAnyCheckout) { $argList += '-AllowAnyCheckout' }
     Start-Process powershell -Verb RunAs -ArgumentList $argList
     exit
 }

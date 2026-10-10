@@ -44,6 +44,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         _sys.path.insert(0, _root)
 
     from core.archive.seed import SEED_HISTORY_DAYS, _evaluate_at_date
+    from engine_alpha.reader import ReadFailed
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
     from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
     from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
@@ -56,6 +57,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from engine_alpha.structure.events.event_map import event_map_archive_values
     from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
     from engine_alpha.structure.context.strategy_read import strategy_archive_values
+    from engine_alpha.two_eyes_archive import two_eyes_archive_values
     from engine_alpha.structure.box.trace_export import election_trace_archive_values
     from archive_models import (
         SetupArchive,
@@ -119,7 +121,11 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     if len(df_slice) < 200:
         raise HTTPException(status_code=422, detail=f"only {len(df_slice)} bars at {scan_dt} (need 200+)")
 
-    result = _evaluate_at_date(df_slice)
+    try:
+        result = _evaluate_at_date(df_slice)
+    except ReadFailed as exc:
+        # The reader never read this chart: say so, never "did not fire" (council review 2026-10-09, finding 3).
+        raise HTTPException(status_code=422, detail=f"the read failed on {ticker} @ {scan_dt}: {exc}")
     if result is None:
         raise HTTPException(
             status_code=422,
@@ -234,6 +240,9 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         **election_trace_archive_values(result.get, prefixed=False),
         # Strategy read (held-through-correction) — NULL when dark
         **strategy_archive_values(result.get, prefixed=False),
+        # EC-30: the family rides EVERY writer through the one producer,
+        # so the closed-set refusal guards this route too.
+        **two_eyes_archive_values(result.get, prefixed=False),
         # Forward-return / triple-barrier outcomes computed above
         **fwd_returns,
     }

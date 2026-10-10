@@ -31,10 +31,10 @@ import os
 import sys
 
 try:  # works under both `python -m tools.audits.structure_case_audit` and `python tools/audits/structure_case_audit.py`
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path
+    from tools._bootstrap import configure_path, say_old_reader
 
 configure_path()
 
@@ -44,6 +44,7 @@ import pandas as pd
 
 from config import settings
 from core.archive.seed import _evaluate_at_date
+from engine_alpha import reader
 from engine_alpha.evaluation import apply_baseline_filters
 from engine_alpha.structure.narrative import bricks
 from engine_alpha.structure.box.box_gates import (
@@ -425,21 +426,29 @@ def _spy_6m(d, level0) -> float:
 
 
 def find_last_valid(raw: pd.DataFrame, spy_6m: float, scan_back: int):
-    """Walk backward from the latest bar; return (offset, result_dict, truncated_df)
-    for the MOST RECENT as-of date the full pipeline fires, or (None, None, None).
+    """Walk backward from the latest bar; return (offset, result_dict, truncated_df, failed)
+    for the MOST RECENT as-of date the full pipeline fires, or (None, None, None, failed).
 
     Dropping the last ``offset`` bars = "pretend the rest doesn't exist", so a
     setup whose LPS was later ruined is still seen at the date it was live. Uses
-    the real ``_evaluate_at_date`` (full baseline -> structure -> LPS -> score)."""
+    the real ``_evaluate_at_date`` (full baseline -> structure -> LPS -> score).
+    A date the reader REFUSED is not a date that did not fire: it is said, one
+    line per date, and counted in ``failed`` (go-live plan, task 4)."""
     n = len(raw)
+    failed = 0
     for off in range(0, scan_back + 1):
         sl = raw.iloc[: n - off] if off else raw
         if len(sl) < 200:
             break
-        res = _evaluate_at_date(sl.copy(), spy_6m_return=spy_6m)
+        try:
+            res = _evaluate_at_date(sl.copy(), spy_6m_return=spy_6m)
+        except reader.ReadFailed as exc:
+            failed += 1
+            print(f"  {sl.index[-1].date()}: the read failed - {exc}")
+            continue
         if res is not None:
-            return off, res, sl
-    return None, None, None
+            return off, res, sl, failed
+    return None, None, None, failed
 
 
 def _print_pair_cascade(df, cascade, cap: int = 8) -> None:
@@ -574,6 +583,7 @@ def main() -> None:
                          "per-root story + LPS reject reasons) instead of the audit walk.")
     a = ap.parse_args()
 
+    say_old_reader()
     d = pd.read_parquet(settings.CACHE_FILENAME, engine=settings.PARQUET_ENGINE)
     level0 = set(d.columns.get_level_values(0))
     spy_6m = _spy_6m(d, level0)
@@ -591,9 +601,10 @@ def main() -> None:
             print_engine_trace(t, raw)
             continue
         if a.scan_back:
-            off, res, sl = find_last_valid(raw, spy_6m, a.scan_back)
+            off, res, sl, failed = find_last_valid(raw, spy_6m, a.scan_back)
             if res is None:
-                print(f"\n>>> {t}: did NOT fire in the last {a.scan_back} bars "
+                unread = f", and the read FAILED on {failed} of those dates" if failed else ""
+                print(f"\n>>> {t}: did NOT fire in the last {a.scan_back} bars{unread} "
                       f"(latest {raw.index[-1].date()}) — auditing today for context.")
                 audit(t, raw)
             else:

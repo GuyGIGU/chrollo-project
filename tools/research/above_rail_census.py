@@ -42,11 +42,11 @@ import argparse
 import json
 
 try:
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 except ModuleNotFoundError:
     import os, sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 
 _PROJECT_ROOT = configure_path(backend=True)
 
@@ -192,6 +192,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--json", dest="out", help="also write the rows to JSON")
     args = parser.parse_args()
+    say_old_reader()   # FIRST: it reads the OLD reader past the door (go-live plan, task 4)
 
     setups = load_corpus()
     frames, baseline = load_sealed_fixture()

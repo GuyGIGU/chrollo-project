@@ -17,7 +17,9 @@ Maintenance rules:
   `engine_alpha/freeze/manifest.py`'s `ENGINE_SETTINGS_KEYS` has no entry, and when an entry
   names anything but a default-off engine flag (a flag enrolled while dark that has since
   flipped live without dissolving stays enrolled by name, in the test's
-  `ENROLLED_THEN_FLIPPED_LIVE`). It replaced the old "all declared" assertion, which
+  `ENROLLED_THEN_FLIPPED_LIVE`; a switch that REPLACES the reader instead of adding a lane,
+  `TWO_EYES_READER_ENABLED`, is named in `REPLACES_THE_READER`, never as additive: council
+  review 2026-10-09, finding 10). It replaced the old "all declared" assertion, which
   compared the dict to a literal set in the same file and so could not catch a lane that
   never enrolled (council review 2026-09-01, finding 11b). Measure the set, do not guess
   it: evaluate the shadow fixture and the sealed marks fixture with the flag off and on,
@@ -37,6 +39,7 @@ Maintenance rules:
 
 | Flag | Built | Blocking decision | Evidence | Kill-by |
 |---|---|---|---|---|
+| `TWO_EYES_READER_ENABLED` | 2026-09-20 (the rewrite, task 5: the walking skeleton) | **THE NEW CHART READER, written beside the old engine and read in HIS order.** It does not replace a rule; it replaces the reader. Blocking decision: his approval sitting, and then a follow-on go-live plan with its own undo rehearsal and ten clean nights - never this flag alone and never piecemeal (he, Mon 14/09/2026: "we will go live after we built everything and I approve"). If the rewrite has not reached his sitting by the kill-by, the reader and this flag are reviewed together, never quietly carried. | On Thu 01/10/2026 (the core sitting) the core was built - the line, the end of the trend, the rule of the pair as he settled it that day, the box's life, the LPS and its trigger, with the universe door before the read; the story and the mini followed (Sat 03/10/2026), then the grade (Fri 09/10/2026, ruleset two-eyes-0.9.1-grade), the screen block and the approval pack (task 15): EVERY stage is built. The yardstick reads it as its third arm (on his 40: his box to the cent 25, fires on his day at his trigger 35, junk charts firing 14 of 16). The box-only read still refuses it (go-live plan task 5); since go-live task 2 (Sat 10/10/2026) the nightly scan reads with it when it is on: the worker is the door's own read, the near-miss lane goes quiet and says so, the dark watch and rescue lanes refuse the scan by name (the section *The scan's lanes under the new reader* below). The flip stays his. Off: byte-identical, proven by the fleet shadow, the reader pin, the junk corpus and the marks ratchet. Paired with `TWO_EYES_RULESET`, a hand-bumped string in the manifest, so two builds of the new reader cannot stamp the same version. | 2026-12-31 |
 | `RESPECT_WHOLE_BAR_ENABLED` | 2026-09-13 (final method, build step 2) | **R1: a bar is outside the box only when the WHOLE bar sits beyond the rail area.** Blocking decision: the operator's flip, together with the rest of the stack and step 12, never alone (decisions.md 2026-09-13, build step 2) | alone on the fired window: junk 11 of 16 (+COLM +DBD +DGII +FLG -OHI vs the control's 8), fleet 31 of 37 (-BC -EC -SN vs 34); the seven-flag stack (all but the buy-day clause), re-measured after the review of Mon 14/09/2026: 35 of his 37 windows concordant (control 20), ratchet 33 of 35 (EGBN, NOK, ST convert, 0 regressions), junk 15 of 16, fleet 36; all eight with step 3: fleet 34 (TKO and VIK lost); `tests/engine/test_final_method_step2.py` | 2026-11-30 |
 | `DWELL_GRADED_ENABLED` | 2026-09-13 (final method, build step 2) | **R13: the whole occupancy exam never refuses (both end-third dwells, the mid churn and the coverage; the first build graded two of the four legs, review finding RF-5).** Blocking decision: the operator's flip together with the rest of the stack and step 12, NEVER alone: since the review it grades the whole occupancy exam (both end-third dwells, the mid churn, the coverage), and alone that regresses MATX and fires junk DGII and FLG, the Tested-DEAD bar-dwell signature; the forward-return read the review asked for (RF-6) is not his condition (his answer of Mon 14/09/2026: "we will go live after we built everything and I approve"), so it goes live with the whole method at his approval | alone on the fired window, re-measured as the whole exam: junk 10 of 16 (+DGII +FLG vs the control's 8), fleet 34 of 37, ratchet: EGBN and NOK convert and MATX REGRESSES; the seven-flag stack (all but the buy-day clause), re-measured after the review of Mon 14/09/2026: 35 of his 37 windows concordant (control 20), ratchet 33 of 35 (EGBN, NOK, ST convert, 0 regressions), junk 15 of 16, fleet 36; all eight with step 3: fleet 34 (TKO and VIK lost); `tests/engine/test_final_method_step2.py` | 2026-11-30 |
 | `BOX_HANDOVER_RANGES_ENABLED` | 2026-09-13 (final method, build step 2) | **R11: a rescued box is kept only while the last close sits within 1.5 ranges above its R.** Blocking decision: HOLD until build step 11. It keeps a box on a CLOSE within 1.5 ranges of R, while his Q26 reads the hand-over by swings; the early-flip recommendation was withdrawn at the review (decisions.md 2026-09-14) | alone on the fired window: junk 8 of 16 (+BBVA -FRPH vs the control's 8), fleet 34 of 37 (unchanged vs 34); the seven-flag stack (all but the buy-day clause), re-measured after the review of Mon 14/09/2026: 35 of his 37 windows concordant (control 20), ratchet 33 of 35 (EGBN, NOK, ST convert, 0 regressions), junk 15 of 16, fleet 36; all eight with step 3: fleet 34 (TKO and VIK lost); `tests/engine/test_final_method_step2.py` | 2026-11-30 |
@@ -75,6 +78,101 @@ Maintenance rules:
 | `SMA50_DIP_EXCEPTION_ENABLED` (+ `SMA50_DIP_MAX_SESSIONS`/`SMA50_DIP_MAX_ATR`) | 2026-08-28 (miss program) | **The 50-day dip exception at the universe door** — the deep-spring/recovery lane the miss program's universe-door ruling asked to be designed instead of removing the trend template: an sma50 refusal enters chart reading (geometry stays the only veto; SMA_200 + YoY legs still gate behind it) when the dip under the 50-day began within `SMA50_DIP_MAX_SESSIONS` (25) and the close has recovered to within `SMA50_DIP_MAX_ATR` (1.0) ATR_10 of it. Frozen-frame evidence (docs/miss_program_2026-08.md): **SKYT's drawn spring dragged price under the 50-day for ~4 weeks; with the door held open the engine elects a COMPLETE strict-pool structure on 2026-04-07 and fires tier S** — the door was that day's ONLY wall — and **ST fires tier S on 2026-04-06** through its own two door sessions (margins −1.7%/−1.3%, 0.38/0.31 ATR deep; the pre-SOS shelf completes an LPS at that edge), so this lane converts BOTH sma50 misses. Deliberately does NOT reach MDT: its wall is the sma200 rule at BOTH the door and anchor seeding (`collect_root_anchors` `below_trend_sma`) — a bottoming-base species ruling for the operator, not a dip. **The census answered its own precondition and the answer is WIDE**: at the cache edge 2026-08-27, 291 of 1,770 sma50 refusals admit and **157 FIRE (+51% on 309 standing fires)** — mostly shallow 3-session wobbles at median 0.43 ATR under the rail, while SKYT (20 sessions, 0.90 ATR) sits at the deep end, so **no knob tightening separates the wobbler mass from the drawn class without losing SKYT first** (measured curve in the program doc). **Blocking decision: rule the shape — flip as-is (+157, eyeball sheet `research/evidence/miss_lane_census_2026-08-28.json`), narrow to the story-coupled form first (admit the dip only when the elected box's own below-S excursion explains it — a follow-up design), or hold dark; plus the ratchet reseal for SKYT (28/33 → 31/33 with the rescue's two)** | `settings.SMA50_DIP_EXCEPTION_ENABLED`; [miss_program_2026-08.md](miss_program_2026-08.md); `engine_alpha/evaluation.py` `_sma50_dip_admits`; `tests/engine/test_miss_program_lanes.py` | 2026-10-31 |
 | `BOTTOMING_BASE_LANE_ENABLED` | 2026-08-29 (miss program, operator ruling) | **The sma200 rule opened at BOTH its layers when the 50-day is reclaimed** — the operator re-marked the misses and ruled MDT a wanted catch (*"I don't want to miss them"*), resolving the bottoming-base scope ask in the catch direction. MDT's wall was the sma200 rule twice: the universe door AND `collect_root_anchors`' `below_trend_sma` seeding refusal — while the engine, held open, elects his drawn box to the penny. One flag opens both layers under ONE condition (close ≥ SMA_50: a bottoming base is read only once its intermediate trend has turned); price/volume/YoY still gate, and the chained-door guard is pinned (a frame under BOTH smas that dip-excepts past the sma50 leg is refused at sma200 — the two door lanes can never chain). Frozen-frame A/B: **MDT fires 2026-07-14 tier S at his drawn R 82.83**; junk corpus clean with the lane armed. **The census answered (cache edge 2026-08-27): 410 sma200 refusals → 194 admit (47%) → 60 FIRE (+19% on 309 standing fires; 15 S / 32 A / 11 B / 2 C)** — sidecar `research/evidence/miss_lane_census_2026-08-29.json`. **Blocking decision: operator flip vs that 60-name eyeball sheet + the ratchet reseal** | `settings.BOTTOMING_BASE_LANE_ENABLED`; [miss_program_2026-08.md](miss_program_2026-08.md); `engine_alpha/evaluation.py` sma200 leg + `engine_alpha/structure/box/box_primitives.py` seeding gate; `tests/engine/test_miss_program_lanes.py` | 2026-10-31 |
 | `LPS_CEILING_REST_ENABLED` (+ `LPS_CEILING_REST_MAX_BELOW_R_ATR`) | 2026-08-29 (miss program, operator ruling) | **The launched-above-R straddle sanctioned when the rest lands ON the ceiling** — NOK elects his box at his exact rails every session and dies at ONE LPS leg ("window launched above resistance"); his re-drawn 2-bar rail rest sits 0.241 ATR under R with the launch being the SOS top's own giveback. The exception passes the INSIDE-zone launch gate when `support_low ≥ R − 0.3·ATR` — the bar placed by the DRAWN class (DSGN 0.010 / MATX 0.087 / MSGS 0.148 / NOK 0.241; YPF 0.772 is a mid-box shape, not this form) against the nearest junk (ENIC, must-not-fire, would-be rest 0.314): **a stated ~0.06-ATR razor each side** — at 0.5 ENIC fired tier A and the negative-corpus flag-on leg went red; at 0.3 all 18 junk cases reject. **NOK fires 2026-02-13 tier B, ordinary strict pool**; shadow panel NO DRIFT flag-on (no existing election or LPS window moves on the 32-ticker fixture). **The census answered (cache edge 2026-08-27): conversions surgical — 8 of 1,241 no-reads — but 12 of 309 current fires DRIFT with the flag armed** (BSTZ CSX EC EOG LCUT MMI MTDR OVV PH WHWK XOM ZD): rails/box/tier hold on every sampled name; the ELECTED LPS WINDOW moves (the elector prefers the latest legal window, and a newly-legal ceiling rest wins), re-pointing triggers (CSX 51.88→51.70, XOM 162.81→161.13) and a few score points. **Blocking decision: operator flip vs the 8-name conversion sheet + the 12-name drift sheet + his eyeball of the 0.3 razor (drawn-evidence-shaped but n=4 vs n=1)** | `settings.LPS_CEILING_REST_ENABLED`; [miss_program_2026-08.md](miss_program_2026-08.md); `engine_alpha/structure/lps/detection.py` launch gate; `tests/engine/test_miss_program_lanes.py` + `tests/regression/test_negative_corpus.py` (the ENIC pin) | 2026-10-31 |
+
+## The final-method switches — their fate in the rewrite
+
+The twelve-step method of Sun 13/09 to Sun 20/09/2026 was built as 27 default-off
+switches INSIDE the old reader; none of them was ever flipped. On Sun 20/09/2026 the
+decision was taken to write a new reader in his order beside the old engine (decisions
+record, same date), so these switches are not waiting for a flip any more — each one is
+either carried into a stage of the new reader or dropped with its subject. This table is
+what keeps the ruling from being deleted along with the switch that held it. Their Dark
+rows above stay until the old engine is deleted, which happens on his word after the new
+reader has run clean; only then do they move to *Retired*.
+
+The stages are his seven: 1 the line · 2 the end of the trend and the pairs · 3 answered
+and alive · 4 the box's life · 5 the story · 6 the LPS and the trigger · 7 the grade, the
+state word and the screen.
+
+| Switch | The ruling it holds | Fate | Carried into |
+|---|---|---|---|
+| `RESPECT_WHOLE_BAR_ENABLED` | R1: a bar is outside the box only when the WHOLE bar sits beyond the rail area | CARRIED — it is how a swing answers a line | stage 3 |
+| `DWELL_GRADED_ENABLED` | R13: the whole occupancy exam never refuses | DROPPED WITH ITS SUBJECT — the new reader has no occupancy exam; the answering rule is the only test a pair takes | — |
+| `BOX_HANDOVER_RANGES_ENABLED` | R11: a rescued box is kept only while the last close sits within 1.5 ranges above its R | DROPPED WITH ITS SUBJECT — there are no rescue pools, and a box ends by swings, never by a close | — |
+| `SPRING_BOUNDS_LIFTED_ENABLED` | R17: a spring may sit anywhere in the box, bounded by the range cap alone | CARRIED — Phase C is read by recovery, with no depth gate | stage 5 |
+| `LPS_RANGES_YARDSTICK_ENABLED` | R8 + R12: the window's numbers in daily ranges, and the ceiling 1.35 ranges over resistance | CARRIED — the ceiling is one of his four refusal sentences; every other number is graded | stage 6 |
+| `LPS_GRADED_TRAITS_ENABLED` | R9/R9b + R15: the window's traits are facts, not gates | CARRIED | stage 6 |
+| `LPS_WINDOW_RECEDING_ENABLED` | R18: one window per read day — the last run of receding days, ending on the last receding day | CARRIED — it is the LPS rule | stage 6 |
+| `LPS_BUY_DAY_READS_HIGH_ENABLED` | his Q9: the still-live test reads the HIGH, so a bought trigger shows nothing | CARRIED — a crossed trigger becomes the state word "crossed" | stages 6 and 7 |
+| `LPS_REFUSALS_TO_GRADES_ENABLED` | points 18 to 20: the support side is read on whole bars and never refuses on a poke; volume never refuses and never elects | CARRIED | stage 6 |
+| `LPS_SELLERS_RISING_FATAL_ENABLED` | his AEF answer: a pullback increasing with sellers is broken, never merely graded down | CARRIED — the first of his four refusal sentences | stage 6 |
+| `TURN_LINE_ENABLED` (+ `TURN_LINE_FLOOR_ATR`) | points 1 and 2: ONE line over the whole chart, floor 0.75 of each day's own range, wick to wick | CARRIED BY COPY, then corrected — the order inside one bar and his way of counting a turn change in the new reader | stage 1 |
+| `TURN_LINE_TREND_ENABLED` | the trend labels read that same line | CARRIED — as the far view: the same line with its small swings folded away, never a second line | stage 2 |
+| `LINE_WORD_SOS_ENABLED` (+ `LINE_WORD_SOS_MIN_GROUND_ATR`, `LINE_WORD_SUPPER_DIG_ATR`, `LINE_WORD_AREA_ATR`) | his point 11 and the SOS sitting: every thrust on the line, and THE SOS | CARRIED BY COPY — the word rules ride along as built | stage 5 |
+| `LINE_WORD_LAST_SUPPER_ENABLED` (+ `LINE_WORD_SUPPER_MAX_DAYS`) | his point 15: the deep correction after a breach of resistance in Phase D, in hindsight | CARRIED BY COPY | stage 5 |
+| `LINE_WORD_PHASE_C_ENABLED` | his points 8 and 14: one Phase C per box, the deepest dip that recovered | CARRIED BY COPY | stage 5 |
+| `LINE_WORD_PHASE_D_ENABLED` | his point 12: the right side opens after the middle of the box, never at or before it | CARRIED BY COPY | stage 5 |
+| `LINE_WORD_UPTHRUST_ENABLED` | his words at the SOS sitting: THE upthrust is his reverse spring, one per box, in Phase B | CARRIED BY COPY | stage 5 |
+| `LINE_WORD_MINI_ENABLED` | his point 13: the mini band and whether the LPS reads against it | CARRIED AND PROMOTED — under his Sun 20/09/2026 ruling the mini is a second live BOX with its own two lines, not a word on the parent's map | stage 4 |
+| `BASE_AGE_FROM_ANCHOR_ENABLED` (+ `BASE_AGE_MIN_DAYS`) | "Lets go with 15 days", counted from the box's first rail anchor | CARRIED — and it is half the election key: a pair becomes a box on the later of its answering and its fifteenth day | stage 3 |
+| `BOX_WIDTH_CAPS_GRADED_ENABLED` | his Q7: "a box is a box because of its consolidating Zig zag behavior not it's height" | CARRIED — no width refuses anything; height is a grade term, counted in daily ranges | stage 7 |
+| `DEPTH_CAPS_GRADED_ENABLED` | his Q8: "It's hard to gate using a raw number" — no depth number refuses a box or a spring | CARRIED — depth stays a fact | stages 5 and 7 |
+| `RESPECT_GRADED_ENABLED` | his Q6: respect refuses nothing; a run beyond a rail is read from what follows it | DROPPED WITH ITS SUBJECT — there is no respect gate to grade; what a run beyond a line means is the box's life | — |
+| `LPS_LEAVES_ELECTION_ENABLED` (+ `WATCH_LANE_MIN_TURNS_PER_RAIL`) | his point 22: the box stands whether or not a pullback has formed; the ten state words; his display floor of two turns a rail | CARRIED | stages 3 and 7 |
+| `BOX_OPENS_ON_ANCHORS_ENABLED` | "No, Box opens on the anchors of each of the Boundary rail" — never extended left | CARRIED | stage 3 |
+| `CLIMAX_FIRST_WALK_ENABLED` | "the swings for BC and AR are needed to be decided before the Root Swing" | CARRIED BY COPY, then rewritten to his two-legs walk (Sun 20/09/2026) | stage 2 |
+| `BOX_END_ENABLED` (+ `BOX_END_BREAKOUT_ATR`) | his Q6 and the child box: a box ends by swings, and the child inherits the parent as its cause | RETIRED at stage 4 (task 11, Sun 27/09/2026): the copy and its number were deleted, no close is read; a box ends only into a new box beyond it, born by his own rules, once the price left and did not come back | stage 4 |
+| `GRADE_LEDGER_ENABLED` (+ `GRADE_LEDGER_CAPS`, `BOX_HEIGHT_FULL_RANGES`, `BOX_HEIGHT_ZERO_RANGES`, `TURNS_POINT_RATE`, `LPS_SPREAD_FULL_RANGES`, `LPS_SPREAD_ZERO_RANGES`, `TIER_S_MAX_HEIGHT_RANGES`, `GRADE_LEDGER_TIER_CUTS`) | his point 21: tightness, the event map, and base age carrying no weight | RE-MEASURED BEFORE IT IS CARRIED — every number in it was placed on the OLD reader's boxes, so the separator is measured again on the new reader's own boxes and lands as a new grade entry beside the old one; the weights are his | stage 7 |
+
+## The scan's lanes under the new reader (go-live plan task 2, Sat 10/10/2026)
+
+The nightly scan carries three lanes beside its read, and every one is a twin of the OLD
+engine's chain. Under `TWO_EYES_READER_ENABLED` none of them rides; each is decided by name in
+`engine_alpha.reader.refuse_old_engine_lanes`. None of these flags changes its default.
+
+| Lane flag | Default | Under the new reader | Why |
+|---|---|---|---|
+| `NEAR_MISS_LANE_ENABLED` | on (live since 2026-07-27) | QUIET: no rows, and the night says "near-miss lane: off under the new reader" once in the log, the market context and the scan metrics' counts | it records the old chain's refusals; the new reader has no twin of it |
+| `LPS_LEAVES_ELECTION_ENABLED` (the watch lane) | off | REFUSES the scan by name, before a price is fetched | its row needs the old reader's frame, unit, box and forming read, which the new reader's watch fill does not give |
+| `CONTRACTION_RESCUE_ENABLED` / `BAR_POSTURE_RESCUE_ENABLED` (the rescue lanes) | off | REFUSE the scan by name, before a price is fetched | they re-read the old reader's refusals with the old engine |
+
+## The engine stamps of the flip (go-live plan task 7, Sat 10/10/2026)
+
+**Where the flip stands (Sat 10/10/2026): built, dark, his word pending.** The go-live plan's
+tasks are built on `claude/sweet-napier-461716` with `TWO_EYES_READER_ENABLED` False. The flip is
+his, after his approval sitting, by the checklist in [`deploy.md`](deploy.md), "The Flip". Both undos
+were rehearsed on a copy of the archive (task 10): the switch back returned stamp #2 and the old
+reader's fires, the join reverted returned stamp #1 and the live scan's fires.
+
+Every archive row carries the stamp of the engine that wrote it (`engine_config_version`, the
+sha256 of the settings manifest). The stamp hashes the SETTINGS, `TWO_EYES_READER_ENABLED` and
+`TWO_EYES_RULESET` among them, and **no reader code**. So the flip moves the stamp, the switch back
+returns it, and a fixed reader re-flipped under the same ruleset string would stamp its nights
+exactly like the bad night it replaced. The stamps below were written down before anything flips;
+each was computed by the command beside it (run from the tree named, with the repo venv).
+
+| # | The night | Stamp | Computed by |
+|---|---|---|---|
+| 1 | **The live engine before the join**: `claude/leadership-read` at `f045780`, tonight's live scan. Undo 2 (the join reverted) returns here. | `a2252c6c00159557c36adfff344cdf7c302b3c1e128ab6992aad5e33a02f143b` | in a checkout of `f045780`: `.\.venv\Scripts\python.exe -m engine_alpha.freeze.manifest --hash` |
+| 2 | **The joined tree, switch off** (the integration branch at `2a968db`: the join, go-live tasks 2, 3, 4, 5, 8). Undo 1 (the switch back) returns here. | `8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c` | in the joined tree: `.\.venv\Scripts\python.exe -m engine_alpha.freeze.manifest --hash` |
+| 3 | **The joined tree, switch on** (ruleset `two-eyes-0.9.1-grade`): the first new-reader night. | `cdb7ee2d98a8aab687c04a70a7ddc41c2271fa7286517ac61ab4dde3da4836d1` | in-process, no config edited: `.\.venv\Scripts\python.exe -c "from config import settings; settings.TWO_EYES_READER_ENABLED = True; from engine_alpha.freeze.manifest import manifest_hash; print(manifest_hash())"` |
+| 4 | **A re-flip** after an undo: the reader fixed, the switch on again. Its ruleset is BUMPED first, so its stamp is a new one and never #3. Example, with the string `two-eyes-0.9.2-reflip-example`: | `ea3c0b3164c8f4376dff0b5d7a4e5f16d995b8fdc9df932d035a1e96648901b9` | as #3, adding `settings.TWO_EYES_RULESET = "two-eyes-0.9.2-reflip-example";` before the hash. With the SAME string the command prints #3's stamp: that is the hiding this row exists to prevent |
+
+- **A ruleset string is spent once used.** `tests/engine/test_two_eyes_adapter.py`
+  (`SPENT_RULESETS`, `test_a_ruleset_string_is_never_reused`) lists every string ever committed,
+  oldest first, and fails when the one in `config/engine.py` is not the newest of them: going back
+  to a spent string fails, and so does a new string nobody appended. A bump appends.
+- **A bad night is left out, never deleted.** Its rows keep their stamp; the winner report and the
+  edge read read the archive as if that stamp's nights never ran:
+  `.\.venv\Scripts\python.exe -m core.archive.analyze --leave-out-stamp cdb7ee2d` and
+  `.\.venv\Scripts\python.exe -m tools.research.backtest_engine --leave-out-stamp cdb7ee2d`
+  (the full hash or its first 8+ characters; the rows go before the re-flags are collapsed, so a
+  setup first seen on that night counts from its first good night).
+- **`0bbadfac` is not a live stamp.** It is the stamp `docs/current_state.md` and the live branch's
+  committed baselines still carried from before the market-cap floor joined the manifest; the live
+  scan has stamped `a2252c6c` since.
+- **These stamps belong to these trees.** A later change to any listed setting moves #2 and #3;
+  recompute them with the same commands before the flip and write the new ones here.
 
 ## THE 2026-07-18 rotation (behavior-identical; a named archive seam)
 

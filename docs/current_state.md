@@ -54,7 +54,19 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   the re-opened A/B recommends keeping them there, and the operator's answer is owed ([`asks.md`](asks.md)).
 - **Engine rewrite:** the final method (`claude/method-steps-7-12` with `claude/sos-session`) is merged
   here, every switch dark; the approval sitting flips them together ([`final_method_2026-09.md`](final_method_2026-09.md)).
-  `claude/two-eyes-reader` still carries unmerged engine work. None of it is live here.
+  `claude/two-eyes-reader` still carries unmerged engine work; it was ported onto this layout on
+  2026-09-26 (base `61c88cc`). Its build is CLOSED (Fri 09/10/2026: every stage, the screen block and
+  the approval pack built, dark) and the branch review's fixes followed; next are his approval sitting and
+  a go-live plan. His FRPH ruling of Fri 09/10/2026 was DROPPED on Sat 10/10/2026, in his words "just leave these two
+  behind": no reader rule, nothing on the go-live list. None of it is live here.
+- **The two-eyes flip — built, dark, his word pending (Sat 10/10/2026).** The go-live plan
+  (`.council/plans/two-eyes-go-live.md`) joins the reader branch with the live branch on
+  `claude/sweet-napier-461716`, `TWO_EYES_READER_ENABLED` still False. The flip is his, after his
+  approval sitting, by the checklist in [`deploy.md`](deploy.md), "The Flip"; both undos were rehearsed
+  on a copy of the archive. The engine stamps it moves through are written in
+  [`flag_ledger.md`](flag_ledger.md): the live scan stamps `a2252c6c` (not the `0bbadfac` above, which
+  predates the market-cap floor), the joined tree `8cae6fd9` with the switch off and `cdb7ee2d` on.
+  The deploy now refuses a checkout that is not `main` or has uncommitted tracked files.
 - **Research:** the 2026-09-03 "no standalone edge" verdict has not been re-run on the
   corrected statistics ([`edge_denominator_2026-09-08.md`](edge_denominator_2026-09-08.md), [`asks.md`](asks.md)).
   Archive counts come from `python -m core.archive.analyze`; do not quote them from memory.
@@ -130,7 +142,8 @@ Engine files wait until `claude/two-eyes-reader` lands, and change only through 
 checkpoints are in [`migrations/2026-09-domain-refactor.md`](migrations/2026-09-domain-refactor.md).
 On 2026-09-25 `claude/engine-time-axis-and-nan-contract` followed, no longer held: the operator ruled
 that LIVN may drop out ([`decisions.md`](decisions.md)). One branch remains unmerged:
-`claude/two-eyes-reader` (its council build is in flight; port it when it finishes). On 2026-09-26 the
+`claude/two-eyes-reader` (ported onto this layout on 2026-09-26 at `61c88cc`, one merge commit plus the
+port; its build closed on Fri 09/10/2026, the branch review's fixes on top). On 2026-09-26 the
 two superseded branches were retired as tags, `retired/indexless-universe-cold-gate-2026-09` (superseded
 by `937ecd4`) and `retired/signal-edge-backtest-2026-07` (an older copy of `revive/signal-edge`); every
 merged branch and leftover worktree was removed, and their uncommitted leftovers were saved to

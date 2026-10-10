@@ -806,7 +806,8 @@ def test_parse_scan_result_reads_json_before_stale_traceback():
         "core.pipeline.screening.scan_job.StaleMarketDataError: stale market data",
     ])
 
-    assert _parse_scan_result(output) == (140, 0)
+    counts = _parse_scan_result(output)
+    assert (counts.n_setups, counts.n_errored) == (140, 0)
 
 
 def test_scan_tail_error_prefers_stale_market_data_line():

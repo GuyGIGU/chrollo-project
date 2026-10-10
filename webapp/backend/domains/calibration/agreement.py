@@ -135,8 +135,16 @@ def _resolve(mark, mh, sig, grader, use_cache) -> dict:
 
 
 def _compute(mark, grader) -> dict:
+    from engine_alpha.reader import NotThisReader  # noqa: PLC0415 — the boot stays engine-free
+
     try:
         frag = grader(mark)
+    except NotThisReader as refused:
+        # The headline grades the OLD reader's election; under the new reader it
+        # is refused by name (go-live plan, task 5) — not an engine failure, and
+        # never a "no read" for a chart it never read. The fired chip still grades.
+        return {"state": "untested", "kind": "old_reader",
+                "outcome": "old_reader_only", "detail": str(refused)}
     except Exception:  # EC-6: one bad mark degrades to a named chip, never a 500
         logger.exception("agreement compute failed for mark id=%s", mark.id)
         return {"state": "untested", "kind": "error", "outcome": "engine_error"}

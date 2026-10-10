@@ -60,6 +60,7 @@ def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> No
 # (we swallow the OperationalError it raises in that case).
 from core.archive.db_path import archive_db_path
 from engine_alpha.structure.context.htf import HTF_COLUMN_SQL, htf_archive_values
+from engine_alpha.two_eyes_archive import two_eyes_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
     "score_rs_bonus":       "FLOAT",
@@ -283,11 +284,116 @@ def _ensure_new_columns(engine) -> None:
             existing.add(column.name)
 
 
+class ArchiveRefusedEveryRow(RuntimeError):
+    """Every row of a night was refused: a systemic fault, not a bad row.
+
+    It carries the count and the tickers, because the caller that isolates an
+    ETF universe's failure must still be able to put those refusals on the
+    night's result line rather than let them vanish with the exception.
+    """
+
+    def __init__(self, message: str, tickers: list):
+        super().__init__(message)
+        self.tickers = list(tickers)
+        self.count = len(self.tickers)
+        # The name the scan's result line reads off a failure. No setup
+        # count: this archive call saw only the rows it was handed, which on
+        # a degraded night is a subset of what the scan found.
+        self.n_refused = self.count
+
+
+def _driver_leaves_transactions_to_us(dbapi_conn, _record):
+    # pysqlite's legacy transaction handling never sends BEGIN before a
+    # SAVEPOINT, so releasing the first savepoint COMMITS the row and the
+    # night stops being one transaction. Autocommit at the driver, and the
+    # BEGIN below, is SQLAlchemy's documented recipe for real savepoints.
+    dbapi_conn.isolation_level = None
+
+
+def _begin_immediate(conn):
+    # IMMEDIATE, not deferred: the loop reads (the upsert's existence check)
+    # before it writes, and a deferred read transaction cannot be upgraded to
+    # a write if the backend committed in between — SQLite refuses that at
+    # once, busy timeout or not. Taking the write lock up front makes other
+    # writers wait (30s busy timeout) for a loop that makes no network call.
+    conn.exec_driver_sql("BEGIN IMMEDIATE")
+
+
+def _with_real_savepoints(engine) -> None:
+    """Give THIS engine (the writer's own) working savepoints. Idempotent, so
+    an engine reused across calls does not BEGIN twice."""
+    from sqlalchemy import event
+
+    if not event.contains(engine, "connect", _driver_leaves_transactions_to_us):
+        event.listen(engine, "connect", _driver_leaves_transactions_to_us)
+        event.listen(engine, "begin", _begin_immediate)
+        engine.dispose()        # pooled connections predate the listener
+
+
+def _is_day_string(value) -> bool:
+    """A string that IS a day. The base window is built from these, so one
+    that is not a day would move the whole window and void every row's
+    RS-vs-sector read, not just its own."""
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _empty(value):
+    """None for a missing value of ANY kind, else the value unchanged.
+
+    pandas types a column across the whole frame: one row's timestamp in a
+    column the other rows leave empty makes the column dates, and every
+    OTHER row then reads back NaT (a duration gives NaT too, a complex number
+    nan+0j). The database cannot bind those, so every good row was refused
+    with the bad one — the night lost again, through the side door. Here
+    they are what they mean: empty. SQLite already stores a NaN as empty, so
+    a row that carried a NaN before stores exactly what it stored then.
+    """
+    try:
+        if pd.api.types.is_scalar(value) and pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    # The other coupling pandas makes: one complex value in a column the
+    # other rows FILL turns the whole column complex, so every good row
+    # arrives as x+0j and the database refuses them all. A complex number
+    # with no imaginary part is the real number pandas upcast — exactly,
+    # since the real part is stored untouched. A genuine complex value keeps
+    # its imaginary part and is refused on its own row.
+    if isinstance(value, complex) and value.imag == 0:
+        return value.real
+    return value
+
+
+def _measured(value, cast):
+    """``cast(value)``, or None when the reader did not measure it.
+
+    The nullable core columns used to default an absent value to 0 and let
+    ``int(NaN)`` raise; both are gone. None and NaN are "not measured" and are
+    stored empty. A value that IS there but will not cast still raises, and
+    the per-row guard refuses that row.
+    """
+    if value is None:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):      # a list or other non-scalar: cast refuses it
+        pass
+    return cast(value)
+
+
 def archive_scan_results(
     results_df: pd.DataFrame,
     scan_date_str: str | None = None,
     enable: bool = False,
     universe=None,
+    refused: dict | None = None,
 ) -> int:
     """Persist every row in results_df to the setup_archive table.
 
@@ -295,7 +401,17 @@ def archive_scan_results(
     archiving is the engine-validation strategy: every daily signal becomes
     part of the unbiased record whose forward returns measure the screener's
     real edge. enable=False only suppresses writes (e.g. ad-hoc/test scans).
+
+    ``refused`` is an optional sink — the idiom this codebase already uses for
+    ``watch`` and ``stamp`` — filled with ``{"count": n, "tickers": [...]}``.
+    A row that cannot be assembled is skipped rather than allowed to end the
+    night, and the count rides the scan's result line so a shorter archive is
+    never silent. Always filled when passed: zero is a measurement.
     """
+    if refused is not None:
+        refused.clear()
+        refused.update({"count": 0, "tickers": []})
+
     if not enable:
         return 0
 
@@ -303,6 +419,7 @@ def archive_scan_results(
         log.info("No results to archive.")
         return 0
 
+    from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import sessionmaker
 
     import yfinance as yf
@@ -350,6 +467,7 @@ def archive_scan_results(
     # short read lock while the scan tries to flush.
     db_path = archive_db_path()
     engine = make_sqlite_engine(db_path)
+    _with_real_savepoints(engine)
 
     # Ensure the table exists
     from archive_models import SetupArchive as _M  # noqa: F811
@@ -359,7 +477,10 @@ def archive_scan_results(
     # autoflush=False: the loop below does an existence-check query on every
     # ticker, and autoflush would push pending UPDATEs through that query —
     # that's exactly the autoflush-during-query path that triggered the
-    # original "database is locked" error. We commit explicitly at the end.
+    # original "database is locked" error. The night is ONE transaction,
+    # committed at the end, and each row is written inside its own savepoint
+    # below: a bad value costs its row, a kill mid-loop costs nothing (no
+    # partial night made of only the best-graded rows).
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
 
@@ -403,10 +524,16 @@ def archive_scan_results(
         etf = sector_etf_cache.get(str(r.get("Ticker")), "")
         if etf:
             unique_etfs.add(etf)
-        if r.get("_base_date_start"):
-            starts.append(r["_base_date_start"])
-        if r.get("_base_date_end"):
-            ends.append(r["_base_date_end"])
+        # Only a real day string joins the window. This pass runs BEFORE the
+        # per-row guard, so one row's NaN (truthy) or Timestamp here used to
+        # make min()/max() compare mixed types and end the night before a
+        # single row was written. An odd date now voids only that row's own
+        # RS-vs-sector value, which is computed per row further down.
+        start, end = r.get("_base_date_start"), r.get("_base_date_end")
+        if _is_day_string(start):
+            starts.append(start)
+        if _is_day_string(end):
+            ends.append(end)
 
     # Batch-download each unique sector ETF ONCE over the global base window.
     etf_close: dict[str, "pd.Series"] = {}
@@ -444,268 +571,327 @@ def archive_scan_results(
         return {k.lstrip("_"): v for k, v in fields.items()}
 
     written = 0
+    refused_here: list[str] = []
     for _, row in results_df.iterrows():
         ticker = row.get("Ticker", "")
         if not ticker:
             continue
+        existing = None
+        # ONE bad row costs THAT ROW, never the night. A value of the wrong
+        # shape used to raise straight out of this loop and past the single
+        # commit at the end, so a whole night's setups were lost to one
+        # rotten one. Catching the ASSEMBLY was not enough: a value that
+        # assembles cleanly but that the database refuses (a list in a text
+        # column, NaN in a NOT NULL one, a word off a CHECK) is only raised
+        # when the row is WRITTEN. So each row is written inside its own
+        # savepoint, and a refusal rolls back that row alone. A fault of the
+        # DATABASE (locked past the busy timeout, disk, I/O) is not a row's
+        # fault: it fails the night whole, as it always did, so the run is
+        # recorded failed and caught up rather than silently short.
+        try:
+            # Sector ETF + trend + RS — all served from the pre-built caches above
+            # (zero per-ticker network calls).
+            sector_etf = sector_etf_cache.get(ticker) or None
+            sector_trend = sector_trend_memo.get(sector_etf) if sector_etf else None
+            rs_vs_sector = _rs_from_series(
+                etf_close.get(sector_etf) if sector_etf else None,
+                row.get("_base_date_start"), row.get("_base_date_end"),
+                float(row.get("_base_close_start") or 0),
+                float(row.get("_base_close_end") or 0),
+            )
 
-        # Sector ETF + trend + RS — all served from the pre-built caches above
-        # (zero per-ticker network calls).
-        sector_etf = sector_etf_cache.get(ticker) or None
-        sector_trend = sector_trend_memo.get(sector_etf) if sector_etf else None
-        rs_vs_sector = _rs_from_series(
-            etf_close.get(sector_etf) if sector_etf else None,
-            row.get("_base_date_start"), row.get("_base_date_end"),
-            float(row.get("_base_close_start") or 0),
-            float(row.get("_base_close_end") or 0),
-        )
+            # Extract sub-scores
+            sub = row.get("_sub_scores", {})
+            if not isinstance(sub, dict):
+                sub = {}
 
-        # Extract sub-scores
-        sub = row.get("_sub_scores", {})
-        if not isinstance(sub, dict):
-            sub = {}
+            # Upsert: check if record exists for this (ticker, scan_date, universe_type)
+            existing = (
+                session.query(SetupArchive)
+                .filter_by(ticker=ticker, scan_date=scan_dt, universe_type=universe_type)
+                .first()
+            )
 
-        # Upsert: check if record exists for this (ticker, scan_date, universe_type)
-        existing = (
-            session.query(SetupArchive)
-            .filter_by(ticker=ticker, scan_date=scan_dt, universe_type=universe_type)
-            .first()
-        )
+            values = dict(
+                ticker=ticker,
+                scan_date=scan_dt,
+                setup_type=row.get("Setup", ""),
+                tier=row.get("Tier", ""),
+                # NOT NULL in the schema, so the score keeps its default.
+                score=float(row.get("Score", 0)),
+                # Measured, or EMPTY - never a zero made up for a value the
+                # reader did not measure. These columns are nullable, and a
+                # zero stored here is indistinguishable from a measured zero
+                # forever after. Every row the old reader writes carries a
+                # number in each, so its rows are unchanged.
+                current_price=_measured(row.get("Current Price"), float),
+                r_level=_measured(row.get("_R"), float),
+                s_level=_measured(row.get("_S"), float),
+                trigger_price=_measured(row.get("_trigger_price"), float),
+                base_length=_measured(row.get("Base Len"), int),
+                box_width=_measured(row.get("Box Width"), float),
+                touches=_measured(row.get("Touches"), int),
+                r_touches=_measured(row.get("_r_touches"), int),
+                s_touches=_measured(row.get("_s_touches"), int),
+                atr_ratio=_measured(row.get("ATR Ratio"), float),
+                lps_length=_measured(row.get("LPS Length"), int),
+                breach_days=_measured(row.get("Breach Days"), int),
+                vol_contraction=_measured(row.get("_vol_contraction"), float),
+                tightness_ratio=_measured(row.get("_tightness_ratio"), float),
+                # Per-term sub-score columns — ONE registry-driven producer (task
+                # 6 fold; byte-identical to the former 15 literals). Flag-gated
+                # term points ride the ta_grade family splat below.
+                **sub_score_archive_values(sub),
+                # Volume-around-touches signature + LPS shape/zone detail
+                r_touch_vol_z=row.get("_r_touch_vol_z"),
+                s_touch_vol_z=row.get("_s_touch_vol_z"),
+                lps_descent_frac=row.get("_lps_descent_frac"),
+                lps_zone_type=row.get("_lps_zone_type"),
+                # VCP contraction footprint
+                contraction_count=row.get("_contraction_count"),
+                contraction_quality=row.get("_contraction_quality"),
+                final_contraction_depth=row.get("_final_contraction_depth"),
+                contraction_vol_trend=row.get("_contraction_vol_trend"),
+                # Base bar-compression texture
+                base_median_spread_atr=row.get("_base_median_spread_atr"),
+                base_p80_spread_atr=row.get("_base_p80_spread_atr"),
+                base_median_spread_pct_box=row.get("_base_median_spread_pct_box"),
+                base_tight_bar_pct=row.get("_base_tight_bar_pct"),
+                # Ascending-support / higher-lows footprint
+                support_slope_atr=row.get("_support_slope_atr"),
+                ascending_support_quality=row.get("_ascending_support_quality"),
+                # Worked-equilibrium occupancy metrics (raw, measure-first)
+                eq_r_touches=row.get("_eq_r_touches"),
+                eq_s_touches=row.get("_eq_s_touches"),
+                eq_r_touch_thirds=row.get("_eq_r_touch_thirds"),
+                eq_s_touch_thirds=row.get("_eq_s_touch_thirds"),
+                eq_lower_dwell=row.get("_eq_lower_dwell"),
+                eq_mid_dwell=row.get("_eq_mid_dwell"),
+                eq_upper_dwell=row.get("_eq_upper_dwell"),
+                eq_coverage=row.get("_eq_coverage"),
+                eq_respect_frac=row.get("_eq_respect_frac"),
+                eq_engagement_respect_frac=row.get("_eq_engagement_respect_frac"),
+                eq_max_excursion_atr=row.get("_eq_max_excursion_atr"),
+                eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
+                eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
+                eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
+                # The outside-bar vocabulary (engine-eyes Task 1) — descriptors,
+                # model-only columns (AP-7: the hand list above does not grow)
+                eq_rest_above_r_frac=row.get("_eq_rest_above_r_frac"),
+                eq_hold_below_s_frac=row.get("_eq_hold_below_s_frac"),
+                eq_respect_forms_frac=row.get("_eq_respect_forms_frac"),
+                eq_outside_last_third_share=row.get("_eq_outside_last_third_share"),
+                eq_terminal_run_bars=row.get("_eq_terminal_run_bars"),
+                eq_terminal_run_form=row.get("_eq_terminal_run_form"),
+                eq_rail_overshoot_depth_atr=row.get("_eq_rail_overshoot_depth_atr"),
+                eq_touch_spacing_evenness=row.get("_eq_touch_spacing_evenness"),
+                eq_whole_bar_early_share=row.get("_eq_whole_bar_early_share"),
+                eq_traversals_per_20d=row.get("_eq_traversals_per_20d"),
+                # Electing-pool provenance (strict/rescued/band/story, Task 11)
+                elected_pool=row.get("_elected_pool"),
+                story_admission_profile=row.get("_story_admission_profile"),
+                # Limb-traversal read (raw, measure-first)
+                trav_n_full_traversals=row.get("_trav_n_full_traversals"),
+                trav_n_swings=row.get("_trav_n_swings"),
+                trav_top_dead_space=row.get("_trav_top_dead_space"),
+                trav_bottom_dead_space=row.get("_trav_bottom_dead_space"),
+                trav_rail_reaches_high=row.get("_trav_rail_reaches_high"),
+                trav_rail_reaches_low=row.get("_trav_rail_reaches_low"),
+                trav_max_swing_frac=row.get("_trav_max_swing_frac"),
+                trav_last_support_frac=row.get("_trav_last_support_frac"),
+                trav_coil_floor_pos=row.get("_trav_coil_floor_pos"),
+                # ADR% absolute-volatility character
+                adr_pct=row.get("_adr_pct"),
+                # Market context
+                spy_trend=market_ctx.get("spy_trend"),
+                vix_level=market_ctx.get("vix_level"),
+                sector_etf=sector_etf,
+                sector_trend=sector_trend,
+                rs_vs_sector_pct=rs_vs_sector,
+                dist_52w_high_pct=row.get("_dist_52w_high_pct"),
+                excess_return_6m=row.get("_excess_return_6m"),
+                yearly_return=row.get("_yearly_return"),
+                breadth_pct=row.get("_breadth_pct"),
+                regime_state=row.get("_regime_state"),
+                regime_breadth_50_pct=row.get("_regime_breadth_50_pct"),
+                regime_breadth_200_pct=row.get("_regime_breadth_200_pct"),
+                regime_distribution_days=row.get("_regime_distribution_days"),
+                regime_spy_above_50=_bool_int(row.get("_regime_spy_above_50")),
+                regime_spy_above_200=_bool_int(row.get("_regime_spy_above_200")),
+                regime_spy_50d_slope_pct=row.get("_regime_spy_50d_slope_pct"),
+                regime_qqq_above_50=_bool_int(row.get("_regime_qqq_above_50")),
+                regime_qqq_above_200=_bool_int(row.get("_regime_qqq_above_200")),
+                regime_qqq_50d_slope_pct=row.get("_regime_qqq_50d_slope_pct"),
+                bars_since_bc=row.get("_bars_since_BC"),
+                # descent_length spans BC anchor → box start (the inner mini-AR pivot
+                # selected by the cand_start trim in _phase_b_zigzag), not BC → original
+                # AR low. Includes the early-chop drift between AR and the working box.
+                descent_length=row.get("_descent_length"),
+                phase_d_inner=int(bool(row.get("_phase_d_inner"))) if row.get("_phase_d_inner") is not None else None,
+                lps_in_inner=int(bool(row.get("_lps_in_inner"))) if row.get("_lps_in_inner") is not None else None,
+                inner_source=row.get("_inner_source"),
+                inner_search_start_bar=row.get("_inner_search_start_bar"),
+                inner_climax_bar=row.get("_inner_climax_bar"),
+                inner_reaction_bar=row.get("_inner_reaction_bar"),
+                inner_reaction_pct=row.get("_inner_reaction_pct"),
+                inner_reaction_bars=row.get("_inner_reaction_bars"),
+                inner_position=row.get("_inner_position"),
+                inner_position_r_atr=row.get("_inner_position_r_atr"),
+                inner_position_s_atr=row.get("_inner_position_s_atr"),
+                # Phase-D scoping layer (descriptive right-most-region bands)
+                scope_phase_a_date=row.get("_phase_a_start_date"),
+                scope_phase_b_date=row.get("_phase_b_start_date"),
+                scope_phase_d_date=row.get("_phase_d_start_date"),
+                scope_phase_c_date=row.get("_phase_c_event_date"),
+                scope_has_mini=(int(bool(row.get("_has_mini_consolidation")))
+                                if row.get("_has_mini_consolidation") is not None else None),
+                scope_confidence=row.get("_scope_confidence"),
+                # Region (bin) features (A/B/D/LPS size, range, volume + Last Supper)
+                bin_a_bars=row.get("_bin_a_bars"),
+                bin_a_range_pct=row.get("_bin_a_range_pct"),
+                bin_a_volume_ratio=row.get("_bin_a_volume_ratio"),
+                bin_b_bars=row.get("_bin_b_bars"),
+                bin_b_range_pct=row.get("_bin_b_range_pct"),
+                bin_b_volume_ratio=row.get("_bin_b_volume_ratio"),
+                bin_b_cog_end=row.get("_bin_b_cog_end"),
+                bin_b_cog_crossings=row.get("_bin_b_cog_crossings"),
+                bin_b_cog_rng=row.get("_bin_b_cog_rng"),
+                bin_b_cog_corr=row.get("_bin_b_cog_corr"),
+                bin_c_present=_bool_int(row.get("_bin_c_present")),
+                bin_c_type=row.get("_bin_c_type"),
+                bin_c_event_date=row.get("_bin_c_event_date"),
+                bin_c_event_bar=row.get("_bin_c_event_bar"),
+                bin_c_undercut_atr=row.get("_bin_c_undercut_atr"),
+                bin_c_recovery_bars=row.get("_bin_c_recovery_bars"),
+                bin_c_recovery_bar=row.get("_bin_c_recovery_bar"),
+                bin_c_time_loc=row.get("_bin_c_time_loc"),
+                bin_c_spring_vol_z=row.get("_bin_c_spring_vol_z"),
+                bin_d_bars=row.get("_bin_d_bars"),
+                bin_d_start_bar=row.get("_bin_d_start_bar"),
+                bin_d_range_pct=row.get("_bin_d_range_pct"),
+                bin_d_volume_ratio=row.get("_bin_d_volume_ratio"),
+                bin_d_support_slope_atr=row.get("_bin_d_support_slope_atr"),
+                bin_d_higher_low_frac=row.get("_bin_d_higher_low_frac"),
+                bin_d_ascending_support_quality=row.get("_bin_d_ascending_support_quality"),
+                bin_d_boundary_source=row.get("_bin_d_boundary_source"),
+                phase_d_evidence_json=row.get("_phase_d_evidence_json"),
+                bin_lps_bars=row.get("_bin_lps_bars"),
+                lps_position_in_box=row.get("_lps_position_in_box"),
+                bin_d_vs_b_range_ratio=row.get("_bin_d_vs_b_range_ratio"),
+                bin_d_vs_b_volume_ratio=row.get("_bin_d_vs_b_volume_ratio"),
+                bin_d_vs_b_support_quality_delta=row.get("_bin_d_vs_b_support_quality_delta"),
+                lps_stretch_atr=row.get("_lps_stretch_atr"),
+                lps_stretch_box=row.get("_lps_stretch_box"),
+                lps_swing_type=row.get("_lps_swing_type"),
+                lps_anchor_bar=row.get("_lps_anchor_bar"),
+                lps_anchor_date=row.get("_lps_anchor_date"),
+                lps_low_bar=row.get("_lps_low_bar"),
+                lps_low_date=row.get("_lps_low_date"),
+                lps_swing_depth_pct=row.get("_lps_swing_depth_pct"),
+                lps_swing_depth_atr=row.get("_lps_swing_depth_atr"),
+                lps_swing_depth_box=row.get("_lps_swing_depth_box"),
+                last_supper_pullback_from_extension_pct=row.get("_last_supper_pullback_from_extension_pct"),
+                last_supper_source_box_age=row.get("_last_supper_source_box_age"),
+                last_supper_reclaim_quality=row.get("_last_supper_reclaim_quality"),
+                last_supper_pivot_stretch_atr=row.get("_last_supper_pivot_stretch_atr"),
+                last_supper_pivot_stretch_box=row.get("_last_supper_pivot_stretch_box"),
+                last_supper_pullback_from_pivot_pct=row.get("_last_supper_pullback_from_pivot_pct"),
+                last_supper_pivot_bars_back=row.get("_last_supper_pivot_bars_back"),
+                # Minervini Stage-2 trend-template context (raw, no scoring)
+                stage2_ma_stack_pass=(int(bool(row.get("_stage2_ma_stack_pass")))
+                                      if row.get("_stage2_ma_stack_pass") is not None else None),
+                stage2_ma200_slope_1m_pct=row.get("_stage2_ma200_slope_1m_pct"),
+                stage2_52w_low_pct=row.get("_stage2_52w_low_pct"),
+                stage2_trend_pass_count=row.get("_stage2_trend_pass_count"),
+                stage2_trend_pass=(int(bool(row.get("_stage2_trend_pass")))
+                                   if row.get("_stage2_trend_pass") is not None else None),
+                # HTF (higher-timeframe) context — same engine on weekly/monthly bars
+                **htf_archive_values(row.get, prefixed=True),
+                # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
+                **event_map_archive_values(row.get, prefixed=True),
+                # Sentence-token family (consolidation-method Task 8) — NULL
+                # until the sentence measurement flag flips; refused reads NULL
+                # the whole family
+                **sentence_archive_values(row.get, prefixed=True),
+                # TA-grade family: the grade pair (always emitted since the
+                # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
+                # + the three setup grades (NULL when the narrative abstained)
+                **ta_grade_archive_values(row.get, prefixed=True),
+                # Election-trace evidence — NULL when ELECTION_TRACE_EXPORT_ENABLED
+                # is off; never backfilled (the archived cell is what was shown)
+                **election_trace_archive_values(row.get, prefixed=True),
+                # Strategy read (held-through-correction) — NULL when dark
+                **strategy_archive_values(row.get, prefixed=True),
+                # The two-eyes reader's two boxes and their anchor DAYS —
+                # NULL on every row the old reader writes
+                **two_eyes_archive_values(row.get, prefixed=True),
+                # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
+                # Per-ticker fundamentals / RS-line / days-to-earnings come from the
+                # eval result (set by core.fundamentals.advisory when the flags are on;
+                # absent -> NULL). The universe RS rating was attached in the screener
+                # post-pass; sector rank is resolved here from the scan-wide ranking.
+                fund_eps_growth_yoy=row.get("_fund_eps_growth_yoy"),
+                fund_sales_growth_yoy=row.get("_fund_sales_growth_yoy"),
+                fund_eps_growth_accel=row.get("_fund_eps_growth_accel"),
+                fund_earnings_surprise=row.get("_fund_earnings_surprise"),
+                days_to_earnings=row.get("_days_to_earnings"),
+                rs_rating=row.get("_rs_rating"),
+                rs_line_latest=row.get("_rs_line_latest"),
+                rs_line_new_high=_bool_int(row.get("_rs_line_new_high")),
+                market_cap=row.get("_market_cap"),
+                **sector_rank_columns(sector_etf),
+                engine_config_version=engine_config_version,
+                source="screener",
+                universe_type=universe_type,
+            )
 
-        values = dict(
-            ticker=ticker,
-            scan_date=scan_dt,
-            setup_type=row.get("Setup", ""),
-            tier=row.get("Tier", ""),
-            score=float(row.get("Score", 0)),
-            current_price=float(row.get("Current Price", 0)),
-            r_level=float(row.get("_R", 0)),
-            s_level=float(row.get("_S", 0)),
-            trigger_price=float(row.get("_trigger_price", 0)),
-            base_length=int(row.get("Base Len", 0)),
-            box_width=float(row.get("Box Width", 0)),
-            touches=int(row.get("Touches", 0)),
-            r_touches=int(row.get("_r_touches", 0)),
-            s_touches=int(row.get("_s_touches", 0)),
-            atr_ratio=float(row.get("ATR Ratio", 0)),
-            lps_length=int(row.get("LPS Length", 0)),
-            breach_days=int(row.get("Breach Days", 0)),
-            vol_contraction=float(row.get("_vol_contraction", 0)),
-            tightness_ratio=float(row.get("_tightness_ratio", 0)),
-            # Per-term sub-score columns — ONE registry-driven producer (task
-            # 6 fold; byte-identical to the former 15 literals). Flag-gated
-            # term points ride the ta_grade family splat below.
-            **sub_score_archive_values(sub),
-            # Volume-around-touches signature + LPS shape/zone detail
-            r_touch_vol_z=row.get("_r_touch_vol_z"),
-            s_touch_vol_z=row.get("_s_touch_vol_z"),
-            lps_descent_frac=row.get("_lps_descent_frac"),
-            lps_zone_type=row.get("_lps_zone_type"),
-            # VCP contraction footprint
-            contraction_count=row.get("_contraction_count"),
-            contraction_quality=row.get("_contraction_quality"),
-            final_contraction_depth=row.get("_final_contraction_depth"),
-            contraction_vol_trend=row.get("_contraction_vol_trend"),
-            # Base bar-compression texture
-            base_median_spread_atr=row.get("_base_median_spread_atr"),
-            base_p80_spread_atr=row.get("_base_p80_spread_atr"),
-            base_median_spread_pct_box=row.get("_base_median_spread_pct_box"),
-            base_tight_bar_pct=row.get("_base_tight_bar_pct"),
-            # Ascending-support / higher-lows footprint
-            support_slope_atr=row.get("_support_slope_atr"),
-            ascending_support_quality=row.get("_ascending_support_quality"),
-            # Worked-equilibrium occupancy metrics (raw, measure-first)
-            eq_r_touches=row.get("_eq_r_touches"),
-            eq_s_touches=row.get("_eq_s_touches"),
-            eq_r_touch_thirds=row.get("_eq_r_touch_thirds"),
-            eq_s_touch_thirds=row.get("_eq_s_touch_thirds"),
-            eq_lower_dwell=row.get("_eq_lower_dwell"),
-            eq_mid_dwell=row.get("_eq_mid_dwell"),
-            eq_upper_dwell=row.get("_eq_upper_dwell"),
-            eq_coverage=row.get("_eq_coverage"),
-            eq_respect_frac=row.get("_eq_respect_frac"),
-            eq_engagement_respect_frac=row.get("_eq_engagement_respect_frac"),
-            eq_max_excursion_atr=row.get("_eq_max_excursion_atr"),
-            eq_close_lower_dwell=row.get("_eq_close_lower_dwell"),
-            eq_close_mid_dwell=row.get("_eq_close_mid_dwell"),
-            eq_close_upper_dwell=row.get("_eq_close_upper_dwell"),
-            # The outside-bar vocabulary (engine-eyes Task 1) — descriptors,
-            # model-only columns (AP-7: the hand list above does not grow)
-            eq_rest_above_r_frac=row.get("_eq_rest_above_r_frac"),
-            eq_hold_below_s_frac=row.get("_eq_hold_below_s_frac"),
-            eq_respect_forms_frac=row.get("_eq_respect_forms_frac"),
-            eq_outside_last_third_share=row.get("_eq_outside_last_third_share"),
-            eq_terminal_run_bars=row.get("_eq_terminal_run_bars"),
-            eq_terminal_run_form=row.get("_eq_terminal_run_form"),
-            eq_rail_overshoot_depth_atr=row.get("_eq_rail_overshoot_depth_atr"),
-            eq_touch_spacing_evenness=row.get("_eq_touch_spacing_evenness"),
-            eq_whole_bar_early_share=row.get("_eq_whole_bar_early_share"),
-            eq_traversals_per_20d=row.get("_eq_traversals_per_20d"),
-            # Electing-pool provenance (strict/rescued/band/story, Task 11)
-            elected_pool=row.get("_elected_pool"),
-            story_admission_profile=row.get("_story_admission_profile"),
-            # Limb-traversal read (raw, measure-first)
-            trav_n_full_traversals=row.get("_trav_n_full_traversals"),
-            trav_n_swings=row.get("_trav_n_swings"),
-            trav_top_dead_space=row.get("_trav_top_dead_space"),
-            trav_bottom_dead_space=row.get("_trav_bottom_dead_space"),
-            trav_rail_reaches_high=row.get("_trav_rail_reaches_high"),
-            trav_rail_reaches_low=row.get("_trav_rail_reaches_low"),
-            trav_max_swing_frac=row.get("_trav_max_swing_frac"),
-            trav_last_support_frac=row.get("_trav_last_support_frac"),
-            trav_coil_floor_pos=row.get("_trav_coil_floor_pos"),
-            # ADR% absolute-volatility character
-            adr_pct=row.get("_adr_pct"),
-            # Market context
-            spy_trend=market_ctx.get("spy_trend"),
-            vix_level=market_ctx.get("vix_level"),
-            sector_etf=sector_etf,
-            sector_trend=sector_trend,
-            rs_vs_sector_pct=rs_vs_sector,
-            dist_52w_high_pct=row.get("_dist_52w_high_pct"),
-            excess_return_6m=row.get("_excess_return_6m"),
-            yearly_return=row.get("_yearly_return"),
-            breadth_pct=row.get("_breadth_pct"),
-            regime_state=row.get("_regime_state"),
-            regime_breadth_50_pct=row.get("_regime_breadth_50_pct"),
-            regime_breadth_200_pct=row.get("_regime_breadth_200_pct"),
-            regime_distribution_days=row.get("_regime_distribution_days"),
-            regime_spy_above_50=_bool_int(row.get("_regime_spy_above_50")),
-            regime_spy_above_200=_bool_int(row.get("_regime_spy_above_200")),
-            regime_spy_50d_slope_pct=row.get("_regime_spy_50d_slope_pct"),
-            regime_qqq_above_50=_bool_int(row.get("_regime_qqq_above_50")),
-            regime_qqq_above_200=_bool_int(row.get("_regime_qqq_above_200")),
-            regime_qqq_50d_slope_pct=row.get("_regime_qqq_50d_slope_pct"),
-            bars_since_bc=row.get("_bars_since_BC"),
-            # descent_length spans BC anchor → box start (the inner mini-AR pivot
-            # selected by the cand_start trim in _phase_b_zigzag), not BC → original
-            # AR low. Includes the early-chop drift between AR and the working box.
-            descent_length=row.get("_descent_length"),
-            phase_d_inner=int(bool(row.get("_phase_d_inner"))) if row.get("_phase_d_inner") is not None else None,
-            lps_in_inner=int(bool(row.get("_lps_in_inner"))) if row.get("_lps_in_inner") is not None else None,
-            inner_source=row.get("_inner_source"),
-            inner_search_start_bar=row.get("_inner_search_start_bar"),
-            inner_climax_bar=row.get("_inner_climax_bar"),
-            inner_reaction_bar=row.get("_inner_reaction_bar"),
-            inner_reaction_pct=row.get("_inner_reaction_pct"),
-            inner_reaction_bars=row.get("_inner_reaction_bars"),
-            inner_position=row.get("_inner_position"),
-            inner_position_r_atr=row.get("_inner_position_r_atr"),
-            inner_position_s_atr=row.get("_inner_position_s_atr"),
-            # Phase-D scoping layer (descriptive right-most-region bands)
-            scope_phase_a_date=row.get("_phase_a_start_date"),
-            scope_phase_b_date=row.get("_phase_b_start_date"),
-            scope_phase_d_date=row.get("_phase_d_start_date"),
-            scope_phase_c_date=row.get("_phase_c_event_date"),
-            scope_has_mini=(int(bool(row.get("_has_mini_consolidation")))
-                            if row.get("_has_mini_consolidation") is not None else None),
-            scope_confidence=row.get("_scope_confidence"),
-            # Region (bin) features (A/B/D/LPS size, range, volume + Last Supper)
-            bin_a_bars=row.get("_bin_a_bars"),
-            bin_a_range_pct=row.get("_bin_a_range_pct"),
-            bin_a_volume_ratio=row.get("_bin_a_volume_ratio"),
-            bin_b_bars=row.get("_bin_b_bars"),
-            bin_b_range_pct=row.get("_bin_b_range_pct"),
-            bin_b_volume_ratio=row.get("_bin_b_volume_ratio"),
-            bin_b_cog_end=row.get("_bin_b_cog_end"),
-            bin_b_cog_crossings=row.get("_bin_b_cog_crossings"),
-            bin_b_cog_rng=row.get("_bin_b_cog_rng"),
-            bin_b_cog_corr=row.get("_bin_b_cog_corr"),
-            bin_c_present=_bool_int(row.get("_bin_c_present")),
-            bin_c_type=row.get("_bin_c_type"),
-            bin_c_event_date=row.get("_bin_c_event_date"),
-            bin_c_event_bar=row.get("_bin_c_event_bar"),
-            bin_c_undercut_atr=row.get("_bin_c_undercut_atr"),
-            bin_c_recovery_bars=row.get("_bin_c_recovery_bars"),
-            bin_c_recovery_bar=row.get("_bin_c_recovery_bar"),
-            bin_c_time_loc=row.get("_bin_c_time_loc"),
-            bin_c_spring_vol_z=row.get("_bin_c_spring_vol_z"),
-            bin_d_bars=row.get("_bin_d_bars"),
-            bin_d_start_bar=row.get("_bin_d_start_bar"),
-            bin_d_range_pct=row.get("_bin_d_range_pct"),
-            bin_d_volume_ratio=row.get("_bin_d_volume_ratio"),
-            bin_d_support_slope_atr=row.get("_bin_d_support_slope_atr"),
-            bin_d_higher_low_frac=row.get("_bin_d_higher_low_frac"),
-            bin_d_ascending_support_quality=row.get("_bin_d_ascending_support_quality"),
-            bin_d_boundary_source=row.get("_bin_d_boundary_source"),
-            phase_d_evidence_json=row.get("_phase_d_evidence_json"),
-            bin_lps_bars=row.get("_bin_lps_bars"),
-            lps_position_in_box=row.get("_lps_position_in_box"),
-            bin_d_vs_b_range_ratio=row.get("_bin_d_vs_b_range_ratio"),
-            bin_d_vs_b_volume_ratio=row.get("_bin_d_vs_b_volume_ratio"),
-            bin_d_vs_b_support_quality_delta=row.get("_bin_d_vs_b_support_quality_delta"),
-            lps_stretch_atr=row.get("_lps_stretch_atr"),
-            lps_stretch_box=row.get("_lps_stretch_box"),
-            lps_swing_type=row.get("_lps_swing_type"),
-            lps_anchor_bar=row.get("_lps_anchor_bar"),
-            lps_anchor_date=row.get("_lps_anchor_date"),
-            lps_low_bar=row.get("_lps_low_bar"),
-            lps_low_date=row.get("_lps_low_date"),
-            lps_swing_depth_pct=row.get("_lps_swing_depth_pct"),
-            lps_swing_depth_atr=row.get("_lps_swing_depth_atr"),
-            lps_swing_depth_box=row.get("_lps_swing_depth_box"),
-            last_supper_pullback_from_extension_pct=row.get("_last_supper_pullback_from_extension_pct"),
-            last_supper_source_box_age=row.get("_last_supper_source_box_age"),
-            last_supper_reclaim_quality=row.get("_last_supper_reclaim_quality"),
-            last_supper_pivot_stretch_atr=row.get("_last_supper_pivot_stretch_atr"),
-            last_supper_pivot_stretch_box=row.get("_last_supper_pivot_stretch_box"),
-            last_supper_pullback_from_pivot_pct=row.get("_last_supper_pullback_from_pivot_pct"),
-            last_supper_pivot_bars_back=row.get("_last_supper_pivot_bars_back"),
-            # Minervini Stage-2 trend-template context (raw, no scoring)
-            stage2_ma_stack_pass=(int(bool(row.get("_stage2_ma_stack_pass")))
-                                  if row.get("_stage2_ma_stack_pass") is not None else None),
-            stage2_ma200_slope_1m_pct=row.get("_stage2_ma200_slope_1m_pct"),
-            stage2_52w_low_pct=row.get("_stage2_52w_low_pct"),
-            stage2_trend_pass_count=row.get("_stage2_trend_pass_count"),
-            stage2_trend_pass=(int(bool(row.get("_stage2_trend_pass")))
-                               if row.get("_stage2_trend_pass") is not None else None),
-            # HTF (higher-timeframe) context — same engine on weekly/monthly bars
-            **htf_archive_values(row.get, prefixed=True),
-            # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
-            **event_map_archive_values(row.get, prefixed=True),
-            # Sentence-token family (consolidation-method Task 8) — NULL
-            # until the sentence measurement flag flips; refused reads NULL
-            # the whole family
-            **sentence_archive_values(row.get, prefixed=True),
-            # TA-grade family: the grade pair (always emitted since the
-            # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
-            # + the three setup grades (NULL when the narrative abstained)
-            **ta_grade_archive_values(row.get, prefixed=True),
-            # Election-trace evidence — NULL when ELECTION_TRACE_EXPORT_ENABLED
-            # is off; never backfilled (the archived cell is what was shown)
-            **election_trace_archive_values(row.get, prefixed=True),
-            # Strategy read (held-through-correction) — NULL when dark
-            **strategy_archive_values(row.get, prefixed=True),
-            # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
-            # Per-ticker fundamentals / RS-line / days-to-earnings come from the
-            # eval result (set by core.fundamentals.advisory when the flags are on;
-            # absent -> NULL). The universe RS rating was attached in the screener
-            # post-pass; sector rank is resolved here from the scan-wide ranking.
-            fund_eps_growth_yoy=row.get("_fund_eps_growth_yoy"),
-            fund_sales_growth_yoy=row.get("_fund_sales_growth_yoy"),
-            fund_eps_growth_accel=row.get("_fund_eps_growth_accel"),
-            fund_earnings_surprise=row.get("_fund_earnings_surprise"),
-            days_to_earnings=row.get("_days_to_earnings"),
-            rs_rating=row.get("_rs_rating"),
-            rs_line_latest=row.get("_rs_line_latest"),
-            rs_line_new_high=_bool_int(row.get("_rs_line_new_high")),
-            market_cap=row.get("_market_cap"),
-            **sector_rank_columns(sector_etf),
-            engine_config_version=engine_config_version,
-            source="screener",
-            universe_type=universe_type,
-        )
+            values = {k: _empty(v) for k, v in values.items()}
+            with session.begin_nested():
+                if existing:
+                    for k, v in values.items():
+                        setattr(existing, k, v)
+                else:
+                    session.add(SetupArchive(**values))
+                session.flush()
 
-        if existing:
-            for k, v in values.items():
-                setattr(existing, k, v)
-        else:
-            session.add(SetupArchive(**values))
-
+        except OperationalError:
+            session.rollback()
+            session.close()
+            raise
+        except Exception:
+            if existing is not None:
+                # The savepoint rolled the update back, so the row is still
+                # there as an earlier run left it for this date. Said so:
+                # "not in the record" would send him looking for a setup that
+                # is in fact being graded, from an older read.
+                session.expire(existing)
+            log.exception(
+                "archive: REFUSING %s on %s — tonight's read of it could not "
+                "be written%s. The rest of the night is still written.",
+                ticker, scan_dt,
+                "; the earlier run's row for this date is kept" if existing is not None else "")
+            refused_here.append(ticker)
+            if refused is not None:
+                refused["count"] += 1
+                refused["tickers"].append(ticker)
+            continue
         written += 1
 
-    session.commit()
+    if not written:
+        session.rollback()
+    else:
+        session.commit()
     session.close()
+
+    if refused_here and not written:
+        # One bad row is a row; EVERY row refused is the writer or the reader
+        # broken, and a night that archived nothing it found must not be
+        # recorded as a green run: an 'ok' status skips the boot catch-up
+        # that would re-run the close, and the screen shows it as served.
+        raise ArchiveRefusedEveryRow(
+            f"the archive refused all {len(refused_here)} row(s) on {scan_dt} "
+            f"({', '.join(map(str, refused_here[:10]))}) — nothing was written",
+            refused_here)
 
     print(f"  Archived {written} setups to setup_archive (date={scan_dt}).", flush=True)
     return written

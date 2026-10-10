@@ -142,6 +142,10 @@ def _scan_freshness(latest: dict | None) -> tuple[bool, float | None, str]:
         return True, age_hours, "scan running"
     if age_hours is not None and age_hours > _scan_age_allowance_hours():
         return False, age_hours, f"last successful scan {age_hours:.0f}h ago"
+    if latest.get("verdict") == scan_diagnosis.NEEDS_ATTENTION:
+        # A run that FINISHED but whose run diagnosis still needs him (a night that lost archive rows: council
+        # review 2026-10-09, finding 12) is a failing check, so the pill and the registry tell the same story.
+        return False, age_hours, "last scan needs attention"
     return True, age_hours, "ok"
 
 

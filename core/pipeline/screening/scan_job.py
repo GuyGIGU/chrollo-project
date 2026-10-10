@@ -8,7 +8,7 @@ from datetime import date, datetime
 
 import pandas as pd
 from config import settings
-from core.archive.writer import archive_scan_results
+from core.archive.writer import ArchiveRefusedEveryRow, archive_scan_results
 from core.pipeline import run_screener
 from core.pipeline.market_data.cache import _cache_paths, _read_meta, _weekly_refresh_due, _write_meta
 from core.pipeline.data import get_provider, get_tickers
@@ -37,6 +37,10 @@ class StaleMarketDataError(RuntimeError):
     def __init__(self, message: str, n_setups: int | None = None):
         super().__init__(message)
         self.n_setups = n_setups
+        # Rows the archive refused in the OTHER universes of the same night.
+        # A stale primary is re-raised after the ETF universes have archived,
+        # and without this their refusals would leave with the exception.
+        self.n_refused = 0
 
 
 @dataclass
@@ -48,6 +52,10 @@ class ScanExportResult:
     # tripwire; 0 on a clean scan. Sourced from the run's own scan metrics so the
     # PRIMARY universe carries its OWN count.
     n_errored: int = 0
+    # Rows the archive writer REFUSED to assemble, so a night that lost one
+    # says so on its own result line. 0 on a clean scan. A lost night cannot
+    # be re-run, which is why this alerts at one rather than at a threshold.
+    n_refused: int = 0
     # Fundamentals attempted-vs-populated counters (program Task 12): None when
     # dark — the SCAN_RESULT_JSON line carries them as an OPTIONAL key, so the
     # flag-off line stays byte-identical and nothing new is stdout-scraped.
@@ -279,6 +287,22 @@ def _maybe_build_health_board(data, universe):
         return None
 
 
+def _passenger(what: str, show, *args) -> None:
+    """Run one display step that must never cost the night (EC-20 / EC-21:
+    a passenger never owns the paying job's status).
+
+    The terminal table, the watchlist CSV and the Finviz line all walk the
+    whole result frame BEFORE the archive runs. One malformed value crashed
+    the table, and with it the run, before a single row was archived — so
+    the archive's own per-row guard never got the chance. They are regenerated
+    by any later scan; the archive is not. Loud, never silent.
+    """
+    try:
+        show(*args)
+    except Exception:  # noqa: BLE001 — a display step must never fail a scan
+        log.exception("display step failed (%s); the scan and its archive go on", what)
+
+
 def _archive_near_misses(near_miss_sink, uni) -> None:
     """Persist the lane sink behind the SAME gate that admitted the fires.
     Called only on freshness-passed paths; every writer bound is printed
@@ -293,6 +317,13 @@ def _archive_near_misses(near_miss_sink, uni) -> None:
     print(f"\nNear-miss lane: {counters['inserted']} new + "
           f"{counters['recurred']} recurring episode(s) archived "
           f"(deferred stats {stats}; writer {counters}).", flush=True)
+
+
+def _say_not_archived(uni, n_setups: int) -> None:
+    """The scan log's line for a run with archiving off (the undo night, go-live task 8)."""
+    print(f"\nNot archived: archiving is off for this run, so {n_setups} {uni.key} "
+          "setup(s) are on the screen only (setup_archive and the near-miss lane "
+          "untouched).", flush=True)
 
 
 def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResult:
@@ -336,6 +367,11 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # ScanExportResult below so SCAN_RESULT_JSON carries them as an optional key.
     fund_counts = (market_context or {}).get("fundamentals")
 
+    if not settings.ARCHIVE_LIVE_SCANS:
+        # The screen's own file says this read is not in the archive (the undo
+        # night). Added only when off, so a normal night's payload is unchanged.
+        market_context = {**(market_context or {}), "archived": False}
+
     # ONE scan_date for every store this export writes (the payload's
     # scan_identity and the archive's upsert key), computed once so the two
     # can never straddle midnight into different identities for one scan.
@@ -374,6 +410,8 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         # health board rides this same write (the ETF universes usually land here).
         generate_dashboard(results_df, data, tickers, market_context, universe=uni,
                            health_board=health_board, scan_date=scan_date)
+        if not settings.ARCHIVE_LIVE_SCANS:
+            _say_not_archived(uni, 0)
         if lane_freshness_ok:
             # A zero-fire night is prime lane material — the refusal cohort
             # archives on the same freshness verdict as fires would. Ordered
@@ -383,12 +421,12 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         return ScanExportResult(n_setups=0, n_archived=0, n_errored=n_errored,
                                 fundamentals_counts=fund_counts)
 
-    print_results(results_df)
+    _passenger("terminal table", print_results, results_df)
 
     output_dir = os.path.join(PROJECT_ROOT, "output", "watchlists")
     os.makedirs(output_dir, exist_ok=True)
-    save_csv(results_df, output_dir)
-    print_finviz_url(results_df)
+    _passenger("watchlist csv", save_csv, results_df, output_dir)
+    _passenger("finviz line", print_finviz_url, results_df)
 
     generate_dashboard(results_df, data, tickers, market_context, universe=uni,
                        health_board=health_board, scan_date=scan_date)
@@ -402,6 +440,36 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # with a same-named stock on one date, and the stock-only edge metric filters
     # on universe_type='us_equities'.
     n_archived = 0
+    # ONE sink across every archive call this run makes — the degraded-coverage
+    # branch and the full-cohort branch are alternatives, but a future third
+    # writer here must add to the same count, not replace it.
+    refused_rows: dict = {"count": 0, "tickers": []}
+
+    def _archive(frame):
+        """Archive one cohort, accumulating any refusals into the run's sink."""
+        seen: dict = {}
+        written = archive_scan_results(frame, scan_date_str=scan_date,
+                                       enable=True, universe=uni, refused=seen)
+        refused_rows["count"] += seen.get("count", 0)
+        refused_rows["tickers"] += seen.get("tickers", [])
+        if seen.get("count"):
+            names = ", ".join(map(str, seen["tickers"][:10]))
+            print(f"\nWARNING: the archive REFUSED {seen['count']} row(s) "
+                  f"({names}) — tonight's read of those setups is not in "
+                  "the record (an earlier run's row for this date, if any, "
+                  "is kept).", flush=True)
+        return written
+
+    def _lane_after_the_archive():
+        """The near-miss lane runs AFTER the fires are archived, and a failure
+        there fails the run. Whatever it raises carries the rows the archive
+        already refused tonight, or they would leave with the exception."""
+        try:
+            _archive_near_misses(near_miss_sink, uni)
+        except Exception as exc:
+            exc.n_refused = getattr(exc, "n_refused", 0) + refused_rows["count"]
+            raise
+
     if settings.ARCHIVE_LIVE_SCANS:
         # DOWNLOAD (scheduled accumulation) mode classifies without raising so a
         # CURRENT-session-but-degraded-coverage day archives the per-ticker-fresh
@@ -425,8 +493,7 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                     # as the pre-partial-archive all-or-nothing gate did for this input.
                     log.warning("Aborting archive write: %s", msg)
                     raise StaleMarketDataError(msg, n_setups=len(results_df))
-                n_archived = archive_scan_results(fresh_df, scan_date_str=scan_date,
-                                                  enable=True, universe=uni)
+                n_archived = _archive(fresh_df)
                 print(f"\nArchived {n_archived} per-ticker-fresh {uni.key} setups to "
                       f"setup_archive; {n_stale} setup(s) on stale tickers skipped "
                       f"(degraded universe coverage; source='screener', "
@@ -438,15 +505,16 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                           "row(s) skipped (degraded universe coverage).", flush=True)
                 return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                                         n_errored=n_errored,
+                                        n_refused=refused_rows["count"],
                                 fundamentals_counts=fund_counts)
             # status == "fresh" → archive the whole cohort.
-            n_archived = archive_scan_results(results_df, scan_date_str=scan_date,
-                                              enable=True, universe=uni)
+            n_archived = _archive(results_df)
             print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
                   f"(source='screener', universe_type='{uni.universe_type}').")
-            _archive_near_misses(near_miss_sink, uni)
+            _lane_after_the_archive()
             return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                                     n_errored=n_errored,
+                                    n_refused=refused_rows["count"],
                                 fundamentals_counts=fund_counts)
 
         # Cache mode: unchanged all-or-nothing gate (tolerates a partial-coverage
@@ -462,15 +530,18 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
                       "row(s) skipped (cache-mode partial coverage).", flush=True)
             return ScanExportResult(n_setups=len(results_df), n_archived=0,
                                     n_errored=n_errored,
+                                    n_refused=refused_rows["count"],
                                 fundamentals_counts=fund_counts)
-        n_archived = archive_scan_results(results_df, scan_date_str=scan_date,
-                                          enable=True, universe=uni)
+        n_archived = _archive(results_df)
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
               f"(source='screener', universe_type='{uni.universe_type}').")
-        _archive_near_misses(near_miss_sink, uni)
+        _lane_after_the_archive()
+    else:
+        _say_not_archived(uni, len(results_df))
 
     return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                             n_errored=n_errored,
+                            n_refused=refused_rows["count"],
                                 fundamentals_counts=fund_counts)
 
 
@@ -495,6 +566,14 @@ def run_all_universe_scans(mode: str = "download") -> dict[str, "ScanExportResul
             results[uni.key] = run_scan_and_export(mode=mode, universe=uni)
         except Exception as exc:  # noqa: BLE001 — isolate ETF universes, capture primary
             results[uni.key] = None
+            if getattr(exc, "n_refused", 0) and uni.key != primary_key:
+                # An ETF universe's failure is isolated by design — but rows
+                # its archive refused before it failed (every row, or some and
+                # then the lane) are the night's lost rows, and a None would
+                # count them as none. Only n_refused is read off this result;
+                # the universe failed, so it archived and published nothing.
+                results[uni.key] = ScanExportResult(
+                    n_setups=0, n_archived=0, n_refused=exc.n_refused)
             if isinstance(exc, StaleMarketDataError):
                 log.warning("universe scan stale/aborted [%s]: %s", uni.key, exc)
             else:
@@ -502,6 +581,12 @@ def run_all_universe_scans(mode: str = "download") -> dict[str, "ScanExportResul
             if uni.key == primary_key:
                 primary_error = exc
     if primary_error is not None:
+        # WHATEVER failed the primary, the other universes have archived and
+        # may have refused rows; their count rides the failure out, beside
+        # any the primary's own archive refused, so the result line and the
+        # alert still name them.
+        primary_error.n_refused = getattr(primary_error, "n_refused", 0) + sum(
+            r.n_refused for r in results.values() if r is not None)
         raise primary_error  # propagate the primary outcome to exit/status/alert
     return results
 

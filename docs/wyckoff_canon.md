@@ -11,6 +11,15 @@ not "fix" the engine toward textbook fidelity the operator does not want.
 Established 2026-07-26 from the operator's two supplied schematics + the StockCharts tutorial,
 and from his framing ruling of the same date.
 
+**Note, Sat 03/10/2026.** The rows below on the upthrust, the SOS, the spring's limits and Phase D
+describe the engine that is LIVE today, and they are true of it. The two-eyes reader (dark until his
+approval sitting) reads those words as [`strategy_alpha.md`](strategy_alpha.md) says under "The final
+method", stage 5, on his later rulings: the upthrust belongs in Phase B and crashes back into the range
+(it may take more than one swing, and never in the box's first fourteen days); Phase D opens only
+after the middle of the box; a spring is the deepest dip that recovered by the swing, with no depth
+number. When that reader goes live these rows are rewritten; until then, do not "fix" either engine
+toward the other from this file.
+
 ---
 
 ## 0. The framing ruling — read this first

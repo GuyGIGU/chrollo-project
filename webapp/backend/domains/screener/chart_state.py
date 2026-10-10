@@ -8,13 +8,17 @@ average"), or the lines the walk found and their facts (the rails, the open day,
 rail). Never on thousands of rows: one ticker per call, from the watchlist and the ticker page only.
 
 Read-only: the cache is read the way the watchlist candles read it, no download, no archive write, no scan.
+
+A read that falls over is a SCREEN state (``state`` None, ``failed`` True, "the read failed"), never one of the ten
+words. Under the two-eyes reader the word is the reader's and the lines are its own box's, from the record the door
+puts in the watch sink (the two-eyes build, task 15).
 """
 from __future__ import annotations
 
 import logging
 
 from config import settings
-from engine_alpha import evaluation
+from engine_alpha import evaluation, reader
 from engine_alpha.structure.metrics.indicators import calculate_atr
 from domains.market_data import watchlist_candles
 
@@ -58,10 +62,13 @@ def read_chart_state(ticker: str, universe_key: str | None = None) -> dict:
                 "why": FRAME_WORDS.get(status, status), "distance_ranges": None, "close": None}
     watch: dict = {}
     try:
-        result = evaluation._run_eval_chain(ticker, frame, 0.0, None, watch=watch)
+        result = reader.run_eval_chain(ticker, frame, 0.0, None, watch=watch)
     except Exception as exc:  # noqa: BLE001 - the read never raises at the operator
         logger.warning("chart state %s: %r", ticker, exc)
-        return {"ticker": ticker, "as_of": str(frame.index[-1].date()), "state": "no lines",
+        # A SCREEN state, never one of his ten words (the two-eyes build, task
+        # 15): "no lines" is the word for a chart that has none, and a read that
+        # fell over has not looked far enough to say that.
+        return {"ticker": ticker, "as_of": str(frame.index[-1].date()), "state": None, "failed": True,
                 "why": "the read failed", "distance_ranges": None,
                 "close": round(float(frame["Close"].iloc[-1]), 4)}
     state = evaluation.watch_verdict(watch, isinstance(result, dict))
@@ -72,6 +79,14 @@ def read_chart_state(ticker: str, universe_key: str | None = None) -> dict:
         leg = watch.get("why")
         out["why"] = DOOR_WORDS.get(leg, leg)
         out["distance_ranges"] = _door_distance(frame, leg)
+        return out
+    read = watch.get("read") if watch.get("two_eyes") else None
+    if read is not None and read.parent is not None:
+        # The new reader's own box: its lines, the day it opened, and the days that ride beside a word that counts
+        # them (never written into the word).
+        box = read.parent
+        out.update(R=round(float(box.resistance.price), 4), S=round(float(box.support.price), 4),
+                   open=box.opened_day.isoformat(), days=read.state_days)
         return out
     if watch.get("df") is not None and watch.get("unit") and (watch.get("structure") is not None
                                                                 or watch.get("box") is not None):

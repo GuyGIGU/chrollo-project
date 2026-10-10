@@ -89,11 +89,40 @@ def _nearest_reject(trace, mark_r, mark_s) -> dict | None:
             "rail_dist": round(best_dist, 3)}
 
 
+def _new_reader_reason(ticker, chart) -> dict:
+    """Why the NEW reader passed on his mark, in its own words (go-live plan,
+    task 5): its state word as the stage, and its box and the reason from its
+    own trail as the detail — the box step, then every LPS step, said as the
+    reader said them. Never "no box" for a chart it never read: the universe
+    door's refusal is "not scanned", a refused read "the read failed"."""
+    from engine_alpha import reader  # noqa: PLC0415 - the ONE reader door
+
+    watch: dict = {}
+    read = reader.read_record(ticker, chart, watch=watch)
+    if read is None:
+        return {"stage": "not scanned",
+                "detail": "the new reader never read this chart: the universe door "
+                          f"refused it ({watch.get('why')})"}
+    if read.failed:
+        return {"stage": "the read failed",
+                "detail": f"the new reader could not read this chart: {read.refusal}"}
+    said = [s.saying for s in read.trail if s.stage in ("box", "LPS")]
+    if read.parent is None:
+        # No box: the walk's last word is the trend end it read, or nothing at all.
+        ends = [s.saying for s in read.trail if s.stage == "trend end"]
+        said = [f"{ends[-1]}; no pair of swing ends became a box after it" if ends
+                else "it found no end of a trend to read a box from"]
+    return {"stage": read.state, "detail": "the new reader: " + "; ".join(said)}
+
+
 def _miss_reason(mark_dict, *, frame_loader=None) -> dict | None:
     """Read-only traced structure read at the mark's as-of -> why the box at his
     rails was rejected. None when the frame/prep is unavailable (degrade to a
-    reasonless 'missed'). Consumes the engine's EXISTING trace — no engine edit."""
-    from engine_alpha.structure.narrative import read_structure  # noqa: PLC0415
+    reasonless 'missed'). Consumes the engine's EXISTING trace — no engine edit.
+    Under the new reader, its own record's words (``_new_reader_reason``)."""
+    import pandas as pd  # noqa: PLC0415
+
+    from engine_alpha import reader  # noqa: PLC0415 - the ONE reader door
     from core.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
     from webapp.backend import frame_store  # noqa: PLC0415
     loader = frame_loader or frame_store.load_frame
@@ -101,12 +130,16 @@ def _miss_reason(mark_dict, *, frame_loader=None) -> dict | None:
                     digest=mark_dict.get("frame_digest"))
     if frozen is None:
         return None
+    if reader.which_reader() == reader.READER_NEW:
+        # The chart as the fired walk read it on his day: the frame cut there.
+        return _new_reader_reason(mark_dict["ticker"],
+                                  frozen.loc[:pd.Timestamp(mark_dict["as_of_date"])])
     prep = replay.prepared_frame(frozen, mark_dict["as_of_date"])
     if prep is None:
         return None
     df, atr = prep
     trace: list = []
-    read_structure(df, atr, trace=trace)  # baseline; no flag mutation needed
+    reader.read_box(df, atr, trace=trace)  # baseline; no flag mutation needed
     return _nearest_reject(trace, mark_dict.get("resistance"),
                            mark_dict.get("support"))
 

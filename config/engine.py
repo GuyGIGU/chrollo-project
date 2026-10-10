@@ -1039,3 +1039,31 @@ HTF_MONTHLY_WINDOWS = {
     # Daily-clock-only lane pinned off, as in the weekly preset above.
     "BOTTOMING_BASE_LANE_ENABLED": False,
 }
+
+# ---------------------------------------------------------------------------
+# THE TWO-EYES READER (the rewrite, 2026-09-20) - DARK
+# ---------------------------------------------------------------------------
+# The new chart reader, written beside the old engine and read in HIS order:
+# the bars, one swing line, the end of the trend, the two lines found by
+# walking right like two legs, the box's life, the story left to right, the
+# LPS and its trigger, the grade and the state word.
+#
+# Read in exactly ONE function, engine_alpha.reader.which_reader(). Every
+# stage is built (the line, the box, its life, the LPS and its trigger, with
+# the universe door before the read; the story, the mini and the grade), and
+# so are the screen block and the approval pack (task 15). Since go-live task 2
+# the nightly scan reads with it (no old-engine lane rides: the near-miss lane
+# goes quiet, the dark watch and rescue lanes refuse by name); the box-only
+# read still refuses it (go-live task 5). It stays off here.
+# The flip is HIS, after the approval sitting; nothing goes live piecemeal.
+TWO_EYES_READER_ENABLED = False
+
+# The new reader's ruleset version, BUMPED BY HAND with every change to how
+# it reads. The engine's version stamp hashes the listed settings, their
+# names and the scoring registry - but NO reader code, so without this two
+# different builds of the new reader would stamp the same version and an
+# archive row could not say which one wrote it. A string once used is SPENT:
+# a bump appends its new string to SPENT_RULESETS in
+# tests/engine/test_two_eyes_adapter.py, and a re-flip after an undo always
+# bumps (docs/flag_ledger.md, "The engine stamps of the flip").
+TWO_EYES_RULESET = "two-eyes-0.9.1-grade"

@@ -279,7 +279,7 @@ def test_the_scheduled_run_matures_them_after_the_fires(monkeypatch):
     order = []
     monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked",
                         lambda *a, **k: SimpleNamespace(output="ok", returncode=0,
-                                                        n_setups=1, n_errored=0))
+                                                        n_setups=1, n_errored=0, n_refused=0))
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "ok")
     monkeypatch.setattr(scan_runner, "_tail_error", lambda out: None)
     monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)

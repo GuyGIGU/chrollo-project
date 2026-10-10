@@ -32,6 +32,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import engine_alpha.evaluation as evaluation
+# The scan's read is substituted at the DOOR, not on the screener module: the
+# scan composes its pool worker through `reader.scan_worker(...)` (two-eyes
+# reader task 4), so `screener._evaluate_ticker` is now only a re-export and
+# patching it controls nothing.
+import engine_alpha.reader as reader
 import core.pipeline.screening.screener as screener
 import core.pipeline.telemetry.scan_metrics as scan_metrics
 
@@ -133,7 +138,7 @@ def test_evaluate_frames_counts_error_not_reject_and_keeps_fire(monkeypatch):
             return None                        # legitimate structural reject
         return fire                            # a normal fire
 
-    monkeypatch.setattr(screener, "_evaluate_ticker", _fake_eval)
+    monkeypatch.setattr(reader, "evaluate_ticker", _fake_eval)
 
     frames = {
         "BOOM": _price_frame(),
@@ -155,7 +160,7 @@ def test_evaluate_frames_clean_run_reports_zero_errored(monkeypatch):
     def _fake_eval(ticker, df, spy, breadth):
         return None if ticker == "REJECT" else {"Ticker": ticker, "Score": 1}
 
-    monkeypatch.setattr(screener, "_evaluate_ticker", _fake_eval)
+    monkeypatch.setattr(reader, "evaluate_ticker", _fake_eval)
 
     frames = {"A": _price_frame(), "REJECT": _price_frame(), "B": _price_frame()}
     results, errored = screener._evaluate_frames(frames, 0.0, None)
@@ -170,14 +175,14 @@ def test_evaluate_frames_count_is_per_call_not_carried_over(monkeypatch):
     monkeypatch.setattr(screener, "ProcessPoolExecutor", _SyncExecutor)
     monkeypatch.setattr(screener, "as_completed", _as_completed_passthrough)
     monkeypatch.setattr(
-        screener, "_evaluate_ticker",
+        reader, "evaluate_ticker",
         lambda t, df, spy, breadth: evaluation.EVAL_ERROR,
     )
     _, errored = screener._evaluate_frames({"X": _price_frame()}, 0.0, None)
     assert errored == 1
     # A subsequent clean call reports 0 — the prior 1 does not leak forward.
     monkeypatch.setattr(
-        screener, "_evaluate_ticker",
+        reader, "evaluate_ticker",
         lambda t, df, spy, breadth: {"Ticker": t, "Score": 1},
     )
     _, errored = screener._evaluate_frames({"Y": _price_frame()}, 0.0, None)
@@ -239,27 +244,30 @@ def test_parse_scan_result_reads_errored_from_json_channel():
         "some earlier line\n"
         'SCAN_RESULT_JSON:{"n_setups": 1, "n_archived": 1, "n_errored": 4}\n'
     )
-    n_setups, n_errored = scan_runner._parse_scan_result(output)
-    assert n_setups == 1
-    assert n_errored == 4
+    # Read by NAME: the parser answers a named triple since the archive's
+    # refused-row count joined it, and a positional unpack is how a future
+    # fourth count would land on the wrong name. Every value is unchanged.
+    counts = scan_runner._parse_scan_result(output)
+    assert counts.n_setups == 1
+    assert counts.n_errored == 4
 
 
 def test_parse_scan_result_defaults_errored_to_zero_when_key_absent():
     # An older child (or clean scan) omits n_errored; a swallowed-crash count is a
     # tripwire, so "unknown" means "no known crashes" -> 0 (never a phantom alert).
     scan_runner = _load_scan_runner()
-    n_setups, n_errored = scan_runner._parse_scan_result(
+    counts = scan_runner._parse_scan_result(
         'SCAN_RESULT_JSON:{"n_setups": 5, "n_archived": 5}\n'
     )
-    assert n_setups == 5
-    assert n_errored == 0
+    assert counts.n_setups == 5
+    assert counts.n_errored == 0
 
 
 def test_parse_scan_result_none_setups_when_payload_absent():
     scan_runner = _load_scan_runner()
-    n_setups, n_errored = scan_runner._parse_scan_result("no result line here\n")
-    assert n_setups is None
-    assert n_errored == 0
+    counts = scan_runner._parse_scan_result("no result line here\n")
+    assert counts.n_setups is None
+    assert counts.n_errored == 0
 
 
 def test_multi_universe_errored_reads_primary_not_last_universe():
@@ -291,7 +299,7 @@ def test_multi_universe_errored_reads_primary_not_last_universe():
     # Stdout order: primary universe first (JSON + its timing), ETF universe last.
     output = "\n".join([primary_timing, primary_json, "Scanning ETF universe...", etf_timing]) + "\n"
 
-    _, n_errored = scan_runner._parse_scan_result(output)
+    n_errored = scan_runner._parse_scan_result(output).n_errored
     assert n_errored == 3, "alert must read the PRIMARY universe's errored count, not the last universe's 0"
 
     # The old reversed-scrape read the LAST "errored=" timing line — prove that

@@ -5,52 +5,25 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-from pandas.tseries.holiday import (
-    AbstractHolidayCalendar,
-    GoodFriday,
-    Holiday,
-    USLaborDay,
-    USMartinLutherKingJr,
-    USMemorialDay,
-    USPresidentsDay,
-    USThanksgivingDay,
-    nearest_workday,
-    sunday_to_monday,
+# The NYSE session RULES live on the engine's side of the fence: the
+# engine is a leaf and may not import core, while core imports the engine
+# everywhere, so one home for the rules means the engine's. Re-exported
+# here under the names this module has always published (two-eyes-reader
+# task 5) -- no caller changes, and there is still exactly one calendar.
+from engine_alpha.market_sessions import (  # noqa: F401
+    NYSE_BUSINESS_DAY,
+    NyseHolidayCalendar as _NyseHolidayCalendar,
+    is_trading_session,
+    normalize_session_date,
+    session_gap,
 )
-from pandas.tseries.offsets import CustomBusinessDay
 
-
+# The trading DAY's clock stays here: when the market opens, closes and closes
+# early belongs to the data pipeline's freshness checks, not to a chart read.
 MARKET_TZ = ZoneInfo("America/New_York")
 REGULAR_OPEN = time(9, 30)
 REGULAR_CLOSE = time(16, 0)
 EARLY_CLOSE = time(13, 0)
-
-
-class _NyseHolidayCalendar(AbstractHolidayCalendar):
-    rules = [
-        Holiday("New Year's Day", month=1, day=1, observance=sunday_to_monday),
-        USMartinLutherKingJr,
-        USPresidentsDay,
-        GoodFriday,
-        USMemorialDay,
-        Holiday("Juneteenth", month=6, day=19, start_date="2022-01-01", observance=nearest_workday),
-        Holiday("Independence Day", month=7, day=4, observance=nearest_workday),
-        USLaborDay,
-        USThanksgivingDay,
-        Holiday("Christmas Day", month=12, day=25, observance=nearest_workday),
-    ]
-
-
-NYSE_BUSINESS_DAY = CustomBusinessDay(calendar=_NyseHolidayCalendar())
-
-
-def normalize_session_date(day) -> pd.Timestamp:
-    return pd.Timestamp(day).normalize()
-
-
-def is_trading_session(day) -> bool:
-    day = normalize_session_date(day)
-    return not pd.date_range(day, day, freq=NYSE_BUSINESS_DAY).empty
 
 
 def _thanksgiving_date(year: int) -> date:
@@ -127,13 +100,6 @@ def previous_trading_session(day) -> pd.Timestamp:
 def next_trading_session_after(day) -> pd.Timestamp:
     return normalize_session_date(day) + NYSE_BUSINESS_DAY
 
-
-def session_gap(last_session, expected_session) -> int:
-    last_session = normalize_session_date(last_session)
-    expected_session = normalize_session_date(expected_session)
-    if last_session >= expected_session:
-        return 0
-    return max(0, len(pd.date_range(last_session, expected_session, freq=NYSE_BUSINESS_DAY)) - 1)
 
 
 def latest_completed_session(now_et: datetime | None = None) -> pd.Timestamp:

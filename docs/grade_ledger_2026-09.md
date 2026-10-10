@@ -97,3 +97,109 @@ His fires: S 10 / A 8 / B 2 today, S 11 / A 8 / B 1 under the ledger; the three 
 under the ledger (ABEV climbs on its window's spread and its named legs; its 7.5 turn points show the few turns).
 The other 15 marks do not fire on their frozen day under the whole method (they fire on another day of the
 window, or hand over, or wait as a root candidate: the step-11 record).
+
+## The two-eyes reader's grade probe (Mon 05/10/2026): no measure of the box survives
+
+Build task 14 of the two-eyes reader. The hypotheses were written into the decisions record before the probe
+existed: the box's height in its own daily range; three forms of his "huge against the box" (*"answer a."*, Sun
+20/09/2026); the spread profile; the event map; and the plain average as the control. They were read on the
+reader's OWN box (the one its LPS was read against), on his 40 drawings on his last receding day and on the 14 junk
+charts that fire in their window, on their first fire day (`python -m tools.calibration.grade_probe`).
+
+| Measure | His 40: min / q25 / median / q75 / max | The 14 junk fires | Separation | Left out |
+|---|---|---|---|---|
+| H, the box's height in daily ranges (junk higher) | 1.06 / 1.35 / 1.50 / 1.83 / 2.75 | 1.03 / 1.15 / 1.28 / 1.55 / 1.93 | 0.304 | 0.500 |
+| S1, days whose bar is 3/4 of the box or taller (junk higher) | 0.00 / 0.05 / 0.14 / 0.30 / 0.69 | 0.04 / 0.16 / 0.35 / 0.55 / 0.65 | 0.732 | 0.671 |
+| S2, swings from line to line per 20 days (junk lower) | 2.22 / 5.10 / 6.27 / 10.47 / 16.00 | 1.63 / 4.64 / 6.04 / 8.14 / 13.68 | 0.568 | 0.613 |
+| S3, the 90th-percentile bar over the median bar (junk higher) | 1.25 / 1.42 / 1.52 / 1.60 / 2.10 | 1.20 / 1.48 / 1.59 / 1.70 / 1.87 | 0.605 | 0.602 |
+| V, the last third's median spread over the first third's (junk higher) | 0.51 / 0.79 / 0.99 / 1.19 / 1.77 | 0.64 / 0.77 / 0.94 / 1.10 / 1.45 | 0.461 | 0.134 |
+| E, the story's committed words (junk lower) | 1 / 3 / 3.5 / 4 / 5 | 3 / 3 / 4 / 4 / 5 | 0.427 | 0.464 |
+| S0, the control: the median bar over the box's height | 0.35 / 0.45 / 0.52 / 0.64 / 0.89 | 0.36 / 0.50 / 0.66 / 0.81 / 0.88 | 0.664 | 0.666 |
+
+To survive, a measure had to beat 0.713 on separation AND 0.696 left out (the 95th percentile of the best of six
+under 2,000 shuffles of the labels). None of the six does. The height runs the other way: the reader draws the
+junk's boxes narrower (their median 1.28 ranges against his 1.50; six of the fourteen under 1.2, where his BODI,
+VIK, PBT and DRTS sit too), and their bars are tall against them. The tall bars come closest: they beat the
+family's chance on separation (0.732) and miss the left-out bar by 0.025, less than one junk chart's weight with
+fourteen, and they mark down his own UNF (his lines; the median bar 89 percent of the box) as hard as FRPH (85
+percent). No one measure puts all three of the bar's charts under A on every day they fire: BMRN stops the height,
+the tall bars and the story; COLM the zigzag and the volatile bars; COLM and FRPH the spread profile. The zigzag
+cannot read "no room to zigzag" on the narrowest boxes, where the two lines' areas nearly meet (0.05 ranges apart on
+COLM), so it says least exactly where the junk sits. No grade is built on these numbers: the grade carries no
+letter until a measure survives or he weights his traits by eye (the decisions record, 2026-10-05).
+
+## The second probe (Mon 05/10/2026): his dead space separates
+
+His word on the sheet above: *"some boxes are about as wide as the bars themselves, and that's completely fine
+... FRPH is total junk because the box is mostly dead space with no visible base insight"*, with red crosses
+along FRPH's box where no bar is in it ([his drawing](marks/rulings_2026-10-05/frph_dead_space.png)). One measure
+was written down before it ran (the decisions record, 2026-10-05): the share of the base's days whose bar does
+not reach the box, its low over the resistance or its high under the support. The base is the box's days from
+its opening to the day before THE SOS's push. The push and the pullback after it are the right side.
+
+| The dead days | His 40: min / q25 / median / q75 / max | The 14 junk fires | Separation | Left out |
+|---|---|---|---|---|
+| D, on the box the LPS was read against (written down first: THE GRADE) | 0.00 / 0.00 / 0.05 / 0.10 / 0.65 | 0.00 / 0.11 / 0.28 / 0.51 / 0.71 | 0.769 | 0.732 |
+| Dp, the same on the parent (chosen after the board: beside it, his call) | 0.00 / 0.00 / 0.05 / 0.10 / 0.65 | 0.00 / 0.11 / 0.28 / 0.51 / 0.71 | 0.790 | 0.709 |
+
+D beats chance on both counts (0.646 / 0.645, 2,000 shuffles, the one measure). It still does with FRPH, the chart
+that taught it, left out (0.751 / 0.721). The grade scores 1 at his median (0.054) or less and 0 at the junk
+fires' median (0.275) or more; S 75, A 50, B 25.
+
+- **His 40:** S 31, A 2, B 3, C 4. The junk fires: S 4, A 1, B 2, C 7.
+- **The bar:** BMRN and FRPH grade 0 on every day they fire, and COLM 34. COLM's own left-out grade is 50.7, an A,
+  because with fourteen junk charts the zero end is the midpoint of COLM's 0.20 and BMRN's 0.35.
+- **His UNF,** a box as tall as its bars, grades 77.7.
+- **His four C's:** on NET and BODI the reader's own box sits off his, and the bars spend weeks outside it. VIK and
+  VLO are graded on their minis.
+- **On the parent** (held to the best of the two under the same shuffles, 0.659 / 0.661, and passing): VIK and VLO
+  go to S, his 40 read S 31, A 4, B 3, C 2, and COLM's left-out grade is 49.6. It was chosen after the board, so it
+  stands beside the grade, for his call.
+- **The junk at S** (DGII, KWR, RLGT and the June BBVA) have full boxes, so dead space is not what is wrong with
+  them. DGII and KWR are still on the plan's list for his ruling at the approval sitting.
+
+The sheet, ranked by the grade with the parent grade on every page, is the build run's
+`pictures/grade-sheet-dead-space/`. His word after it: *"all of the 40 calibrated should be S tier in my book"*.
+The grade's next step opens a new session.
+
+
+## The grade session (Thu 08/10 to Fri 09/10/2026): his way, the hold, and the grade built
+
+A study of his 40 came first (read-only, the build run's `pictures/grade-study/`). On his own lines 17 of his 40
+have no empty day before the push; of the 119 empty days, 75 lie a hair outside a line, 23 inside his drawn
+springs, 17 are pokes over the resistance that came back. So he counts days as a trader does: a hair beyond a line
+is respect (Sun 30/08/2026), a day inside a named event's swing is story (Sun 13/09/2026). Counted so, COLM's
+base has no empty day, the same as his MTLS. His answer on COLM (Thu 08/10/2026): *"base dosen't hold and dosen't
+answer for an LPS anywhere"* ([his picture](marks/rulings_2026-10-08/colm_base_does_not_hold.png)). Three
+readings were then written down and measured in turn, each against the best of every reading looked at before it
+under the same 2,000 shuffles:
+
+| Reading | What changed | Its order | The bar it had to beat | His 40 | The plan's bar |
+|---|---|---|---|---|---|
+| third | his way on the parent; the hold: no low over half a range under the support after THE SOS's top; the medians' ramp | 0.705 / 0.688 | 0.666 / 0.664 | S 33, C 7 | met |
+| fourth | the hold needs a fall under the base's own lowest low too (his JAZZ LPS pokes 0.54 under and holds); ends fixed: 0 at half the base empty (his "mostly") | 0.748 / 0.713 | 0.671 / 0.664 | S 39, B 1 | FRPH S on four days |
+| fifth | the story forgives an event's own swing only (his ruling, Fri 09/10/2026) | 0.780 / 0.761 | 0.671 / 0.668 | S 39, C 1 | met but BMRN (A, parked) |
+
+The third's medians' ramp collapsed (seven of the fourteen junk fires have no empty day his way, so the zero end
+fell to one day in sixty), and its hold failed his JAZZ against his own ruling on that chart. The fourth's FRPH
+grades S because, from Thu 25/06/2026, the reader moves FRPH's box up and names two months under it a spring.
+His word on that (Fri 09/10/2026): forgive only the swing, and *"the marked box failed"*, so the late return is
+no test and no SOS; the reader's part is recorded for after the grade.
+
+**THE GRADE is the fifth reading**, built into the reader as its stage 7 (`engine_alpha/two_eyes/grade.py`,
+`Read.grade`), dark like the rest of it:
+
+- the setup's box (the parent); the base from its opening to the day before THE SOS's push;
+- a base day is empty when its bar misses the box by more than half its daily range, outside every named event's
+  own swing (the reader's span narrowed to the line's legs into and out of the event's extreme);
+- the base does not hold when, after THE SOS's top, a low falls beyond the support's area and under the base's own
+  lowest low;
+- 100 with no empty day, 0 at half the base empty, a straight line between; 0 when the base did not hold; S 75,
+  A 50, B 25.
+
+On his 40: S 39 and C 1 (BODI, where the reader's box sits off his). On the 43 junk fire days: S 17, A 8, B 6,
+C 12; COLM and FRPH grade C on every day they fire, BMRN A (15 to 23 percent of its base empty). SIMO, an A on the
+screener's scan of Fri 02/10/2026 only by the old engine's 15-percent-of-price ceiling, grades S on all six of its
+fire days. The reader's own grade equals the probe's fifth reading on every one of the 83 reads. The ends and the
+cuts are his to approve at the sitting; the adapter's score and tier still carry the dark placeholder until task
+15 puts the grade on the row.

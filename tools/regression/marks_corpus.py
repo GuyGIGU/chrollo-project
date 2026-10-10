@@ -82,7 +82,7 @@ _PROJECT_ROOT = configure_path(backend=True)
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR
 from engine_alpha.freeze.manifest import manifest_hash
-from core.pipeline.screening.screener import _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo
@@ -188,13 +188,32 @@ _REQUIRED_KEYS = ("ticker", "source", "lps", "trigger", "rails_drawn")
 _ALLOWED_KEYS = frozenset({
     "ticker", "setup", "source", "notes",
     "lps", "lps2", "trigger", "rails_drawn",
+    # What he DREW, beyond the two rail prices (carried since 2026-09-20): the
+    # box's first and last day, the day each rail was anchored on, which rail he
+    # drew first, his trigger's price, and the mini consolidation's own band and
+    # dates where he drew one. His DB has held all of it since 2026-07-11. They
+    # are the ground truth the rewrite's OWN lines are scored against; they are
+    # deliberately NOT part of setup_digest (see there).
+    "box", "anchors", "first_rail", "trigger_price", "mini",
+    # His other drawn events (carried since 2026-10-02, build task 12b): every
+    # SOS, spring (Phase C), spring test and last supper he drew, each a span of
+    # days. They are the ground truth the two-eyes reader's WORDS are held to,
+    # and like his box and anchors they are deliberately NOT part of
+    # setup_digest: a word never moves the window the engine must fire in.
+    "sos", "phase_c", "spring_test", "last_supper",
     # Guided List graduation provenance: the frozen as-drawn basis. A setup
     # carrying frame_digest freezes from calibration_frames/ by digest (the
     # exact bars the operator marked), never from a live re-fetch.
     "as_of", "frame_digest", "knowable_from",
 })
-_DATE_SPAN_KEYS = ("lps", "lps2")
+_DATE_SPAN_KEYS = ("lps", "lps2", "box")
+#: His drawn events beside the LPS and the mini, named as his marks DB names them
+#: (calibration_mark_events.event_type). Each is a LIST of [first day, last day]
+#: spans, because he draws two of a kind on one chart (EWTX's SOS, BODI's spring
+#: tests). The export and the loader share this one tuple.
+DRAWN_EVENT_KEYS = ("sos", "phase_c", "spring_test", "last_supper")
 _DATE_SCALAR_KEYS = ("trigger", "as_of", "knowable_from")
+_RAILS = ("resistance", "support")
 
 
 def _parse_date(value: str, ctx: str) -> date:
@@ -232,46 +251,130 @@ def load_corpus(paths: tuple[str, ...] = CORPUS_FILES) -> list[dict]:
             raise ValueError(f"marks corpus: {path} has no 'setups' list")
         for raw in doc["setups"]:
             ctx = f"{os.path.basename(path)}::{raw.get('ticker', '?')}"
-            unknown = set(raw) - _ALLOWED_KEYS
-            if unknown:
-                raise ValueError(f"marks corpus: {ctx} has unrecognized keys {sorted(unknown)} "
-                                 "- extend _ALLOWED_KEYS deliberately, never skip")
-            for key in _REQUIRED_KEYS:
-                if key not in raw:
-                    raise ValueError(f"marks corpus: {ctx} missing required key '{key}'")
-            ticker = raw["ticker"]
-            if not (isinstance(ticker, str) and _ticker_re().match(ticker)):
-                raise ValueError(f"marks corpus: {ctx} ticker fails the strict "
-                                 f"grammar: {ticker!r} (it becomes an identity "
-                                 "key and a frame filename — rejected, never sanitized)")
-            for key in _DATE_SPAN_KEYS:
-                if raw.get(key) is not None:
-                    span = raw[key]
-                    if not (isinstance(span, list) and len(span) == 2):
-                        raise ValueError(f"marks corpus: {ctx}.{key} must be a [start, end] pair")
-                    lo, hi = (_parse_date(v, f"{ctx}.{key}") for v in span)
-                    if lo > hi:
-                        raise ValueError(f"marks corpus: {ctx}.{key} start after end")
-            for key in _DATE_SCALAR_KEYS:
-                if raw.get(key) is not None:
-                    _parse_date(raw[key], f"{ctx}.{key}")
-            if raw.get("frame_digest") and not raw.get("as_of"):
-                raise ValueError(f"marks corpus: {ctx} carries frame_digest but no "
-                                 "as_of - the drawn basis is unaddressable")
-            rails = raw["rails_drawn"]
-            if not (isinstance(rails, dict) and {"R", "S"} <= set(rails)):
-                raise ValueError(f"marks corpus: {ctx}.rails_drawn needs R and S")
-            r, s = rails.get("R"), rails.get("S")
-            if not (isinstance(r, (int, float)) and isinstance(s, (int, float))
-                    and r == r and s == s and float(r) > float(s) > 0):
-                raise ValueError(f"marks corpus: {ctx}.rails_drawn must be ordered "
-                                 f"positive numbers with R above S (got R={r!r} S={s!r})")
+            validate_setup(raw, ctx)
             key = setup_key(raw)
             if key in seen:
                 raise ValueError(f"marks corpus: duplicate setup key {key!r}")
             seen.add(key)
             setups.append(raw)
     return setups
+
+
+def _positive(value) -> bool:
+    return isinstance(value, (int, float)) and value == value and float(value) > 0
+
+
+def validate_setup(raw: dict, ctx: str) -> None:
+    """Judge ONE sealed setup, loudly. Frozen semantics (EC-7).
+
+    Split out of ``load_corpus`` 2026-09-20 so the drawing he stands behind can
+    be checked on its own — and so a malformed drawing has a test that watches
+    it fail."""
+    unknown = set(raw) - _ALLOWED_KEYS
+    if unknown:
+        raise ValueError(f"marks corpus: {ctx} has unrecognized keys {sorted(unknown)} "
+                         "- extend _ALLOWED_KEYS deliberately, never skip")
+    for key in _REQUIRED_KEYS:
+        if key not in raw:
+            raise ValueError(f"marks corpus: {ctx} missing required key '{key}'")
+    ticker = raw["ticker"]
+    if not (isinstance(ticker, str) and _ticker_re().match(ticker)):
+        raise ValueError(f"marks corpus: {ctx} ticker fails the strict "
+                         f"grammar: {ticker!r} (it becomes an identity "
+                         "key and a frame filename — rejected, never sanitized)")
+    for key in _DATE_SPAN_KEYS:
+        if raw.get(key) is not None:
+            span = raw[key]
+            if not (isinstance(span, list) and len(span) == 2):
+                raise ValueError(f"marks corpus: {ctx}.{key} must be a [start, end] pair")
+            lo, hi = (_parse_date(v, f"{ctx}.{key}") for v in span)
+            if lo > hi:
+                raise ValueError(f"marks corpus: {ctx}.{key} start after end")
+    for key in _DATE_SCALAR_KEYS:
+        if raw.get(key) is not None:
+            _parse_date(raw[key], f"{ctx}.{key}")
+    if raw.get("frame_digest") and not raw.get("as_of"):
+        raise ValueError(f"marks corpus: {ctx} carries frame_digest but no "
+                         "as_of - the drawn basis is unaddressable")
+    rails = raw["rails_drawn"]
+    if not (isinstance(rails, dict) and {"R", "S"} <= set(rails)):
+        raise ValueError(f"marks corpus: {ctx}.rails_drawn needs R and S")
+    r, s = rails.get("R"), rails.get("S")
+    if not (_positive(r) and _positive(s) and float(r) > float(s)):
+        raise ValueError(f"marks corpus: {ctx}.rails_drawn must be ordered "
+                         f"positive numbers with R above S (got R={r!r} S={s!r})")
+
+    # --- what he DREW, beyond the two prices (carried since 2026-09-20) -----
+    anchors = raw.get("anchors")
+    if anchors is not None:
+        if not (isinstance(anchors, dict) and {"R", "S"} <= set(anchors)):
+            raise ValueError(f"marks corpus: {ctx}.anchors needs a day for each rail "
+                             "- a rail is ONE anchor day's high or low, and resolving "
+                             "it by matching a price picks the earliest bar that "
+                             "happens to touch it")
+        anchor_days = [_parse_date(anchors[k], f"{ctx}.anchors.{k}") for k in ("R", "S")]
+        if raw.get("box"):
+            box_start = _parse_date(raw["box"][0], f"{ctx}.box[0]")
+            if min(anchor_days) != box_start:
+                raise ValueError(
+                    f"marks corpus: {ctx}.box opens on {box_start} but its earliest "
+                    f"anchor is {min(anchor_days)} — his ruling of Sat 12/09/2026 is "
+                    "that the box opens on the earlier anchor and is never extended left")
+    if raw.get("first_rail") is not None and raw["first_rail"] not in _RAILS:
+        raise ValueError(f"marks corpus: {ctx}.first_rail is {raw['first_rail']!r}, "
+                         f"not one of {_RAILS}")
+
+    # His buy: the day AND the price. A mark may carry neither — he re-dated
+    # YPF's window on Tue 15/09/2026 and the trigger he had drawn fell inside
+    # it, so the "strictly after the last LPS bar" rule cleared it. "No buy
+    # marked" is a real state; a day without its price, or a price without its
+    # day, is a broken one.
+    if "trigger_price" in raw:
+        price, day = raw["trigger_price"], raw.get("trigger")
+        if (price is None) != (day is None):
+            raise ValueError(f"marks corpus: {ctx} carries trigger={day!r} with "
+                             f"trigger_price={price!r} — his buy is a day AND a price")
+        if price is not None and not _positive(price):
+            raise ValueError(f"marks corpus: {ctx}.trigger_price is {price!r}")
+
+    # His drawn events: a kind and its spans of days, nothing else. A setup
+    # without one simply carries no key (a missing drawing is never his "no").
+    for key in DRAWN_EVENT_KEYS:
+        if key not in raw:
+            continue
+        spans = raw[key]
+        if not (isinstance(spans, list)
+                and all(isinstance(s, list) and len(s) == 2 for s in spans)):
+            raise ValueError(f"marks corpus: {ctx}.{key} must be a list of "
+                             "[first day, last day] spans")
+        if not spans:
+            raise ValueError(f"marks corpus: {ctx}.{key} carries no span — a setup "
+                             "with no such event drawn carries no key at all")
+        days = [tuple(_parse_date(v, f"{ctx}.{key}") for v in s) for s in spans]
+        if any(lo > hi for lo, hi in days):
+            raise ValueError(f"marks corpus: {ctx}.{key} start after end")
+        if days != sorted(days):
+            raise ValueError(f"marks corpus: {ctx}.{key} spans must be in the order "
+                             "of their first day")
+
+    mini = raw.get("mini")
+    if mini is not None:
+        if not (isinstance(mini, dict) and {"band", "span"} <= set(mini)):
+            raise ValueError(f"marks corpus: {ctx}.mini needs a band and a span")
+        band = mini["band"]
+        if not (isinstance(band, dict) and {"R", "S"} <= set(band)):
+            raise ValueError(f"marks corpus: {ctx}.mini.band needs R and S — the mini "
+                             "is a second box with its OWN two lines (his ruling, "
+                             "Sun 20/09/2026: both boxes live)")
+        mr, ms = band["R"], band["S"]
+        if not (_positive(mr) and _positive(ms) and float(mr) > float(ms)):
+            raise ValueError(f"marks corpus: {ctx}.mini.band must be ordered positive "
+                             f"numbers with R above S (got R={mr!r} S={ms!r})")
+        if not (isinstance(mini["span"], list) and len(mini["span"]) == 2):
+            raise ValueError(f"marks corpus: {ctx}.mini.span must be a [start, end] pair")
+        m_lo, m_hi = (_parse_date(v, f"{ctx}.mini.span") for v in mini["span"])
+        if m_lo > m_hi:
+            raise ValueError(f"marks corpus: {ctx}.mini.span start after end")
 
 
 def corpus_sha256(paths: tuple[str, ...] = CORPUS_FILES) -> str:
@@ -306,15 +409,90 @@ def corpus_provenance(paths: tuple[str, ...] = CORPUS_FILES) -> dict:
     return carriers[0][1] if carriers else {}
 
 
+def load_sealed_standard() -> tuple[list[dict], dict, dict]:
+    """His drawings and the bars they were frozen on, PROVED to be one set: ``(setups, frames, stamp)``.
+
+    The boards and the approval pack loaded the drawings file and the frozen bars separately and threw the
+    fixture's seal away, so between the export and ``--build-fixture`` a new drawing read as "no frame" and the
+    page could not say which drawings it measured (council review 2026-10-09, finding 7; EC-13). This refuses a
+    drawings file the bars were not sealed for, and ``stamp`` names exactly what a report measured: the
+    drawings' seal and fingerprint and the engine version that read them."""
+    from core.calibration.replay import load_sealed_fixture
+    from engine_alpha.freeze.manifest import manifest_hash
+
+    frames, baseline = load_sealed_fixture()
+    seal = corpus_sha256()
+    if seal != baseline.get("corpus_sha256"):
+        raise ValueError(
+            "the drawings file does not match the bars it was frozen on (corpus "
+            f"{seal[:12]}, the fixture was sealed for {str(baseline.get('corpus_sha256'))[:12]}): "
+            "rebuild the fixture first (python -m tools.regression.marks_corpus --build-fixture)")
+    stamp = {"drawings": None, "corpus_sha256": seal,
+             "marks_fingerprint": corpus_provenance().get("marks_fingerprint"),
+             "engine_config_version": manifest_hash()}
+    setups = load_corpus()
+    stamp["drawings"] = len(setups)
+    return setups, frames, stamp
+
+
+def stamp_line(stamp: dict) -> str:
+    """The one line a board prints above its numbers: which drawings, read by which engine."""
+    return (f"  his {stamp['drawings']} drawings · corpus {stamp['corpus_sha256'][:12]} · marks fingerprint "
+            f"{str(stamp.get('marks_fingerprint') or '?')[:12]} · engine {stamp['engine_config_version'][:12]}")
+
+
+def _rounded(value):
+    return None if value is None else round(float(value), 4)
+
+
+def scored_fields_of_marks(rows) -> dict:
+    """``{(ticker, as_of): (his buy price, his mini's R, his mini's S)}`` of his drawings in the marks DB: the
+    fields the boards SCORE against that the frozen seal leaves out (council review 2026-10-09, finding 8)."""
+    out = {}
+    for mark in rows:
+        minis = [e for e in mark.events if e.event_type == "mini_consolidation"]
+        band = (_rounded(minis[0].band_high), _rounded(minis[0].band_low)) if minis else (None, None)
+        out[(mark.ticker, str(mark.as_of_date))] = (_rounded(mark.trigger_price), *band)
+    return out
+
+
+def scored_fields_of_setups(setups) -> dict:
+    """The same fields as the corpus carries them (the export's ``trigger_price`` and ``mini.band``)."""
+    out = {}
+    for setup in setups:
+        band = (setup.get("mini") or {}).get("band") or {}
+        out[(setup["ticker"], setup["as_of"])] = (_rounded(setup.get("trigger_price")),
+                                                  _rounded(band.get("R")), _rounded(band.get("S")))
+    return out
+
+
+def scored_drift(live: dict, corpus: dict) -> list[str]:
+    """The drawings, in both, whose buy price or mini lines differ: ``['TICKER@as_of', ...]``."""
+    return sorted(f"{t}@{d}" for (t, d) in set(live) & set(corpus) if live[(t, d)] != corpus[(t, d)])
+
+
 def eval_windows(setup: dict) -> list[tuple[date, date, int]]:
     """The marked entry window(s) as (start, end, grace_sessions) triples —
     consumed by the CHRONOLOGY battery only (the gate grades on the replay
     seam's fired-policy window). LPS start -> trigger (inclusive); an lps2
     span contributes its own window with grace past its end (it carries no
     second trigger). A second window fully inside the first collapses away.
-    Frozen semantics (EC-7)."""
+    Frozen semantics (EC-7).
+
+    A setup with NO BUY MARKED takes the same shape as an lps2 span: the window
+    ends at the LPS span's end and carries the same grace figure. That is the
+    convention this module already had for "a marked span with no trigger", and
+    it is the conservative direction — the alternative, an unbounded window,
+    would silently widen what counts as a fire. The grace FIGURE is inert today:
+    the only consumer of these windows
+    (``tools.audits.event_map_chronology._cut_positions``) reads the start and the end
+    and drops the third element."""
     lps_start = _parse_date(setup["lps"][0], "lps[0]")
-    windows = [(lps_start, _parse_date(setup["trigger"], "trigger"), 0)]
+    if setup.get("trigger") is None:
+        windows = [(lps_start, _parse_date(setup["lps"][1], "lps[1]"),
+                    NULL_TRIGGER_GRACE_SESSIONS)]
+    else:
+        windows = [(lps_start, _parse_date(setup["trigger"], "trigger"), 0)]
     if setup.get("lps2"):
         second = (_parse_date(setup["lps2"][0], "lps2[0]"),
                   _parse_date(setup["lps2"][1], "lps2[1]"),
@@ -342,6 +520,7 @@ def _lps_spans(setup: dict) -> list[tuple[str, str]]:
     return spans
 
 
+@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:
     """Replay one graduated setup on the ONE fired-policy window from the
     replay seam — the SAME pops-up-live criterion the agreement harness
@@ -423,6 +602,16 @@ def population_is_current(corpus_fingerprint: str | None) -> tuple[bool, str]:
         # them.
         return True, "the marks DB here holds no drawings — corpus currency not checked"
     if fingerprint == corpus_fingerprint:
+        # The seal is frozen and leaves out his buy price and his mini's two lines (a re-pin is his, at a
+        # graduation sitting); the boards score against both, so they are checked here on their own
+        # (council review 2026-10-09, finding 8).
+        moved = scored_drift(scored_fields_of_marks(rows), scored_fields_of_setups(load_corpus()))
+        if moved:
+            return False, (
+                f"THE CORPUS IS STALE: his buy price or his mini's two lines moved on {', '.join(moved)}; the "
+                "drawings' fingerprint leaves those fields out, this check does not. Refresh it:\n"
+                "      python -m tools.calibration.guided_list_export\n"
+                "      python -m tools.regression.marks_corpus --build-fixture")
         return True, f"corpus matches the live marks DB ({len(rows)} box marks)"
     return False, (
         f"THE CORPUS IS STALE: the live calibration-marks DB holds {len(rows)} box marks "
@@ -585,6 +774,16 @@ def setup_digest(setup: dict) -> str:
 
     Deliberately NOT the frame digest alone: the same bars can carry a completely
     redrawn box.
+
+    Deliberately NOT his box dates, anchor days, first rail, trigger price or
+    mini either, though the corpus has carried them since 2026-09-20 (a
+    builder's default, recorded as ours in decisions.md). A pinned verdict
+    answers "does the engine FIRE in the window he marked", and none of those
+    fields moves that window. Reading them in would have marked all 35 marks
+    redrawn in one build and dropped every hand-written stage tag with them —
+    the ratchet would have lost its teeth on the day it gained his drawing.
+    They are what the ENGINE'S OWN lines are scored against, which is the
+    yardstick's job, not the ratchet's.
     """
     payload = {k: setup.get(k) for k in
                ("as_of", "rails_drawn", "lps", "lps2", "trigger",

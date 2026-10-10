@@ -83,11 +83,11 @@ def _vetoed_cause_absent(df, atr, variant: dict) -> bool:
     outcome under the variant's flags — never a re-implementation of the
     veto predicate. Cheap: only consulted for a box mark that already read
     None, and the pivot walk it drives is the same one the election ran."""
-    from engine_alpha.structure.narrative.reader import read_structure  # noqa: PLC0415
+    from engine_alpha import reader  # noqa: PLC0415
 
     trace: list = []
     with replay.flag_capture(**variant):
-        read_structure(df, atr, trace=trace)
+        reader.read_box(df, atr, trace=trace)
     return any(r.get("outcome") == "cause_absent" for r in trace)
 
 
@@ -244,12 +244,14 @@ def fired_one(mark: dict, variants: list[dict], *, frame_loader=None,
     """
     if mark["verdict"] != "box":
         return [None for _ in variants]
+    for variant in variants:        # before any read: a knob variant is the old reader's, refused by name
+        replay.refuse_old_knobs(variant)
 
     from webapp.backend import frame_store
     from engine_alpha.evaluation import EVAL_ERROR
 
     if evaluate is None:
-        from engine_alpha.evaluation import _evaluate_ticker
+        from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
 
         def evaluate(ticker, sliced):
             return _evaluate_ticker(ticker, sliced, _FROZEN_SPY_6M, _FROZEN_BREADTH)

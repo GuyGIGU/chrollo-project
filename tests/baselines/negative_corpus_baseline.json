@@ -1,6 +1,6 @@
 {
   "captured_at": "2026-09-13T17:44:21+00:00",
-  "engine_config_version": "0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42",
+  "engine_config_version": "8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c",
   "fired_policy": {
     "window_sessions": 10,
     "max_walk_sessions": 40

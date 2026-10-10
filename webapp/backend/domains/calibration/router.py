@@ -392,7 +392,14 @@ def calibration_engine_read(ticker: str = Query(...), as_of: str = Query(...),
         "engine_config_version": manifest_hash(),
         "elected": False,
     }
-    snapped = replay.snapped_election(frozen, as_of, [{}])
+    from engine_alpha.reader import NotThisReader  # noqa: PLC0415
+
+    try:
+        snapped = replay.snapped_election(frozen, as_of, [{}])
+    except NotThisReader as refused:
+        # The overlay draws the OLD reader's election; under the new reader it
+        # refuses by name (go-live plan, task 5), never "no structure elects".
+        _refuse(409, "old_reader_only", str(refused), symbol, as_of)
     if snapped is None:
         result["reason"] = "prep refuses every candidate session (frame too thin)"
     else:

@@ -41,10 +41,10 @@ import sys
 import pandas as pd
 
 try:  # works under both `python -m tools.research.rail_margin_evidence` and `python tools/research/rail_margin_evidence.py`
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 _ROOT = configure_path(backend=True)
 
 from config import settings  # noqa: E402
@@ -530,6 +530,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", metavar="PATH", help="dump all rows to JSON")
     args = ap.parse_args()
+    say_old_reader()   # FIRST: it reads the OLD reader past the door (go-live plan, task 4)
     if args.json:
         refuse_sealed_output(args.json)
 

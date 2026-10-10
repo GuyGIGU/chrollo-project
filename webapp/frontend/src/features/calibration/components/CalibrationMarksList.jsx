@@ -14,7 +14,8 @@ import { confirmDialog } from '../../../shared/components/feedback';
 // information, not an alarm. The row being edited carries the active-row cue.
 // Engine chip — the operator's calibration read on a mark. It shows the SHARPER
 // FIRED-in-window verdict once it computes (green `fired · tier · Δ`, or red
-// `missed · <gate>` — the structure gate that killed the box at his rails);
+// `missed · <stage>` — the old reader's gate that killed the box at his rails,
+// or the new reader's state word, with its box and its reason in the title);
 // until then it shows the instant CONCORDANCE headline (green `reads` / red
 // `no read` — did the engine surface a box at the pick at all). Progressive
 // enhancement: the cheap headline immediately, the fired verdict a moment later.
@@ -28,7 +29,8 @@ const KIND_TITLE = {
   no_frame: 'The frozen frame for this mark is unavailable',
   // fired
   fired: 'This pick would have surfaced on the nightly screener in-window',
-  missed: 'No fire in the fair window — the gate that killed the box',
+  missed: "No fire in the fair window — the engine's reason",
+  old_reader: "Not graded: this headline reads the old reader's election, and the new reader is switched on",
   unassessable: 'No faithful basis to replay the fair window (thin frame / engine error)',
   // shared
   negative: 'A negative mark — no box for the engine to surface',

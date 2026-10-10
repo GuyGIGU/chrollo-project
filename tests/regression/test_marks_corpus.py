@@ -393,3 +393,65 @@ def test_an_empty_marks_db_is_not_read_as_the_operator_deleting_everything():
         "the currency check judged a database with no drawings in it — under "
         f"pytest that is the throwaway DB, not the operator's archive ({note})"
     )
+
+
+# ---- The sealed standard is one set, and the currency check sees his buy price and his mini (council review
+# ---- 2026-10-09, findings 7 and 8) ----------------------------------------------------------------------------
+def _marks_like(setups):
+    """His drawings as the marks DB holds them: the fields the scored-field check reads, nothing else."""
+    from types import SimpleNamespace
+
+    rows = []
+    for s in setups:
+        events = []
+        if s.get("mini"):
+            events.append(SimpleNamespace(event_type="mini_consolidation", band_high=s["mini"]["band"]["R"],
+                                          band_low=s["mini"]["band"]["S"]))
+        rows.append(SimpleNamespace(ticker=s["ticker"], as_of_date=s["as_of"], trigger_price=s.get("trigger_price"),
+                                    events=events))
+    return rows
+
+
+def test_the_scored_fields_check_sees_a_moved_buy_price_and_a_moved_mini():
+    setups = marks_corpus.load_corpus()
+    corpus = marks_corpus.scored_fields_of_setups(setups)
+    assert marks_corpus.scored_drift(marks_corpus.scored_fields_of_marks(_marks_like(setups)), corpus) == []
+
+    moved = [dict(s) for s in setups]
+    moved[0]["trigger_price"] = float(moved[0]["trigger_price"]) + 0.01
+    with_mini = next(i for i, s in enumerate(moved) if s.get("mini"))
+    moved[with_mini] = {**moved[with_mini], "mini": {**moved[with_mini]["mini"],
+                                                     "band": {**moved[with_mini]["mini"]["band"], "S": 0.5}}}
+    drift = marks_corpus.scored_drift(marks_corpus.scored_fields_of_marks(_marks_like(moved)), corpus)
+    assert drift == sorted([f"{moved[0]['ticker']}@{moved[0]['as_of']}",
+                            f"{moved[with_mini]['ticker']}@{moved[with_mini]['as_of']}"])
+
+
+def test_population_currency_fails_when_only_his_buy_price_moved(monkeypatch, tmp_path):
+    """The seal leaves his buy price out on purpose (a re-pin is his); the boards score against it to the cent, so
+    the currency check must see it move even while the drawings' fingerprint still matches."""
+    import database
+    from tools.calibration import calibration_harness
+
+    db = tmp_path / "marks.db"
+    db.write_bytes(b"")
+    monkeypatch.setattr(database, "_DB_PATH", str(db))
+    setups = marks_corpus.load_corpus()
+    fingerprint = "same-fingerprint"
+    moved = [dict(s) for s in setups]
+    moved[3]["trigger_price"] = float(moved[3]["trigger_price"]) + 0.5
+    monkeypatch.setattr(calibration_harness, "load_box_marks", lambda session: (_marks_like(moved), fingerprint))
+    ok, note = marks_corpus.population_is_current(fingerprint)
+    assert ok is False and f"{moved[3]['ticker']}@{moved[3]['as_of']}" in note
+
+    monkeypatch.setattr(calibration_harness, "load_box_marks", lambda session: (_marks_like(setups), fingerprint))
+    assert marks_corpus.population_is_current(fingerprint)[0] is True
+
+
+def test_the_sealed_standard_refuses_drawings_the_bars_were_not_frozen_for(monkeypatch):
+    setups, frames, stamp = marks_corpus.load_sealed_standard()
+    assert stamp["drawings"] == len(setups) and frames
+    assert stamp["corpus_sha256"] == marks_corpus.corpus_sha256() and stamp["engine_config_version"]
+    monkeypatch.setattr(marks_corpus, "corpus_sha256", lambda *a, **k: "0" * 64)
+    with pytest.raises(ValueError, match="does not match the bars it was frozen on"):
+        marks_corpus.load_sealed_standard()

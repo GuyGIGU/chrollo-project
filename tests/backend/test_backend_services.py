@@ -1900,7 +1900,8 @@ def test_scheduled_run_backfills_forward_returns_even_when_scan_fails(monkeypatc
     import app.core_settings as core_settings_mod
 
     calls = {"backfill": 0, "finish_status": None}
-    result = SimpleNamespace(output="boom", returncode=1, n_setups=None, n_errored=0)
+    result = SimpleNamespace(output="boom", returncode=1, n_setups=None,
+                             n_errored=0, n_refused=0)
 
     monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda *a, **k: result)
     monkeypatch.setattr(scan_runner, "_result_status", lambda r: "failed")
@@ -2155,3 +2156,168 @@ def test_read_verdict_model_check_refuses_illegal_label(tmp_path):
         db.rollback()
     finally:
         db.close()
+
+
+def test_a_manual_scan_hands_the_refused_count_to_the_alert(monkeypatch):
+    """The manual path parses the child's own result line; the archive's
+    refused-row count on it must reach the alert (build task 6)."""
+    import threading
+
+    gate = threading.Event()
+    gate.set()
+    _gated_scan_child(monkeypatch, gate, [
+        "line one\n",
+        'SCAN_RESULT_JSON:{"n_setups": 3, "n_archived": 1, "n_errored": 0, "n_refused": 2}\n',
+    ])
+    alerts = []
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: alerts.append(a))
+
+    list(scan_runner._stream_process("manual"))
+
+    assert alerts and alerts[0][5] == 2, f"the alert never heard the count: {alerts}"
+
+
+# ── A night that lost archive rows is not a clean night (council review 2026-10-09, finding 12) ──
+def _scheduled_night(monkeypatch, n_refused):
+    """The scheduled job on a scan that exited 0 having lost ``n_refused`` archive rows; returns its finishes."""
+    import services.scan_status as scan_status_mod
+    import app.core_settings as core_settings_mod
+
+    result = scan_runner.ScanProcessResult(returncode=0, output="ok", n_setups=3, n_errored=0,
+                                           n_refused=n_refused)
+    monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda *a, **k: result)
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: None)
+    finishes = []
+    monkeypatch.setattr(scan_status_mod, "start_run", lambda trigger, kind="scan": 1 if kind == "scan" else 2)
+    monkeypatch.setattr(scan_status_mod, "finish_run",
+                        lambda run_id, status, n_setups=None, error=None: finishes.append((run_id, status, error)))
+    monkeypatch.setattr(core_settings_mod, "load_core_settings",
+                        lambda: SimpleNamespace(FORWARD_RETURNS_MIN_AGE_DAYS=5))
+    monkeypatch.setattr(archive_forward_returns, "update_forward_returns", lambda min_age_days=5: 0)
+    scan_runner.run_scheduled_scan_and_forward_returns()
+    return finishes
+
+
+def test_a_scheduled_night_that_lost_archive_rows_says_so_on_its_record(monkeypatch):
+    from services import scan_diagnosis
+
+    lost = next(f for f in _scheduled_night(monkeypatch, 2) if f[0] == 1)
+    assert lost[1] == "ok", "the scan itself finished: it is not a failed night"
+    described = scan_diagnosis.describe_run({"status": lost[1], "error": lost[2], "kind": "scan"})
+    assert described["verdict"] == scan_diagnosis.NEEDS_ATTENTION
+    assert "2" in described["reason"] and "archive" in described["reason"]
+
+    clean = next(f for f in _scheduled_night(monkeypatch, 0) if f[0] == 1)
+    assert clean == (1, "ok", None)
+    assert scan_diagnosis.describe_run({"status": "ok", "error": None})["verdict"] is None
+
+
+def test_a_manual_night_that_lost_archive_rows_says_so_on_its_record(monkeypatch):
+    import threading
+
+    import services.scan_status as scan_status_mod
+
+    gate = threading.Event()
+    gate.set()
+    _gated_scan_child(monkeypatch, gate, [
+        "line one\n",
+        'SCAN_RESULT_JSON:{"n_setups": 3, "n_archived": 1, "n_errored": 0, "n_refused": 2}\n',
+    ])
+    recorded = []
+    monkeypatch.setattr(scan_status_mod, "finish_run",
+                        lambda run_id, status, n_setups=None, error=None: recorded.append((status, error)))
+
+    list(scan_runner._stream_process("manual"))
+
+    from services import scan_diagnosis
+    assert recorded and recorded[0][0] == "ok"
+    assert scan_diagnosis.describe_run({"status": "ok", "error": recorded[0][1]})["verdict"] == \
+        scan_diagnosis.NEEDS_ATTENTION
+
+
+def test_health_flags_a_night_that_lost_archive_rows(tmp_path, monkeypatch):
+    """The run registry said "needs attention" while the pill said "Healthy" (verify-3 of the fix run for finding
+    12): a night that finished but lost rows is a failing last-scan check, with the run's own reason on the wire."""
+    from sqlalchemy import create_engine
+
+    recent = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health_lost.db'}"))
+    lost = health_service.scan_diagnosis.refused_rows_error(2)
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [{"status": "ok", "finished_at": recent, "n_setups": 12,
+                                          "kind": "scan", "error": lost}])
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
+
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+
+    failing = {check["key"]: check for check in report["failing"]}
+    assert "last_scan" in failing and report["status"] == "degraded"
+    assert "2 of the setups it read never reached the archive" in failing["last_scan"]["reason"]
+    assert failing["last_scan"]["verdict"] == health_service.scan_diagnosis.NEEDS_ATTENTION
+
+
+# ── Charts the new reader would not read are not crashes (go-live plan task 3) ──
+_NOT_READ = [{"ticker": "AAA", "rule": "a trading day is missing from the middle",
+              "reason": "a trading day is missing from the middle: 1 session(s) between 2026-10-01 and 2026-10-05"}]
+
+
+def _scan_record(tmp_path, monkeypatch, counts):
+    """The primary universe's scan metrics as the night's scan left them in cache_meta.json."""
+    (tmp_path / "cache_meta.json").write_text(json.dumps({"scan_metrics": {"counts": counts}}), encoding="utf-8")
+    monkeypatch.setattr(scan_runner, "ROOT_DIR", str(tmp_path))
+
+
+def test_a_scheduled_night_with_charts_not_read_records_them_and_raises_no_crash_alert(tmp_path, monkeypatch):
+    """27 charts on Thu 08/10/2026 the new reader would not read (a trading day missing from the middle) were counted
+    as swallowed crashes: "possible silent winner drop", every night, names lost. Now they ride the run's own record,
+    worded plainly, and the alert hears no crash."""
+    from services import scan_diagnosis
+
+    _scan_record(tmp_path, monkeypatch, {"setups": 3, "not_read_tickers": 1, "not_read": _NOT_READ})
+    alerts = []
+    finishes = _scheduled_night(monkeypatch, 0)
+    night = next(f for f in finishes if f[0] == 1)
+    assert night[1] == "ok"
+    described = scan_diagnosis.describe_run({"status": night[1], "error": night[2], "kind": "scan"})
+    assert described["reason"] == "1 chart not read: a trading day is missing from the middle."
+    assert described["verdict"] is None
+
+    result = scan_runner.ScanProcessResult(returncode=0, output="ok", n_setups=3, n_errored=0, n_refused=0)
+    monkeypatch.setattr(scan_runner, "_run_scan_process_unlocked", lambda *a, **k: result)
+    monkeypatch.setattr(scan_runner, "alert_if_needed", lambda *a, **k: alerts.append(a))
+    scan_runner.run_scheduled_scan_and_forward_returns()
+    trigger, status, n_setups, error, n_errored, n_refused = alerts[0]
+    assert scan_runner._alert_decision(status, n_setups, None, True, True, n_errored, n_refused) is None
+    # A real crash on the same night still alerts.
+    assert "swallowed eval crash" in scan_runner._alert_decision(status, n_setups, None, True, True, 1, n_refused)
+
+
+def test_a_download_run_never_borrows_the_scans_charts_not_read(tmp_path, monkeypatch):
+    """The cell is the SCAN's: a market-data download that finishes after it says nothing about charts."""
+    from services import scan_diagnosis
+
+    _scan_record(tmp_path, monkeypatch, {"not_read_tickers": 1, "not_read": _NOT_READ})
+    result = scan_runner.ScanProcessResult(returncode=0, output="ok", n_setups=None, n_errored=0, n_refused=0)
+    assert scan_runner._finished_run_error("ok", result, "download") is None
+    assert scan_runner._finished_run_error("ok", result, "scan").startswith(scan_diagnosis.NOT_READ_MARKER)
+    assert scan_runner._finished_run_error("failed", result, "scan") is None
+
+
+def test_health_stays_green_on_a_night_with_charts_not_read(tmp_path, monkeypatch):
+    """Not a failing check: the pill and the registry agree that nothing is wrong, and the run's reason rides along."""
+    from sqlalchemy import create_engine
+
+    recent = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    monkeypatch.setattr(health_service, "engine",
+                        create_engine(f"sqlite:///{tmp_path / 'health_not_read.db'}"))
+    cell = health_service.scan_diagnosis.finished_run_error(0, _NOT_READ)
+    monkeypatch.setattr(health_service.scan_status, "recent_runs",
+                        lambda *a, **k: [{"status": "ok", "finished_at": recent, "n_setups": 12,
+                                          "kind": "scan", "error": cell}])
+    monkeypatch.setattr(health_service.scheduler, "is_running", lambda: True)
+
+    report = health_service.build_health_report(str(tmp_path / "missing.json"))
+
+    assert "last_scan" not in {check["key"] for check in report["failing"]}
+    assert report["checks"]["last_scan"]["reason"] == "1 chart not read: a trading day is missing from the middle."

@@ -212,8 +212,16 @@ def test_eval_twins_share_the_folded_core():
     assert "_run_guarded_chain" in called_names(_evaluate_ticker)
     assert "_run_guarded_chain" in called_names(evaluate_ticker_with_near_miss)
     assert "_run_eval_chain" in called_names(_run_guarded_chain)
+    # The seed reaches the same chain through the reader door (two-eyes-reader
+    # task 4): one module decides which reader answers, so the fold is now
+    # _evaluate_at_date -> reader.run_eval_chain -> _run_eval_chain. Both hops
+    # are asserted — the door is a delegation, never a second chain.
+    from engine_alpha.reader import run_eval_chain as door_run_eval_chain
+
     seed_calls = called_names(_evaluate_at_date)
-    assert "_run_eval_chain" in seed_calls, "_evaluate_at_date no longer routes through the shared chain"
+    assert "run_eval_chain" in seed_calls, "_evaluate_at_date no longer routes through the shared chain"
+    assert "_run_eval_chain" in called_names(door_run_eval_chain), \
+        "the reader door no longer routes through the shared chain"
     assert "seed_row_from_result" in seed_calls, "_evaluate_at_date must re-key via the adapter"
 
     # The shared chain routes through the structural helpers (the real anti-drift guard).

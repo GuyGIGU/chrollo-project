@@ -58,6 +58,7 @@ from engine_alpha.evaluation import (  # noqa: E402
 from core.pipeline.screening.screener import _evaluate_ticker  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from core.calibration.replay import flag_capture  # noqa: E402
+from engine_alpha import reader  # noqa: E402
 
 _CACHE = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
 
@@ -80,6 +81,12 @@ def _fire_row(ticker, result, lane):
 
 
 def run(limit=None, json_out=None):
+    if reader.which_reader() == reader.READER_NEW:
+        # Its reads go through the door, so under the new reader they would be the new reader's, with the old
+        # reader's lane knobs flipped around them: knobs the new reader never reads, so every count would say
+        # nothing about the lanes it names (go-live plan, task 4).
+        raise SystemExit("REFUSED: the miss-lane census measures the OLD reader's dark lanes by flipping their "
+                         "knobs; the new reader is switched on and reads none of them.")
     if json_out:
         refuse_sealed_output(json_out)
     data = pd.read_parquet(_CACHE, engine=settings.PARQUET_ENGINE)

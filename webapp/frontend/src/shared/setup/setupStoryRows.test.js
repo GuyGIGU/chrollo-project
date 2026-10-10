@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lpsGrade, storyRows } from './setupStoryRows.js';
+import { gradeCell, lpsGrade, storyRows } from './setupStoryRows.js';
 
 // A graded payload as the wire serves it: chapters + engine-resolved fractions.
 // Three chapters since the 2026-08-12 re-partition — Cause and Phase B fused to
@@ -198,4 +198,40 @@ test('a row with no LPS span still carries the marks and the chapters', () => {
   const rows = storyRows(GRADED, noLps);
   assert.equal(rows.some((r) => r.key === 'lps'), false);
   assert.deepEqual(keys(rows), ['a', 'consolidation', 'c', 'phase_d', 'trend']);
+});
+
+// ── the grade cell beside the story (build task 15: the two-eyes reader's grade) ──
+
+test('the old grade keeps its own cell: chapters summing to it, or an honest pre-grade absence', () => {
+  assert.deepEqual(gradeCell(GRADED), {
+    value: 74.1, scale: '/100', label: 'Grade', note: 'chapters sum to this',
+    title: "Technical Analysis Grade — one 0-100 visual grade; the columns beside it read the chart's story left to right",
+  });
+  const old = gradeCell({});
+  assert.equal(old.value, null);
+  assert.equal(old.note, 'pre-grade archive row');
+});
+
+test('a two-eyes row shows the new grade with its own facts, never the old grade\'s words', () => {
+  const scan = gradeCell({
+    ta_grade: 92.3, // the scan's wire carries the new grade's number here too
+    two_eyes: { grade: { score: 92.3, letter: 'S', empty_days: 2, base_days: 41, holds: true } },
+  });
+  assert.equal(scan.value, 92.3);
+  assert.equal(scan.scale, '/100');
+  assert.equal(scan.note, '2 of 41 base days empty · the base held');
+  const failed = gradeCell({ two_eyes: { grade: { score: 0, letter: 'C', empty_days: 5, base_days: 30, holds: false } } });
+  assert.equal(failed.note, '5 of 30 base days empty · the base did not hold');
+  // The archive keeps the score and the letter, not the facts.
+  assert.equal(gradeCell({ two_eyes: { grade: { score: 92.3, letter: 'S' } } }).note, 'dead space and the hold');
+  for (const cell of [scan, failed]) {
+    assert.ok(!/chapters|pre-grade|predates/.test(`${cell.note} ${cell.title}`), cell.note);
+  }
+});
+
+test('a two-eyes row whose grade could not be read says so, and does not call itself old', () => {
+  const cell = gradeCell({ two_eyes: { grade: null } });
+  assert.equal(cell.value, null);
+  assert.equal(cell.note, 'not graded');
+  assert.ok(!/pre-grade|predates/.test(`${cell.note} ${cell.title}`), cell.title);
 });

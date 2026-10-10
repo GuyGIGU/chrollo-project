@@ -424,6 +424,30 @@ class SetupArchive(Base):
     strategy_correction_depth_pct = Column(Float, nullable=True)
     strategy_floor_above_ar = Column(Integer, nullable=True)
 
+    # ── The two-eyes reader's family — dark until that reader is switched on ──
+    # Owning declaration in engine_alpha/two_eyes_archive.py (TWO_EYES_COLUMN_SQL),
+    # splatted by all three writers through the ONE producer. Two boxes of the
+    # same shape, because his mini and its parent are one setup read at two
+    # distances; each line carries the DAY it was anchored, which survives the
+    # window sliding past the base in a way a bar offset does not. NULL on every
+    # row the old reader writes — and NULL is "never looked", never "no".
+    two_eyes_parent_r_price = Column(Float, nullable=True)
+    two_eyes_parent_r_anchor_date = Column(String, nullable=True)
+    two_eyes_parent_s_price = Column(Float, nullable=True)
+    two_eyes_parent_s_anchor_date = Column(String, nullable=True)
+    two_eyes_parent_opened_date = Column(String, nullable=True)
+    two_eyes_parent_end_date = Column(String, nullable=True)
+    two_eyes_parent_daily_range = Column(Float, nullable=True)
+    two_eyes_mini_r_price = Column(Float, nullable=True)
+    two_eyes_mini_r_anchor_date = Column(String, nullable=True)
+    two_eyes_mini_s_price = Column(Float, nullable=True)
+    two_eyes_mini_s_anchor_date = Column(String, nullable=True)
+    two_eyes_mini_opened_date = Column(String, nullable=True)
+    two_eyes_mini_end_date = Column(String, nullable=True)
+    two_eyes_mini_daily_range = Column(Float, nullable=True)
+    two_eyes_lps_read_against = Column(String, nullable=True)
+    two_eyes_has_mini = Column(Integer, nullable=True)
+
     # ── Power-Play species family — RETIRED with the species lane (the final
     # method, build step 12, point 25, Sat 19/09/2026). The columns stay for
     # the rows the lane wrote (2026-08-19 to the deletion); every writer leaves
@@ -550,6 +574,20 @@ class SetupArchive(Base):
             "pp_state IN ('refused_clock', 'refused_occupancy', "
             "'refused_story', 'admitted_dark')",
             name="ck_setup_archive_pp_state",
+        ),
+        # The two-eyes family's two closed sets (EC-19): which box the LPS
+        # was read inside, and the three-state mini flag. Fresh-DB defence
+        # like the siblings — the live DB gains these columns by ADD COLUMN,
+        # which cannot carry a CHECK, so there the one producer's refusal
+        # (engine_alpha/two_eyes_archive.py) is the guard.
+        CheckConstraint(
+            "two_eyes_lps_read_against IS NULL OR "
+            "two_eyes_lps_read_against IN ('parent', 'mini', 'earlier')",
+            name="ck_setup_archive_two_eyes_lps_read_against",
+        ),
+        CheckConstraint(
+            "two_eyes_has_mini IS NULL OR two_eyes_has_mini IN (0, 1)",
+            name="ck_setup_archive_two_eyes_has_mini",
         ),
         Index("ix_setup_archive_universe_type", "universe_type"),
     )

@@ -10,7 +10,7 @@ import threading
 import urllib.request
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Iterator
+from typing import Iterator, NamedTuple
 
 log = logging.getLogger("chrollo.scan")
 
@@ -25,7 +25,10 @@ if ROOT_DIR not in sys.path:
 # Alert when strictly MORE than this many tickers had their eval chain throw and
 # get swallowed by the skip-guard. 0 = any swallowed eval crash alerts. A crash on
 # a SUBSET of setups silently drops real winners on an otherwise-green (exit 0)
-# build, so this is the tripwire that makes that visible.
+# build, so this is the tripwire that makes that visible. A chart the new reader
+# would not READ (its frame broke the frame contract: a halted stock's missing
+# day) is not counted here: the scan lists it apart, by name and reason, and the
+# run's record words it (go-live plan task 3), so it raises no crash alert.
 ERRORED_TICKERS_ALERT_THRESHOLD = 0
 
 
@@ -65,6 +68,12 @@ class ScanProcessResult:
     output: str
     n_setups: int | None = None
     n_errored: int | None = None
+    # Rows the archive writer REFUSED to assemble. A lost night is the one
+    # unrecoverable failure, so a night that lost even one row says so.
+    n_refused: int | None = None
+    # False only on the undo night (`--no-archive`): the run read and showed,
+    # and archived nothing. Its row says so.
+    archived: bool = True
 
     @property
     def ok(self) -> bool:
@@ -108,18 +117,27 @@ def _run_scan_process_unlocked(args: list[str] | None = None) -> ScanProcessResu
     process.stdout.close()
     process.wait()
     output = "".join(lines)
-    n_setups, n_errored = _parse_scan_result(output)
+    counts = _parse_scan_result(output)
     return ScanProcessResult(
         returncode=process.returncode,
         output=output,
-        n_setups=n_setups,
-        n_errored=n_errored,
+        n_setups=counts.n_setups,
+        n_errored=counts.n_errored,
+        n_refused=counts.n_refused,
+        archived=counts.archived,
     )
 
 
-def _parse_scan_result(output: str) -> tuple[int | None, int]:
-    """Parse the child's single ``SCAN_RESULT_JSON:`` line, returning
-    ``(n_setups, n_errored)``.
+class ScanCounts(NamedTuple):
+    """What the child's one result line says about the night."""
+    n_setups: int | None
+    n_errored: int
+    n_refused: int
+    archived: bool = True
+
+
+def _parse_scan_result(output: str) -> ScanCounts:
+    """Parse the child's single ``SCAN_RESULT_JSON:`` line.
 
     Both ride the ONE structured payload the child prints for the PRIMARY
     (US-Stocks) universe (``run_screener._print_result_json``), so a multi-universe
@@ -132,17 +150,27 @@ def _parse_scan_result(output: str) -> tuple[int | None, int]:
     can tell "no data" from zero). ``n_errored`` defaults to 0 when the key is
     absent (clean scan, or an older child that predates the threaded count) — a
     swallowed-eval-crash count is a tripwire, and "unknown" there means "no known
-    crashes", matching the pre-fix zero-on-clean behaviour.
+    crashes", matching the pre-fix zero-on-clean behaviour. ``n_refused`` — rows
+    the archive writer could not assemble — defaults to 0 the same way, for the
+    same reason and for a child that predates it.
     """
     prefix = "SCAN_RESULT_JSON:"
     for line in reversed(output.splitlines()):
         if line.startswith(prefix):
             try:
                 payload = json.loads(line[len(prefix):].strip())
-                return int(payload.get("n_setups", 0)), int(payload.get("n_errored", 0))
+                # A failed run's line may say its setup count is not known
+                # (null): kept as None, never cast to a number, and never a
+                # reason to drop the refused count riding beside it.
+                n_setups = payload.get("n_setups", 0)
+                # "archived" is on the line only when it is false (the undo night).
+                return ScanCounts(None if n_setups is None else int(n_setups),
+                                  int(payload.get("n_errored", 0)),
+                                  int(payload.get("n_refused", 0)),
+                                  bool(payload.get("archived", True)))
             except Exception:
-                return None, 0
-    return None, 0
+                return ScanCounts(None, 0, 0)
+    return ScanCounts(None, 0, 0)
 
 
 def _result_status(result: ScanProcessResult) -> str:
@@ -151,6 +179,44 @@ def _result_status(result: ScanProcessResult) -> str:
     if "StaleMarketDataError" in result.output or "stale market data" in result.output.lower():
         return "stale_data"
     return "failed"
+
+
+#: The error cell of an OK undo-night run (go-live task 8): it read and showed, and archived nothing.
+NOT_ARCHIVED_NOTE = ("not archived: this run re-read the screen with archiving off (--no-archive), "
+                     "and the archive keeps the night it already had")
+
+
+def _finished_run_error(status: str, result: ScanProcessResult, kind: str = "scan") -> str | None:
+    """The error cell of a run that FINISHED: empty, unless its archive writer refused rows, or (a scan only)
+    the new reader would not read some charts (go-live plan task 3), or it was an undo night run with
+    archiving off (task 8). Then the run's own record says so (the
+    registry and the status line read it), not only the log. Charts not read are NOT a crash and never reach
+    the alert: the scan lists them apart from ``errored_tickers``, which the alert reads."""
+    from services.scan_diagnosis import finished_run_error
+
+    if status != "ok":
+        return None
+    if not getattr(result, "archived", True):
+        # An undo night (go-live task 8): it read and showed, archived nothing; its charts not read still count.
+        rest = finished_run_error(0, _last_not_read() if kind == "scan" else None)
+        return NOT_ARCHIVED_NOTE + ("; " + rest if rest else "")
+    return finished_run_error(result.n_refused or 0, _last_not_read() if kind == "scan" else None)
+
+
+def _last_not_read() -> list | None:
+    """The charts the primary scan's new reader would not read, as its scan metrics recorded them in
+    cache_meta.json (the same record ``_last_fetch_health`` reads). Read only for a scan that just finished, so
+    it is that night's list; None under the old reader, or when the record is missing or unreadable."""
+    meta_path = os.path.join(ROOT_DIR, "cache_meta.json")
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+    except (OSError, ValueError):
+        return None
+    metrics = meta.get("scan_metrics") if isinstance(meta, dict) else None
+    counts = metrics.get("counts") if isinstance(metrics, dict) else None
+    listed = counts.get("not_read") if isinstance(counts, dict) else None
+    return listed if isinstance(listed, list) else None
 
 
 def _tail_error(output: str, limit: int = 1000) -> str | None:
@@ -177,7 +243,8 @@ def _last_fetch_health() -> dict | None:
 
 def _alert_decision(status: str, n_setups: int | None, fetch_health: dict | None,
                     alert_on_zero: bool, alert_on_degraded: bool,
-                    errored_tickers: int | None = None) -> str | None:
+                    errored_tickers: int | None = None,
+                    refused_rows: int | None = None) -> str | None:
     """Return a human-readable alert reason, or None if no alert is warranted.
 
     Pure (no I/O) so it is unit-testable. A failed/stale scan alerts on its
@@ -189,25 +256,36 @@ def _alert_decision(status: str, n_setups: int | None, fetch_health: dict | None
     a stale_data failure.
 
     ``errored_tickers`` defaults to None so existing positional callers keep their
-    prior behaviour; None means "no data" (never alerts).
+    prior behaviour; None means "no data" (never alerts). ``refused_rows`` is the
+    same shape, and alerts at ONE: an archived night is not re-runnable, so a
+    single row that never reached the table is a fact, not a threshold to tune.
     """
+    refused = (f"{refused_rows} row(s) refused by the archive writer "
+               f"(tonight's read of those setups is not in the record)"
+               if refused_rows else None)
     if status in ("failed", "stale_data"):
-        return status
+        return "; ".join(r for r in (status, refused) if r)
+    reason = None
     if (errored_tickers is not None
             and errored_tickers > ERRORED_TICKERS_ALERT_THRESHOLD):
-        return (f"{errored_tickers} ticker(s) errored during evaluation "
-                f"(swallowed eval crash — possible silent winner drop)")
-    if n_setups == 0 and alert_on_zero:
-        return "zero scan results"
-    if (alert_on_degraded and isinstance(fetch_health, dict)
+        reason = (f"{errored_tickers} ticker(s) errored during evaluation "
+                  f"(swallowed eval crash — possible silent winner drop)")
+    elif n_setups == 0 and alert_on_zero:
+        reason = "zero scan results"
+    elif (alert_on_degraded and isinstance(fetch_health, dict)
             and fetch_health.get("healthy") is False):
-        return (f"degraded data fetch (mode={fetch_health.get('mode')}, "
-                f"return_ratio={fetch_health.get('return_ratio')})")
-    return None
+        reason = (f"degraded data fetch (mode={fetch_health.get('mode')}, "
+                  f"return_ratio={fetch_health.get('return_ratio')})")
+    # A refused row is ADDED to whatever else is wrong, never said instead of
+    # it: one malformed row on a night that also lost forty tickers to eval
+    # crashes must not be the only thing the alert mentions — and a stale or
+    # failed night above still carries it too.
+    return "; ".join(r for r in (reason, refused) if r) or None
 
 
 def alert_if_needed(trigger: str, status: str, n_setups: int | None,
-                    error: str | None = None, errored_tickers: int | None = None) -> None:
+                    error: str | None = None, errored_tickers: int | None = None,
+                    refused_rows: int | None = None) -> None:
     from app.core_settings import load_core_settings
 
     settings = load_core_settings()
@@ -221,6 +299,7 @@ def alert_if_needed(trigger: str, status: str, n_setups: int | None,
         bool(getattr(settings, "ALERT_ON_ZERO_RESULTS", True)),
         bool(getattr(settings, "ALERT_ON_DEGRADED_FETCH", True)),
         errored_tickers,
+        refused_rows,
     )
     if reason is None:
         return
@@ -352,18 +431,20 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
             job.process.stdout.close()
         job.process.wait()
         output = "".join(lines)
-        n_setups, n_errored = _parse_scan_result(output)
+        counts = _parse_scan_result(output)
         result = ScanProcessResult(
             returncode=job.process.returncode,
             output=output,
-            n_setups=n_setups,
-            n_errored=n_errored,
+            n_setups=counts.n_setups,
+            n_errored=counts.n_errored,
+            n_refused=counts.n_refused,
+            archived=counts.archived,
         )
         # A stopped run ended because the operator said so, so it is 'aborted'
         # (re-runnable, nothing broken) — never 'failed', which sends him
         # chasing a program error and fires an alert.
         status = "aborted" if job.cancelled else _result_status(result)
-        error = _tail_error(output) if status not in ("ok", "aborted") else None
+        error = _tail_error(output) if status not in ("ok", "aborted") else _finished_run_error(status, result, job.kind)
         scan_status.finish_run(job.run_id, status=status, n_setups=result.n_setups, error=error)
         # Set BEFORE the alert, and gating the except arm's finish_run below:
         # anything that throws from here on (alert_if_needed reads settings out
@@ -376,7 +457,8 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
             # fail. He gets [DONE] and the progress panel closes.
             _emit(job, "data: Stopped.\n\n")
         else:
-            alert_if_needed(job.trigger, status, result.n_setups, error, result.n_errored)
+            alert_if_needed(job.trigger, status, result.n_setups, error,
+                            result.n_errored, result.n_refused)
             if job.process.returncode != 0:
                 _emit(job, f"data: ERROR: scan exited with code {job.process.returncode}\n\n")
     except Exception as exc:
@@ -551,9 +633,15 @@ def stream_manual_scan() -> Iterator[str]:
     yield from _stream_process("manual", job="scan")
 
 
-def stream_cached_evaluation() -> Iterator[str]:
-    """Evaluate the local market-data cache and stream stdout as SSE."""
-    yield from _stream_process("manual_evaluation", ["--cached"], kind="scan")
+def stream_cached_evaluation(archive: bool = True) -> Iterator[str]:
+    """Evaluate the local market-data cache and stream stdout as SSE.
+
+    ``archive=False`` is the undo night (go-live task 8): every universe is
+    re-read from the cache and shown, nothing is archived, and the run's row
+    says "not archived".
+    """
+    args = ["--cached"] if archive else ["--cached", "--all-universes", "--no-archive"]
+    yield from _stream_process("manual_evaluation", args, kind="scan")
 
 
 def stream_data_download() -> Iterator[str]:
@@ -585,11 +673,12 @@ def run_scheduled_scan_and_forward_returns() -> None:
             # their own artifacts and are isolated from each other's failures.
             result = _run_scan_process_unlocked(["--all-universes"])
             status = _result_status(result)
-            error = _tail_error(result.output) if status != "ok" else None
+            error = _tail_error(result.output) if status != "ok" else _finished_run_error(status, result, "scan")
             if status != "ok":
                 log.error("scheduled scan failed with exit code %s", result.returncode)
             scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)
-            alert_if_needed("scheduled", status, result.n_setups, error, result.n_errored)
+            alert_if_needed("scheduled", status, result.n_setups, error,
+                            result.n_errored, result.n_refused)
         except Exception as exc:
             scan_status.finish_run(run_id, status="failed", error=str(exc))
             alert_if_needed("scheduled", "failed", None, str(exc))

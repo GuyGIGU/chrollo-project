@@ -125,7 +125,7 @@ function AppTopbar({
           title={scanStatus?.reason || scanStatus?.error || 'Open recent scan runs'}
           aria-label="Open recent scan runs"
           className="topnav-status topnav-status-button"
-          style={{ color: scanStatusColor(scanStatus?.status) }}
+          style={{ color: scanStatusColor(scanStatus?.status, scanStatus?.verdict) }}
           onClick={onOpenScanRegistry}
         >
           {scanStatusText}

@@ -667,3 +667,79 @@ test('boxRailSpecs: inner_end_bar bounds the inner rails before the reserved edg
   // no inner_end_bar -> backward-compatible draw-to-edge
   assert.equal(boxRailSpecs({ ...base, inner_R: 18, inner_S: 12, inner_start_bar: 10 })[3].endIndex, 19);
 });
+
+// --- the two-eyes reader's dated block (build task 15) ---
+//
+// The wire carries DAYS and resolved prices; the browser only locates each day's bar and draws. A day survives
+// any window, so the scan's card, the modal and the archive's chart (whose candles are fetched again, over another
+// window) all find the same bars. makeCandles: index 14 = 2024-01-15, 27 = 2024-01-28, 28 = 2024-02-01.
+const twoEyesPayload = (n = 40, block = {}) => ({
+  candles: makeCandles(n),
+  R: 20,
+  S: 10,
+  two_eyes: {
+    boxes: [
+      { role: 'parent', r: 20, r_day: '2024-01-16', s: 10, s_day: '2024-01-18', opened: '2024-01-15', end: null },
+      { role: 'mini', r: 18, r_day: '2024-01-25', s: 15, s_day: '2024-01-26', opened: '2024-01-25', end: null },
+    ],
+    lps: { against: 'mini', how: 'on', start: '2024-02-02', end: '2024-02-03', trigger: 18.5 },
+    state: 'fired',
+    state_days: null,
+    grade: { score: 92.3, letter: 'S' },
+    ...block,
+  },
+});
+
+test('boxRailSpecs: a two-eyes box draws each line from ITS OWN anchor day, the mini thinner', () => {
+  const specs = boxRailSpecs(twoEyesPayload());
+  assert.deepEqual(specs, [
+    { kind: 'rail', startIndex: 15, endIndex: 39, value: 20 },  // R from its anchor day, 2024-01-16
+    { kind: 'rail', startIndex: 17, endIndex: 39, value: 10 },  // S from ITS anchor day, 2024-01-18
+    { kind: 'mid', startIndex: 14, endIndex: 39, value: 15 },   // the midline from the box's first day
+    { kind: 'inner', startIndex: 24, endIndex: 39, value: 18 }, // the mini, from its own days
+    { kind: 'inner', startIndex: 25, endIndex: 39, value: 15 },
+  ]);
+});
+
+test('boxRailSpecs: the dated block wins over the legacy bar counts, and an ended box stops on its last day', () => {
+  // A payload never carries both; if it did, the bar counts would draw the old engine's box.
+  const payload = twoEyesPayload(40, {
+    boxes: [{ role: 'parent', r: 20, r_day: '2024-01-16', s: 10, s_day: '2024-01-18', opened: '2024-01-15', end: '2024-01-20' }],
+  });
+  const specs = boxRailSpecs({ ...payload, base_len: 3, r_anchor: 0, s_anchor: 1 });
+  assert.deepEqual(specs.map((s) => [s.startIndex, s.endIndex]), [[15, 19], [17, 19], [14, 19]]);
+});
+
+test('boxRailSpecs: a line anchored before the shipped window starts at its left edge; an unknown role draws nothing', () => {
+  const specs = boxRailSpecs(twoEyesPayload(40, {
+    boxes: [
+      { role: 'parent', r: 20, r_day: '2023-11-02', s: 10, s_day: '2024-01-18', opened: '2023-11-01', end: null },
+      { role: 'earlier', r: 30, r_day: '2024-01-02', s: 25, s_day: '2024-01-03', opened: '2024-01-02', end: '2024-01-10' },
+    ],
+  }));
+  assert.deepEqual(specs.map((s) => [s.kind, s.startIndex, s.value]),
+    [['rail', 0, 20], ['rail', 17, 10], ['mid', 0, 15]]);
+  // A block with no box draws no rail, and never falls back to the old engine's counts.
+  assert.deepEqual(boxRailSpecs({ ...twoEyesPayload(40, { boxes: [] }), base_len: 6 }), []);
+});
+
+test('miniFocusLogicalRange / modalFocusLogicalRange: a two-eyes box is framed from the day it opened', () => {
+  // 300 candles; the box opened on index 270 (2024-10-19) and runs to the last candle (299): the frame a 30-bar
+  // legacy base gets — and not the boxless fallback, which a payload with no bar counts would otherwise take.
+  const payload = twoEyesPayload(300, {
+    boxes: [{ role: 'parent', r: 20, r_day: '2024-10-20', s: 10, s_day: '2024-10-22', opened: '2024-10-19', end: null }],
+  });
+  const legacy = { candles: makeCandles(300), base_len: 30, forward_bars: 0 };
+  assert.notDeepEqual(miniFocusLogicalRange({ candles: makeCandles(300) }), miniFocusLogicalRange(legacy));
+  assert.deepEqual(miniFocusLogicalRange(payload), miniFocusLogicalRange(legacy));
+  assert.deepEqual(modalFocusLogicalRange(payload), modalFocusLogicalRange(legacy));
+});
+
+test('colorMiniCandles: a two-eyes setup greys its two anchor days and paints its LPS gold', () => {
+  const payload = twoEyesPayload();
+  const out = colorMiniCandles(payload);
+  assert.equal(payload.candles[15].color, undefined); // the source is untouched
+  for (const index of [15, 16, 17]) assert.equal(out[index].color, CHART_COLORS.baseLimb);
+  for (const index of [29, 30]) assert.equal(out[index].color, '#F6D86B');
+  for (const index of [14, 18, 28, 31]) assert.equal(out[index].color, undefined);
+});

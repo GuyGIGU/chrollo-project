@@ -388,6 +388,7 @@ class _InlinePool:
 
 def test_the_conductor_publishes_the_lane_to_market_context(monkeypatch):
     import core.pipeline.screening.screener as screener_module
+    import engine_alpha.reader as reader_module
 
     df = _zigzag_frame(480)
 
@@ -407,7 +408,7 @@ def test_the_conductor_publishes_the_lane_to_market_context(monkeypatch):
     monkeypatch.setattr(screener_module, "get_market_context",
                         lambda data, frames, *a, **k: {"spy_6m_return": 0.0, "breadth_pct": 1.0})
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
-    monkeypatch.setattr(screener_module, "_evaluate_ticker", lines)
+    monkeypatch.setattr(reader_module, "evaluate_ticker", lines)
 
     with flag_capture(LPS_LEAVES_ELECTION_ENABLED=True, NEAR_MISS_LANE_ENABLED=False):
         _results, _data, _tickers, market_context = screener_module.run_screener()
@@ -420,7 +421,7 @@ def test_the_conductor_publishes_the_lane_to_market_context(monkeypatch):
         assert watch is None, "flag-off: no recorder"
         return None
 
-    monkeypatch.setattr(screener_module, "_evaluate_ticker", plain)
+    monkeypatch.setattr(reader_module, "evaluate_ticker", plain)
     with flag_capture(NEAR_MISS_LANE_ENABLED=False):
         _results, _data, _tickers, market_context = screener_module.run_screener()
     assert "watch" not in market_context

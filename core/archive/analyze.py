@@ -40,6 +40,7 @@ Usage:
     python -m core.archive.analyze --md report.md  # also write a markdown copy
     python -m core.archive.analyze --source screener   # restrict to live scans
     python -m core.archive.analyze --min-rows 30   # raise the stat-validity bar
+    python -m core.archive.analyze --leave-out-stamp 8cae6fd9   # as if that stamp's nights never ran
 
 Read-only: never writes to the DB.
 """
@@ -78,6 +79,7 @@ from core.archive.analyze_features import (  # noqa: F401  (re-export for import
     anchor_seam,
     current_epoch,
     engine_epochs,
+    leave_out_stamp as _leave_out_stamp,
 )
 from core.archive.analyze_stats import (  # noqa: F401  (re-export for import compatibility)
     EDGE_MIN_MINORITY,
@@ -169,12 +171,20 @@ def dedup_to_episodes(df: pd.DataFrame) -> pd.DataFrame:
 # Orchestrator
 # ------------------------------------------------------------------
 def run(source: Optional[str] = None, min_rows: int = 30, md_path: Optional[str] = None,
-        dedup: bool = True) -> None:
+        dedup: bool = True, leave_out_stamp: Optional[str] = None) -> None:
     _LINES.clear()
     raw = load_archive(source=source)
+    n_left_out = 0
+    if leave_out_stamp:
+        # Before the episode collapse: a setup first seen on the left-out night
+        # anchors on its first night that still counts (go-live plan task 7).
+        raw, n_left_out = _leave_out_stamp(raw, leave_out_stamp)
     df = dedup_to_episodes(raw) if dedup else raw
 
     _preamble(raw, df, source, dedup)
+    if leave_out_stamp:
+        emit(f"Left out engine stamp {leave_out_stamp}: {n_left_out} rows "
+             "(every section below reads the archive as if its nights never ran).")
     comp = section_composition(df, min_rows)
     section_fingerprint(df)
     section_performance(df, comp["valid_outcome"])
@@ -225,8 +235,12 @@ def main() -> None:
     ap.add_argument("--md", default=None, help="Also write a markdown copy to this path")
     ap.add_argument("--no-dedup", action="store_true",
                     help="Do NOT collapse continuation re-flags to episodes (debug; inflates stats)")
+    ap.add_argument("--leave-out-stamp", default=None, metavar="STAMP",
+                    help="Leave out the rows one engine stamp wrote (its full hash or first 8+ "
+                         "characters, as docs/flag_ledger.md prints them): a bad night after a flip")
     args = ap.parse_args()
-    run(source=args.source, min_rows=args.min_rows, md_path=args.md, dedup=not args.no_dedup)
+    run(source=args.source, min_rows=args.min_rows, md_path=args.md, dedup=not args.no_dedup,
+        leave_out_stamp=args.leave_out_stamp)
 
 
 if __name__ == "__main__":

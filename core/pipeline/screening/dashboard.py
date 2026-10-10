@@ -46,6 +46,7 @@ from engine_alpha.structure.events.event_map import narrative_chart_fields
 from engine_alpha.structure.context.htf import HTF_COLUMNS, chart_box
 from engine_alpha.structure.box.trace_export import election_trace_chart_fields
 from engine_alpha.scoring.tags import traversal_density_from_counts
+from engine_alpha.two_eyes_archive import SCREEN_KEY
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -101,6 +102,84 @@ def _round_opt(value, digits):
     return None if value is None else round(float(value), digits)
 
 
+# The advisory facts the scan attaches to ANY firing row after the read (the
+# fundamentals and RS-line post-pass, the market cap the $300M floor stamps on
+# the fires it kept) — graded chip data, NOT scored, NOT a veto, None while
+# their flags are off. Whichever reader fired, the row carries them, so both
+# chart shapes take this ONE list. The universe RS rating rides in the
+# leadership read (`_leadership_read`), which both shapes take too.
+ADVISORY_KEYS = (
+    'fund_eps_growth_yoy', 'fund_sales_growth_yoy', 'fund_eps_growth_accel',
+    'fund_earnings_surprise', 'fund_quarter_end', 'days_to_earnings',
+    'market_cap', 'rs_line_latest', 'rs_line_new_high',
+)
+
+
+def _leadership_read(row, df):
+    """The leadership read (operator go-ahead 2026-10-02): the STOCK, kept apart
+    from the setup's grade — none of it is scored or gated. ONE builder for both
+    chart shapes (go-live plan task 3; EC-3), because none of it depends on the
+    reader: the RS rating ranks twelve-month strength against every stock the
+    scan read (attached after the read); the trend template is Minervini's seven
+    price criteria passed (the archived count), the old chain's own measure on
+    the old chain's own frame for either reader's fire; the dollar volume is the
+    50-day liquidity off the frame. Two of the template's own measures ride
+    along for the stage read (go-ahead 2026-10-03): the fraction above the
+    52-week low and the 200-day average's one-month change in percent (archive
+    names, archive values)."""
+    return {
+        'rs_rating': row.get('_rs_rating'),
+        'stage2_trend_pass_count': row.get('_stage2_trend_pass_count'),
+        'stage2_52w_low_pct': row.get('_stage2_52w_low_pct'),
+        'stage2_ma200_slope_1m_pct': row.get('_stage2_ma200_slope_1m_pct'),
+        'dollar_volume_50d': _dollar_volume_50d(df),
+    }
+
+
+def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df):
+    """A two-eyes fire's chart (build task 15 of the two-eyes reader).
+
+    The frame's own candles, the verdicts every row carries (the lines, the
+    tier, the score, the price, the trigger), the sector, the advisory facts,
+    the leadership read and the volume at key points (go-live plan task 3: the
+    stock's read exactly as an old fire's; the volume read on THIS reader's own
+    LPS pullback and spring days, empty when it has none, never the old
+    reader's days), the grade's 0-100 number, and THE block: the boxes with their roles and
+    each line's day, the LPS and the box it was read against, the state word,
+    the grade. The wire carries days and resolved prices; the browser only
+    finds each day's bar and draws. Nothing of the old engine's families: a
+    key this reader does not fill is ABSENT, never a null a panel reads as
+    "this row predates the read", never a zero that reads as measured. The
+    weekly and monthly boxes are still the old engine's own read of the
+    frame (the plan's named inconsistency until the go-live re-points them).
+    """
+    return {
+        'candles': tf_set['candles'],
+        'volumes': tf_set['volumes'],
+        'weekly_candles': tf_set['weekly_candles'],
+        'weekly_volumes': tf_set['weekly_volumes'],
+        'weekly_box': weekly_box,
+        'monthly_candles': tf_set['monthly_candles'],
+        'monthly_volumes': tf_set['monthly_volumes'],
+        'monthly_box': monthly_box,
+        'R': round(float(row['_R']), 2),
+        'S': round(float(row['_S']), 2),
+        'tier': row['Tier'],
+        'score': row['Score'],
+        'setup': row['Setup'],
+        'sector_etf': sector_etf,
+        'sector_name': SECTOR_ETF_NAMES.get(sector_etf) if sector_etf else None,
+        'price': round(float(row['Current Price']), 2),
+        'trigger': round(float(row['_trigger_price']), 2),
+        **_leadership_read(row, df),
+        'lps_volume_ratio': _volume_vs_50d(df, block['lps']['end'], first_day=block['lps']['start']),
+        'spring_volume_ratio': _volume_vs_50d(df, row.get('_spring_date')),
+        **{key: row.get('_' + key) for key in ADVISORY_KEYS},
+        'ta_grade': _round_opt(row.get('_ta_grade'), 1),
+        'two_eyes': block,
+    }
+
+
 def _dollar_volume_50d(df):
     """Average daily dollar volume (close x volume) over the last 50 trading
     days — the liquidity half of the leadership read. Display only: it gates
@@ -110,19 +189,30 @@ def _dollar_volume_50d(df):
     return round(sum(traded) / len(traded)) if traded else None
 
 
-def _volume_vs_50d(df, day):
-    """The volume on ``day`` against the 50-day average ending on it (that day
-    included, as the engine's Vol_50 counts it). Volume at a key point, display
-    only. None when the day is not in the frame or the average is unreadable."""
+def _day_position(df, day):
+    """``day``'s row in the frame, or None when it is not there (exactly once)."""
     if not day:
         return None
     try:
         pos = df.index.get_loc(pd.Timestamp(day))
     except (KeyError, TypeError, ValueError):
         return None
-    if not isinstance(pos, int):
+    return pos if isinstance(pos, int) else None
+
+
+def _volume_vs_50d(df, day, first_day=None):
+    """The volume on ``day`` — or the average volume from ``first_day`` to
+    ``day``, both included — against the 50-day average ending on ``day`` (that
+    day included, as the engine's Vol_50 counts it, which is how the old
+    reader's LPS read divides its pullback's volume). Volume at a key point, a
+    spring's day or an LPS pullback's run of days: ONE measure (EC-3), display
+    only. None when a day is not in the frame, the run ends before it starts,
+    or the average is unreadable."""
+    pos = _day_position(df, day)
+    start = pos if first_day is None else _day_position(df, first_day)
+    if pos is None or start is None or start > pos:
         return None
-    volume = float(df["Volume"].iloc[pos])
+    volume = float(df["Volume"].iloc[start: pos + 1].mean())
     average = float(df["Volume"].iloc[max(0, pos - 49): pos + 1].mean())
     if not (math.isfinite(volume) and math.isfinite(average)) or average <= 0:
         return None
@@ -184,6 +274,15 @@ def _extract_chart_data(data, results_df, tickers):
             # rails to the bars the box is born from, like the daily chart.
             weekly_box = chart_box(df, "weekly")
             monthly_box = chart_box(df, "monthly")
+            # A two-eyes fire carries ONE dated block and none of the old
+            # engine's families; it skips the old shape whole (its bar counts
+            # are empty, and casting them dropped the chart).
+            block = row.get(SCREEN_KEY)
+            if isinstance(block, dict):
+                chart_data[ticker] = _two_eyes_chart(
+                    row, block, tf_set, weekly_box, monthly_box,
+                    _sector_etf_for_ticker(ticker, sector_etf_cache), df)
+                continue
             # Inner-box bar indices (_inner_start_bar, _inner_climax_bar, ...) are
             # positional in the 2y DAILY_STRUCTURE_PERIOD eval frame the daily
             # structure read runs on (evaluation._prepare_eval_frame trims full_df
@@ -273,20 +372,9 @@ def _extract_chart_data(data, results_df, tickers):
                 'price': round(float(row['Current Price']), 2),
                 'trigger': round(float(row['_trigger_price']), 2),
                 'sub_scores': sub_payload,
-                # The leadership read (operator go-ahead 2026-10-02): the STOCK,
-                # kept apart from the setup's grade — none of it is scored or
-                # gated. The RS rating ranks twelve-month strength against every
-                # stock the scan read; the trend template is Minervini's seven
-                # price criteria passed (the archived count); the dollar volume
-                # is the 50-day liquidity. Two of the template's own measures
-                # ride along for the stage read (go-ahead 2026-10-03): the
-                # fraction above the 52-week low and the 200-day average's
-                # one-month change in percent (archive names, archive values).
-                'rs_rating': row.get('_rs_rating'),
-                'stage2_trend_pass_count': row.get('_stage2_trend_pass_count'),
-                'stage2_52w_low_pct': row.get('_stage2_52w_low_pct'),
-                'stage2_ma200_slope_1m_pct': row.get('_stage2_ma200_slope_1m_pct'),
-                'dollar_volume_50d': _dollar_volume_50d(df),
+                # The leadership read: the STOCK, kept apart from the setup's
+                # grade; one builder for both chart shapes (`_leadership_read`).
+                **_leadership_read(row, df),
                 # Volume at key points (operator go-ahead 2026-10-04): his key
                 # points, the LPS pullback and the Phase C spring, each against
                 # the 50-day average. Shown, never graded (his answer 10).
@@ -397,17 +485,9 @@ def _extract_chart_data(data, results_df, tickers):
                 # Fundamentals are point-in-time (filing-lag gated). The held
                 # frontend lane maps these to ⚡ RS Leader / Earnings Accel /
                 # days-to-earnings chips.
-                'fund_eps_growth_yoy': row.get('_fund_eps_growth_yoy'),
-                'fund_sales_growth_yoy': row.get('_fund_sales_growth_yoy'),
-                'fund_eps_growth_accel': row.get('_fund_eps_growth_accel'),
-                'fund_earnings_surprise': row.get('_fund_earnings_surprise'),
-                'fund_quarter_end': row.get('_fund_quarter_end'),
-                'days_to_earnings': row.get('_days_to_earnings'),
-                # Stamped by the market-cap floor on the fires it kept (None
-                # when the lookup missed or the universe is ETFs).
-                'market_cap': row.get('_market_cap'),
-                'rs_line_latest': row.get('_rs_line_latest'),
-                'rs_line_new_high': row.get('_rs_line_new_high'),
+                # market_cap is stamped by the market-cap floor on the fires it
+                # kept (None when the lookup missed or the universe is ETFs).
+                **{key: row.get('_' + key) for key in ADVISORY_KEYS},
                 # ── Technical Analysis Grade v2 block (task 9) — key-ABSENT
                 # while TA_SCORE_V2 is off (the setup_quality presence pattern; the
                 # flag-off wire snapshot pins the absence). The wire carries

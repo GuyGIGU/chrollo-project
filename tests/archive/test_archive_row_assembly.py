@@ -66,6 +66,7 @@ from engine_alpha.structure.events.event_map import event_map_archive_values  # 
 from engine_alpha.structure.events.event_vocabulary import sentence_archive_values  # noqa: E402
 from engine_alpha.structure.context.htf import htf_archive_values  # noqa: E402
 from engine_alpha.structure.context.strategy_read import strategy_archive_values  # noqa: E402
+from engine_alpha.two_eyes_archive import two_eyes_archive_values  # noqa: E402
 from engine_alpha.structure.box.trace_export import election_trace_archive_values  # noqa: E402
 
 
@@ -170,6 +171,12 @@ def _strategy_splat_keys(*, prefixed: bool) -> frozenset[str]:
 
 
 
+def _two_eyes_splat_keys(*, prefixed: bool) -> frozenset[str]:
+    """Columns the two-eyes family ``**`` splat contributes."""
+    return frozenset(
+        two_eyes_archive_values((lambda _k: None), prefixed=prefixed).keys())
+
+
 def _sector_rank_splat_keys() -> frozenset[str]:
     """Columns the sector-rank ``**`` splat contributes.
 
@@ -220,6 +227,7 @@ def test_writer_values_dict_is_subset_of_model_columns():
                            "ta_grade_archive_values", "sub_score_archive_values",
                            "election_trace_archive_values",
                            "strategy_archive_values",
+                           "two_eyes_archive_values",
                            "sector_rank_columns"}, (
         f"unexpected **splat(s) in archive_scan_results: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
@@ -231,6 +239,7 @@ def test_writer_values_dict_is_subset_of_model_columns():
                   | _sub_score_splat_keys()
                   | _election_trace_splat_keys(prefixed=True)
                   | _strategy_splat_keys(prefixed=True)
+                  | _two_eyes_splat_keys(prefixed=True)
                   | _sector_rank_splat_keys())
     stray_splat = splat_cols - model
     assert not stray_splat, (
@@ -287,6 +296,7 @@ def test_seed_values_dict_is_subset_of_model_columns():
                            "ta_grade_archive_values", "sub_score_archive_values",
                            "election_trace_archive_values",
                            "strategy_archive_values",
+                           "two_eyes_archive_values",
                            "fwd_returns"}, (
         f"unexpected **splat(s) in seed_archive overrides: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
@@ -298,6 +308,7 @@ def test_seed_values_dict_is_subset_of_model_columns():
                   | _sub_score_splat_keys()
                   | _election_trace_splat_keys(prefixed=False)
                   | _strategy_splat_keys(prefixed=False)
+                  | _two_eyes_splat_keys(prefixed=False)
                   | _fwd_return_splat_keys())
     stray_splat = splat_cols - model
     assert not stray_splat, (

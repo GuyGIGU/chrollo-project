@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-09-13T17:01:02+00:00",
+  "captured_at": "2026-10-02T19:22:41+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "d9f2eb2f3ac0901609b5925cd62a18260da9b555352b7b7295ad4ded82d668c7",
+  "corpus_sha256": "a0026da7f6486c03011445c858f45cf4945993274f56de6b29050021e20bef67",
   "population": "guided-list",
-  "marks_fingerprint": "88db0fcfa4e4f3eac6cd24aafb34a8a3bba67097a3b55a42004407c47335b28d",
+  "marks_fingerprint": "ebfe0f0191269ee29d6b80e9d17ff24a34feae53da985ab6d71aa898c8e438b8",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "0bbadfacadddacfad14c6ded164ae6961517663658a733908454981d6789fc42",
+  "engine_config_version": "8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -16,7 +16,7 @@
       "key": "ALB:2026-04-13",
       "ticker": "ALB",
       "status": "hit",
-      "setup_digest": "df11b1dc2bbeb603abf5dbdf88cc78c6a19d0cb486a71a7cb19dbb76c0089e8a",
+      "setup_digest": "91f3fe43c3396790531159277866f3f2d3c79b9320f3b1d5ff715dd0652667a9",
       "windows": [
         [
           "2026-03-30",
@@ -32,7 +32,7 @@
       "key": "ANRO:2026-08-12",
       "ticker": "ANRO",
       "status": "hit",
-      "setup_digest": "9071f81d4cb91f4744d1bb89f367b19d40f2b6a5dcab81fa9a7323545bc2d084",
+      "setup_digest": "4ec0a6090d5e4f4d3a8f90d0b33bedac2712f314092bc2c3304edf789fcdf910",
       "windows": [
         [
           "2026-07-30",
@@ -106,6 +106,22 @@
       "spy_6m_return": 0.0,
       "bars": 616,
       "first_fire": "2026-03-30",
+      "tier": "S"
+    },
+    {
+      "key": "DRTS:2026-04-15",
+      "ticker": "DRTS",
+      "status": "hit",
+      "setup_digest": "036e6911b83526bd71191f0a0d9b6bb6745b1ed23b226fb67f819f43509b3dbc",
+      "windows": [
+        [
+          "2026-04-01",
+          "2026-04-15"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 616,
+      "first_fire": "2026-04-10",
       "tier": "S"
     },
     {
@@ -267,6 +283,38 @@
       "tier": "A"
     },
     {
+      "key": "MTLS:2026-09-04",
+      "ticker": "MTLS",
+      "status": "hit",
+      "setup_digest": "7abfef21aeea29de307bee12ff373e7f31b60e779756d66d667bdf4cf5160764",
+      "windows": [
+        [
+          "2026-08-24",
+          "2026-09-04"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 620,
+      "first_fire": "2026-09-03",
+      "tier": "S"
+    },
+    {
+      "key": "NET:2026-09-15",
+      "ticker": "NET",
+      "status": "hit",
+      "setup_digest": "62272e04f3594b20d45ea1876fa3cbfef3cd46eb1c150a1b96974a31b6800cd0",
+      "windows": [
+        [
+          "2026-09-01",
+          "2026-09-15"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 617,
+      "first_fire": "2026-09-01",
+      "tier": "C"
+    },
+    {
       "key": "NGL:2026-01-20",
       "ticker": "NGL",
       "status": "hit",
@@ -413,7 +461,7 @@
       "key": "ROIV:2026-06-17",
       "ticker": "ROIV",
       "status": "hit",
-      "setup_digest": "7cfb5e091e2b17f873ccf3bf62cf9c16427c307b3dacb125b2e6b25543016046",
+      "setup_digest": "bc314c4272c17fb4a8b60c3461f44e1a682e0ace1c34c62f7eaa05ccd84a5abc",
       "windows": [
         [
           "2026-06-04",
@@ -424,6 +472,22 @@
       "bars": 617,
       "first_fire": "2026-06-04",
       "tier": "B"
+    },
+    {
+      "key": "SGHT:2026-09-24",
+      "ticker": "SGHT",
+      "status": "hit",
+      "setup_digest": "f6b43dbfbd2d73ab0d35d20cc4a25044f440918b9556242b21f4fa3cd88eed04",
+      "windows": [
+        [
+          "2026-09-11",
+          "2026-09-24"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "first_fire": "2026-09-15",
+      "tier": "A"
     },
     {
       "key": "SILC:2026-04-13",
@@ -536,6 +600,22 @@
       "tier": "A"
     },
     {
+      "key": "WAT:2026-09-24",
+      "ticker": "WAT",
+      "status": "hit",
+      "setup_digest": "144436d125526d01325b6cf36a09c322eda54a40f927f0098e7439fb52b980dc",
+      "windows": [
+        [
+          "2026-09-11",
+          "2026-09-24"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "first_fire": "2026-09-11",
+      "tier": "S"
+    },
+    {
       "key": "WTS:2026-06-12",
       "ticker": "WTS",
       "status": "hit",
@@ -555,7 +635,7 @@
       "key": "YPF:2026-05-18",
       "ticker": "YPF",
       "status": "hit",
-      "setup_digest": "bae07df62a22cf049c0baafff5c0d4bdf8a078e0aaf535e3b13d4f6419ff9119",
+      "setup_digest": "525cf77d660ce5795f855e64affefb1e676d8506d79ff0757e3edda836eb7dde",
       "windows": [
         [
           "2026-05-05",

@@ -330,6 +330,15 @@ HEALTH_SOURCE = (BACKEND_DIR / "services" / "health.py").read_text(encoding="utf
 BUILT_CHECKS = set(re.findall(r'checks\["(\w+)"\]', HEALTH_SOURCE))
 
 
+#: Two charts the new reader would not read on one night, as the scan's record lists them (go-live plan task 3).
+NOT_READ = [
+    {"ticker": "AAA", "rule": "a trading day is missing from the middle",
+     "reason": "a trading day is missing from the middle: 1 session(s) between 2026-10-01 and 2026-10-05"},
+    {"ticker": "BBB", "rule": "a trading day is missing from the middle",
+     "reason": "a trading day is missing from the middle: 3 session(s) between 2026-09-21 and 2026-09-25"},
+]
+
+
 def operator_sentences():
     """(where, sentence) for everything this module can put on his screen."""
     for job in diag.JOB_NAMES:
@@ -339,6 +348,12 @@ def operator_sentences():
         for status in ("failed", "aborted", "stale_data", "expired"):
             yield from _sentences(f"{job}/{status}",
                                   diag.describe_run({"status": status, "kind": job}))
+        # A finished run that lost archive rows (council review 2026-10-09, finding 12).
+        yield from _sentences(f"{job}/lost rows", diag.describe_run(
+            {"status": "ok", "kind": job, "error": diag.refused_rows_error(3)}))
+        # A finished run whose new reader would not read some charts (go-live plan task 3).
+        yield from _sentences(f"{job}/not read", diag.describe_run(
+            {"status": "ok", "kind": job, "error": diag.finished_run_error(3, NOT_READ)}))
     for name in sorted(BUILT_CHECKS - {"ibkr"}):
         yield from _sentences(f"check/{name}",
                               diag.describe_health_check(name, {"ok": False}))
@@ -1056,3 +1071,51 @@ def test_the_allowance_is_the_hang_threshold_not_a_new_number():
 def test_no_or_unreadable_stamp_has_no_stale_after():
     assert diag.scan_stale_after(None, 17, 0) is None
     assert diag.scan_stale_after("not a date", 17, 0) is None
+
+
+# ---- charts the new reader would not read (go-live plan task 3) ----
+
+def test_a_night_with_charts_not_read_says_so_plainly_and_needs_nothing():
+    """A halted stock's gap is real: the chart is not repaired, the night is not a failure, and the run says how many
+    charts were not read and why, in his words."""
+    described = diag.describe_run({"status": "ok", "kind": "scan", "error": diag.finished_run_error(0, NOT_READ)})
+    assert described["verdict"] is None, "nothing for him to do: not a re-run, not the developer"
+    assert described["reason"] == "2 charts not read: a trading day is missing from the middle."
+    assert described["solution"]
+
+
+def test_one_chart_not_read_reads_in_the_singular_and_two_reasons_are_each_counted():
+    one = diag.describe_run({"status": "ok", "error": diag.finished_run_error(0, NOT_READ[:1])})
+    assert one["reason"] == "1 chart not read: a trading day is missing from the middle."
+    mixed = NOT_READ + [{"ticker": "CCC", "rule": "the same day twice", "reason": "the same day twice: ..."}]
+    two = diag.describe_run({"status": "ok", "error": diag.finished_run_error(0, mixed)})
+    assert two["reason"] == ("3 charts not read: a trading day is missing from the middle (2), "
+                             "the same day twice (1).")
+
+
+def test_a_clean_finished_night_still_carries_no_error_cell():
+    assert diag.finished_run_error(0, None) is None and diag.finished_run_error(0, []) is None
+    assert diag.finished_run_error(3, None) == diag.refused_rows_error(3), "the lost-rows cell is unchanged"
+
+
+def test_lost_rows_still_need_him_when_charts_were_also_not_read():
+    """Both facts on one record: the lost rows keep their verdict and their count, the charts not read ride beside."""
+    described = diag.describe_run({"status": "ok", "kind": "scan", "error": diag.finished_run_error(3, NOT_READ)})
+    assert described["verdict"] == diag.NEEDS_ATTENTION
+    assert "3 of the setups it read never reached the archive" in described["reason"]
+    assert "2 charts not read: a trading day is missing from the middle." in described["reason"]
+
+
+def test_an_undo_night_is_worded_and_keeps_its_charts_not_read():
+    """Go-live plan task 8, verify-2: an undo night's row said "not archived" but nothing worded it, and its
+    charts-not-read count was dropped from the cell."""
+    import services.scan_runner as scan_runner
+
+    not_read = [{"ticker": "ATTT", "rule": "a trading day is missing from the middle", "reason": "9 sessions"}]
+    cell = scan_runner.NOT_ARCHIVED_NOTE + "; " + diag.finished_run_error(0, not_read)
+    described = diag._describe_run({"status": "ok", "kind": "scan", "error": cell})
+    assert described["verdict"] is None
+    assert described["reason"].startswith("An undo night: the screen was read again and nothing was archived.")
+    assert "1 chart not read: a trading day is missing from the middle." in described["reason"]
+    alone = diag._describe_run({"status": "ok", "kind": "scan", "error": scan_runner.NOT_ARCHIVED_NOTE})
+    assert alone["reason"] == "An undo night: the screen was read again and nothing was archived."

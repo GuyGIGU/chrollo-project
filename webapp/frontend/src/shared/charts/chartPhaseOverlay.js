@@ -56,6 +56,46 @@ const indexOnOrAfter = (candles, rawDate) => {
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
+// --- the two-eyes reader's dated block (build task 15) ---
+//
+// The wire carries the days and the resolved prices; this only finds each day's bar on the candles the SAME
+// artifact shipped (EC-38) and draws. A day survives any window, so the scan's card and the archive's chart, whose
+// candles are fetched again over another window, land on the same bars. The old engine's bar offsets and its LPS
+// zone are not carried on such a row: its bands come from the block or not at all.
+
+// The bar a day falls on: the first candle on or after it. A day before the first candle is the left edge (a line
+// anchored before the window starts there); a day after the last candle, or no day, locates nothing.
+export const locateDay = (candles, rawDate) => {
+  const target = dateKey(rawDate);
+  if (!target || !candles?.length || target > candleDate(candles[candles.length - 1])) return null;
+  const index = candles.findIndex((candle) => candleDate(candle) >= target);
+  return index >= 0 ? index : null;
+};
+
+// One box of the block, located: each line's anchor bar, the box's first bar and its last (the last candle while it
+// lives). Null when the block has no box of that role, its lines are not both there, or it ended before the window.
+export const twoEyesBox = (data, candles, role) => {
+  const box = (data?.two_eyes?.boxes || []).find((candidate) => candidate?.role === role);
+  const r = finiteNumber(box?.r);
+  const s = finiteNumber(box?.s);
+  if (!box || r == null || s == null || !candles?.length) return null;
+  if (box.end && dateKey(box.end) < candleDate(candles[0])) return null;
+  const last = candles.length - 1;
+  const endIndex = box.end ? (locateDay(candles, box.end) ?? last) : last;
+  const rIndex = locateDay(candles, box.r_day);
+  const sIndex = locateDay(candles, box.s_day);
+  const openIndex = locateDay(candles, box.opened);
+  if (rIndex == null || sIndex == null || openIndex == null) return null;
+  return {
+    r,
+    s,
+    rIndex: Math.min(rIndex, endIndex),
+    sIndex: Math.min(sIndex, endIndex),
+    openIndex: Math.min(openIndex, endIndex),
+    endIndex,
+  };
+};
+
 const setupEndIndex = (data, candles) => {
   const forwardBars = Math.max(0, Math.trunc(finiteNumber(data?.forward_bars) ?? 0));
   return clamp(candles.length - 1 - forwardBars, 0, candles.length - 1);
@@ -202,6 +242,13 @@ const phaseIndexes = (data, candles) => ({
 // colour the IDENTICAL bars. Returns null when the engine emitted no anchor pair.
 export const rootSwingRange = (data, candles) => {
   if (!candles?.length) return null;
+  if (data?.two_eyes) {
+    // The two-eyes reader's own pair: the bars between the day each line was anchored. Its block is the only
+    // source on such a row (the old bar offsets are not carried, and never read here).
+    const parent = twoEyesBox(data, candles, 'parent');
+    if (!parent) return null;
+    return { startIndex: Math.min(parent.rIndex, parent.sIndex), endIndex: Math.max(parent.rIndex, parent.sIndex) };
+  }
   const rOffset = finiteNumber(data?.r_anchor);
   const sOffset = finiteNumber(data?.s_anchor);
   if (rOffset == null || sOffset == null) return null;
@@ -268,9 +315,35 @@ const addLpsRegion = (regions, candles, startDate, endDate, lowValue, highValue,
   if (region) regions.push(region);
 };
 
+// A two-eyes row's bands: its box from the day it opened, and its LPS over its own days (the band spans those bars'
+// own lowest low and highest high). The old engine's phases are not carried on such a row.
+const twoEyesRegions = (data, candles) => {
+  const regions = [];
+  const parent = twoEyesBox(data, candles, 'parent');
+  if (parent) {
+    const region = buildRegion('b', candles, parent.openIndex, setupEndIndex(data, candles), { range: 'setupBox' });
+    if (region) regions.push(region);
+  }
+  const lps = data.two_eyes.lps;
+  const start = locateDay(candles, lps?.start);
+  const end = locateDay(candles, lps?.end);
+  const span = start != null && end != null ? priceRangeForBars(candles, start, end) : null;
+  if (span) {
+    const region = buildRegion('lps', candles, start, end, {
+      ...span,
+      color: LPS_COLOR,
+      detail: 'The last receding days',
+      id: 'lps:active',
+    });
+    if (region) regions.push(region);
+  }
+  return regions;
+};
+
 export const buildPhaseRegions = (data) => {
   const candles = data?.candles || [];
   if (candles.length === 0) return [];
+  if (data?.two_eyes) return twoEyesRegions(data, candles);
 
   const indexes = phaseIndexes(data, candles);
   const baseEnd = setupEndIndex(data, candles);

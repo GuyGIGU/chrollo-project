@@ -322,160 +322,411 @@ The rest of the doc mirrors the implementation; *this section states the intent 
 implementation serves.* When a detector and this model disagree, the model wins and the
 detector is the bug (or the model gets amended here, explicitly — never silently).
 
-### The final method (ruled Sun 13/09/2026; the engine is being rebuilt to it, one step at a time)
+### The final method (ruled Sun 13/09/2026; restated in seven stages and confirmed Sun 20/09/2026; a new reader is being built to it)
 
 The operator's own summary of what the screener is: *"we just draw 2 lines around a tight
 area of a chop in a stock and display it to me so I can see it and figure out if I want to
-trade it or not."* The method that serves it has four stages, and the order is the point:
-the lines come first, the events are read on them, the grade is read from the events, and
-the display says which of those states a chart is in. Nothing in the read is a gate that
-can reject a good setup; the only hard things are the universe door, the fifteen-trading-day
-age floor, and the definition of a fire (a box, an LPS, a trigger).
+trade it or not."* And of how the reader must work (Sun 20/09/2026): *"our main consolidation
+detection method mimics 2 eyes by converting the bar data and placement into a small swing
+based model -> then we place Resistance & Support to wrap the consolidation and follow said
+swings ,split them into phases, we "build" the story as it unfold Left to Right as we assign
+different swings different events"*.
 
-1. **The line.** One zigzag on the whole chart at one sensitivity: a turn is confirmed when
-   price backs off its running extreme by 0.75 daily ranges, wick to wick. The first bar and
-   the last bar are turns by their shape; an outside bar may carry both a peak and a valley;
-   a named event (an LPS low, a trigger cross) is a turn by law. A run of higher highs and
-   higher lows is a trend; the climax is the run's highest turn; the automatic reaction is
-   the first valley after it. The line is not the root swing and not the LPS window.
-2. **The rails.** From the climax, candidate pairs are walked forward in time: the climax
-   and its reaction first, else one swing to the right until a pair wraps the range the
-   swings then answer to (the first pair whose two rails each receive a later turn within
-   the rail area). First in time wins; tightest only breaks a same-day tie. The box opens on
-   the earlier anchor, each rail from its own anchor, never extended left, and has no drawn
-   end. The rail area and every later test use the daily range of the election day, frozen
-   with the rails. An earlier, wider pair is acceptable when the operator's LPS reads
-   against it; the yardstick is concordance, never rail replication.
-3. **The events**, forward in time against the rails: turns at a rail are respect; a dip
-   beyond the support area is a Phase C candidate until the swing after its tip recovers
-   it (a high back in the area, then a higher low) or fails it (a lower low first); one
-   Phase C per box, the deepest that recovered; a dip inside the area is a turn at support.
-   Every thrust over the resistance area is typed by the swing after it and by its phase, in
-   one order: an LPS above resistance if the pullback recedes with the trigger overhead and
-   holds the area; THE upthrust, one per box, if it comes in Phase B (before the spring; with
-   no spring, by the middle of the box), as his "reverse spring": price climbs quickly out of
-   the structure, then crashes back into the range, where only a real breach counts and only
-   the swing that breached is marked; in Phase D it is a push that may be THE SOS, "a push
-   that's like a paradigm shift it signals local buyer strength": by default the last push
-   after the middle that breaks clear of the local high (every high since the spring, by more
-   than the rail area), else the last push after the middle, none when no push tops after the
-   middle; a deep correction after that breach of resistance, in Phase D, is the last supper,
-   written only in hindsight (his words Tue 15/09/2026 and, for the upthrust, Wed 16/09/2026; the defaults are mine, recorded in the
-   decisions record); a child-box candidate is a flag until a later turn at the child's anchors
-   confirms it; at the right edge, open. A mini consolidation is a band with its own two rails, one event on
-   the parent's map. Phase D opens at the first right-side evidence after the middle of the
-   base (a must, his ruling Mon 14/09/2026: an opening at or before the middle opens nothing):
-   the round trip after a spring, a staircase of rising swing lows at resistance, the first
-   SOS (from its last swing, never the spring's own low), or the first LPS.
-   The LPS window is the last run of receding days (a lower high or a lower low than the
-   day before), the day before the run is its top, the trigger is the last day's high, the
-   buy is the cross of that high; a cross inside the pullback is a buy too. Every LPS-like
-   pullback is an event; one is highlighted, the freshest.
-4. **The grade** reads three families and nothing gates: tightness (height in daily ranges,
-   the spread profile inside the box and inside the window), the event map (the LPS's
-   traits, turns per rail, the SOS's ground covered, the story's pieces and order), and
-   context (the run into the climax, position in the box, volume as a number). A named
-   event's swing is never docked; an unnamed lunge beyond a rail is. Base age carries no
-   weight. Volume never refuses, never elects, and carries no points.
-5. **The display** gives every chart one state word: fired, crossed, lines with no LPS yet,
-   forming, root candidate unconfirmed, beyond resistance undetermined, under support
-   undetermined, broke down, not scanned, no lines. Fired charts on the board, the rest in
-   a watch lane; nothing on the board on the buy day.
+His chain of reading, said when he put the core first (Sat 26/09/2026): *"there are 2 main
+things that should be the bread and butter of every read, that's the Consolidation (Resistance
+and Support lines and every thing that's related to them) aka the box generation, and the LPS.
+the rest is how we interpret the inner price action in the box that leads us to the rest of the
+"events" & and the way we treat the box rails since we read ohlc daily bars's High and low
+values to construct the entire range of that day -> construct them into swings -> construct
+swings into a drawing and then we see how it fares against our box and we can interpret said
+drawing to visual patterns we can recognize aka: spring, up thrust, sos, lps, mini consolidation
+and so on depending on the chronological "phase" of said setup."* So the core is two things,
+the box and the LPS; the events are the drawing interpreted against the box by phase; and the
+core is judged by his eye, on the bars, before anything is built on it.
 
-Until a step lands in the engine, the sections below describe the reading as it is built
-today; the rulings and every measurement behind this method are in the decisions record.
+The method has seven stages and the order is the point: the line comes first, the end of the
+trend is found on it, the two lines are walked out from there, the box lives and ends by
+swings, the story is read on the box left to right, the LPS and its trigger are read last,
+and only then is anything graded or shown. Nothing in the read is a gate that can reject a
+good setup on a number: *"It's hard to gate using a raw number in case we reject a valid
+setups because of a small neumeric gap"* (Sat 12/09/2026). The only hard things are the
+universe door, the fifteen-trading-day age floor, his own shape sentences on the LPS, and
+the definition of a fire (a box, an LPS, a trigger). He confirmed the seven stages on Sun
+20/09/2026 (*"1. yes 2. yes 3. okay 4. if you are reffering to mini consolidations then both
+boxes live, they are a part of the same setup 5. yes 6. yes 7. Yes"*). Where a sentence below
+is a builder's default and not his ruling it says so; the decisions record carries each
+default as ours.
 
-Build status: step 1 landed (the guards grade the fired window); step 2 landed DARK (Sun
-13/09/2026): the ruled stack sits behind eight default-off flags, one per ruling site (the
-whole-bar respect, the graded dwell, the hand-over in ranges, the lifted spring bounds, the
-LPS in daily ranges with the 1.35-range ceiling, the graded LPS traits with the story-position
-floors, the one window per read day ending on the last receding day, and the buy-day clause
-that reads the high), measured against the 35 marks, the 16 junk charts and the fleet, and
-waiting on the operator's flip. Step 3 landed DARK (Sun 13/09/2026): the LPS refusals that remained on the
-support side, after the window and on volume became facts behind one more flag (the support side never
-refuses and the zone word there is read from the window's closes, never its lowest wick; the three
-post-window checks and the depth cap in profile units are gone; volume never refuses and never elects),
-measured the same way and waiting on the same flip. Step 4 landed DARK (Sun 13/09/2026): the one turn line,
-one floor of 0.75 of each day's own range over the whole chart, now sits behind two more flags, feeding the
-event map's swing layer and the trend labels while the box election stays on today's skeleton. It reads all
-186 of the turns he has drawn, where the engine's own walk reads 112, and on every population measured it
-moves no fire at all: what it changes is WHEN the engine may commit to a turn, never what it calls one.
-Step 5 landed DARK (Mon 14/09/2026): the words on that line (every push that could be an SOS and THE SOS,
-the last supper, one Phase C per box and its spring test, where the right side opens, the mini) are read by
-a reader nothing else consults. They land where his own drawings put them on most of his events, and they
-read the same on junk charts as on his, so they describe a chart and never filter one; which push is THE
-SOS he settled at its own sitting (below); the Phase C is read with his context going forward
-(a deep dip after which the box went back to resistance and under support again, or printed an upthrust,
-was still Phase B).
-His fatal character change landed DARK (Mon 14/09/2026): an LPS whose last three days grow wider and fall further,
-day after day, is broken (the pullback increasing with sellers), never merely graded down.
-Step 6 landed DARK (Mon 14/09/2026): his fifteen-day minimum, counted from the box's first rail anchor, so a box
-younger than fifteen trading days is forming and never fires; the older twenty-day clock keeps its other uses.
-Step 7 is landing DARK one switch per point (Tue 15/09/2026). First: no width in percent of price refuses a box
-or holds a grade letter back, as his Q7 said ("a box is a box because of its consolidating Zig zag behavior not
-it's height"); the height stays a fact for the grade. Measured, it shows what the width cap had been standing in
-for: with no cap, the walk that still starts from the oldest root reaches an older, wider range as the parent of
-the box he drew, which survives as its mini. Walking forward from the climax (step 10) and the hand-over by
-swings (step 11) are what settle that, so this switch goes live with them.
-Second: no depth number decides that a dip is too deep to be a spring or that a box has crashed, his Q8 ("It's
-hard to gate using a raw number"); the depth stays a fact. With every other switch on it moves none of his marks.
-Third: respect refuses nothing, his Q6; a run beyond a rail is read from what follows it. Measured, respect had been
-doing the other half of that same answer, "if the price continues to Rise/Fall with out recovering ... the
-consolidating structure we measured ended": without it and before the box's end is built (step 11), the walk
-elects ranges price left long ago. Step 7 is complete; its three switches go live with steps 10 and 11.
-Step 8 landed DARK (Sat 19/09/2026): the LPS is no longer a brick of the box election. The first box the walk finds is
-the chart's structure whether or not a pullback has formed on it; a box with no LPS never fires; and every chart the door
-admits carries one state word from one table (fired; crossed; lines, no LPS yet; forming N of 15; root candidate,
-unconfirmed; beyond R, undetermined; under S, undetermined; broke down; not scanned; no lines), the charts with lines and
-no fire in a watch lane behind his display floor of two turns at each rail, which all 35 of his marks clear at his rails.
-Measured, it shows what step 7 showed: with nothing left to ask of the oldest root, the walk stops at the oldest range, so
-this switch too goes live with steps 10 and 11.
-Step 9 landed DARK (Sat 19/09/2026): the box opens on the earlier anchor day and never extends left, his ruling; the
-walk had been opening 15 of his 35 boxes before their anchors, on an earlier touch of a rail. The rails do not move;
-the box is shorter, and two of his marks (MATX, VIK) then fall to the dead-space-on-the-right gate, which becomes a
-comment at step 12, so this switch goes live with the whole method.
-Step 10 landed DARK (Sat 19/09/2026): the climax and its reaction are decided first, on the line, as he said the
-same day ("the swings for BC and AR are needed to be decided before the Root Swing, because said root swing can
-either be them, or a swing later"); each run's pairs are walked forward from its climax with the climax and its
-reaction as the first candidate, and a pair is elected once the swings after it answer to its rails. The percent
-recipe for a climax, the painter that repainted Phase A after the election, and the cause veto are gone under the
-switch; the run into the climax rides as a fact for the grade. Measured, the walk puts his pair first and today's
-respect gate refuses it; with the gates off it elects ranges price left long ago until the box's end exists, so
-this switch goes live with step 11.
-Step 11 landed DARK (Sat 19/09/2026): a box ends. Upward, by the hand-over: after the breakout day every swing
-whose low holds in or above the box's resistance area is a child root candidate, and the parent ends when a
-child's own answering completes, a later turn at each of its anchors; one turn at one anchor is the parent's own
-LPS above resistance and ends nothing (a run that comes back into the box hands nothing over; no close level ends
-a box). Downward, the mirror: a child below the support area confirmed the same way; a dip that confirms no child
-is undetermined. An ended box is never the structure: the walk
-moves on to the next run, which is what carries it past the ranges price left long ago (his dead space). The
-unit of the areas is frozen with the rails at the election day; an unconfirmed child is the chart's state. The
-extension veto, the stale-box rescue and the dethrone pass retire under this switch; steps 7 to 10 go live with it.
-Step 12, part one (Sat 19/09/2026): the Power Play species lane is deleted, no switch. One walk, one map, one
-clock: the 15-day floor from the first anchor (step 6) is the one length floor, a Power Play is a fired setup
-whose trend fact reads pole, and box length is archived with no points. His marks and verdict corpora stay
-sealed; the resistance-contraction story form stays, dark, as the contraction rescue's form.
-Step 12, part two, landed DARK (Sat 19/09/2026): the grade ledger. Under one switch the grade reads three
-things: the box's height in daily ranges, the spread profile (the LPS window's mean bar spread in ranges, the
-box's bar texture as the multiplier it is) and the event map (the committed turns at each rail on the line in
-place of touch bars; the story's completeness). Base age, the volume dry-up, the ATR squeeze, the VCP
-contractions, ascending support, ADR and the 52-week proximity go to zero weight and stay archived. A named
-leg on the map is never dead space; an unnamed lunge is docked, spring or no spring. Tier S needs a height of
-2.5 ranges or under, and the letter's cuts move one tier up on the re-based scale. THE SOS's ground and the
-LPS traits stay data. Every number is placed from his marks and he sees the weights before they move
-(docs/grade_ledger_2026-09.md).
-Step 12, part three (Sun 20/09/2026): the ten state words of point 22 reach the screen (the watch lane apart
-from the leaderboard; one chart's word on demand for a name the scan did not list, "not scanned" with the
-door's leg named and the distance in ranges; the ticker page's "fired ..., crossed ..." from the archive's
-own dates). The descent tail, a gate validated on the old box recipe whose named specimen CHCT he ruled valid,
-becomes a comment on the fire under the states switch. With this the method of Sat 12/09/2026 is BUILT, every
-switch dark; the approval sitting decides the flip, all switches together.
-The SOS sitting (Tue 15/09/2026) rebuilt three of the words on his words there, still dark and on defaults of mine
-he has not confirmed: THE SOS is the last push after the middle that breaks clear of the local high, else the last
-push after the middle; the upthrust is his reverse spring in Phase B, one per box, the most developed push out of the
-structure that crashes back into the range, marked on the swing that breached (his tweaks, Wed 16/09/2026); the last supper is a deep correction after a breach of resistance in Phase D; and the SOS opens
-Phase D from its last swing, never from the spring's own low.
-Flags off, the engine reads exactly as it did.
+1. **The line.** Bars become one swing line. The unit is the whole bar: *"the bars
+   themselves (The entire bar from High to Low) tells me everything I need to know"*
+   (Thu 10/09/2026). A turn is confirmed when price backs off its running extreme by
+   0.75 of the stock's daily range, high to low. The first bar and the last bar are turns by their shape: *"even with out
+   "Future" Information we can deduct them as turns by their current state swing shape"*
+   (Sat 12/09/2026). One bar may carry both a peak and a valley, and one rule says in which
+   order: the bar is read in the direction the line came into it, that end first, so a bar
+   entered rising carries its peak and then its valley, and a bar commits at most one turn of
+   the line, on its close; the far view, which folds the line at a bigger floor, may make two of
+   its turns on one bar wide enough to cover that floor twice over (ours). A leg's turn is the most extreme price since the turn before it, over
+   every bar to the day the reversal was confirmed, the turn bar's own other end included when
+   it was read after the turn (ours). A turn, once confirmed, never moves; the last one is
+   marked as still forming. Every turn knows its size in daily ranges — the leg into it, in
+   the range of the day it printed (ours) — and the day it became knowable, the close that
+   confirmed it; the first bar's kind is known when the first leg has covered its floor. The
+   daily range is built on the whole history before the chart is cut to the two years the
+   reader looks at, so the first days inside the window carry a warm unit and the cut moves
+   no range; the line's first turns depend on where that edge falls, for a few weeks at most,
+   and are the same turns after (ours). Seen from further back the same line shows the trends:
+   the far view is this line with its small swings folded away, never a second line — its
+   turns are turns of the line, and a far turn is made when a day backs off it by the far
+   floor in that day's own range (ours); how far back was placed at the listing gate (Sat
+   26/09/2026): one and a half daily ranges, ours and provisional, the one distance at which the
+   trend into his box is seen at all — and the reaction after the climax is read on the line
+   itself, not on the far view, whose folded swings overshoot his support; his sitting settles both.
+2. **The end of the trend, then the rule of the pair.** A run of higher highs and higher lows
+   is a trend; its highest turn is the climax and the low that ends the first reaction after
+   it is the automatic reaction. They are decided first: *"the swings for BC and AR are needed
+   to be decided before the Root Swing, because said root swing can either be them, or a
+   swing later"* (Sat 19/09/2026). The rule that places the two lines is his, settled at the
+   core sitting: on Wed 30/09/2026 it was typed out to him in ten sentences, and on Thu
+   01/10/2026 he answered each. The first five place the pair; six to eight are stage 3, nine
+   and ten stage 4.
+   (1) *A rail sits only on the end point of a swing* — *"correct"*. His ruling on the
+   reader's PBT box (Mon 28/09/2026): *"we only start to anchor from the end point of
+   previous swings"*; its line had come *"from the middle of a swing in the direction of the
+   trend with out there being a counter move to begin with"*. The end point is the high
+   where a rise stopped or the low where a fall did: a bar whose high the bar on neither side
+   beats (the mirror for a low).
+   (2) *A box's two rails are the two ends of one counter move; after a swing up the top
+   comes first* — *"correct"*. And *"we cannot start the anchor in the same direction the
+   price is going"* (Mon 14/09/2026).
+   (3) *The two ends can be one wide bar's own high and low* — *"correct"*. Daily bars do
+   not say which end of a bar printed first, so a one-bar pair is read in whichever order
+   makes it a counter move (ours).
+   (4) *The counter move is smaller than the move it comes off* — *"correct most Automatic
+   rallies (AR) cover only part of the previous move if a counter move is bigger it
+   contributes already to a new counter trend!"* A pair whose second end takes back the
+   whole move before its first is listed and never a box. The move before is read on the
+   bars alone: for a top, from the lowest low since the price was last above it (ours).
+   (5) *The first pair tried is the climax and its reaction; if the bars do not come back to
+   both rails, one pair to the right; one rail may stay while the other moves* — *"correct
+   but ... only if a swing connects between them, we cannot allow for dismemberd anchor
+   paring"*. His earlier words: *"I move one pair right until I find it, not only a single
+   time. -> one line can stay on its anchor while the other moves, but they are connected
+   like 2 lets placing one in front of the other"* (Sun 20/09/2026). A swing connects two
+   ends when, from the first one's bar to the second's, the top is the highest high and the
+   low the lowest low; a top is never paired with a low printed after a bar went over it.
+   The pairs are listed in the order they open, from the first end of a trend the far view
+   shows; nothing is listed before one. Where a trend end's walk starts is the first swing
+   end of the climax's level in its run: a later high that pokes a little over his top does
+   not move his line (his PBT: 22.71 five days after his 22.65) (ours). Each line is ONE
+   anchor day's high or low, to the cent.
+   His own drawings keep the rule (40 of them on Fri 02/10/2026; the standard follows what
+   he draws): every one opens on the end of the swing before it, 37 on resistance after a
+   rise, 3 on support after a fall. His own two anchors are a pair the rule lists on 35 of
+   the 40; on the other five one of his anchors is one of two near-equal highs or lows a few
+   cents apart, or the climax bar's own low, and on all five the reader's box is within
+   half a daily range of his. The anchor is not always the climax: on 11 of the 37 he had
+   drawn by Thu 01/10/2026 it is a swing later, and on 4 of the 40 both lines are one wide
+   bar's own high and low.
+3. **Answered and alive.** A pair of lines is the box when the bars come back to BOTH lines:
+   *"were looking for the first instance that a consolidation is respected!"* (Sun
+   06/09/2026).
+   (6) *Come back: a later bar's high within half a daily range of resistance, a later bar's
+   low within half a daily range of support* — *"if by "Come back" to be counted as respect
+   to the respective rail that bar is closest too then yes"*. Each end of a bar counts for
+   the rail it is closest to, when it is within that rail's area, on either side of it:
+   *"whenever they are slightly poking out or not does not matter one bit"* (Sat
+   26/09/2026). So a bar whose high touches resistance and whose low touches support
+   respects both, small bars low in the box rest on support, and a bar above resistance
+   whose low is close to it respects resistance. Resting on a rail is respect, the price
+   need not have left it first: *"Silc supposed to work due the much respect of the
+   support"* (Thu 01/10/2026, on the pictures: SILC's bars rest on his support for seven
+   weeks). And a rail the base does not return to is no respected rail: *"why would DRTS
+   move away as it almost perfectly respect both boundaries"* (the same day: DRTS's climax
+   and its reaction low, 7.89 / 6.23, a low the bars left the day after and did not see
+   again until the spring six weeks later). So the bars come back first to the rail the
+   pair opened on, and to the other rail on that day or after: the price has been at the
+   other rail in between. The order is ours; it is what reads both of his examples. Read as
+   "any later bar", the day after a reaction low counts and DRTS's climax pair is the box;
+   read as "only after the price left the rail", SILC's support is never come back to.
+   (7) *The pair is a box on its fifteenth trading day, or later if the bars take longer to
+   come back* — *"Correct we have to account for the bases eventual recovery when scanning
+   and detecting, its looking at the base structure as whole rather and seeing that it fits
+   rather then rejecting it out right"*. Fifteen days from the first anchor: *"Lets go with
+   15 days"* (Sat 12/09/2026). The box is born on the later of both come-backs and the
+   fifteenth day, however late, and no earlier than the day the reader could first list the
+   pair (ours).
+   (8) *A run past a rail never unmakes a pair by itself.* On his ALB the price stood two
+   daily ranges over his resistance a week after the box opened, and he kept the lines. Of
+   that breach he said: *"that breach is not an upthrust in fact there is a later on
+   25/02/2026 its just that those pairs could be used to fit the box, even a later pair
+   could work if that movement in 20/1 -> 27/1 and the crash afterwards could be treated as
+   the place where the trend ends"*. So a run past a rail early in a box's life is not his
+   upthrust (the record of Tue 29/09/2026 that called it one is corrected by him), and no
+   pair is dropped for one.
+   A pair shorter than one of its own daily ranges is listed and never a box (ours: from
+   his huge spread being huge against the box itself). First in time stands: the first pair
+   that BECAME a box is the box shown — then the earlier opening, then the earlier second
+   anchor, then the tighter pair (the tie-breaks are ours). The box opens on its earlier
+   anchor, each line starts at its own anchor and is never extended left. The daily range
+   the box is measured in is the range of its second anchor's day and is never the read
+   day's (ours). An earlier, wider box is acceptable when his LPS reads against it: *"so
+   nothing really disqualifies them (not until I've seen it ofc)"* (Sun 13/09/2026); the
+   yardstick is concordance, never line replication.
+4. **The box's life.** A box ends only by what the bars do, and only into a new box: *"if the
+   price continues to Rise/Fall with out recovering we can deduce that either that the
+   consolidating structure we measured ended and the price began to trend"*, *"its tricky
+   to define it with Close value we need to deduce it Swings as well"* (Sat 12/09/2026), and
+   *"the child box inherit the parent as its cause"*.
+   (9) *Once a box, it stays a box through dips under support and pokes over resistance that
+   come back* — *"correct"*. A dip or a poke that comes back is the box's own event, a
+   spring or an upthrust, never an end; a pair inside or across the shown box is its own
+   leg, or a mini, and never takes its place. And a dip that comes back LATE: the reader
+   reads day by day, so when the price has been under the box for fifteen days it follows
+   it to the lower pair (sentence 10); on the first day the bars since then, and of the
+   last fifteen days, are back at both rails of the box it gave up, that box takes its
+   place back. His ROIV picture is this (Thu 01/10/2026: a red dash on each bar that meets
+   one of his two lines, none on the days under the support at the end of March), and his
+   word on the boxes the reader never went back to: *"go ahead with the five earlier boxes
+   I think as long as the engine understand that there is a setup there I'm happy"*. The
+   way back is for a dip only, and only to the box given up (ours): when the price left a
+   box upward and a box above took its place, a fall back into the old box is the newer
+   box's own dip (on his ST the spring under his box is at both rails of the box under it:
+   giving the place back there loses his box and silences the read on his day).
+   (10) *The box gives way to a newer pair only when the price left it and did not come back:
+   the bars now hang on the newer rails and no longer come back to the old ones* —
+   *"correct"*. As built: the newer pair is a box by the rule and lies beyond the shown one
+   — its support resting on the shown resistance's area or above it, or its resistance on
+   the shown support's area or below — and over the last fifteen trading days, never
+   reaching back before the newer pair opened, the bars came back to both rails of the
+   newer pair, and not to both rails of the shown box. Both halves of his sentence are
+   read: the box never gives way to rails the bars have left (on his MTLS the pair of the
+   July run became a box on a day the price was already back under it; the reader used to
+   hop to it, and from it to a pair under it). It is judged on every day, not once: a
+   breakout that failed keeps the box
+   while the bars still come back to it, and the box gives way on the fifteenth day after
+   they stopped. What "beyond" is and how long "no longer" is (his fifteen days) are ours.
+   And his anchor rule: *"We can't start the anchor from the opposite direction of the trend
+   if we are still inside that trend"* (Mon 27/07/2026). A box whose first anchor sat on a
+   top inside a rise that had not ended — a pause on the way up — gives way to the box that
+   opens on that rise's own end, once the far view says the rise ended there and that box
+   is a box by the rule (the mirror for a fall; the form is ours). This is how the reader
+   takes his other reading of ALB, the *"later pair"* after the run of 20/01 to 27/01/2026.
+   But for that way back, every hand-over goes to a pair that opened later. A pair that
+   opened EARLIER does not take the shown box's place on the day it becomes a box (ours:
+   measured on his 37 on Thu 01/10/2026 in three forms, it put old wide pairs in the place
+   of his own box on EGBN, NTCT and ST, or moved DRTS to its first reaction low). His
+   picture of ROIV says more than the reader does: a red dash on each bar that meets one of
+   his two lines, none on the days under the support at the end of March or the two days
+   over the resistance in May. The box is the pair the bars keep coming back to on both
+   sides, visit after visit, and an extreme the price never returns to is a dip or a poke,
+   however far it went (his ruling of Sat 25/07/2026 said the same of a rail: where several
+   bar extremes rest, the odd poke past it tolerated). The reader shows the first pair that
+   got one return on each side; on ROIV that is the pair one swing before his (30.03 /
+   28.31, within half a daily range of his 30.33 / 27.92), and it now holds it through the
+   dip. Choosing the box by the whole base is not built: the patch rules and the counts of
+   what lies near a line that were measured are not his logic (the Tested-DEAD rows of
+   2026-10-01). His bar for a drawing the reader does not read to the cent, the same day:
+   the engine understands that there is a setup there. The box handed over stays in the
+   record, its lines stopping where the newer pair opens; a pair the reader left for the
+   box it had given up stays in the record too, its lines never running on (ours).
+   The reader keeps no memory: what it records as handed over is what the day's own reading
+   of its two-year window tells, and each hand-over is judged on what its own day knew, so
+   a reader standing on any day tells the same history up to that day as one standing
+   later. The window's left edge moves a day a night, and the OLDEST boxes of the record,
+   those of the window's first months, can be told differently on a night with no hand-over
+   (measured Fri 02/10/2026 on his 40 and the 16 junk charts, forty nights each, 2,240
+   nights: with the same box shown, the earlier boxes were not the same list as the night
+   before on 192 nights, on 98 of them only because the window had moved on past the
+   oldest box, on 94 because the oldest boxes were told differently; on those nights the
+   last three earlier boxes were the same on every one, and the box SHOWN moved on 94
+   nights, 7 of them a place given back, each the night the read itself says so). The
+   chain of boxes is a function of the first box it starts from, and nothing makes two
+   chains meet: on a wider sample even the third box before the shown one was told
+   differently on two nights (FRPH, read Tue 12/11/2024 and Wed 13/11/2024), the box shown
+   and the box just before it unchanged. Three ways of telling the same earlier boxes
+   whichever night tells them were measured and none holds on charts nobody chose (the
+   Tested-DEAD record of Fri 02/10/2026). So the earlier boxes of a read are that night's
+   own telling, not a record of what an earlier night showed, and the story reads the box
+   shown, no earlier box and not the mini (ours). The record of what each night showed is
+   the archive's.
+   Measured on his 40 on his last receding day (Fri 02/10/2026, the standard following the
+   three setups he drew on the evening of Thu 01/10/2026: SGHT, WAT and NET): the reader's
+   box is his to the cent on 25, both lines within half a daily range of his on 11, another
+   box on 4 (BODI, MATX, MTLS, NET; on the 37 before them 23, 11 and 3; the reader before
+   the rebuild: 9, 15 and 13 of 37), and the read fires on his day at his trigger on 35, the
+   four with another box among them. On three of those four (MATX, MTLS, NET) his own pair
+   is a box by the rule and lies across a rail of the box shown when it became one, so it
+   never takes its place (ours). On NET his resistance is the top of Wed 05/08/2026
+   (305.00); the price ran on over it for seven days, to 332.22, and came back, and from
+   then the bars met his resistance on six days and his support on eight. He kept the line.
+   The reader anchors on the run's first top instead (324.73, Fri 07/08/2026): his ROIV
+   logic again, a rail is the price the bars keep coming back to. No close is read anywhere: a close-dated
+   hand-over is Tested-DEAD. Until a new box is born the parent keeps its lines, and a
+   pullback resting above resistance is the parent's own LPS. A range price left long ago is
+   no candidate because the hand-over follows the price to the box where it trades (his
+   dead-space drawings, BMRN and OHI, Sat 19/09/2026); where the price has run on and no new
+   box has been born yet, the old box is still the box shown, and it is the LPS's own
+   refusals that keep it from firing; the state word only says where the price is, it
+   keeps nothing from firing. The mini consolidation is a box
+   inside the parent's right side with its own two lines, and it never replaces the parent:
+   *"both boxes live, they are a part of the same setup"* (Sun 20/09/2026); *"like a small
+   box, same as the regular consolidation"* (Wed 26/08/2026). It is read with the same rule of
+   the pair: among the pairs that became boxes after the parent did and sit inside or across
+   it (not beyond it — beyond is a new box's business, the line above), the first to become a
+   box is the inner box, and it gives way inside the parent exactly as the parent would. That
+   inner box is THE mini when it is a small box inside the parent: its bottom over the
+   parent's support area, not the parent's own two lines again. Where it sits in the parent
+   is not a rule — his ruling of Sat 03/10/2026, on the build's "at the top" question: *"we
+   should gate mini consolidation by their structure its just a semi smaller base inside/in
+   the vicinity of a bigger one"*. The parent's half-range area is the only width. The record carries the live mini only. The
+   state word reads the parent; the story reads the parent's lines and the LPS as the record
+   carries it, against whichever box the LPS named, so its LPS days are the fire's own.
+5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
+   beyond the support area is a Phase C candidate until the swing after its tip recovers it
+   (a high back in the area, then a higher low) or fails it (a lower low first); one Phase
+   C per box, the deepest that recovered; *"Phase C = Spring"*. A thrust over the
+   resistance area is named by the swing after it and by where it sits: THE upthrust, one
+   per box, in Phase B, *"similar to a Spring but in reverse being a Resistance based
+   event swing"* — price climbs quickly out of the structure, then crashes back into the
+   range. The crash may take more than one swing, as long as the price is back under the
+   resistance area before it makes a higher top; and a run past resistance within fourteen
+   trading days of the end of the trend is the trend still ending, never an upthrust. The
+   trend's end is the box's first line, or the earlier top of the trend the box took its
+   place from (his ALB, Thu 01/10/2026: the run of Tue 20/01 to Tue 27/01/2026 *"is not an
+   upthrust in fact there is a later on 25/02/2026"*, and *"even a later pair could work if
+   that movement in 20/1 -> 27/1 and the crash afterwards could be treated as the place
+   where the trend ends"*; the form of both clauses is ours). In Phase D a push that may be THE SOS, *"a push
+   that's like a paradigm shift it signals local buyer strength"*; a deep correction after
+   a breach of resistance in Phase D is the last supper, written only in hindsight, and a
+   box carries one: *"a last supper is a noticeable deep correction that happens *usually
+   only once either pre or post break out"* (Sat 03/10/2026). It is named only when it
+   digs as deep as his shallowest drawn last supper less the margin the floors keep; a
+   shallower pause still ends a push. When several corrections qualify, the box's last
+   supper is the one off its highest top, and two tops that fall into one low are one
+   correction (ours, measured on his eight: the one named is his, or on SILC THE SOS's top
+   of the same correction one trading day before his; every one of his eight tops over
+   resistance after the box was first breached, so no correction under resistance is
+   named). Phase D
+   opens at the first right-side evidence after the middle of the box, never at or before
+   it. A word is either committed or provisional (ours): committed when the swing it stands
+   on, and the swing that answers it, have committed on the line; provisional while one of
+   them is still forming. Committed says the SWING is settled, its day and its price; the
+   NAME is the reading of the box as it stands tonight, and it can move to another swing:
+   there is one spring, one upthrust and one SOS per box, the middle of the box moves
+   right every day, and three words lean on the pullback of the day. On his 40, over the
+   ten nights up to his last receding day and on to his as-of day, committed names moved
+   162 times in 470 pairs of nights, most often Phase D and THE SOS (Sat 03/10/2026). And no word ever blocks a fire: *"The up
+   thrust isn't even all that important, we just got to nail down our core for detecting
+   consolidations and an LPS. the rest is a nice little bonus."* The story is read after
+   the LPS, because three of its words lean on the pullback, and it reads the box shown
+   and no earlier box; the dependency runs one way, the LPS never reads a word. Every word
+   of a box is measured in that box's own daily range, the range its two rail areas are
+   measured in, frozen for the box's life, so a word never changes because today's bars
+   were wide (ours). In that range the smallest push he drew as an SOS covers 1.33 ranges
+   and his shallowest last supper digs 1.52; the floors sit on his side of both (ours,
+   re-derived from his marked bars). No frozen range keeps every word he drew: read by
+   the reader itself on his last receding day, his 40 give THE SOS on 22 of his 28, the
+   spring on 9 of his 11, the last supper on 7 of his 8 (Fri 02/10/2026), each miss named
+   with its cause, most of them a box that is not his.
+6. **The LPS and the trigger.** He defines the pullback by the traits he wants to see:
+   *"Receding Price move over time, Lowering (and low) spread below average, 2 - 5 bars"*
+   (Tue 08/09/2026). One window per read day: the last run of receding days (a lower high
+   or a lower low than the day before), the day before the run its top; it *"ends on the
+   last receding day before the buy"*, and on where it starts, *"Lets go with the day
+   after"* (Sun 13/09/2026). A pullback is read on at most five bars, so of a longer run
+   only the last five are read, from their highest high down — the reading of *"the moves
+   final bars being pretty shallow and in decline"* (ours; on his BMRN picture it gives his
+   blue part, Tue 16/06 to Thu 18/06/2026). The trigger is that last day's high and the buy
+   is the cross of it; a cross inside the pullback is a buy too. The day that crosses the
+   trigger is the buy day and nothing is on the board that day; a day that crosses it and
+   makes a lower low as well is a buy and the pullback goes on, its trigger now that day's
+   high (ours, read off his drawings: five of them end on such a day, six were bought on
+   one). The pullback is measured by highs and lows; no close is read. A pullback is
+   judged on what the line had made by the evening it ended, so its verdict is the same on
+   whatever later day it is read: one refused that evening put no trigger on the board, and
+   no later day can have crossed it (ours). Only the freshest
+   window is highlighted. An LPS is refused only by his own four sentences, read against
+   the reader's own box: (1) the pullback is increasing with sellers, *"3 bars with huge
+   increases in both spread and price changes"* — its last three bars widen day by day
+   and fall further day by day, the last fall bigger than the whole range of the day
+   before (the form is ours); (2) it is a slice of a bigger swing down, *"you cut the
+   move off and it's a part of a bigger swing downwards that reaches support, we cannot
+   ignore that"* (Mon 14/09/2026), *"its seems like the correction is getting to deep"*
+   (Tue 08/09/2026) — the fall from the top of its swing on the line to its low is more
+   than 2.5 daily ranges (the form and the number are ours: his deepest drawn pullback is
+   2.43; reaching support is not asked, because his own pullbacks rest on it in a tight
+   box); (3) most of it sits under the support area, read on whole bars, so a poke under it
+   never refuses: *"the LPS is on the Support rather then Under it since most of the move
+   is above it and only small parts of it poke out down"* (JAZZ, Sun 13/09/2026); (4) its
+   low sits more than 1.35 daily ranges over resistance (*"Lets go with that ceiling 1.35
+   I guess...."*, Thu 10/09/2026). The LPS is measured in the daily range as it stood five
+   trading days before its last day — before the pullback, whose own days may not move
+   their own yardstick — the unit his 1.35 was placed in: in it his six lows over
+   resistance read what they read the day he ruled (his farthest, ST, 1.30), while in the
+   box's own frozen range his ST would be refused (ours). Every other number about the
+   window may be graded, never gated; none is read yet. His LPS trait *"Lowering (and
+   low) spread below average"* (Tue 08/09/2026) is measured by no stage, graded by no
+   rule and stored nowhere: whether it is kept as a raw value or dropped is his, at the
+   approval sitting (council review, Fri 09/10/2026, finding 4). A pullback that ended before the box was a box is not
+   its LPS, and the universe door stands before every read: a fire is a box, an LPS and a
+   trigger on a chart the door admits (ours). The mini may carry the read: *"the LPS read
+   can be against it if it is inside/near it/resting on it and the trigger is always read
+   against the LPS by itself"* (asked Sat 12/09/2026, answered Sun 13/09/2026). Built: the
+   pullback's low in the mini's own area — inside the band clear of both lines (in), inside
+   and within the area of a line (on), outside and within the area of a line (near) — is read
+   against the mini's lines and the record says which box and how; away from the mini, or a
+   mini that became a box only after the pullback ended, or a fault on the mini's side: the
+   parent's read (ours). The window and the trigger are the bars' and never move; the two
+   position sentences read the lines of the box named.
+7. **The grade, the state word, the screen.** *"grade is built from a few important traits:
+   Consolidation tightness (Consolidation width + Spread Profile), Event Map, base age
+   dosen't matter to me"* (Sat 12/09/2026). Height is counted in daily ranges, never in
+   percent of price: *"a box is a box because of its consolidating Zig zag behavior not
+   it's height"*. The junk he refuses is *"Extreme Width, Spread, Messy non tight
+   structure"*, and the huge spread is huge against the box itself (his "answer a.", Sun
+   20/09/2026): bars almost as tall as the gap between the lines, with no room to zigzag.
+   Measured, no form of the box's SHAPE tells his setups from the junk (its height, its tall
+   bars, its zigzag, its spread profile, its story count), and a box about as tall as its
+   bars is fine: *"there are plenty of great setups just like it"* (Mon 05/10/2026). What
+   tells them apart is his dead space in TIME: *"FRPH is total junk because the box is
+   mostly dead space with no visible base insight"* (Mon 05/10/2026), the days of the base
+   on which no bar is in the box. They are counted his way: a bar a hair beyond a line,
+   within half a daily range, is respect (Sun 30/08/2026); a day inside a named event's own
+   swing is story, *"a named event's swing is never docked, an unnamed lunge beyond a rail
+   is"* (Sun 13/09/2026), and only that swing, never weeks spent outside the box (Fri
+   09/10/2026). Not as a fault let pass: the event is a piece of the setup, a price pattern
+   found in the box that gives it more context and makes it stronger, *"that is a good
+   thing"* (Fri 09/10/2026), so its days are the box at work. And the base must hold:
+   after the push tops, a fall beyond the support's
+   area to a lower level than the base ever made is a base that failed, *"base dosen't hold
+   and dosen't answer for an LPS anywhere"* (COLM, Thu 08/10/2026). The grade is read on the
+   setup's box, S by default, falling as the base turns empty to nothing at half of it (his
+   "mostly"), and nothing at all for a base that did not hold; every one of his calibrated
+   setups is S (Mon 05/10/2026); the ends and the cuts are his to approve. A box the price
+   leaves for a lower level of its own for weeks has failed, and its later return to the
+   box's range is not tied to it, so no test and no SOS is read on that return (Fri
+   09/10/2026; the box's life does not read it yet). Volume never refuses, never elects,
+   and carries no points. Every chart gets one state word: fired, crossed, lines with no LPS yet, forming,
+   root candidate unconfirmed, beyond resistance undetermined, under support undetermined,
+   broke down, not scanned, no lines. Fired charts go on the board, the rest in a watch
+   lane; nothing is on the board on the buy day. A read that failed is a fault on the
+   screen, never one of the ten words (ours). The word is decided last, after the LPS:
+   fired and crossed are final (an LPS over resistance fires). With no fire and no cross
+   the open right edge is read, *"The bars after wards determine the meaning"*: days whose
+   whole bar sits over the resistance area are beyond resistance, undetermined, days whose
+   whole bar sits under the support area are under support, undetermined, and the count
+   of such days rides beside the word. With no box shown, a pair of lines the bars have
+   already come back to and that is younger than his fifteen days is forming, its day
+   count beside it. "Root candidate, unconfirmed" and "broke down" stay on the table and
+   are not said by this reader, where a box ends only into a newer box (all ours).
+
+Until the new reader lands, the sections below describe the reading as the live engine
+builds it today; the rulings and every measurement behind this method are in the decisions
+record. The first build of this method (twelve steps, Sun 13/09 to Sun 20/09/2026, 27
+switches inside the old reader, every one off) is recorded step by step in the build
+reference; its proven pieces are what the new reader is made from. Flags off, the engine
+reads exactly as it did.
 
 ### The legend (strict vocabulary)
 

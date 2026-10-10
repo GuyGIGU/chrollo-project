@@ -41,10 +41,10 @@ import os
 import sys
 
 try:  # works under both `python -m tools.research.event_map_census` and `python tools/research/event_map_census.py`
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 except ModuleNotFoundError:  # a direct script run: put the repo root on sys.path first
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    from tools._bootstrap import configure_path, refuse_sealed_output
+    from tools._bootstrap import configure_path, refuse_sealed_output, say_old_reader
 
 _PROJECT_ROOT = configure_path(backend=True)
 
@@ -461,6 +461,7 @@ def main() -> int:
     ap.add_argument("--json", help="write report rows as JSON to this path")
     ap.add_argument("--ticker", help="per-episode drill-down for one mark")
     args = ap.parse_args()
+    say_old_reader()   # FIRST: it reads the OLD reader past the door (go-live plan, task 4)
 
     # Modes run ALONE. Refuse combinations loudly — a silently dropped --json
     # leaves a stale artifact at the target path masquerading as fresh

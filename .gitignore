@@ -52,6 +52,10 @@ ticker_admission.json
 output/watchlists/*.csv
 output/backtest/*.csv
 output/audits/
+# The two-eyes approval pack and its replayed nights (tools/calibration/approval_pack.py, parallel_night.py):
+# pages, side files and a copy of the scan's market-data panel (about 120 MB a night).
+output/approval-pack/
+output/nights/
 
 # Eyeball chart renders. The operator ruled these DO NOT COMMIT (2026-08-04);
 # every family is reproducible from the price cache by a committed tool —

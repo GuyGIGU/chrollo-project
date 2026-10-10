@@ -56,7 +56,7 @@ _PROJECT_ROOT = configure_path()
 
 from config import settings
 from engine_alpha.evaluation import apply_baseline_filters
-from core.pipeline.screening.screener import _evaluate_ticker
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
 from core.calibration.replay import (
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
@@ -208,6 +208,7 @@ def load_known_fires() -> dict:
         return json.load(f).get("known_fires", {})
 
 
+@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def _case_walk(case: dict, df: pd.DataFrame, meta: dict, frozen_day_only: bool) -> dict:
     """One case's window walk; with ``frozen_day_only`` only the frame's final
     day is kept (the pre-2026-09-13 one-day read, still used for the dark
@@ -393,6 +394,7 @@ def drop_case(key: str) -> dict:
 # ------------------------------------------------------------------
 # Fixture build (one-time; reads the live data cache, writes frozen files)
 # ------------------------------------------------------------------
+@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     """Freeze the labeled corpus from the live data cache.
 
