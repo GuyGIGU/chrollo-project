@@ -473,12 +473,19 @@ After any code change (frontend or backend), you do **not** need to run `npm run
 elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the repo root (or run
 `update_dashboard.ps1`). It:
 
-1. Self-elevates once via UAC (restarting a Windows service needs admin rights).
-2. Asks the live service whether a scan is running, and **refuses to deploy while one is** — a
+1. Checks the checkout, **before** it asks for admin rights (`tools\ops\deploy_guard.ps1`): it
+   **refuses** a checkout that is not on the release branch, or that has uncommitted changes to
+   tracked files, and names the branch or the files. The service runs whatever this checkout holds,
+   so a deploy from a side branch would put live code no release ever named. The release branch is
+   named in one place, `update_dashboard.ps1`'s `-ReleaseBranch` (default `main`); untracked files
+   (the runtime files in `output\`) do not count. `update_dashboard.bat -AllowAnyCheckout` deploys
+   anyway and prints what it overrode.
+2. Self-elevates once via UAC (restarting a Windows service needs admin rights).
+3. Asks the live service whether a scan is running, and **refuses to deploy while one is** — a
    restart would kill the scan child mid-run (12-17 minutes of work, and the archive row it never
    writes). Wait for it, or stop it from the dashboard's scan panel. `-Force` skips this check; a
    service that does not answer `/health` cannot be scanning, so the deploy continues.
-3. Preflights the backend: `compileall` over `config`, `core`, `engine_alpha` and `webapp\backend`,
+4. Preflights the backend: `compileall` over `config`, `core`, `engine_alpha` and `webapp\backend`,
    then a boot smoke from the service's own working directory. The smoke points `CHROLLO_DB_PATH`
    at a throwaway temp file for its own process only (the live archive is never opened, and the
    service's environment is untouched), imports `main` (import does **not** run the lifespan —
@@ -487,8 +494,8 @@ elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the 
    scheduler does at startup (`app.core_settings.load_core_settings`). A backend that would die on
    boot is caught **before** the running service is killed — including a broken settings loader,
    which `import main` alone never calls (it crash-looped the service 22–24 Sep 2026).
-4. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
-5. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
+5. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
+6. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
 
 If a deploy looks wrong in the browser, roll the frontend back in one command (backend code
 comes from git, so rollback only swaps the frontend bundle):
@@ -499,6 +506,67 @@ powershell -File update_dashboard.ps1 -Rollback
 
 It never sets `IBKR_LIVE_CONFIRMED` and never changes the service's broker-free configuration — the
 dashboard stays broker-free at boot exactly as before.
+
+## The Flip (the two-eyes reader goes live)
+
+**Not yet: built, dark, his word pending.** Only after his approval sitting. Every command below is
+his, run in this order from the repo folder (PowerShell, the repo venv). The stamps named are the ones
+written down in [`flag_ledger.md`](flag_ledger.md), "The engine stamps of the flip"; both undos were
+rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and came back to them.
+
+1. **Backup, by his hand**, then prove it restores:
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\ChrolloBackup.ps1"
+   .\.venv\Scripts\python.exe tools\ops\restore_drill.py
+   ```
+   The drill must print `PASS`. This snapshot is the undo's last level (section 4c).
+2. **Merge into the release branch, then his word "push".** First `main` catches up with what the
+   service runs tonight, then the go-live branch joins it as ONE merge commit (`--no-ff`: undo 2
+   reverts exactly that commit):
+   ```powershell
+   git switch main
+   git merge --ff-only claude/leadership-read
+   git merge --no-ff claude/sweet-napier-461716 -m "Go live: the two-eyes reader joined, switch off"
+   git push origin main
+   ```
+3. **Flip, between two scan dates** (after a night's scan has finished, before the next one at 17:00
+   New York): the one config line, `TWO_EYES_READER_ENABLED = False` → `True` in `config\engine.py`,
+   then
+   ```powershell
+   git diff --stat
+   git commit -am "Flip: the two-eyes reader reads the nightly scan"
+   ```
+   `git diff --stat` must show `config/engine.py | 2 +-` and nothing else. The suite pins the switch
+   off (seven tests found on the rehearsal: the switch, the inert contract, the ledger's dark-flag
+   table, the settings quick-reference, the door's forwarding pins); the change that moves those pins
+   rides with the flip and is prepared for him on his word.
+4. **Deploy:** double-click `update_dashboard.bat`. It refuses unless the checkout is `main` with
+   nothing uncommitted. From the next night the screen and the archive carry the stamp `cdb7ee2d`.
+5. **The first morning's check, after 19:00 New York** on the first new-reader night: the morning
+   check (task 9), its one command. A red morning means the undo below, never a fix in place, and
+   no trade off that screen until the check is clean.
+6. **The undo, in this order.**
+   - **Undo 1, the switch back** (the first resort): revert the flip commit, deploy, then re-read the
+     screen without archiving (the undo night, section "The Undo Night" below):
+     ```powershell
+     git revert --no-edit <the flip commit: git log --oneline -1 -- config/engine.py>
+     .\update_dashboard.bat
+     curl.exe -N "http://127.0.0.1:8000/run-evaluation-stream/?no_archive=true"
+     ```
+     The screen returns to the stamp `8cae6fd9`, the old reader's fires; the bad night's rows stay
+     in the archive under `cdb7ee2d`, and the studies leave them out by name
+     (`.\.venv\Scripts\python.exe -m core.archive.analyze --leave-out-stamp cdb7ee2d`, the same flag on
+     `tools.research.backtest_engine`). A later re-flip bumps `TWO_EYES_RULESET` first, never reusing
+     a string (the suite refuses a spent one).
+   - **Undo 2, the join reverted** (the last resort, after undo 1):
+     ```powershell
+     git revert -m 1 --no-edit <the go-live merge: git log --merges --oneline -1>
+     .\update_dashboard.bat
+     ```
+     The tree is then exactly what ran before the go-live (`claude/leadership-read` at `f045780`),
+     stamp `a2252c6c`. That tree has no `no_archive` switch (it came with the join), so after undo 2
+     do NOT re-scan by hand: the next scheduled night scans and archives as before.
+   - **Last level:** restore the backup of step 1 (section 4c).
 
 ## Replaying a Scan Night With Both Readers (before the two-eyes flip)
 

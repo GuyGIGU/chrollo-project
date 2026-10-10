@@ -138,6 +138,12 @@ engine's chain. Under `TWO_EYES_READER_ENABLED` none of them rides; each is deci
 
 ## The engine stamps of the flip (go-live plan task 7, Sat 10/10/2026)
 
+**Where the flip stands (Sat 10/10/2026): built, dark, his word pending.** The go-live plan's
+tasks are built on `claude/sweet-napier-461716` with `TWO_EYES_READER_ENABLED` False. The flip is
+his, after his approval sitting, by the checklist in [`deploy.md`](deploy.md), "The Flip". Both undos
+were rehearsed on a copy of the archive (task 10): the switch back returned stamp #2 and the old
+reader's fires, the join reverted returned stamp #1 and the live scan's fires.
+
 Every archive row carries the stamp of the engine that wrote it (`engine_config_version`, the
 sha256 of the settings manifest). The stamp hashes the SETTINGS, `TWO_EYES_READER_ENABLED` and
 `TWO_EYES_RULESET` among them, and **no reader code**. So the flip moves the stamp, the switch back
