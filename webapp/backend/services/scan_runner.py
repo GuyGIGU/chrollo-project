@@ -25,7 +25,10 @@ if ROOT_DIR not in sys.path:
 # Alert when strictly MORE than this many tickers had their eval chain throw and
 # get swallowed by the skip-guard. 0 = any swallowed eval crash alerts. A crash on
 # a SUBSET of setups silently drops real winners on an otherwise-green (exit 0)
-# build, so this is the tripwire that makes that visible.
+# build, so this is the tripwire that makes that visible. A chart the new reader
+# would not READ (its frame broke the frame contract: a halted stock's missing
+# day) is not counted here: the scan lists it apart, by name and reason, and the
+# run's record words it (go-live plan task 3), so it raises no crash alert.
 ERRORED_TICKERS_ALERT_THRESHOLD = 0
 
 
@@ -171,14 +174,32 @@ def _result_status(result: ScanProcessResult) -> str:
     return "failed"
 
 
-def _lost_rows(status: str, result: ScanProcessResult) -> str | None:
-    """The error cell of a run that FINISHED: empty, unless its archive writer refused rows. Then the run's
-    own record says so (the registry and the status line read it), not only the log and the alert."""
-    from services.scan_diagnosis import refused_rows_error
+def _finished_run_error(status: str, result: ScanProcessResult, kind: str = "scan") -> str | None:
+    """The error cell of a run that FINISHED: empty, unless its archive writer refused rows, or (a scan only)
+    the new reader would not read some charts (go-live plan task 3). Then the run's own record says so (the
+    registry and the status line read it), not only the log. Charts not read are NOT a crash and never reach
+    the alert: the scan lists them apart from ``errored_tickers``, which the alert reads."""
+    from services.scan_diagnosis import finished_run_error
 
-    if status == "ok" and result.n_refused:
-        return refused_rows_error(result.n_refused)
-    return None
+    if status != "ok":
+        return None
+    return finished_run_error(result.n_refused or 0, _last_not_read() if kind == "scan" else None)
+
+
+def _last_not_read() -> list | None:
+    """The charts the primary scan's new reader would not read, as its scan metrics recorded them in
+    cache_meta.json (the same record ``_last_fetch_health`` reads). Read only for a scan that just finished, so
+    it is that night's list; None under the old reader, or when the record is missing or unreadable."""
+    meta_path = os.path.join(ROOT_DIR, "cache_meta.json")
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+    except (OSError, ValueError):
+        return None
+    metrics = meta.get("scan_metrics") if isinstance(meta, dict) else None
+    counts = metrics.get("counts") if isinstance(metrics, dict) else None
+    listed = counts.get("not_read") if isinstance(counts, dict) else None
+    return listed if isinstance(listed, list) else None
 
 
 def _tail_error(output: str, limit: int = 1000) -> str | None:
@@ -405,7 +426,7 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
         # (re-runnable, nothing broken) — never 'failed', which sends him
         # chasing a program error and fires an alert.
         status = "aborted" if job.cancelled else _result_status(result)
-        error = _tail_error(output) if status not in ("ok", "aborted") else _lost_rows(status, result)
+        error = _tail_error(output) if status not in ("ok", "aborted") else _finished_run_error(status, result, job.kind)
         scan_status.finish_run(job.run_id, status=status, n_setups=result.n_setups, error=error)
         # Set BEFORE the alert, and gating the except arm's finish_run below:
         # anything that throws from here on (alert_if_needed reads settings out
@@ -628,7 +649,7 @@ def run_scheduled_scan_and_forward_returns() -> None:
             # their own artifacts and are isolated from each other's failures.
             result = _run_scan_process_unlocked(["--all-universes"])
             status = _result_status(result)
-            error = _tail_error(result.output) if status != "ok" else _lost_rows(status, result)
+            error = _tail_error(result.output) if status != "ok" else _finished_run_error(status, result, "scan")
             if status != "ok":
                 log.error("scheduled scan failed with exit code %s", result.returncode)
             scan_status.finish_run(run_id, status=status, n_setups=result.n_setups, error=error)

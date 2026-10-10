@@ -72,9 +72,9 @@ def scan(monkeypatch):
     A one-ticker universe: the provider hands back the bare frame, as a download of one symbol does
     (the scan's frame prep reads a one-ticker panel as that frame; a two-level panel of one ticker
     would reach the reader with its columns still nested, and both readers would count it a crash)."""
-    panel = _alb()
+    def run(cap: float, near_miss_sink=None, panel=None):
+        panel = _alb() if panel is None else panel
 
-    def run(cap: float, near_miss_sink=None):
         class Provider:
             def fetch(self, tickers, universe=None):
                 return panel
@@ -221,10 +221,93 @@ def test_a_dark_lane_switched_on_under_the_new_reader_refuses_the_scan_by_name(m
 
 
 def test_the_new_readers_scan_worker_is_the_doors_own_and_pickles_by_name(monkeypatch):
-    """What the real process pool needs: a module-level function it can send to a spawned worker."""
+    """What the real process pool needs: a module-level function it can send to a spawned worker, and an answer it
+    can send back (a chart the reader would not read comes back as a record, named, by value)."""
     from engine_alpha import reader
 
     _new_reader(monkeypatch)
     worker = reader.scan_worker(near_miss_lane=False, watch_lane=False, rescue_lane=False)
-    assert worker is reader.evaluate_ticker
-    assert pickle.loads(pickle.dumps(worker)) is reader.evaluate_ticker
+    assert worker is reader.scan_read
+    assert pickle.loads(pickle.dumps(worker)) is reader.scan_read
+    refused = reader.NotRead("ALB", "a trading day is missing from the middle", "a trading day is missing ...")
+    assert pickle.loads(pickle.dumps(refused)) == refused
+
+
+# --------------------------------------------------------------------------- #
+# The live screen under the new reader (go-live plan task 3)                  #
+# --------------------------------------------------------------------------- #
+STOCK_KEYS = ("_stage2_ma_stack_pass", "_stage2_ma200_slope_1m_pct", "_stage2_52w_low_pct",
+              "_stage2_trend_pass_count", "_stage2_trend_pass")
+LEADERSHIP_KEYS = ("rs_rating", "stage2_trend_pass_count", "stage2_52w_low_pct", "stage2_ma200_slope_1m_pct",
+                   "dollar_volume_50d")
+
+
+def _card(monkeypatch, results_df, data) -> dict:
+    from core.pipeline.screening import dashboard
+
+    monkeypatch.setattr(dashboard, "_sector_etf_for_ticker", lambda *_a: None)
+    return dashboard._extract_chart_data(data, results_df, ["ALB"])["ALB"]
+
+
+def test_a_new_reader_fire_carries_the_stocks_read_exactly_as_the_old_readers_fire(scan, monkeypatch):
+    """His ALB fires on both readers that day: the trend template on the fire (the old chain's own functions on the
+    old chain's own frame) and the leadership cells on the card are the same numbers whichever reader fired."""
+    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", False, raising=False)
+    old_df, old_data, _, _ = scan(BIG)
+    _new_reader(monkeypatch)
+    new_df, new_data, _, _ = scan(BIG)
+    assert "_wire_two_eyes" in new_df.columns and "_wire_two_eyes" not in old_df.columns
+
+    old_fire, new_fire = old_df.iloc[0], new_df.iloc[0]
+    assert {k: new_fire[k] for k in STOCK_KEYS} == {k: old_fire[k] for k in STOCK_KEYS}
+    assert old_fire["_stage2_trend_pass_count"] is not None and old_fire["_stage2_52w_low_pct"] is not None
+
+    old_card, new_card = _card(monkeypatch, old_df, old_data), _card(monkeypatch, new_df, new_data)
+    assert "two_eyes" in new_card and "two_eyes" not in old_card
+    assert {k: new_card[k] for k in LEADERSHIP_KEYS} == {k: old_card[k] for k in LEADERSHIP_KEYS}
+    assert new_card["stage2_trend_pass_count"] is not None and new_card["dollar_volume_50d"] is not None
+
+
+def _with_a_day_missing() -> pd.DataFrame:
+    """His ALB with one trading day deleted from the middle: what a halted name's frame looks like to the reader."""
+    frame = _alb()
+    return frame.drop(frame.index[len(frame) // 2])
+
+
+def test_a_chart_the_new_reader_refuses_is_listed_by_name_and_reason_apart_from_crashes(scan, monkeypatch, capsys):
+    """27 charts on Thu 08/10/2026, every one a trading day missing from the middle: counted as swallowed crashes,
+    they raised "possible silent winner drop" with their names lost. Now the night's record lists each by name and
+    reason, apart from crashes, and the crash count (the alert's input) stays clean. The chart is not repaired."""
+    _new_reader(monkeypatch)
+    results_df, _, _, market_context = scan(BIG, panel=_with_a_day_missing())
+
+    assert results_df.empty, "a refused chart is not read, and not repaired"
+    listed = market_context["not_read"]
+    assert [(r["ticker"], r["rule"]) for r in listed] == [("ALB", "a trading day is missing from the middle")]
+    assert listed[0]["reason"].startswith("a trading day is missing from the middle: 1 session(s) between ")
+    counts = market_context["_scan_metrics"]["counts"]
+    assert counts["not_read_tickers"] == 1 and counts["not_read"] == listed
+    assert "errored_tickers" not in counts, "a refusal is not a swallowed crash: it may not raise the crash alert"
+    log = capsys.readouterr().out
+    assert "Charts not read: 1" in log and "ALB" in log.split("Charts not read: 1", 1)[1]
+
+
+def test_a_real_crash_under_the_new_reader_is_still_a_crash(scan, monkeypatch):
+    from engine_alpha import two_eyes
+
+    _new_reader(monkeypatch)
+    monkeypatch.setattr(two_eyes, "read",
+                        lambda ticker, df, **k: two_eyes.crashed(ticker, None, "ZeroDivisionError: boom"))
+    results_df, _, _, market_context = scan(BIG)
+    assert results_df.empty
+    assert market_context["_scan_metrics"]["counts"]["errored_tickers"] == 1, "the crash alert still hears it"
+    assert "not_read" not in market_context and "not_read_tickers" not in market_context["_scan_metrics"]["counts"]
+
+
+def test_the_old_readers_night_carries_no_not_read_record(scan, monkeypatch):
+    """Switch off: the old reader reads a frame missing a day straight through, as it always has; the record is
+    unchanged (no key), so the old night's counts are byte-identical."""
+    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", False, raising=False)
+    _, _, _, market_context = scan(BIG, panel=_with_a_day_missing())
+    assert "not_read" not in market_context
+    assert "not_read_tickers" not in market_context["_scan_metrics"]["counts"]

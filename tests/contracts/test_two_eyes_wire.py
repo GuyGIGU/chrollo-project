@@ -32,10 +32,11 @@ for _p in (str(ROOT), str(ROOT / "webapp" / "backend")):
 # --------------------------------------------------------------------------- #
 # A two-eyes fire, built by hand: a parent, a mini, an LPS read against the mini, a grade                          #
 # --------------------------------------------------------------------------- #
-def _read(*, grade=True, width_frac=None, mini=True, score=92.3, letter="S"):
+def _read(*, grade=True, width_frac=None, mini=True, score=92.3, letter="S", spring_day=None):
     from engine_alpha.two_eyes import record
 
     d = dt.date
+    events = () if spring_day is None else (record.Event(kind=record.SPRING, day=spring_day, price=89.0),)
     R, S = 100.0, 90.0
     if width_frac is not None:                       # a box this many times its support tall
         R = S * (1.0 + width_frac)
@@ -48,7 +49,7 @@ def _read(*, grade=True, width_frac=None, mini=True, score=92.3, letter="S"):
                      trigger_price=98.4, how="on" if mini else None)
     the_grade = record.Grade(score=score, letter=letter, empty_days=2, base_days=41, holds=True) if grade else None
     return record.Read(ticker="TWOEYES", as_of=d(2026, 3, 6), boxes=tuple(boxes), lps=lps, state="fired",
-                       close=97.1, grade=the_grade)
+                       close=97.1, grade=the_grade, events=events)
 
 
 # --------------------------------------------------------------------------- #
@@ -141,24 +142,28 @@ def _frame():
     }, index=dates)
 
 
-def _payload(monkeypatch, row: dict) -> dict:
+def _payload(monkeypatch, row: dict, frame=None) -> dict:
     from core.pipeline.screening import dashboard
 
     monkeypatch.setattr(dashboard, "_sector_etf_for_ticker", lambda *_a: None)
-    chart_data = dashboard._extract_chart_data(_frame(), pd.DataFrame([row]), [row["Ticker"]])
+    chart_data = dashboard._extract_chart_data(_frame() if frame is None else frame, pd.DataFrame([row]),
+                                               [row["Ticker"]])
     assert row["Ticker"] in chart_data, "the chart was dropped"
     return chart_data[row["Ticker"]]
 
 
 #: What a two-eyes row carries to the screen: the candles (the frame's own), the verdicts every row carries, the
-#: sector, the advisory facts the scan attaches to any row, the grade's number, and THE block. Exact on purpose: a
+#: sector, the advisory facts the scan attaches to any row, the leadership read and the volume at key points (go-live
+#: plan task 3: the stock's read, as an old fire carries it), the grade's number, and THE block. Exact on purpose: a
 #: key added or dropped here is a deliberate edit, never drift.
 TWO_EYES_WIRE_KEYS = (
     "R", "S",
     "candles",
     "days_to_earnings",
+    "dollar_volume_50d",
     "fund_earnings_surprise", "fund_eps_growth_accel", "fund_eps_growth_yoy", "fund_quarter_end",
     "fund_sales_growth_yoy",
+    "lps_volume_ratio",
     "market_cap",
     "monthly_box", "monthly_candles", "monthly_volumes",
     "price",
@@ -166,6 +171,8 @@ TWO_EYES_WIRE_KEYS = (
     "score",
     "sector_etf", "sector_name",
     "setup",
+    "spring_volume_ratio",
+    "stage2_52w_low_pct", "stage2_ma200_slope_1m_pct", "stage2_trend_pass_count",
     "ta_grade",
     "tier",
     "trigger",
@@ -173,6 +180,11 @@ TWO_EYES_WIRE_KEYS = (
     "volumes",
     "weekly_box", "weekly_candles", "weekly_volumes",
 )
+
+#: The leadership read on the card (the RS rating, the trend template and its two stage measures, the dollar volume):
+#: the STOCK, which does not depend on the reader, so a new-reader fire carries it exactly as an old one does.
+LEADERSHIP_KEYS = ("rs_rating", "stage2_trend_pass_count", "stage2_52w_low_pct", "stage2_ma200_slope_1m_pct",
+                   "dollar_volume_50d")
 
 
 def test_a_two_eyes_fire_keeps_its_chart_and_carries_the_one_block(monkeypatch):
@@ -216,6 +228,77 @@ def test_an_old_reader_row_carries_no_block(monkeypatch):
            "_r_anchor_bar": 2, "_s_anchor_bar": 3}
     chart = _payload(monkeypatch, row)
     assert "two_eyes" not in chart and chart["base_len"] == 8
+
+
+# --------------------------------------------------------------------------- #
+# The leadership read and the volume at key points (go-live plan task 3)      #
+# --------------------------------------------------------------------------- #
+_OLD_ROW = {"Ticker": "TWOEYES", "Tier": "A", "Score": 100, "Setup": "LPS", "Current Price": 97.1,
+            "_trigger_price": 98.4, "_R": 100.0, "_S": 90.0, "_base_len": 8, "_lps_len": 2, "_lps_offset": 0,
+            "_r_anchor_bar": 2, "_s_anchor_bar": 3}
+#: What the scan attaches to a fire (the RS rating, after the read) and what the old chain measures on the stock (the
+#: trend template): the same on both rows, as on one chart read by either reader.
+_STOCK = {"_rs_rating": 84.21, "_stage2_trend_pass_count": 6, "_stage2_52w_low_pct": 0.8412,
+          "_stage2_ma200_slope_1m_pct": -1.25}
+
+
+def test_a_two_eyes_fire_carries_the_leadership_read_exactly_as_an_old_fire_does(monkeypatch):
+    """Today a new-reader fire skipped the whole leadership block on the live screen (the old shape's `continue`).
+    The stock's read does not depend on the reader: the same row facts and the same frame give the same cells."""
+    from engine_alpha.two_eyes_adapter import to_result
+
+    old = _payload(monkeypatch, {**_OLD_ROW, **_STOCK})
+    new = _payload(monkeypatch, {**to_result(_read()), **_STOCK})
+    assert {k: new[k] for k in LEADERSHIP_KEYS} == {k: old[k] for k in LEADERSHIP_KEYS}
+    assert new["stage2_trend_pass_count"] == 6 and new["rs_rating"] == 84.21
+    assert new["dollar_volume_50d"] is not None, "the 50-day dollar volume is read off the frame, for either reader"
+
+
+def _quiet_frame():
+    """130 trading days at 100 shares a day, his LPS pullback (Mon 02/03 to Fri 06/03/2026) at 50 and the spring
+    (Tue 10/02/2026) at 300: so the 50 days ending on the LPS's last day hold 44 days at 100, the five LPS days and the
+    spring, an average of 99, and the 50 ending on the spring average (49 x 100 + 300) / 50 = 104."""
+    dates = pd.bdate_range("2025-10-01", periods=130, name="Date")
+    volume = pd.Series(100.0, index=dates)
+    volume[pd.Timestamp("2026-02-10")] = 300.0
+    volume[pd.Timestamp("2026-03-02"):pd.Timestamp("2026-03-06")] = 50.0
+    price = np.linspace(80, 99, len(dates))
+    return pd.DataFrame({"Open": price, "High": price + 1, "Low": price - 1, "Close": price,
+                         "Volume": volume.values}, index=dates)
+
+
+def test_volume_at_key_points_is_read_on_the_new_readers_own_lps_and_spring_days(monkeypatch):
+    """The LPS pullback: its five days' average (50) against the 50-day average ending on its last day (99) = 0.51x.
+    The spring: its day (300) against the 50 days ending on it (104) = 2.88x. The old reader's own facts riding on
+    the row (a dry-up of 0.9 and a spring on another day) are never read for a new-reader fire."""
+    from engine_alpha.two_eyes_adapter import to_result
+
+    row = {**to_result(_read(spring_day=dt.date(2026, 2, 10))),
+           "_vol_contraction": 0.9, "_bin_c_event_date": "2026-01-15"}
+    chart = _payload(monkeypatch, row, _quiet_frame())
+    assert chart["lps_volume_ratio"] == 0.51
+    assert chart["spring_volume_ratio"] == 2.88
+
+
+def test_a_new_reader_fire_with_no_spring_shows_a_dash_never_the_old_readers_spring(monkeypatch):
+    from engine_alpha.two_eyes_adapter import to_result
+
+    row = {**to_result(_read()), "_bin_c_event_date": "2026-02-10"}
+    chart = _payload(monkeypatch, row, _quiet_frame())
+    assert chart["spring_volume_ratio"] is None, "no spring of its own: empty, which the card shows as a dash"
+    assert chart["lps_volume_ratio"] == 0.51
+
+
+def test_the_lps_window_and_the_spring_day_share_one_measure():
+    """EC-3: one function reads the volume at a key point, a day or a run of days, against the 50 days ending on its
+    last day; the old reader's spring day reads exactly what it always read."""
+    from core.pipeline.screening import dashboard
+
+    frame = _quiet_frame()
+    assert dashboard._volume_vs_50d(frame, "2026-02-10") == 2.88
+    assert dashboard._volume_vs_50d(frame, "2026-03-06", first_day="2026-03-02") == 0.51
+    assert dashboard._volume_vs_50d(frame, "2026-03-06", first_day="2026-03-09") is None, "a window that ends first"
+    assert dashboard._volume_vs_50d(frame, "2026-03-06", first_day="2024-01-02") is None, "a day not in the frame"
 
 
 # --------------------------------------------------------------------------- #

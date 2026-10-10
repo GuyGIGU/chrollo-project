@@ -24,8 +24,9 @@ from __future__ import annotations
 
 from typing import Optional
 
+from config import settings
 from engine_alpha.evaluation import EVAL_ERROR, WATCH_WIRE_STATES
-from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, Read
+from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, SPRING, Read
 from engine_alpha.two_eyes_archive import SCREEN_KEY, two_eyes_archive_values, two_eyes_screen_boxes
 
 #: Keys downstream reads with square brackets — a missing one is a KeyError in
@@ -85,11 +86,37 @@ def to_state(read: Read) -> str:
     return read.state
 
 
-def to_result(read: Read):
+def stock_trend(frame) -> dict:
+    """The stock's trend template, the leadership read's half the old chain measures (go-live plan task 3).
+
+    Not the setup's: it reads the stock, not the box, so a fire carries it whichever reader fired. Read by the old
+    chain's OWN functions on the old chain's OWN frame (EC-3): ``frame`` is what the universe door admitted, cut to
+    the daily window as ``evaluation._prepare_eval_frame_with_reason`` cuts it, the 52-week-high distance taken at
+    its last close, then ``trend_template``. Under the archive's names (``_stage2_*``), exactly the old row's keys.
+    """
+    from engine_alpha.frames import _trim_to_period
+    from engine_alpha.structure.metrics.indicators import distance_to_52w_high_pct, trend_template
+
+    daily = _trim_to_period(frame, settings.DAILY_STRUCTURE_PERIOD)
+    if daily.empty:
+        return {}
+    trend = trend_template(daily, dist_52w_high_pct=distance_to_52w_high_pct(daily["High"], daily["Close"].iloc[-1]))
+    return {f"_{key}": value for key, value in trend.items()}
+
+
+def _spring_day(read: Read) -> Optional[str]:
+    """The day of the new reader's own spring (its tip), or None: the screen reads the volume at that key point on
+    it (go-live plan task 3). Its story names one spring at most."""
+    return next((event.day.isoformat() for event in read.events if event.kind == SPRING), None)
+
+
+def to_result(read: Read, frame=None):
     """A ``Read`` as the old engine's three answers.
 
     Returns ``EVAL_ERROR`` for a failed read, ``None`` for no setup, or a whole
-    result dict for a fire.
+    result dict for a fire. ``frame``, when given, is the chart the universe
+    door admitted: a fire then carries the stock's trend template
+    (:func:`stock_trend`), as an old-reader fire does.
     """
     if read.failed:
         return EVAL_ERROR
@@ -190,6 +217,12 @@ def to_result(read: Read):
         # The new reader LOOKED, so this is 1 or 0 and never empty: empty is
         # kept for rows written by a reader that never looked.
         "_two_eyes_has_mini": read.mini is not None,
+        # The screen's volume at key points (go-live plan task 3) reads the
+        # LPS pullback on the block's own days and the spring on this one;
+        # never the old reader's spring (`_bin_c_event_date`). No archive
+        # column reads it: the archive family stores no event.
+        "_spring_date": _spring_day(read),
+        **({} if frame is None else stock_trend(frame)),
     }
     for key in WHOLE_NUMBER_KEYS:
         if result[key] is not None:        # whole when measured, empty when not

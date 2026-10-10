@@ -1006,6 +1006,47 @@ NET (Tue 15/09/2026: "lines, no LPS yet", the box R 324.73 / S 290.49 and the re
 last pullback ... was bought") and his ALB with a day deleted from the middle, the old engine wired
 to explode in every read; six deliberate breaks, each caught.
 
+**The live screen and the night's record under the new reader (go-live plan task 3, Sat
+10/10/2026; the switch stays off, no fire of either reader moved).** *The card.* A new-reader
+fire skipped the old shape's whole leadership block; now both chart shapes take ONE builder,
+`dashboard._leadership_read` (the RS rating, the trend template's count and its two stage
+measures, the 50-day dollar volume), because none of it depends on the reader. The RS rating and
+the dollar volume already came from the scan and the frame; the trend template is put on a
+new-reader fire by `two_eyes_adapter.stock_trend`: the old chain's own `trend_template` and
+`distance_to_52w_high_pct` on the old chain's own frame (the frame the universe door admitted,
+cut to `DAILY_STRUCTURE_PERIOD` by `frames._trim_to_period`, the high taken at its last close), so
+the `_stage2_*` keys are equal on a chart both readers fire (his ALB, Tue 07/04/2026) and are
+archived under the same columns. `reader._two_eyes` hands the admitted frame to
+`two_eyes_adapter.to_result(read, frame=...)`. The volume at key points is read on THIS reader's
+own days: the LPS pullback from the block's `lps.start` to `lps.end`, the spring on the story's
+spring tip (`_spring_date` on the row, no archive column; the story names one spring at most,
+committed or provisional), both through the one measure `dashboard._volume_vs_50d(df, day,
+first_day=None)` (a day, or a run of days, against the 50 days ending on the last), which the old
+reader's spring day reads exactly as before; a fire with no spring has `spring_volume_ratio`
+None (the card's dash), never the old reader's `_bin_c_event_date` or `_vol_contraction`. The
+frontend is unchanged (same field names; EC-28). *The night's record.* A chart whose frame breaks
+the frame contract (27 on Thu 08/10/2026, every one a trading day missing from the middle, halted
+names among them) was answered as `EVAL_ERROR`, counted in `errored_tickers` and raised the
+"swallowed eval crash" alert with its name lost. The scan's worker under the new reader is now
+`reader.scan_read`, which answers such a chart with `reader.NotRead(ticker, rule, reason)` (the
+rule is `FrameRefused.rule`, set by `frame._refuse`); `reader.evaluate_ticker` and
+`run_eval_chain` keep their own answers (the counted failure, `ReadFailed`). `_evaluate_frames`
+lists a `NotRead` in its `not_read_sink` (passed only under the new reader; without it the chart
+counts as errored, as before), and `run_screener` writes the list, sorted by ticker,
+`{"ticker", "rule", "reason"}` each, to `market_context["not_read"]` and the scan metrics' counts
+(`not_read`, `not_read_tickers`, apart from `errored_tickers`, which the crash alert reads), and
+says it once in the log ("Charts not read: N", one line per chart). The charts are not repaired: a
+halted stock's gap is real. The run's own record: on a finished scan, `scan_runner`
+reads that list back from the primary universe's `cache_meta.json` (`_last_not_read`, as
+`_last_fetch_health` does; a download run never borrows it) and
+`scan_diagnosis.finished_run_error` stores, beside the lost-archive-rows count, the charts not
+read by rule (`charts not read: {rule: n}`); `describe_run` words it at the publisher, "27 charts
+not read: a trading day is missing from the middle.", with no verdict (nothing to do; the health
+pill stays green), and a night that also lost archive rows keeps its needs-attention verdict with
+both facts. A real crash still counts in `errored_tickers` and still alerts. Proved by
+`tests/contracts/test_two_eyes_wire.py`, `tests/pipeline/test_scan_under_the_new_reader.py`,
+`tests/backend/test_scan_diagnosis.py` and `tests/backend/test_backend_services.py`.
+
 | Stage | Landed | What it does, and what proves it |
 |---|---|---|
 | the screen block and the approval pack (task 15) | 2026-10-09 | No reading moves. **The adapter** (`engine_alpha/two_eyes_adapter.py`): `Score` = `read.grade.score` rounded ONCE to one decimal (the wire's grade precision), `Tier` = `read.grade.letter`, and `_ta_grade` and the block's grade = that same number (the 0-100 number the screen shows beside the letter and the scan sorts by; the engine version tells the readers' rows apart): one number on every surface, the list's chip, the glance, the story panel and the archive (the task's blind check found an unrounded block beside its rounded twin: the night's NVEC, 500/11, read 46 on the card and 45 in the panel); the old engine's tier ladder, its 15%-of-price S ceiling among it, never runs here; a read whose grade fell over keeps the placeholder (score 0.0, empty tier), and the screen charts lettered tiers only. Each fire carries ONE dated block under `_wire_two_eyes` (`two_eyes_archive.SCREEN_KEY`): the boxes (parent, then mini; never an earlier box) shaped by the archive family's one shaper `two_eyes_screen_boxes`, the LPS (the box it was read against, how, its first and last day, the trigger), the state word, the days that ride beside it, the grade and its facts. **The scan's wire** (`core/pipeline/screening/dashboard.py`, `_two_eyes_chart`): a two-eyes row is the frame's candles, the verdicts every row carries, the sector, the advisory facts (`ADVISORY_KEYS`, one list for both shapes), `ta_grade` and `two_eyes`, and none of the old engine's families (absent, never null); the old shape, with its bar-count casts that dropped such a chart, is never taken. **The archive's chart** (`domains/archive/browse.py`, `_two_eyes_block`): a row with the has-a-mini flag set carries the same block from its stored family, prices rescaled like the old lines; the LPS's days are not stored, so no LPS band there. **The browser** locates and draws: `chartPhaseOverlay.locateDay` / `twoEyesBox` find each day's bar on the shipped candles; `chartGeometry.boxRailSpecs` draws each line from its own anchor day (the mini thin), the framing starts at the box's first day, the grey root swing spans the two anchor days, the LPS band its own days; every other payload, the archive's old rows among them, keeps the bar-count path. `narrativeRead.narrativeStatus` reads a two-eyes row as "not carried"; `setupStoryRows.gradeCell` gives the story panel the new grade and its facts, never "chapters sum to this" or "pre-grade archive row". **The card's state** (`domains/screener/chart_state.py`, `features/watchlist/model/chartStateEntry.js`): a failed read is a screen state (`state` None, `failed`), never one of the ten words; under the new reader the word and its box's lines are the reader's; the hook keeps each answer with its ticker, so a card never shows the last ticker's word while the next loads. **The pack**: `tools/calibration/parallel_night.py` (one real scan night, both readers through the one door, on a copy of the scan's panel, outside the scan slot, side files only, each reader's wall clock and the new reader's words, set beside the scan's own payload of that night: what it showed, under which engine, what it took out after its read and the fires only one of the two has, because the replay's old reader is THIS tree's engine and the deployed scan cuts after the read) and `tools/calibration/approval_pack.py` (the last yardstick run, the core board's pages, the grade sheet and the night, one index page, summary first, his drawings misses first by the first step that differs; and `MINI_RESCUES`, the three charts he never drew that fire only by the small box's "near" while the big box refuses, BWAY Thu 13/08/2026, FRBA Thu 30/07/2026 and TEVA Fri 25/09/2026, named by task 13's blind check for this sheet, read on their days from the night's copied panel and captioned with what the reader says now; the page says why the replay's count of charts differs from the scan's, and its commit stamp reads "+dirty" when a tracked file has changed since the commit; beside the grade sheet it states the grade's rule and weights from the reader's own numbers, for his approval). Proved by `tests/contracts/test_two_eyes_wire.py`, `tests/backend/test_chart_state.py`, `tests/tooling/test_parallel_night.py`, `tests/tooling/test_approval_pack.py` and the frontend's `chartGeometry`, `chartPhaseOverlay`, `narrativeRead`, `setupStoryRows` and `chartStateEntry` tests; 33 deliberate breaks, 11 more in the blind check's fix round, 5 for the converge's loose ends and 13 for the rounds after it, each caught. Not built here: the scan under the new reader (`reader.scan_worker` still refused; its lanes are the go-live plan's, wired since by its task 2, the paragraph above this table). |
@@ -1461,7 +1502,8 @@ row ever carried the old meaning.
 volume: `lps_volume_ratio`, the LPS pullback's average volume (1 minus the LPS read's
 `vol_contraction`, so it is the same pullback the read elects), and `spring_volume_ratio`,
 the Phase C spring day's volume against the 50 days ending on it (`_bin_c_event_date`;
-None without a spring). The detail panel shows them as "Volume at key points". Neither is
+None without a spring); a new-reader fire reads both on its own LPS and spring days through the
+same measure (go-live plan task 3). The detail panel shows them as "Volume at key points". Neither is
 archived anew (the dry-up is already `setup_archive.vol_contraction`, the spring volume
 `bin_c_spring_vol_z`) and neither moves the grade, a gate or the election. Why these two:
 they are his key points (2026-09-13), and on 2026-10-04 the LPS dry-up was the one volume

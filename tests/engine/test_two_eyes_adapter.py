@@ -309,7 +309,7 @@ def test_the_scan_refuses_an_old_engine_lane_under_the_new_reader_by_name(monkey
     with pytest.raises(reader.LaneRefused) as refusal:
         reader.scan_worker(near_miss_lane=True, watch_lane=False)
     assert "near-miss lane" in str(refusal.value)
-    assert reader.scan_worker(near_miss_lane=False, watch_lane=False) is reader.evaluate_ticker
+    assert reader.scan_worker(near_miss_lane=False, watch_lane=False) is reader.scan_read
 
 
 def test_a_frame_that_is_not_a_chart_is_a_counted_failure_not_a_crash(monkeypatch):
