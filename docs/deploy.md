@@ -522,10 +522,12 @@ rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and 
    The drill must print `PASS`. This snapshot is the undo's last level (section 4c).
 2. **Merge into the release branch, then his word "push".** First `main` catches up with what the
    service runs tonight, then the go-live branch joins it as ONE merge commit (`--no-ff`: undo 2
-   reverts exactly that commit):
+   reverts exactly that commit). `main` holds one commit of its own that the live branch lacks
+   (`e7f9a20`, the Watchlist page's heart, frontend only, not yet pushed), so the catch-up is a merge,
+   not a fast-forward; it merges clean and keeps that fix:
    ```powershell
    git switch main
-   git merge --ff-only claude/leadership-read
+   git merge --no-edit claude/leadership-read
    git merge --no-ff claude/sweet-napier-461716 -m "Go live: the two-eyes reader joined, switch off"
    git push origin main
    ```
@@ -544,7 +546,11 @@ rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and 
    nothing uncommitted. From the next night the screen and the archive carry the stamp `cdb7ee2d`.
 5. **The first morning's check, after 19:00 New York** on the first new-reader night: the morning
    check (task 9), its one command. A red morning means the undo below, never a fix in place, and
-   no trade off that screen until the check is clean.
+   no trade off that screen until the check is clean. The check is strict: an archive row of that
+   night that is not on the screen also counts against it, so read the differences it names before
+   an undo; a bookkeeping difference is not a reader fault. The home page's edge tile has no
+   leave-out by stamp, so a bad night stays in it until the studies are read with
+   `--leave-out-stamp`.
 6. **The undo, in this order.**
    - **Undo 1, the switch back** (the first resort): revert the flip commit, deploy, then re-read the
      screen without archiving (the undo night, section "The Undo Night" below):
@@ -563,8 +569,8 @@ rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and 
      git revert -m 1 --no-edit <the go-live merge: git log --merges --oneline -1>
      .\update_dashboard.bat
      ```
-     The tree is then exactly what ran before the go-live (`claude/leadership-read` at `f045780`),
-     stamp `a2252c6c`. That tree has no `no_archive` switch (it came with the join), so after undo 2
+     The engine is then exactly what ran before the go-live (`claude/leadership-read` at `f045780`),
+     stamp `a2252c6c`; the tree differs from it only by `main`'s own Watchlist fix (`e7f9a20`). That tree has no `no_archive` switch (it came with the join), so after undo 2
      do NOT re-scan by hand: the next scheduled night scans and archives as before.
    - **Last level:** restore the backup of step 1 (section 4c).
 
