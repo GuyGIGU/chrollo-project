@@ -28,6 +28,7 @@ from core.pipeline.screening.scan_job import (
     run_scan_and_export,
 )
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_KEY
+from config import settings
 
 
 def _print_result_json(n_setups: int | None, n_archived: int, n_errored: int = 0,
@@ -45,6 +46,10 @@ def _print_result_json(n_setups: int | None, n_archived: int, n_errored: int = 0
     # block, distinguishable from "dark" (2026-08-17 review, Ramírez).
     if fundamentals is not None:
         payload["fundamentals"] = fundamentals
+    # The undo night's mark on the line the service reads (go-live task 8):
+    # present only when archiving was off, so a normal night's line is unchanged.
+    if not settings.ARCHIVE_LIVE_SCANS:
+        payload["archived"] = False
     print("SCAN_RESULT_JSON:" + json.dumps(payload), flush=True)
 
 
@@ -80,11 +85,21 @@ def _parse_args() -> argparse.Namespace:
                         help="scan a single universe by key (default: us_stocks)")
     parser.add_argument("--all-universes", action="store_true",
                         help="scan every universe sequentially (US-Stocks first)")
+    parser.add_argument("--no-archive", action="store_true",
+                        help="the undo night: read and rewrite the screen, archive nothing "
+                             "(this run only; no config file is edited)")
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
+    if args.no_archive:
+        # The undo night (go-live task 8): an archived re-scan of a bad night
+        # would overwrite the evidence of it. Off in THIS process only - the
+        # config file is not touched, so the next night archives as always.
+        settings.ARCHIVE_LIVE_SCANS = False
+        print("Archiving is OFF for this run only (--no-archive): the screen is "
+              "rewritten, the archive is not touched.", flush=True)
     try:
         if args.download_only:
             download_result = refresh_market_data_cache()

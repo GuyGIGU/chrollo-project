@@ -541,6 +541,27 @@ never drew (the small box's "near" at work) from the night's copied panel.
 
 After another night, `--index-only` rewrites the page without reading a chart again.
 
+## The Undo Night (re-read the screen, archive nothing)
+
+After a bad night — the reader switched back off and the service updated — the screen still shows the
+bad night's read. Re-read it from the market data already on disk, every universe, with the archive
+OFF for that one run, so the bad night's rows stay in the archive as the evidence they are (an archived
+re-scan of the same night would overwrite them). With the service running, from PowerShell:
+
+```powershell
+curl.exe -N "http://127.0.0.1:8000/run-evaluation-stream/?no_archive=true"
+```
+
+It runs under the service's scan lock (refused while another scan runs), rewrites the screen's files,
+and writes nothing to `setup_archive`, the near-miss lane or the calibration setups; the forward-return
+backfill does not run with it. The run's row in the scan history says "not archived", the scan log
+prints a "Not archived" line per universe, and the screen's file carries `"archived": false` in its
+market context. With the service stopped, the same switch is
+`.\.venv\Scripts\python.exe run_screener.py --cached --all-universes --no-archive` (no run row then;
+the log line and the file stamp still say it). Nothing is edited: the next night archives as always.
+Archiving off also skips the freshness gate that stops a stale zero-setup read from blanking the
+screen, so run it on the night's own data (`--cached`), never after a failed download.
+
 ## Service Commands
 
 ```powershell

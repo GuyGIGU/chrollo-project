@@ -296,8 +296,10 @@ def run_screener_scan_stream():
 
 
 @router.get("/run-evaluation-stream/")
-def run_cached_evaluation_stream():
-    return StreamingResponse(scan_runner.stream_cached_evaluation(), media_type="text/event-stream")
+def run_cached_evaluation_stream(no_archive: bool = False):
+    # ?no_archive=true is the undo night (docs/deploy.md): re-read, show, archive nothing.
+    return StreamingResponse(scan_runner.stream_cached_evaluation(archive=not no_archive),
+                             media_type="text/event-stream")
 
 
 @router.get("/download-data-stream/")
