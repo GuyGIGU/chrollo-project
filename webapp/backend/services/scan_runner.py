@@ -71,6 +71,9 @@ class ScanProcessResult:
     # Rows the archive writer REFUSED to assemble. A lost night is the one
     # unrecoverable failure, so a night that lost even one row says so.
     n_refused: int | None = None
+    # False only on the undo night (`--no-archive`): the run read and showed,
+    # and archived nothing. Its row says so.
+    archived: bool = True
 
     @property
     def ok(self) -> bool:
@@ -121,6 +124,7 @@ def _run_scan_process_unlocked(args: list[str] | None = None) -> ScanProcessResu
         n_setups=counts.n_setups,
         n_errored=counts.n_errored,
         n_refused=counts.n_refused,
+        archived=counts.archived,
     )
 
 
@@ -129,6 +133,7 @@ class ScanCounts(NamedTuple):
     n_setups: int | None
     n_errored: int
     n_refused: int
+    archived: bool = True
 
 
 def _parse_scan_result(output: str) -> ScanCounts:
@@ -158,9 +163,11 @@ def _parse_scan_result(output: str) -> ScanCounts:
                 # (null): kept as None, never cast to a number, and never a
                 # reason to drop the refused count riding beside it.
                 n_setups = payload.get("n_setups", 0)
+                # "archived" is on the line only when it is false (the undo night).
                 return ScanCounts(None if n_setups is None else int(n_setups),
                                   int(payload.get("n_errored", 0)),
-                                  int(payload.get("n_refused", 0)))
+                                  int(payload.get("n_refused", 0)),
+                                  bool(payload.get("archived", True)))
             except Exception:
                 return ScanCounts(None, 0, 0)
     return ScanCounts(None, 0, 0)
@@ -174,15 +181,23 @@ def _result_status(result: ScanProcessResult) -> str:
     return "failed"
 
 
+#: The error cell of an OK undo-night run (go-live task 8): it read and showed, and archived nothing.
+NOT_ARCHIVED_NOTE = ("not archived: this run re-read the screen with archiving off (--no-archive); "
+                     "the archive keeps the night it already had")
+
+
 def _finished_run_error(status: str, result: ScanProcessResult, kind: str = "scan") -> str | None:
     """The error cell of a run that FINISHED: empty, unless its archive writer refused rows, or (a scan only)
-    the new reader would not read some charts (go-live plan task 3). Then the run's own record says so (the
+    the new reader would not read some charts (go-live plan task 3), or it was an undo night run with
+    archiving off (task 8). Then the run's own record says so (the
     registry and the status line read it), not only the log. Charts not read are NOT a crash and never reach
     the alert: the scan lists them apart from ``errored_tickers``, which the alert reads."""
     from services.scan_diagnosis import finished_run_error
 
     if status != "ok":
         return None
+    if not getattr(result, "archived", True):
+        return NOT_ARCHIVED_NOTE          # an undo night (go-live task 8): it read and showed, archived nothing
     return finished_run_error(result.n_refused or 0, _last_not_read() if kind == "scan" else None)
 
 
@@ -421,6 +436,7 @@ def _pump_job(job: LiveJob, args: list[str] | None) -> None:
             n_setups=counts.n_setups,
             n_errored=counts.n_errored,
             n_refused=counts.n_refused,
+            archived=counts.archived,
         )
         # A stopped run ended because the operator said so, so it is 'aborted'
         # (re-runnable, nothing broken) — never 'failed', which sends him
@@ -615,9 +631,15 @@ def stream_manual_scan() -> Iterator[str]:
     yield from _stream_process("manual", job="scan")
 
 
-def stream_cached_evaluation() -> Iterator[str]:
-    """Evaluate the local market-data cache and stream stdout as SSE."""
-    yield from _stream_process("manual_evaluation", ["--cached"], kind="scan")
+def stream_cached_evaluation(archive: bool = True) -> Iterator[str]:
+    """Evaluate the local market-data cache and stream stdout as SSE.
+
+    ``archive=False`` is the undo night (go-live task 8): every universe is
+    re-read from the cache and shown, nothing is archived, and the run's row
+    says "not archived".
+    """
+    args = ["--cached"] if archive else ["--cached", "--all-universes", "--no-archive"]
+    yield from _stream_process("manual_evaluation", args, kind="scan")
 
 
 def stream_data_download() -> Iterator[str]:

@@ -319,6 +319,13 @@ def _archive_near_misses(near_miss_sink, uni) -> None:
           f"(deferred stats {stats}; writer {counters}).", flush=True)
 
 
+def _say_not_archived(uni, n_setups: int) -> None:
+    """The scan log's line for a run with archiving off (the undo night, go-live task 8)."""
+    print(f"\nNot archived: archiving is off for this run, so {n_setups} {uni.key} "
+          "setup(s) are on the screen only (setup_archive and the near-miss lane "
+          "untouched).", flush=True)
+
+
 def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResult:
     """Run the screener and write every non-broker output artifact.
 
@@ -360,6 +367,11 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
     # ScanExportResult below so SCAN_RESULT_JSON carries them as an optional key.
     fund_counts = (market_context or {}).get("fundamentals")
 
+    if not settings.ARCHIVE_LIVE_SCANS:
+        # The screen's own file says this read is not in the archive (the undo
+        # night). Added only when off, so a normal night's payload is unchanged.
+        market_context = {**(market_context or {}), "archived": False}
+
     # ONE scan_date for every store this export writes (the payload's
     # scan_identity and the archive's upsert key), computed once so the two
     # can never straddle midnight into different identities for one scan.
@@ -398,6 +410,8 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         # health board rides this same write (the ETF universes usually land here).
         generate_dashboard(results_df, data, tickers, market_context, universe=uni,
                            health_board=health_board, scan_date=scan_date)
+        if not settings.ARCHIVE_LIVE_SCANS:
+            _say_not_archived(uni, 0)
         if lane_freshness_ok:
             # A zero-fire night is prime lane material — the refusal cohort
             # archives on the same freshness verdict as fires would. Ordered
@@ -522,6 +536,8 @@ def run_scan_and_export(mode: str = "download", universe=None) -> ScanExportResu
         print(f"\nArchived {n_archived} live {uni.key} setups to setup_archive "
               f"(source='screener', universe_type='{uni.universe_type}').")
         _lane_after_the_archive()
+    else:
+        _say_not_archived(uni, len(results_df))
 
     return ScanExportResult(n_setups=len(results_df), n_archived=n_archived,
                             n_errored=n_errored,
