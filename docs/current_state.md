@@ -57,9 +57,8 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   `claude/two-eyes-reader` still carries unmerged engine work; it was ported onto this layout on
   2026-09-26 (base `61c88cc`). Its build is CLOSED (Fri 09/10/2026: every stage, the screen block and
   the approval pack built, dark) and the branch review's fixes followed; next are his approval sitting and
-  a go-live plan. On that plan's list as a READER task: his FRPH ruling of Fri 09/10/2026 (a box that failed into
-  its own lower level for two months is not tied to the box any more; its late return is no test and no SOS),
-  recorded and NOT built — the approval pack names the fires that rest on that way back. None of it is live here.
+  a go-live plan. His FRPH ruling of Fri 09/10/2026 was DROPPED on Sat 10/10/2026, in his words "just leave these two
+  behind": no reader rule, nothing on the go-live list. None of it is live here.
 - **The two-eyes flip — built, dark, his word pending (Sat 10/10/2026).** The go-live plan
   (`.council/plans/two-eyes-go-live.md`) joins the reader branch with the live branch on
   `claude/sweet-napier-461716`, `TWO_EYES_READER_ENABLED` still False. The flip is his, after his
