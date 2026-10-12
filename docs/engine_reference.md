@@ -1876,7 +1876,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `cdb7ee2d98a8aab687c04a70a7ddc41c2271fa7286517ac61ab4dde3da4836d1`_
+_engine_config_version: `ece8546e3adc8c8e5da610d552fbb72ae8a327cb125d5049c7c7e60700b01daa`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -2106,6 +2106,18 @@ TA_WARN_WEAK_MONTHLY = 1.0
 FUNDAMENTALS_ENABLED = True
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12
 FUNDAMENTALS_FILING_LAG_DAYS = 75
+FUND_SHEET_QUARTERS = 4
+FUND_GRADE_EPS_GROWTH_MIN = 0.25
+FUND_GRADE_SALES_GROWTH_MIN = 0.25
+FUND_GRADE_BEATS_MIN = 3
+FUND_GRADE_REACTION_RANGES = 2.0
+FUND_GRADE_REACTION_VOLUME = 2.0
+FUND_GRADE_SBC_MAX = 0.2
+FUND_GRADE_MIN_CHECKS = 5
+FUND_GRADE_LETTERS = ((0.85, 'A'), (0.7, 'B'), (0.5, 'C'))
+FUND_FLAG_UNUSUAL_SHARE = 0.25
+FUND_FLAG_SHARE_DROP = 0.04
+FUND_FLAG_ACQUISITION_SHARE = 0.1
 RS_LINE_ENABLED = False
 RS_LINE_NEW_HIGH_LOOKBACK = 252
 SECTOR_RANKING_ENABLED = False

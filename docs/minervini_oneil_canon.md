@@ -117,10 +117,11 @@ out of the population for him too. The sma50 wall is not anti-Minervini; it is h
 | **Buy near the 52-week high** (O'Neil) | `SCORE_52W_HIGH_PROXIMITY` ramp | **TAKEN** (graded, never a floor) |
 | **RS line at new highs** (O'Neil/IBD) | `core/regime/rs_line.py` (`RS_LINE_ENABLED`, dark; `rs_line_new_high`) | **TAKEN, dark** — flip is an operator decision after an edge read |
 | **RS rating** (IBD universe percentile) | `rs_rating` — in-house percentile of twelve-month strength (four quarters, the latest counted double, IBD-style) over every stock the scan reads with a year of history at or above `MIN_PRICE`; LIVE since 2026-10-02, no flag, shown 1–99 on the card and archived | **ADAPTED** — our own universe, our own formula; never IBD's number. Display only: scoring RS is the Tested-DEAD row (§6) |
-| **CANSLIM C/A** (quarterly earnings + acceleration) | `core/fundamentals/metrics.py`: `eps_growth_yoy`, `sales_growth_yoy`, `eps_growth_accel`, `earnings_surprise` (`FUNDAMENTALS_ENABLED`, live 2026-10-03, display and archive only) | **ADAPTED, live** — measures, never gates or scores; annual (A) reduced to YoY-quarterly + acceleration |
+| **CANSLIM C/A** (quarterly earnings + acceleration) | `core/fundamentals/metrics.py`: `eps_growth_yoy`, `sales_growth_yoy`, `eps_growth_accel`, `earnings_surprise` (`FUNDAMENTALS_ENABLED`, live 2026-10-03, display and archive only); since 2026-10-12 the fundamentals sheet (`core/fundamentals/sheet.py`: four reports, four quarters, margins, beats, revisions, earnings quality) and the fundamental grade (`grade.py`, nine checks, A-D) | **ADAPTED, live** — measures and a display grade, never gates or scores the setup; annual (A) reduced to the last four quarters + acceleration; the 25% floors are canon defaults, recalibrated later |
 | **CANSLIM L** (leader vs laggard) | `rs_rating` (live, display) + sector ranking (`SECTOR_RANKING_ENABLED`, dark) | **ADAPTED** — the RS half shown, the sector half dark |
 | **CANSLIM M** (market direction) | O'Neil **distribution days** on the index (`regime_distribution_days`, `REGIME_DISTRIBUTION_DAY_*`) + the market/sector health board | **ADAPTED — context only, NEVER a gate** (regime is observability; see wyckoff_canon §5 "distribution") |
-| **CANSLIM N** (new products/management) | — | **DROPPED** — qualitative, no data source, out of scope |
+| **Code 33** (Minervini: EPS, sales and margins accelerating three quarters) | `core/fundamentals/grade.py` `code33` (2026-10-12): EPS growth, sales growth and the net margin each rising three quarters running, every figure known | **ADAPTED, strict** — a display badge, never awarded on missing history or two good quarters |
+| **CANSLIM N** (new products/management) | the catalyst's PROOF only, in the fundamentals sheet (2026-10-12): sales speeding up, estimates rising, the report-day reaction (daily ranges on 50-day volume) | **ADAPTED as proof** — the story itself is qualitative and stays his read |
 | **CANSLIM S** (supply/float) | — | **DROPPED** |
 | **CANSLIM I** (institutional sponsorship) | the volume footprint on the chart is the only proxy | **DROPPED** as data — no holdings source |
 | **Follow-through day** (O'Neil) | — | **DROPPED** — the health board's 7-state cycle is Chrollo's own market read |
@@ -156,6 +157,9 @@ discipline **WHOSE REVISION** of that quarter is served. Therefore:
 - Fundamentals attach only to **live, forward archives** (the scan's own `as_of`, explicitly
   passed — the `as_of=None` fail-open path never feeds an archived write; see
   `power_play_program_2026-08.md` Task 12).
+- **The SEC fill is the first as-reported source (2026-10-12, on: his email is the contact):**
+  `core/fundamentals/sec.py` takes each quarter's sales as FIRST filed on or before the day. It
+  covers US filers' sales only; every yfinance line still falls under the law below.
 - **Any fundamentals backtest against historical dates is BLOCKED** until a genuine
   point-in-time source (as-reported filings) exists. A "backtest the O'Neil layer against the
   archive" proposal is lookahead by construction — the data is fiction regardless of the lag

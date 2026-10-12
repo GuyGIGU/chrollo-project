@@ -160,6 +160,11 @@ each was computed by the command beside it (run from the tree named, with the re
 | 3 | **The joined tree, switch on** (ruleset `two-eyes-0.9.1-grade`): the first new-reader night. | `cdb7ee2d98a8aab687c04a70a7ddc41c2271fa7286517ac61ab4dde3da4836d1` | in-process, no config edited: `.\.venv\Scripts\python.exe -c "from config import settings; settings.TWO_EYES_READER_ENABLED = True; from engine_alpha.freeze.manifest import manifest_hash; print(manifest_hash())"` |
 | 4 | **A re-flip** after an undo: the reader fixed, the switch on again. Its ruleset is BUMPED first, so its stamp is a new one and never #3. Example, with the string `two-eyes-0.9.2-reflip-example`: | `ea3c0b3164c8f4376dff0b5d7a4e5f16d995b8fdc9df932d035a1e96648901b9` | as #3, adding `settings.TWO_EYES_RULESET = "two-eyes-0.9.2-reflip-example";` before the hash. With the SAME string the command prints #3's stamp: that is the hiding this row exists to prevent |
 
+**Since the flip.** #5, 2026-10-12: the fundamentals sheet and grade (the `FUND_*` and `FUND_FLAG_*` knobs
+join the manifest; the reader and its ruleset unchanged): `ece8546e3adc8c8e5da610d552fbb72ae8a327cb125d5049c7c7e60700b01daa`,
+by `.\.venv\Scripts\python.exe -m engine_alpha.freeze.manifest --hash` in that tree. The reader is the
+same as #3's, so a study that leaves out the first new-reader nights by stamp names both.
+
 - **A ruleset string is spent once used.** `tests/engine/test_two_eyes_adapter.py`
   (`SPENT_RULESETS`, `test_a_ruleset_string_is_never_reused`) lists every string ever committed,
   oldest first, and fails when the one in `config/engine.py` is not the newest of them: going back

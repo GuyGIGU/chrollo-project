@@ -32,6 +32,35 @@ FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12   # quarters of earnings history to req
 # history is gated on its own report-date index (no lag needed there).
 FUNDAMENTALS_FILING_LAG_DAYS = 75
 
+# The fundamentals sheet and the fundamental grade (core/fundamentals/sheet.py and
+# grade.py; operator go-ahead Mon 12/10/2026: "yes go ahead with the fundamentals
+# sheet ... and lets work on building the fundamental grade"). His list: the last
+# four quarters of EPS and sales growth, margin trends, beats and misses, estimate
+# revisions, the growth catalyst, earnings-quality concerns. Display and archive
+# only: the grade never gates a fire and never moves the setup grade or the tier.
+# The thresholds are OUR defaults from the O'Neil / Minervini canon, his to change;
+# they are recalibrated later against the archive, never at add time.
+FUND_SHEET_QUARTERS = 4                    # quarters (and earnings reports) the sheet shows
+FUND_GRADE_EPS_GROWTH_MIN = 0.25           # latest report's EPS up 25%+ on the year (O'Neil's C)
+FUND_GRADE_SALES_GROWTH_MIN = 0.25         # latest quarter's sales up 25%+ on the year, or speeding up
+FUND_GRADE_BEATS_MIN = 3                   # beats of the estimate in the last four reports, the latest one included
+FUND_GRADE_REACTION_RANGES = 2.0           # a report day closing up this many daily ranges (the 20-day ADR) ...
+FUND_GRADE_REACTION_VOLUME = 2.0           # ... on this many times the 50-day volume: the market took the news
+FUND_GRADE_SBC_MAX = 0.20                  # stock-based pay over this share of sales is an earnings-quality concern
+FUND_GRADE_MIN_CHECKS = 5                  # fewer checks with data than this: no letter ("not enough data")
+FUND_GRADE_LETTERS = ((0.85, "A"), (0.70, "B"), (0.50, "C"))   # share of the checks passed -> letter; under the last: D
+# Earnings-quality flags (the second patch, same day): each raised flag fails the quality check.
+FUND_FLAG_UNUSUAL_SHARE = 0.25            # one-time items worth this share of the latest quarter's net income
+FUND_FLAG_SHARE_DROP = 0.04               # diluted share count down this much on the year: buybacks lift EPS
+FUND_FLAG_ACQUISITION_SHARE = 0.10        # businesses bought for this share of the shown quarters' sales
+# SEC filings (data.sec.gov, free, US filers only) fill the year-ago quarters yfinance
+# does not keep, so four quarters of year-on-year sales can be read. The SEC refuses
+# any request without a contact in its header (fair-access policy); empty turns the
+# fill off (tests/conftest.py blanks it for every test, so no test asks the SEC). A data
+# source, not a computation: ops-excluded from the engine manifest like the provider.
+# Named by the operator, Mon 12/10/2026: "use my email for the SEC".
+SEC_CONTACT = "Chrollo guycool5355@gmail.com"
+
 # RS line (core/regime/rs_line.py) — stock/SPY ratio series + rs_line_new_high.
 RS_LINE_ENABLED = False
 RS_LINE_NEW_HIGH_LOOKBACK = 252            # ratio is a "new high" vs its rolling max over this many sessions (~52w)

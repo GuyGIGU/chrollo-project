@@ -119,7 +119,8 @@ def test_provider_failure_is_contained_and_counted(tmp_path, monkeypatch):
     counts = _run(results, {"AAA": _prices()}, provider, tmp_path, monkeypatch)
     assert counts == {"attempted": 1, "populated": 0, "cache_hits": 0,
                       "refused_no_as_of": 0, "rs_attempted": 0,
-                      "rs_populated": 0, "errored": 0, "failed": 1}
+                      "rs_populated": 0, "errored": 0, "sheet_populated": 0,
+                      "failed": 1}
     # "attempted, all failed" is VISIBLE — and the paying row is untouched.
     assert results == before
 
@@ -214,6 +215,7 @@ def test_malformed_cache_is_dropped_and_replay_is_namespaced(tmp_path, monkeypat
     (tmp_path / "fund_cache.json").write_text(json.dumps({
         "BAD": "not-a-dict",
         "EVIL": {"as_of": "2026-04-01", "next_earnings": "2026-05-01",
+                 "sheet_version": post_pass.SHEET_VERSION,
                  "fund_fields": {"Score": 0.0,
                                  "_fund_eps_growth_yoy": 0.11}},
     }), encoding="utf-8")

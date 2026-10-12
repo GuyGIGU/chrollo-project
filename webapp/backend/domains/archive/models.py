@@ -484,6 +484,10 @@ class SetupArchive(Base):
     sector_rank_pct = Column(Float, nullable=True)          # setup's SPDR-sector composite RS percentile (scan-wide)
     sector_rank_pos = Column(Integer, nullable=True)        # setup's sector rank position (1 = strongest sector this scan)
     market_cap = Column(Float, nullable=True)               # dollars at the scan, from the market-cap floor's lookup (2026-10-03)
+    # The fundamentals sheet + the fundamental grade (2026-10-12, display + archive only; core/fundamentals/grade.py)
+    fund_grade = Column(String, nullable=True)              # A/B/C/D; NULL = not enough data (or before 2026-10-12)
+    fund_grade_score = Column(Float, nullable=True)         # share of the known checks passed (0..1)
+    fund_sheet_json = Column(Text, nullable=True)           # the whole sheet as shown: EPS, quarters, revisions, reactions, quality, the checks
 
     # ── Engine provenance (frozen-config reproducibility) ────────
     # sha256 of the frozen engine-config manifest (engine_alpha/freeze/manifest.py) that

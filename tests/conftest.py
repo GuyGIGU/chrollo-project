@@ -54,6 +54,16 @@ def _discard_the_throwaway_database():
     shutil.rmtree(_TEST_DB_DIR, ignore_errors=True)
 
 
+@pytest.fixture(autouse=True)
+def _no_sec_requests(monkeypatch):
+    """No test asks the SEC: the live config names a contact (the operator's, 2026-10-12),
+    which would turn every fundamentals test into a network call. A test of the SEC fill
+    passes its own contact and fakes the fetch."""
+    from config import settings
+
+    monkeypatch.setattr(settings, "SEC_CONTACT", "")
+
+
 @pytest.fixture
 def old_reader(monkeypatch):
     """The OLD reader answers this test, whatever the switch's default.

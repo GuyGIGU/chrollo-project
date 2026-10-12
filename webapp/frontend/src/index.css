@@ -1467,6 +1467,165 @@ td {
   font-size: 10px;
 }
 
+/* The fundamentals sheet (2026-10-12): two small tables (reports, quarters), the
+   estimates and quality lines, then the nine checks of the fundamental grade. */
+.fund-sheet-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.fund-sheet-table th {
+  color: var(--text-faint);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  text-align: right;
+}
+
+.fund-sheet-table td {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  padding: 3px 6px;
+  text-align: right;
+}
+
+.fund-sheet-table th:first-child,
+.fund-sheet-table td:first-child {
+  text-align: left;
+}
+
+.fund-sheet-snapshot {
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.fund-sheet-snapshot small {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.fund-sheet-lines {
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.fund-sheet-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fund-sheet-checks li {
+  align-items: baseline;
+  color: var(--text-main);
+  display: grid;
+  font-size: 11px;
+  gap: 6px;
+  grid-template-columns: 12px minmax(0, 1fr);
+}
+
+.fund-sheet-checks small {
+  color: var(--text-faint);
+  font-size: 10px;
+  grid-column: 2;
+}
+
+.fund-check-mark {
+  font-weight: 800;
+}
+
+/* The card's second page (2026-10-12): the business laid over the chart well, in the
+   well's own size, so a flip never moves the board. */
+.fund-card-page {
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  inset: 0;
+  overflow: hidden;
+  padding: 8px 10px;
+  position: absolute;
+  z-index: 10; /* over the chart library's own logo */
+}
+
+.fund-card-head {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+}
+
+.fund-card-title {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.fund-card-verdict {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fund-card-badge {
+  border: 1px solid var(--myth);
+  border-radius: var(--radius-xs);
+  color: var(--myth);
+  font-size: 9px;
+  font-weight: 800;
+  margin-left: auto;
+  padding: 1px 4px;
+}
+
+.fund-card-snapshot {
+  color: var(--text-faint);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fund-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+
+.fund-card-line {
+  display: grid;
+  font-size: 12px;
+  gap: 10px;
+  grid-template-columns: 86px minmax(0, 1fr);
+}
+
+.fund-card-k {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.fund-card-v {
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Finviz-style dense read grid: hairline-separated label/value cells. The 1px
    gap over a light backing shows through as the cell separators. */
 .lens-grid {

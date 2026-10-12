@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TagRow } from './SetupTags';
 import ScreenerMiniChart from '../charts/ScreenerMiniChart';
 import { explainTip } from '../formatting/tooltipText';
@@ -8,6 +8,8 @@ import { fx, fmtSignedPctFrac } from '../formatting/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from './screenerCardData';
 import { hasLeadershipRead, leadershipCells } from './leadershipRead';
 import { dialogOpenOutside, hasCommandModifier } from '../navigation/keyboardGuard';
+import FundamentalsCardPage from './FundamentalsCardPage';
+import { hasFundamentalsSheet } from './fundamentalsSheetRead';
 
 export function WatchlistButton({ active, onToggle }) {
   return (
@@ -70,6 +72,37 @@ function LikeButton({ active, onToggle }) {
       }}
     >
       {active ? '♥' : '♡'}
+    </button>
+  );
+}
+
+// The card's second page (2026-10-12, his "a second page in the Mini Chart"): F flips
+// the chart well to the business and back. Shown only when the scan carried a sheet.
+function PageButton({ active, onToggle }) {
+  return (
+    <button
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      aria-pressed={active}
+      title={active ? 'Back to the chart (F)' : 'Show the fundamentals (F)'}
+      style={{
+        background: active ? 'rgba(79,207,196,0.14)' : 'rgba(20,23,33,0.7)',
+        border: `1px solid ${active ? 'var(--myth)' : 'var(--border-color)'}`,
+        borderRadius: 5,
+        color: active ? 'var(--myth)' : 'var(--text-faint)',
+        cursor: 'pointer',
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 10,
+        fontWeight: 800,
+        height: 20,
+        lineHeight: 1,
+        pointerEvents: 'auto',
+        width: 20,
+      }}
+    >
+      F
     </button>
   );
 }
@@ -154,7 +187,7 @@ const ReadDivider = () => (
 // Watchlist's clean card, so every card kind's chart starts at the same height.
 // Score, setup name, and the next-earnings date live in the click-through detail
 // lens, keeping the card face to the chart itself.
-function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike }) {
+function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike, page, onTogglePage }) {
   const changePct = dailyChangeFrac(data.candles);
   const hasHtf = data.htf_w_trend_state != null || data.htf_m_trend_state != null;
   const hasLeadership = hasLeadershipRead(data);
@@ -188,6 +221,7 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onTog
         <span style={{ display: 'flex', flexShrink: 0, gap: 4, marginLeft: 2 }}>
           <WatchlistButton active={watchlisted} onToggle={() => onToggleWatchlist(ticker)} />
           <LikeButton active={liked} onToggle={() => onToggleLike(ticker)} />
+          {onTogglePage ? <PageButton active={page === 'fundamentals'} onToggle={onTogglePage} /> : null}
         </span>
       </div>
 
@@ -241,13 +275,17 @@ const drillButtonStyle = {
   width: '100%',
 };
 
-const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, liked, onToggleLike, onClick, onDrilldown }) => (
+const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, liked, onToggleLike, onClick, onDrilldown }) => {
+  const [page, setPage] = useState('chart');
+  const hasSheet = hasFundamentalsSheet(data);
+  const togglePage = hasSheet ? () => setPage((now) => (now === 'chart' ? 'fundamentals' : 'chart')) : null;
+  return (
   <div
     className="screener-card"
     data-ticker={ticker}
     role="button"
     tabIndex={0}
-    aria-label={`Open ${ticker} chart, tier ${data.tier}. Press W to ${watchlisted ? 'remove from' : 'save to'} watchlist, L to ${liked ? 'unlike' : 'like'}.`}
+    aria-label={`Open ${ticker} chart, tier ${data.tier}. Press W to ${watchlisted ? 'remove from' : 'save to'} watchlist, L to ${liked ? 'unlike' : 'like'}${hasSheet ? ', F for the fundamentals' : ''}.`}
     onClick={() => onClick(ticker)}
     onKeyDown={(event) => {
       // Only act on keys aimed at the card itself, not ones bubbling up from the
@@ -271,6 +309,9 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, l
       } else if (event.key === 'l' || event.key === 'L') {
         event.preventDefault();
         onToggleLike(ticker);
+      } else if ((event.key === 'f' || event.key === 'F') && togglePage) {
+        event.preventDefault();
+        togglePage();
       }
     }}
     style={{
@@ -297,11 +338,15 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, l
       liked={liked}
       onToggleLike={onToggleLike}
       onToggleWatchlist={onToggleWatchlist}
+      onTogglePage={togglePage}
+      page={page}
       ticker={ticker}
       watchlisted={watchlisted}
     />
     <div className="screener-card-well" style={chartWellStyle}>
+      {/* The chart stays mounted under the page, so flipping back costs no redraw. */}
       <ScreenerMiniChart ticker={ticker} data={data} />
+      {page === 'fundamentals' && hasSheet ? <FundamentalsCardPage data={data} /> : null}
     </div>
     {/* ONE row of chips (2026-10-02); what does not fit folds into TagRow's +N,
         whose tooltip lists the rest — a chip is shown whole or not at all. */}
@@ -335,7 +380,8 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, l
       </button>
     )}
   </div>
-));
+  );
+});
 
 // The neutral state chip — the health card's single new protagonist. Loud by
 // SIZE / WEIGHT / PLACEMENT (it fills the slot the score used to own), never by

@@ -140,6 +140,21 @@ class MarketDataProvider(Protocol):
         ``.earnings`` / ``.quarterly_earnings`` properties."""
         ...
 
+    def get_cashflow(self, ticker: str, *, quarterly: bool = True) -> pd.DataFrame:
+        """Return the (quarterly) cash-flow statement frame for ``ticker``, laid
+        out like ``get_income_stmt`` (rows ``Operating Cash Flow``, ``Stock Based
+        Compensation``, ...). Empty frame on miss. Modern surface
+        (``Ticker.quarterly_cashflow`` / ``Ticker.cashflow``)."""
+        ...
+
+    def get_analysis(self, ticker: str) -> dict:
+        """Return the analysts' estimate frames for ``ticker`` as they stand
+        today: ``{'eps_trend': frame, 'eps_revisions': frame}`` (rows ``0q`` /
+        ``+1q`` / ``0y`` / ``+1y``). A CURRENT snapshot with no history behind
+        it: read on the scan night it is the night's own fact. Missing frames are
+        left out; ``{}`` on a miss."""
+        ...
+
     def index_context(self, as_of: str) -> dict:
         """Return ``{'spy_trend', 'vix_level'}`` market context as of a date."""
         ...
@@ -385,6 +400,46 @@ class YahooProvider:
         if frame is None or getattr(frame, "empty", True):
             return pd.DataFrame()
         return frame
+
+    def get_cashflow(self, ticker: str, *, quarterly: bool = True) -> pd.DataFrame:
+        """Quarterly (or annual) cash-flow frame for ``ticker``; empty frame on
+        miss. ``Ticker.quarterly_cashflow`` / ``Ticker.cashflow``, bounded."""
+        result = _run_bounded(
+            lambda: self._cashflow_impl(ticker, quarterly), _INFO_TIMEOUT_S
+        )
+        return result if result is not None else pd.DataFrame()
+
+    @staticmethod
+    def _cashflow_impl(ticker: str, quarterly: bool) -> pd.DataFrame:
+        import yfinance as yf
+
+        rate_limit.throttle()
+        obj = yf.Ticker(ticker)
+        frame = obj.quarterly_cashflow if quarterly else obj.cashflow
+        if frame is None or getattr(frame, "empty", True):
+            return pd.DataFrame()
+        return frame
+
+    def get_analysis(self, ticker: str) -> dict:
+        """The analysts' estimate trend and revisions for ``ticker`` as they
+        stand today (``Ticker.eps_trend`` / ``Ticker.eps_revisions``, one
+        Ticker so the one estimate fetch serves both), bounded; ``{}`` on a
+        miss."""
+        result = _run_bounded(lambda: self._analysis_impl(ticker), _INFO_TIMEOUT_S)
+        return result if result is not None else {}
+
+    @staticmethod
+    def _analysis_impl(ticker: str) -> dict:
+        import yfinance as yf
+
+        rate_limit.throttle()
+        obj = yf.Ticker(ticker)
+        out = {}
+        for name in ("eps_trend", "eps_revisions"):
+            frame = getattr(obj, name, None)
+            if frame is not None and not getattr(frame, "empty", True):
+                out[name] = frame
+        return out
 
     def index_context(self, as_of: str) -> dict:
         """SPY trend + VIX level as of ``as_of`` (ISO date), each fetch bounded.

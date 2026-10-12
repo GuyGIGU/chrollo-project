@@ -78,7 +78,9 @@ def _old_reader_settings_digest() -> str:
     (detection, scoring, the derived registries), and nothing the new reader's tuning moves."""
     from engine_alpha.freeze.manifest import collect_manifest
 
-    old = {key: value for key, value in collect_manifest().items() if not key.startswith("TWO_EYES")}
+    # FUND_* (2026-10-12): the fundamentals sheet and grade, read after the chart by the scan's post-pass; neither
+    # reader reads them, so they are no old-reader knob (the FUNDAMENTALS_* switches predate the seal and stay in).
+    old = {key: value for key, value in collect_manifest().items() if not key.startswith(("TWO_EYES", "FUND_"))}
     return hashlib.sha256(json.dumps(old, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 

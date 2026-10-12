@@ -22,6 +22,8 @@ import { EMPTY, fx, fmtDateShort, fmtDay, fmtPct } from '../formatting/format';
 import { triggerDistanceFrac } from './triggerProximity.js';
 import { leadershipCells, stageCells } from './leadershipRead';
 import { fundamentalsCells, fundamentalsNote, hasFundamentalsRead } from './fundamentalsRead';
+import FundamentalsSheet from './FundamentalsSheet';
+import { hasFundamentalsSheet } from './fundamentalsSheetRead';
 import { hasVolumeRead, volumeCells } from './volumeRead';
 
 const pct = (value, digits = 1) => {
@@ -122,7 +124,10 @@ function LeadershipGrid({ data }) {
 
 // The fundamentals read (2026-10-03): the business beside the stock, apart from
 // the setup's grade. The note names the quarter the growth numbers describe.
+// From 2026-10-12 a scan carries the whole sheet and the fundamental grade; an
+// older payload keeps the four-number grid.
 function FundamentalsGrid({ data }) {
+  if (hasFundamentalsSheet(data)) return <FundamentalsSheet data={data} />;
   if (!hasFundamentalsRead(data)) return null;
   return <LensGridSection title="Fundamentals" note={fundamentalsNote(data)} cells={fundamentalsCells(data)} />;
 }

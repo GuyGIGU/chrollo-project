@@ -112,6 +112,9 @@ ADVISORY_KEYS = (
     'fund_eps_growth_yoy', 'fund_sales_growth_yoy', 'fund_eps_growth_accel',
     'fund_earnings_surprise', 'fund_quarter_end', 'days_to_earnings',
     'market_cap', 'rs_line_latest', 'rs_line_new_high',
+    # the fundamentals sheet (verdicts resolved: each check passed / failed / not
+    # known, with its words) and the fundamental grade (2026-10-12)
+    'fund_sheet', 'fund_grade', 'fund_grade_score',
 )
 
 

@@ -139,6 +139,9 @@ BASE_WIRE_KEYS = (
     # with the fundamentals going live — deliberate edit, operator go-ahead)
     "fund_quarter_end",
     "fund_sales_growth_yoy",
+    # + the fundamentals sheet and the fundamental grade 2026-10-12 (deliberate
+    # edit, operator go-ahead: "yes go ahead with the fundamentals sheet")
+    "fund_grade", "fund_grade_score", "fund_sheet",
     "higher_low_frac",
     "htf_m_box_r", "htf_m_box_s", "htf_m_box_width", "htf_m_daily_nested",
     "htf_m_in_consol", "htf_m_phase", "htf_m_reaccum", "htf_m_stage2",
@@ -213,6 +216,16 @@ def test_wire_carries_the_fundamentals_and_market_cap(monkeypatch):
     assert chart["fund_eps_growth_yoy"] == 0.45
     assert chart["fund_quarter_end"] == "2026-06-30"
     assert chart["market_cap"] == 1.25e9
+
+
+def test_wire_carries_the_fundamentals_sheet_and_grade(monkeypatch):
+    sheet = {"eps": [{"day": "2026-09-02", "yoy": 0.77}], "grade": {"letter": "A", "passed": 8, "known": 9}}
+    chart = _payload(monkeypatch, v2_overlay={
+        "_fund_sheet": sheet, "_fund_grade": "A", "_fund_grade_score": 0.8889})
+    assert chart["fund_sheet"] == sheet
+    assert chart["fund_grade"] == "A" and chart["fund_grade_score"] == 0.8889
+    bare = _payload(monkeypatch)
+    assert bare["fund_sheet"] is None and bare["fund_grade"] is None
 
 
 def test_wire_carries_volume_at_key_points(monkeypatch):

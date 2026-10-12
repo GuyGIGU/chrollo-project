@@ -839,6 +839,10 @@ def archive_scan_results(
                 rs_line_latest=row.get("_rs_line_latest"),
                 rs_line_new_high=_bool_int(row.get("_rs_line_new_high")),
                 market_cap=row.get("_market_cap"),
+                fund_grade=row.get("_fund_grade"),
+                fund_grade_score=row.get("_fund_grade_score"),
+                fund_sheet_json=(json.dumps(row["_fund_sheet"], separators=(",", ":"))
+                                 if isinstance(row.get("_fund_sheet"), dict) else None),
                 **sector_rank_columns(sector_etf),
                 engine_config_version=engine_config_version,
                 source="screener",

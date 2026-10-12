@@ -97,6 +97,37 @@ separation. RS and the uptrend already weigh zero, by measurement (the decisions
 So every design question starts with **which read it belongs to**. A stock trait never enters
 the setup's grade, and a chart-reading trait never enters the leadership read.
 
+### Two grades: technical and fundamental (ruled 12/10/2026)
+
+His ruling, after the five leaders he wants at the top of the screener (SNOW, FROG, HNGE, ANET,
+DDI): *"the split between technical and fundamental is correct. Technical grade is reserved for
+matching the visual chart pattern which can also include some dry stats like ADR and Trend
+template."* So the two grades split by **what is read**, the chart or the business, and the
+price-read traits of the stock (ADR, the trend template, and by our default the RS rating and the
+base count, both read off price) sit with the chart.
+
+**The fundamental grade** reads whether the business is improving, *"not just whether its latest
+quarter looks impressive"*: the last four reports and quarters (EPS and its growth, sales and its
+growth, the margins), beats and misses, estimate revisions, the earnings quality, and the growth
+catalyst. His reason for insisting on them: *"the price action confirms the fundamental stats"*.
+The catalyst (O'Neil's "new": a new product, market, management, an industry wave) is reading,
+not data, so it stays his read; its proof is measured: sales speeding up, estimates going up, and
+the market's verdict on report day, a big move up on heavy volume. A quarter is read only from
+the day it was reported. Nine checks, each passed, failed or not known; the letter is the share
+of the known checks passed, so a stock is never marked down for data nobody has.
+
+Beside the letter, a plain label says what kind of growth it is (accelerating, strong, a
+turnaround, or mixed), and Minervini's Code 33 (EPS growth, sales growth and the margin rising
+three quarters running) is awarded only when every one of its nine figures is known. Growth
+off a loss is said in words, never as a percentage. The card on the board has the business as
+a second page behind its chart, one key away (his idea, 12/10/2026), so the board can be read
+both ways without opening a chart.
+
+*Status (12/10/2026): built, display and archive only.* It gates nothing and moves neither the
+setup grade nor the tier; its thresholds are canon defaults, to be recalibrated against the
+archive. Read on his five: SNOW, FROG and ANET grade A; HNGE C (estimates cut, its latest report
+missed); DDI C (flat sales), the good chart on a flat business.
+
 ### The life cycle: the four stages
 
 A stock lives through stages (Minervini, after Weinstein), and nearly every big winner made its
@@ -171,6 +202,17 @@ longer, and sellers taking the weeks), not wider weekly bars. A weekly bar can h
 chop: a week of wide, overlapping days can still print a normal-sized weekly bar, so the bar
 texture he describes is a daily read. It is one chart, read from a picture: an idea to test on
 the daily bars of real bases, not a rule.
+
+**His count, on his five (12/10/2026).** He counts only the bases of the current stage 2: *"you
+counted bases not in stage 2, but stage 1 as well"* (DDI's shelves before its breakout, HNGE's
+listing base). A spike over a base's top that closes back under it is inside the base (FROG's one
+July-to-October base). A short pause counts (HNGE's three-week May pit stop is its base 1). On a
+long advance with no visible turn from stage 1 (ANET) *"we take the last known visible pit stops
+and mark them. Some look like dips/corrections and some like semi bases/bases."* His counts: SNOW
+2, FROG 1, HNGE 2, ANET 3, DDI 2. A rule written from them (the count starts once the weekly
+closes stop falling under a 40-week average that is not rising; a base ends only when a weekly
+close clears its top) matches three of the five; the pauses it adds on FROG and ANET are the open
+question.
 
 *Status: not built.* Chrollo's base count reads 1 on every archived fire (it counts inside the
 latest short up-leg, never from the start of stage 2), so it is not shown. A real count needs

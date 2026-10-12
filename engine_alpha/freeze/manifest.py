@@ -366,6 +366,22 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "FUNDAMENTALS_ENABLED",
     "FUNDAMENTALS_EARNINGS_HISTORY_LIMIT",
     "FUNDAMENTALS_FILING_LAG_DAYS",
+    # The fundamentals sheet + the fundamental grade (2026-10-12): display and
+    # archive only, but each knob moves an archived value (the grade), so it
+    # rotates the stamp like the lag above. SEC_CONTACT is a data source:
+    # ops-excluded (see the list below).
+    "FUND_SHEET_QUARTERS",
+    "FUND_GRADE_EPS_GROWTH_MIN",
+    "FUND_GRADE_SALES_GROWTH_MIN",
+    "FUND_GRADE_BEATS_MIN",
+    "FUND_GRADE_REACTION_RANGES",
+    "FUND_GRADE_REACTION_VOLUME",
+    "FUND_GRADE_SBC_MAX",
+    "FUND_GRADE_MIN_CHECKS",
+    "FUND_GRADE_LETTERS",
+    "FUND_FLAG_UNUSUAL_SHARE",
+    "FUND_FLAG_SHARE_DROP",
+    "FUND_FLAG_ACQUISITION_SHARE",
     "RS_LINE_ENABLED",
     "RS_LINE_NEW_HIGH_LOOKBACK",
     "SECTOR_RANKING_ENABLED",
@@ -436,7 +452,7 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
 # Documented for auditability only — NOT used by collect_manifest. These move
 # how data is fetched/cached/scheduled or are pure observability, never a
 # detector decision. Changing one must NOT churn the engine version.
-#   data source / cache:  MARKET_DATA_PROVIDER, CACHE_FILENAME, PARQUET_*,
+#   data source / cache:  MARKET_DATA_PROVIDER, SEC_CONTACT, CACHE_FILENAME, PARQUET_*,
 #                         DOWNLOAD_PERIOD, TICKER_* admission/skiplist, ...
 #   archiving:            ARCHIVE_LIVE_SCANS
 #   fetch tuning:         TTL_*, FULL_REFRESH_*, INCREMENTAL_*, *_REPAIR_*,

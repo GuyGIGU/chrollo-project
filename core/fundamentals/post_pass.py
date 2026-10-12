@@ -59,6 +59,9 @@ import sys
 import pandas as pd
 
 CACHE_BASENAME = "fundamentals_cache.json"
+#: Written on every cache entry since the fundamentals sheet (2026-10-12): an entry
+#: without it predates the sheet and is fetched once more, whatever its dates say.
+SHEET_VERSION = 1
 
 # The four filing-gated metrics. ``_fund_quarter_end`` rides beside them (WHICH
 # quarter they describe) but is not a metric: alone it never counts as populated.
@@ -148,11 +151,80 @@ def _days_between(as_of, nxt_iso):
     return int(delta) if delta >= 0 else None
 
 
+class _OneFetch:
+    """The provider, each statement fetched at most once per ticker: the four
+    metrics and the sheet read the same income statement and earnings history."""
+
+    def __init__(self, provider):
+        self._provider, self._seen = provider, {}
+
+    def __getattr__(self, name):
+        method = getattr(self._provider, name)
+
+        def once(*args, **kwargs):
+            key = (name, args, tuple(sorted(kwargs.items())))
+            if key not in self._seen:
+                self._seen[key] = method(*args, **kwargs)
+            return self._seen[key]
+        return once
+
+
+def _sheet_filed(ticker: str, as_of, provider) -> dict | None:
+    """The filed part of the fundamentals sheet (``core.fundamentals.sheet``): the
+    EPS reports, the quarters, the earnings quality. The SEC fills the year-ago
+    quarters only when ``SEC_CONTACT`` names a contact. None on a vendor miss."""
+    from core.fundamentals import sec, sheet
+    from config import settings
+
+    try:
+        stmt = provider.get_income_stmt(ticker, quarterly=True)
+        earnings = provider.get_earnings_dates(ticker, limit=settings.FUNDAMENTALS_EARNINGS_HISTORY_LIMIT)
+        cashflow = provider.get_cashflow(ticker, quarterly=True)
+        sec_sales = sec.sales_for(ticker, as_of, _flag("SEC_CONTACT", ""), os.path.dirname(_cache_path()))
+        filed = sheet.filed_part(stmt, earnings, cashflow, as_of,
+                                 n=settings.FUND_SHEET_QUARTERS, sec_sales=sec_sales)
+    except Exception as e:
+        print(f"  [fundamentals sheet skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
+        return None
+    return filed if (filed["eps"] or filed["quarters"]) else None
+
+
+def _sheet_and_grade(filed: dict, ticker: str, frame, provider) -> dict:
+    """The whole sheet for tonight: the filed part, plus the estimate revisions
+    and the report-day reactions read fresh, plus the fundamental grade. Returns
+    the result-row fields (``_fund_sheet``, ``_fund_grade``, ``_fund_grade_score``)."""
+    from core.fundamentals import grade, sheet
+    from config import settings
+
+    try:
+        analysis = provider.get_analysis(ticker)
+    except Exception:
+        analysis = {}
+    try:
+        info = provider.info(ticker)
+    except Exception:
+        info = {}
+    try:
+        full = {**filed, **sheet.nightly_part(filed, analysis, frame, n=settings.FUND_SHEET_QUARTERS, info=info)}
+        full["grade"] = grade.grade(full)
+    except Exception as e:
+        # The sheet costs only itself: the four metrics on the row stand.
+        print(f"  [fundamentals grade skip {ticker}] {type(e).__name__}: {e}", file=sys.stderr)
+        return {}
+    known = full["grade"]["known"]
+    fields = {"_fund_sheet": full, "_fund_grade": full["grade"]["letter"]}
+    if known and full["grade"]["letter"] is not None:
+        fields["_fund_grade_score"] = round(full["grade"]["passed"] / known, 4)
+    return fields
+
+
 def _fund_fields_fresh(ticker: str, as_of, provider) -> tuple[dict, str | None]:
-    """The four filing-gated metrics + the next-earnings fact, fetched fresh.
-    Returns ``(fields, next_earnings_iso)``; failures degrade to empty."""
+    """The four filing-gated metrics, the filed part of the sheet and the
+    next-earnings fact, fetched fresh. Returns ``(fields, next_earnings_iso)``;
+    failures degrade to empty."""
     from core.fundamentals import metrics
 
+    provider = _OneFetch(provider)
     fields: dict = {}
     try:
         m = metrics.compute_metrics(ticker, as_of=as_of, provider=provider)
@@ -163,6 +235,9 @@ def _fund_fields_fresh(ticker: str, as_of, provider) -> tuple[dict, str | None]:
             fields["_fund_quarter_end"] = m["quarter_end"]
     except Exception:
         pass                          # vendor miss -> absent keys, counted below
+    filed = _sheet_filed(ticker, as_of, provider)
+    if filed is not None:
+        fields["_fund_sheet_filed"] = filed
     nxt = None
     try:
         raw = provider.earnings_date(ticker)
@@ -210,7 +285,7 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
     cache, dropped = _load_cache(path) if fundamentals_on else ({}, 0)
     counts = {"attempted": 0, "populated": 0, "cache_hits": 0,
               "refused_no_as_of": 0, "rs_attempted": 0, "rs_populated": 0,
-              "errored": 0}
+              "errored": 0, "sheet_populated": 0}
     if dropped:
         counts["cache_dropped"] = dropped
 
@@ -240,7 +315,9 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
                             and entry.get("as_of")
                             and entry["as_of"] <= as_of_iso
                             and as_of_iso < entry["next_earnings"]
-                            and as_of_iso < (_next_quarter_visible(entry) or "9999"))
+                            and as_of_iso < (_next_quarter_visible(entry) or "9999")
+                            # an entry from before the sheet existed refetches once
+                            and entry.get("sheet_version") == SHEET_VERSION)
                 if reusable:
                     fund = _fund_fields_cached(entry, as_of)
                     counts["cache_hits"] += 1
@@ -252,11 +329,18 @@ def attach_fundamentals_post_pass(results: list, ticker_frames: dict,
                         # earnings date is the alarm without the recovery.
                         cache[ticker] = {
                             "as_of": as_of_iso, "next_earnings": nxt,
+                            "sheet_version": SHEET_VERSION,
                             "fund_fields": {k: v for k, v in fund.items()
                                             if k != "_days_to_earnings"}}
                 if _holds_metrics(fund):
                     counts["populated"] += 1
+                filed = fund.pop("_fund_sheet_filed", None)
                 fields.update(fund)
+                if isinstance(filed, dict):
+                    sheet_fields = _sheet_and_grade(filed, ticker, df, provider)
+                    if sheet_fields:
+                        counts["sheet_populated"] += 1
+                        fields.update(sheet_fields)
 
             if rs_line_on:
                 counts["rs_attempted"] += 1

@@ -40,6 +40,14 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   earnings surprise, naming the quarter. Next on his word (2026-10-03, "yes also for #3"): after a
   few weeks of archived fires, measure which leadership / fundamentals combination finds the
   winners, then define the stock grade from that. More grade work on both reads is planned.
+- **The fundamentals sheet and the fundamental grade** (2026-10-12, his go-ahead; display and
+  archive only): the detail panel's Fundamentals section shows the last four reports and quarters,
+  margins, beats, estimate revisions, the report-day reactions and earnings quality, and a grade
+  A-D from nine checks (`FUND_*` in `config/enrichment.py`; archived `fund_grade`,
+  `fund_grade_score`, `fund_sheet_json`). Two grades by his ruling: technical (the chart + ADR,
+  trend template) and fundamental. Not on the card, not in the board order yet. The SEC fill of
+  year-ago quarters is ON (his email as the SEC contact, 2026-10-12). The card's chart well flips to a
+  fundamentals page (F), with a descriptive label, a strict Code 33 badge and quality flags. Engine stamp `ece8546e`.
 - **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
   panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
   display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated
