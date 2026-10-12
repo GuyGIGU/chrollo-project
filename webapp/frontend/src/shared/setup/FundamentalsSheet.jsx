@@ -14,7 +14,13 @@ export default function FundamentalsSheet({ data }) {
     <section className="stock-lens-section fund-sheet">
       <div className="stock-lens-section-header">
         <span>Fundamentals</span>
-        <small>{gradeNote(sheet)} · cap {fmtMoneyCompact(data.market_cap)}</small>
+        <small>cap {fmtMoneyCompact(data.market_cap)}</small>
+      </div>
+      <div className="fund-sheet-verdict" data-grade={head.letter || 'none'} title={head.title}>
+        <span className="fund-grade-tile">{head.letter || '–'}</span>
+        <span style={{ color: head.labelTone }}>{head.label}</span>
+        <small>{head.checks || gradeNote(sheet)}</small>
+        {head.code33 ? <span className="fund-card-badge" title={head.code33Title}>Code 33 ✓</span> : null}
       </div>
       {head.snapshot || snap.summary ? (
         <div className="fund-sheet-snapshot">
@@ -32,9 +38,9 @@ export default function FundamentalsSheet({ data }) {
               <tr key={r.key}>
                 <td>{r.day}</td>
                 <td>{r.eps}</td>
-                <td>{r.yoy}</td>
+                <td style={{ color: r.yoyTone }}>{r.yoy}</td>
                 <td style={{ color: r.beat == null ? undefined : r.beat ? 'var(--success)' : 'var(--warning)' }}>{r.surprise}</td>
-                <td title={r.moveTitle}>{r.move}</td>
+                <td title={r.moveTitle} style={{ color: r.moveTone }}>{r.move}</td>
               </tr>
             ))}
           </tbody>
@@ -50,9 +56,9 @@ export default function FundamentalsSheet({ data }) {
               <tr key={q.key}>
                 <td>{q.quarter}</td>
                 <td>{q.sales}</td>
-                <td title={q.yoyTitle}>{q.yoy}</td>
-                <td>{q.qoq}</td>
-                <td>{q.operatingMargin}</td>
+                <td title={q.yoyTitle} style={{ color: q.yoyTone }}>{q.yoy}</td>
+                <td style={{ color: q.qoqTone }}>{q.qoq}</td>
+                <td style={{ color: q.marginTone }}>{q.operatingMargin}</td>
                 <td title={q.gaapTitle}>{q.gaap}</td>
               </tr>
             ))}
@@ -61,7 +67,7 @@ export default function FundamentalsSheet({ data }) {
       ) : null}
       <div className="fund-sheet-lines">
         {sheetLines(sheet).map((line) => (
-          <div key={line.k}><span className="lens-k">{line.k}</span> {line.v}</div>
+          <div key={line.k}><span className="lens-k">{line.k}</span> <span style={{ color: line.tone }}>{line.v}</span></div>
         ))}
       </div>
       <ul className="fund-sheet-checks">

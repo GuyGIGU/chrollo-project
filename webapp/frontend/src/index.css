@@ -1549,46 +1549,88 @@ td {
 }
 
 /* The card's second page (2026-10-12): the business laid over the chart well, in the
-   well's own size, so a flip never moves the board. */
+   well's own size, so a flip never moves the board. Colored the same day (his "more
+   color and style"): the grade owns the tile and the page's left edge (A solid green,
+   B green tint, C amber, D rose; never a tier hue), and every figure wears its sign. */
 .fund-card-page {
+  --grade-tone: var(--text-faint);
   background: var(--bg-panel);
+  border-left: 3px solid var(--grade-tone);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   inset: 0;
   overflow: hidden;
-  padding: 8px 10px;
+  padding: 10px 12px 10px 11px;
   position: absolute;
   z-index: 10; /* over the chart library's own logo */
 }
 
-.fund-card-head {
-  align-items: baseline;
-  display: flex;
-  gap: 8px;
+[data-grade="A"],
+[data-grade="B"] { --grade-tone: var(--success); }
+[data-grade="C"] { --grade-tone: var(--warning); }
+[data-grade="D"] { --grade-tone: var(--danger); }
+
+.fund-grade-tile {
+  align-items: center;
+  background: color-mix(in srgb, var(--grade-tone) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--grade-tone) 60%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--grade-tone);
+  display: inline-flex;
+  flex: none;
+  font-size: 20px;
+  font-weight: 800;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
 }
 
-.fund-card-title {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
+/* A is the one solid tile: the best business reads first. */
+[data-grade="A"] .fund-grade-tile {
+  background: var(--grade-tone);
+  color: var(--bg-main);
+}
+
+.fund-card-head {
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+
+.fund-card-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .fund-card-verdict {
   color: var(--text-main);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fund-card-verdict small {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .fund-card-badge {
-  border: 1px solid var(--myth);
+  background: var(--success);
   border-radius: var(--radius-xs);
-  color: var(--myth);
-  font-size: 9px;
+  color: var(--bg-main);
+  flex: none;
+  font-size: 10px;
   font-weight: 800;
+  letter-spacing: 0.04em;
   margin-left: auto;
-  padding: 1px 4px;
+  padding: 3px 7px;
+  text-transform: uppercase;
 }
 
 .fund-card-snapshot {
@@ -1601,29 +1643,78 @@ td {
 
 .fund-card-lines {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  justify-content: space-evenly; /* the well's height, shared out among the lines */
   min-height: 0;
 }
 
 .fund-card-line {
+  align-items: baseline;
   display: grid;
-  font-size: 12px;
+  font-size: 14px;
   gap: 10px;
-  grid-template-columns: 86px minmax(0, 1fr);
+  grid-template-columns: 96px minmax(0, 1fr);
 }
 
 .fund-card-k {
   color: var(--text-muted);
+  font-size: 13px;
   white-space: nowrap;
 }
 
 .fund-card-v {
   color: var(--text-main);
   font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fund-strong {
+  font-weight: 700;
+}
+
+/* A verdict word (speeding up, beat, a flag): a pill in its own tone. */
+.fund-pill {
+  --tone: var(--text-muted);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-radius: var(--radius-pill);
+  color: var(--tone);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+  padding: 0 7px;
+}
+
+.fund-card-v .fund-pill:first-child {
+  margin-left: 0;
+}
+
+/* The lens panel's own verdict line: the same tile, label and badge, smaller. */
+.fund-sheet-verdict {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fund-sheet-verdict .fund-grade-tile {
+  font-size: 15px;
+  height: 26px;
+  width: 26px;
+}
+
+.fund-sheet-verdict small {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 /* Finviz-style dense read grid: hairline-separated label/value cells. The 1px

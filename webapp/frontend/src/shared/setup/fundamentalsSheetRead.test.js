@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EMPTY } from '../formatting/format.js';
 import {
-  cardHeader, cardLines, checkRows, dayShort, epsChange, gradeNote, nextEarningsLine, hasFundamentalsSheet, quarterRows, quarterShort, reportRows, sheetLines,
+  cardHeader, cardLines, checkRows, dayShort, epsChange, gradeNote, growthTone, labelTone, nextEarningsLine, signTone, trendTone, hasFundamentalsSheet, quarterRows, quarterShort, reportRows, sheetLines,
 } from './fundamentalsSheetRead.js';
 
 const SHEET = {
@@ -123,4 +123,57 @@ test('cardLines: the compact page, sales on the quarter when the year-ago quarte
   assert.ok(cardLines(full).some((l) => l.k === 'Sales y/y'));
   const turned = { eps: [{ day: '2026-01-01', yoy: null, turn: 'loss → profit' }] };
   assert.equal(cardLines(turned)[0].v, 'loss → profit');
+});
+
+test('the tones: green up, rose down, the words off a loss, the trend and label words', () => {
+  assert.equal(signTone(0.3), 'var(--success)');
+  assert.equal(signTone(-0.1), 'var(--danger)');
+  assert.equal(signTone(0), undefined);
+  assert.equal(signTone(null), undefined);
+  assert.equal(growthTone(null, 'loss → profit'), 'var(--success)');
+  assert.equal(growthTone(null, 'loss narrowed'), 'var(--success)');
+  assert.equal(growthTone(0.5, 'loss widened'), 'var(--danger)');
+  assert.equal(trendTone('accelerating'), 'var(--success)');
+  assert.equal(trendTone('expanding'), 'var(--success)');
+  assert.equal(trendTone('slowing'), 'var(--warning)');
+  assert.equal(trendTone('shrinking'), 'var(--warning)');
+  assert.equal(labelTone('Accelerating growth'), 'var(--success)');
+  assert.equal(labelTone('Turnaround'), 'var(--accent-blue)');
+  assert.equal(labelTone('Mixed / insufficient data'), 'var(--text-faint)');
+});
+
+test('the rows carry their tones: growth, the move, the margin, the flags', () => {
+  const [, latest] = reportRows(SHEET);
+  assert.equal(latest.yoyTone, 'var(--success)');
+  assert.equal(latest.moveTone, 'var(--success)');
+  const [q] = quarterRows(SHEET);
+  assert.equal(q.marginTone, 'var(--danger)');
+  assert.equal(q.qoqTone, 'var(--success)');
+  const lines = Object.fromEntries(sheetLines(SHEET).map((l) => [l.k, l]));
+  assert.equal(lines.Flags.tone, 'var(--warning)');
+  const clean = { quality: { flags: [], flags_known: true } };
+  assert.equal(Object.fromEntries(sheetLines(clean).map((l) => [l.k, l])).Flags.tone, 'var(--success)');
+  const head = cardHeader(SHEET);
+  assert.equal(head.labelTone, 'var(--success)');
+  assert.equal(head.checks, '8 of 9 checks');
+});
+
+test('cardLines: each line in toned pieces, verdict words as pills', () => {
+  const lines = Object.fromEntries(cardLines(SHEET).map((l) => [l.k, l]));
+  const eps = lines['EPS y/y'].parts;
+  assert.deepEqual(eps.map((p) => p.t), ['+63%', ' → ', '+77%', 'speeding up']);
+  assert.equal(eps[2].tone, 'var(--success)');
+  assert.deepEqual(eps[3], { t: 'speeding up', tone: 'var(--success)', pill: true });
+  const margin = lines['Op. margin'].parts;
+  assert.equal(margin[2].tone, 'var(--danger)');
+  assert.equal(margin[3].t, 'expanding');
+  const report = lines['Last report'].parts;
+  assert.deepEqual(report[0], { t: 'missed −4%', tone: 'var(--warning)', pill: true });
+  assert.equal(report.map((p) => p.t).join(''), 'missed −4% traded +17% on 4.2x vol');
+  assert.equal(lines.Estimates.parts.map((p) => p.t).join(''), '+15% in 90 days · 43 up / 1 down');
+  assert.equal(lines.Estimates.parts.at(-1).tone, 'var(--danger)');
+  assert.deepEqual(lines.Quality.parts, [{ t: 'stock pay 30% of sales', tone: 'var(--warning)', pill: true }]);
+  assert.deepEqual(lines['Next report'].parts.map((p) => p.t), ['02/12/26', 'estimate']);
+  const turned = cardLines({ eps: [{ day: '2026-01-01', yoy: null, turn: 'loss widened' }] });
+  assert.equal(turned[0].parts[0].tone, 'var(--danger)');
 });

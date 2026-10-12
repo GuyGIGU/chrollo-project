@@ -60,9 +60,11 @@ export const reportRows = (sheet) => {
       day: dayShort(e.day),
       eps: finiteOrNull(e.eps) == null ? EMPTY : e.eps.toFixed(2),
       yoy: e.turn || signed(e.yoy),
+      yoyTone: growthTone(e.yoy, e.turn),
       surprise: signed(e.surprise),
       beat: finiteOrNull(e.surprise) == null ? null : e.surprise > 0,
       move: v ? signed(v.change) : EMPTY,
+      moveTone: v ? signTone(v.change) : undefined,
       moveTitle: v
         ? `Traded on it ${dayShort(v.day)}: ${signed(v.change)}, ${ranges(v.ranges)} daily ranges, on ${times(v.volume_ratio)} the 50-day volume`
         : 'No price data for the report day',
@@ -76,11 +78,14 @@ export const quarterRows = (sheet) => (sheet?.quarters || []).map((q) => ({
   quarter: quarterShort(q.end),
   sales: money(q.sales),
   yoy: signed(q.sales_yoy),
+  yoyTone: signTone(q.sales_yoy),
   yoyTitle: q.sales_yoy_source === 'sec'
     ? 'The same quarter a year earlier, from the SEC filings'
     : 'The same quarter a year earlier',
   qoq: signed(q.sales_qoq),
+  qoqTone: signTone(q.sales_qoq),
   operatingMargin: margin(q.operating_margin),
+  marginTone: signTone(q.operating_margin),
   gaap: finiteOrNull(q.eps_gaap) == null ? EMPTY : q.eps_gaap.toFixed(2),
   gaapTitle: `GAAP diluted EPS; on the year: ${q.eps_gaap_turn || signed(q.eps_gaap_yoy)}`,
 }));
@@ -111,11 +116,48 @@ export const sheetLines = (sheet) => {
       v: `cash flow ${money(q.operating_cash_flow)} vs net income ${money(q.net_income)}`
         + (sbc == null ? '' : ` · stock pay ${(sbc * 100).toFixed(0)}% of sales`),
     },
-    { k: 'Flags', v: q.flags_known ? ((q.flags || []).length ? q.flags.join(' · ') : 'none identified') : EMPTY },
-    { k: 'Code 33', v: c33 ? `${c33.met === true ? 'met' : c33.met === false ? 'not met' : 'not known'}: ${c33.why}` : EMPTY },
+    {
+      k: 'Flags',
+      v: q.flags_known ? ((q.flags || []).length ? q.flags.join(' · ') : 'none identified') : EMPTY,
+      tone: q.flags_known ? ((q.flags || []).length ? CAUTION : UP) : undefined,
+    },
+    {
+      k: 'Code 33',
+      v: c33 ? `${c33.met === true ? 'met' : c33.met === false ? 'not met' : 'not known'}: ${c33.why}` : EMPTY,
+      tone: c33?.met === true ? UP : undefined,
+    },
     { k: 'Next report', v: nextEarningsLine(sheet?.next_earnings) },
   ];
 };
+
+// ── Color (2026-10-12, his "more color and style"): tones only, each looked up from a
+// sign or a word the scan already decided, never a threshold of our own (EC-28). ──
+const UP = 'var(--success)';
+const DOWN = 'var(--danger)';
+const CAUTION = 'var(--warning)';
+const QUIET = 'var(--text-faint)';
+
+// Green up, rose down, nothing for zero or unknown.
+export const signTone = (value) => {
+  const n = finiteOrNull(value);
+  if (n == null || n === 0) return undefined;
+  return n > 0 ? UP : DOWN;
+};
+
+const TURN_TONES = { 'loss → profit': UP, 'loss narrowed': UP, 'loss widened': DOWN };
+const TREND_TONES = { accelerating: UP, expanding: UP, slowing: CAUTION, shrinking: CAUTION, mixed: QUIET };
+const LABEL_TONES = {
+  'Accelerating growth': UP, 'Strong growth': UP, Turnaround: 'var(--accent-blue)', 'Mixed / insufficient data': QUIET,
+};
+export const trendTone = (word) => TREND_TONES[word];
+export const labelTone = (label) => LABEL_TONES[label] || QUIET;
+// A growth figure's tone: the scan's words off a loss, else the sign.
+export const growthTone = (growth, words) => (words ? TURN_TONES[words] : signTone(growth));
+
+// "a → b → c", each figure in its own tone, the arrows quiet.
+const toneSequence = (items) => items.flatMap((item, i) => (
+  i ? [{ t: ' → ', tone: QUIET }, item] : [item]));
+const trendPill = (word) => (word ? [{ t: trendWord(word), tone: trendTone(word), pill: true }] : []);
 
 const MARKS = { true: '✓', false: '✗', null: '–' };
 const TONES = { true: 'var(--success)', false: 'var(--warning)', null: 'var(--text-faint)' };
@@ -152,6 +194,8 @@ export const cardHeader = (sheet) => {
   return {
     letter: g.letter || null,
     label: g.label || 'Mixed / insufficient data',
+    labelTone: labelTone(g.label || 'Mixed / insufficient data'),
+    checks: g.letter ? `${g.passed} of ${g.known} checks` : null,
     title: g.letter ? `Fundamental grade ${g.letter}: ${g.passed} of ${g.known} checks with data passed` : 'Not enough data for a grade',
     code33: g.code33?.met === true,
     code33Title: g.code33?.why || '',
@@ -177,6 +221,12 @@ export const cardLines = (sheet) => {
       k: 'EPS y/y',
       v: `${sequence(eps.map((e) => (e.turn || finiteOrNull(e.yoy) != null ? epsChange(e.yoy, e.turn) : null)))}`
         + (trendWord(t.eps) ? ` · ${trendWord(t.eps)}` : ''),
+      parts: [
+        ...toneSequence(eps.map((e) => (e.turn || finiteOrNull(e.yoy) != null
+          ? { t: epsChange(e.yoy, e.turn), tone: growthTone(e.yoy, e.turn) }
+          : { t: EMPTY, tone: QUIET }))),
+        ...trendPill(t.eps),
+      ],
       title: 'Adjusted EPS, the figure the analysts estimate, each report against the same quarter a year earlier',
     },
     useQoq
@@ -184,12 +234,14 @@ export const cardLines = (sheet) => {
         k: 'Sales q/q',
         v: sequence(quarters.map((q) => (finiteOrNull(q.sales_qoq) == null ? null : signed(q.sales_qoq))))
           + (trendWord(t.sales_qoq) ? ` · ${trendWord(t.sales_qoq)}` : ''),
+        parts: [...toneSequence(quarters.map((q) => ({ t: signed(q.sales_qoq), tone: signTone(q.sales_qoq) }))), ...trendPill(t.sales_qoq)],
         title: 'Sales on the quarter before: too few year-ago quarters to compare on the year',
       }
       : {
         k: 'Sales y/y',
         v: sequence(quarters.map((q) => (finiteOrNull(q.sales_yoy) == null ? null : signed(q.sales_yoy))))
           + (trendWord(t.sales) ? ` · ${trendWord(t.sales)}` : ''),
+        parts: [...toneSequence(quarters.map((q) => ({ t: signed(q.sales_yoy), tone: signTone(q.sales_yoy) }))), ...trendPill(t.sales)],
         title: 'Each quarter against the same quarter a year earlier',
       },
     {
@@ -198,6 +250,10 @@ export const cardLines = (sheet) => {
         ? EMPTY
         : `${margin(first.operating_margin_year_ago)} → ${margin(first.operating_margin)}`
           + (t.margin ? ` · ${t.margin}` : ''),
+      parts: finiteOrNull(first.operating_margin) == null ? null : [
+        ...toneSequence([first.operating_margin_year_ago, first.operating_margin].map((m) => ({ t: margin(m), tone: signTone(m) }))),
+        ...trendPill(t.margin),
+      ],
       title: 'The latest quarter against the same quarter a year earlier; the word reads the last three quarters',
     },
     {
@@ -207,6 +263,18 @@ export const cardLines = (sheet) => {
           + (reaction ? ` · traded ${signed(reaction.change)} on ${times(reaction.volume_ratio)} vol` : '')
         : EMPTY,
       tone: last && finiteOrNull(last.surprise) != null ? (last.surprise > 0 ? 'var(--success)' : 'var(--warning)') : undefined,
+      parts: last ? [
+        finiteOrNull(last.surprise) == null
+          ? { t: 'no estimate', tone: QUIET, pill: true }
+          : { t: `${last.surprise > 0 ? 'beat' : 'missed'} ${signed(last.surprise)}`, tone: last.surprise > 0 ? UP : CAUTION, pill: true },
+        ...(reaction ? [
+          { t: ' traded ' },
+          { t: signed(reaction.change), tone: signTone(reaction.change), strong: true },
+          { t: ' on ' },
+          { t: times(reaction.volume_ratio), strong: true },
+          { t: ' vol' },
+        ] : []),
+      ] : null,
     },
     {
       k: 'Estimates',
@@ -214,14 +282,36 @@ export const cardLines = (sheet) => {
         ? EMPTY
         : `${signed(r.this_year_change_90d)} in 90 days`
           + (r.up_30d == null || r.down_30d == null ? '' : ` · ${r.up_30d} up / ${r.down_30d} down`),
+      parts: finiteOrNull(r.this_year_change_90d) == null ? null : [
+        { t: signed(r.this_year_change_90d), tone: signTone(r.this_year_change_90d), strong: true },
+        { t: ' in 90 days' },
+        ...(r.up_30d == null || r.down_30d == null ? [] : [
+          { t: ' · ', tone: QUIET },
+          { t: `${r.up_30d} up`, tone: r.up_30d ? UP : QUIET },
+          { t: ' / ', tone: QUIET },
+          { t: `${r.down_30d} down`, tone: r.down_30d ? DOWN : QUIET },
+        ]),
+      ],
       title: "This year's EPS estimate now against 90 days ago; analysts raising against cutting over 30 days",
     },
     {
       k: 'Quality',
       v: sheet?.quality?.flags_known ? (flags.length ? flags.join(' · ') : 'none identified') : EMPTY,
       tone: flags.length ? 'var(--warning)' : undefined,
+      parts: !sheet?.quality?.flags_known ? null : flags.length
+        ? flags.map((f) => ({ t: f, tone: CAUTION, pill: true }))
+        : [{ t: '✓ none identified', tone: UP }],
     },
-    { k: 'Next report', v: nextEarningsLine(sheet?.next_earnings) },
+    {
+      k: 'Next report',
+      v: nextEarningsLine(sheet?.next_earnings),
+      parts: sheet?.next_earnings?.day ? [
+        { t: dayShort(sheet.next_earnings.day), strong: true },
+        sheet.next_earnings.confirmed === true
+          ? { t: 'confirmed', tone: 'var(--text-main)', pill: true }
+          : { t: sheet.next_earnings.confirmed === false ? 'estimate' : 'not said', tone: QUIET, pill: true },
+      ] : null,
+    },
   ];
   return lines;
 };

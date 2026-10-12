@@ -424,6 +424,15 @@ app's operator-mark gold, never a tier hue, because it is *his* judgement and no
 the engine's. (An earlier draft of this section claimed cards dim to 50% when
 marked; they never did — no such rule was ever written.)
 
+**The card's second page (F) is the business** (operator 2026-10-12), and it is
+colored ("more color and style"): the fundamental grade owns a letter tile and the
+page's left edge (A a solid green tile, B a green tint, C amber, D rose; never a tier
+hue, since the letter is not the setup's tier), the label wears green for growth and
+blue for a turnaround, Code 33 is a solid green badge shown only when met, every
+figure wears its sign (green up, rose down), and verdict words (speeding up, beat,
+missed, a quality flag, confirmed) are pills in their own tone. Every tone is looked
+up from a sign or a word the scan decided; none is a threshold of the frontend's.
+
 **The big chart acts like the card** (operator 2026-10-03, suggestion #1), so he
 can walk the whole filtered list with Next and act on each chart without closing
 it. Its top bar ends `[☆/★] [♡/♥] [↗ TV]  12 / 37  [Prev] [Next] [✕]`, and while
