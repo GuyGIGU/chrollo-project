@@ -142,11 +142,13 @@ SCREEN_KEY = "_wire_two_eyes"
 
 def two_eyes_screen_boxes(values: dict) -> list:
     """The family's boxes as the screen reads them: each line's price and the day it was anchored, the day the box
-    opened and the day it ended (None while live). Nothing the browser would have to work out.
+    opened and the day it ended (None while live), and how many of its own daily ranges tall it is (None without a
+    stored range). Nothing the browser would have to work out.
 
     ``values`` is :func:`two_eyes_archive_values`' own output, so the scan's wire (built from a live result) and the
     archive's chart (built from a stored row) are shaped by ONE function from ONE family and cannot drift apart. A
-    role whose two lines are not both there draws no box.
+    role whose two lines are not both there draws no box. The height is a ratio of two prices on one scale, so the
+    archive's chart, which rescales the lines onto today's candles, keeps it as it is.
     """
     boxes = []
     for role in SCREEN_ROLES:
@@ -154,10 +156,12 @@ def two_eyes_screen_boxes(values: dict) -> list:
             return values.get(f"two_eyes_{role}_{name}")
         if part("r_price") is None or part("s_price") is None:
             continue
+        unit = part("daily_range")
         boxes.append({"role": role,
                       "r": part("r_price"), "r_day": part("r_anchor_date"),
                       "s": part("s_price"), "s_day": part("s_anchor_date"),
-                      "opened": part("opened_date"), "end": part("end_date")})
+                      "opened": part("opened_date"), "end": part("end_date"),
+                      "ranges_tall": (part("r_price") - part("s_price")) / unit if unit else None})
     return boxes
 
 

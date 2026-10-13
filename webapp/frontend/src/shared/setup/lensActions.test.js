@@ -10,13 +10,15 @@ const ev = (over = {}) => ({
   ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...over,
 });
 
-test('W, L and T map to the three acts, in either case', () => {
+test('W, L, T and F map to the four acts, in either case', () => {
   assert.equal(lensKeyAction(ev({ key: 'w' })), 'watch');
   assert.equal(lensKeyAction(ev({ key: 'W', shiftKey: true })), 'watch');
   assert.equal(lensKeyAction(ev({ key: 'l' })), 'like');
   assert.equal(lensKeyAction(ev({ key: 'L' })), 'like');
   assert.equal(lensKeyAction(ev({ key: 't' })), 'tradingview');
-  assert.deepEqual(Object.values(LENS_ACTION_KEYS).sort(), ['like', 'tradingview', 'watch']);
+  assert.equal(lensKeyAction(ev({ key: 'f' })), 'fundamentals');
+  assert.equal(lensKeyAction(ev({ key: 'F', shiftKey: true })), 'fundamentals');
+  assert.deepEqual(Object.values(LENS_ACTION_KEYS).sort(), ['fundamentals', 'like', 'tradingview', 'watch']);
 });
 
 test('a held key does not repeat the act (holding W must not flicker the star)', () => {

@@ -4,6 +4,8 @@ import TimeframeMainChart from '../charts/TimeframeMainChart';
 import TimeframeMiniRow from './TimeframeMiniRow';
 import useDailyStructureChart from '../charts/useDailyStructureChart';
 import ScreenerModalToolbar from './ScreenerModalToolbar';
+import { hasFundamentalsSheet } from './fundamentalsSheetRead';
+import { lensKeyAction } from './lensActions';
 
 // The top bar (ScreenerModalToolbar.jsx) draws the star, the heart and the
 // "12 / 37" counter only when the host hands them in (the screener grid does);
@@ -15,15 +17,32 @@ const ScreenerModal = ({
   const chartContainerRef = useRef(null);
   const [activeRegion, setActiveRegion] = useState(null);
   const [interval, selectInterval] = useState('D');
+  // The panel under the chart has two pages (Tue 13/10/2026, his "show the fundamental card as a second page rather
+  // then another block below"): the read, and the fundamentals when the scan carried a sheet.
+  const [page, setPage] = useState('read');
+  const hasSheet = hasFundamentalsSheet(data);
 
   const hasWeekly = data?.weekly_candles?.length > 0;
   const hasMonthly = data?.monthly_candles?.length > 0;
 
-  // Reset overlays and snap back to the daily chart on every ticker change.
+  // Reset overlays and snap back to the daily chart and the read on every ticker change.
   useEffect(() => {
     setActiveRegion(null);
     selectInterval('D');
+    setPage('read');
   }, [ticker]);
+
+  // F flips the page, as it flips a card; only where there is a second page to flip to.
+  useEffect(() => {
+    if (!hasSheet) return undefined;
+    const onKey = (event) => {
+      if (lensKeyAction(event) !== 'fundamentals') return;
+      event.preventDefault();
+      setPage((now) => (now === 'read' ? 'fundamentals' : 'read'));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [hasSheet]);
 
   useEffect(() => {
     if (interval !== 'D') setActiveRegion(null);
@@ -128,7 +147,9 @@ const ScreenerModal = ({
             data={data}
             earnings={earnings}
             interval={interval}
+            onPageChange={hasSheet ? setPage : null}
             onRegionChange={setActiveRegion}
+            page={hasSheet ? page : 'read'}
             scanIdentity={scanIdentity}
             ticker={ticker}
           />

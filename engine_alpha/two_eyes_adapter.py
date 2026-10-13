@@ -237,7 +237,7 @@ def to_result(read: Read, frame=None):
 def _wire_block(read: Read, result: dict) -> dict:
     """The screen's block for a two-eyes fire (build task 15): days and resolved prices, nothing for the browser to
     work out. The boxes are the archive family's own, through its one shaper, so the scan's card and the archive's
-    chart of the same row draw the same lines; the LPS, the state word and the grade are the record's."""
+    chart of the same row draw the same lines; the LPS, the state word, the grade and the story are the record's."""
     lps, grade = read.lps, read.grade
     return {
         "boxes": two_eyes_screen_boxes(two_eyes_archive_values(result.get, prefixed=True)),
@@ -250,7 +250,23 @@ def _wire_block(read: Read, result: dict) -> dict:
         "grade": None if grade is None else {
             "score": result["_ta_grade"], "letter": grade.letter,
             "empty_days": int(grade.empty_days), "base_days": int(grade.base_days), "holds": bool(grade.holds)},
+        # The story the grade panel tells left to right (Tue 13/10/2026, his "the Grade section ... is completely
+        # broken"): every word the reader named on the box shown, oldest first. Scan-only: the archive keeps no
+        # event, so the archive's chart of the same row says it has no story rather than an empty one.
+        "events": [_wire_event(event) for event in read.events],
     }
+
+
+def _wire_event(event) -> dict:
+    """One word of the story as the screen reads it: the word, the day it points at and the price there, the first
+    and last day of the swing that makes it, its size in the daily ranges the words are read in, whether it has
+    settled, and the reader's own note (what opened the right side; an SOS no LPS follows yet)."""
+    def day(value):
+        return None if value is None else value.isoformat()
+    return {"kind": event.kind, "day": event.day.isoformat(), "price": float(event.price),
+            "first": day(event.first_day), "last": day(event.last_day),
+            "size": None if event.size is None else float(event.size),
+            "committed": bool(event.committed), "note": event.note or None}
 
 
 def _box_family(role: str, box) -> dict:

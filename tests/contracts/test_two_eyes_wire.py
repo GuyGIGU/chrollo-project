@@ -94,15 +94,45 @@ def test_the_block_carries_dates_and_prices_and_nothing_to_work_out():
     block = to_result(_read())["_wire_two_eyes"]
     assert block["boxes"] == [
         {"role": "parent", "r": 100.0, "r_day": "2026-01-05", "s": 90.0, "s_day": "2026-01-07",
-         "opened": "2026-01-05", "end": None},
+         "opened": "2026-01-05", "end": None, "ranges_tall": 5.0},
         {"role": "mini", "r": 98.0, "r_day": "2026-02-10", "s": 94.0, "s_day": "2026-02-12",
-         "opened": "2026-02-10", "end": None},
+         "opened": "2026-02-10", "end": None, "ranges_tall": pytest.approx(4.0 / 1.5)},
     ]
     assert block["lps"] == {"against": "mini", "how": "on", "start": "2026-03-02", "end": "2026-03-06",
                             "trigger": 98.4}
     assert block["state"] == "fired" and block["state_days"] is None
     assert block["grade"] == {"score": 92.3, "letter": "S", "empty_days": 2, "base_days": 41, "holds": True}
+    assert block["events"] == [], "a read that named nothing carries an empty story, never a missing one"
     json.dumps(block, allow_nan=False)              # the wire's own test: days as text, plain numbers
+
+
+def test_the_block_carries_the_story_the_reader_named():
+    """The grade panel tells the story left to right (Tue 13/10/2026): each word with its day, its price, its
+    swing's first and last day, its size in daily ranges and whether it has settled, oldest first."""
+    from engine_alpha.two_eyes import record
+    from engine_alpha.two_eyes_adapter import to_result
+
+    d = dt.date
+    events = (
+        record.Event(kind=record.SPRING, day=d(2026, 2, 10), price=89.0, first_day=d(2026, 2, 6),
+                     last_day=d(2026, 2, 13), size=0.75, committed=True, known_day=d(2026, 2, 13)),
+        record.Event(kind=record.SOS, day=d(2026, 2, 24), price=101.5, first_day=d(2026, 2, 17),
+                     last_day=d(2026, 2, 24), size=3.2, committed=False, note="no LPS follows it yet"),
+        record.Event(kind=record.PHASE_D, day=d(2026, 2, 17), price=93.0, committed=True, note="SOS"),
+    )
+    read = _read()
+    read = record.Read(ticker=read.ticker, as_of=read.as_of, boxes=read.boxes, lps=read.lps, state=read.state,
+                       close=read.close, grade=read.grade, events=events)
+    block = to_result(read)["_wire_two_eyes"]
+    assert block["events"] == [
+        {"kind": "spring", "day": "2026-02-10", "price": 89.0, "first": "2026-02-06", "last": "2026-02-13",
+         "size": 0.75, "committed": True, "note": None},
+        {"kind": "SOS", "day": "2026-02-24", "price": 101.5, "first": "2026-02-17", "last": "2026-02-24",
+         "size": 3.2, "committed": False, "note": "no LPS follows it yet"},
+        {"kind": "Phase D", "day": "2026-02-17", "price": 93.0, "first": None, "last": None,
+         "size": None, "committed": True, "note": "SOS"},
+    ]
+    json.dumps(block, allow_nan=False)
 
 
 def test_the_screens_boxes_are_the_archive_familys_own():
@@ -356,12 +386,13 @@ def test_the_archives_chart_draws_a_two_eyes_row_from_its_days(db, monkeypatch):
     block = chart["two_eyes"]
     assert block["boxes"] == [
         {"role": "parent", "r": 200.0, "r_day": "2026-01-05", "s": 180.0, "s_day": "2026-01-07",
-         "opened": "2026-01-05", "end": None},
+         "opened": "2026-01-05", "end": None, "ranges_tall": 5.0},
         {"role": "mini", "r": 196.0, "r_day": "2026-02-10", "s": 188.0, "s_day": "2026-02-12",
-         "opened": "2026-02-10", "end": None},
-    ]
+         "opened": "2026-02-10", "end": None, "ranges_tall": pytest.approx(4.0 / 1.5)},
+    ], "the height in daily ranges is a ratio: the rescale onto today's candles leaves it as stored"
     assert block["lps"] == {"against": "mini"}
     assert block["grade"] == {"score": 92.3, "letter": "S"}
+    assert "events" not in block, "the archive keeps no story: absent, so the panel says so, never an empty one"
     assert chart["R"] == pytest.approx(200.0), "the old lines and the block's are rescaled alike"
 
 

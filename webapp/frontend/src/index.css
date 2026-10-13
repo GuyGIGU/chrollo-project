@@ -1028,6 +1028,18 @@ td {
   font-weight: 500;
 }
 
+/* The two-eyes columns' unit after the figure ("1.6 ranges tall", "94.90
+   trigger"): set in the label face, small and faint, so the figure stays the
+   one thing on the number line. */
+.story-unit {
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-left: 6px;
+}
+
 /* Absence is a WORD, never 0.0 and never an em dash beside tabular figures
    (which reads as a minus sign). */
 .story-value.is-absent {
@@ -1437,6 +1449,69 @@ td {
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(280px, 0.9fr) minmax(420px, 1.1fr);
+}
+
+/* A row with no narrative panel beside its grids (the two-eyes reader's, or any
+   row on a weekly / monthly pane): the grids take the width in two even halves
+   instead of leaving the right one empty (2026-10-13). */
+.stock-lens-bottom.is-even {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* The panel's two pages, the read and the fundamentals (2026-10-13): a small
+   segmented switch in the interval tabs' grammar, mythril on the page shown. */
+.lens-page-tabs {
+  align-items: center;
+  display: flex;
+  gap: 0;
+}
+
+.lens-page-tab {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  height: 24px;
+  padding: 0 12px;
+}
+
+.lens-page-tab:first-child { border-radius: 6px 0 0 6px; }
+.lens-page-tab:nth-child(2) { border-left: 0; border-radius: 0 6px 6px 0; }
+
+.lens-page-tab:hover { color: var(--text-main); }
+
+.lens-page-tab.is-active {
+  background: var(--myth-soft);
+  color: var(--myth);
+}
+
+.lens-page-tab:focus-visible {
+  outline: 1px solid var(--myth);
+  outline-offset: 1px;
+}
+
+.lens-page-hint {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 8px;
+  padding: 3px 5px;
+}
+
+/* The fundamentals page: the numbers (verdict, snapshot, the two tables) on the
+   left, the lines and the nine checks beside them. */
+.fund-sheet-body {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
 }
 
 .stock-lens-section {
@@ -2531,7 +2606,9 @@ td {
     flex: 0 0 auto;
   }
 
-  .stock-lens-bottom {
+  .stock-lens-bottom,
+  .stock-lens-bottom.is-even,
+  .fund-sheet-body {
     grid-template-columns: 1fr;
   }
 }

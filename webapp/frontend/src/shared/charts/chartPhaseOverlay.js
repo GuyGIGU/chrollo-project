@@ -16,6 +16,10 @@ const REGION_DEFS = {
   c: { label: 'C', name: PHASE_NAMES.c, detail: 'Support shakeout or test', token: '--accent-pink' },
   d: { label: 'D', name: PHASE_NAMES.d, detail: 'Right-side tightening range', token: '--accent-blue' },
   lps: { label: 'LPS', name: PHASE_NAMES.lps, detail: 'Last support-test zone', token: '--accent-yellow' },
+  // The two-eyes reader's own bands (Tue 13/10/2026): the mini, and each word of its story over its own days. Keys
+  // of their own, so lighting the box never lights the mini or a word with it (the overlay matches id OR key).
+  mini: { label: 'MINI', name: 'Mini', detail: 'The smaller box inside the setup', token: '--accent-purple' },
+  story: { label: '•', name: 'Story', detail: 'A word of the story', token: '--text-faint' },
   // Rail episodes (Surface the Read): the tape describes, it never judges —
   // the neutral faint ink, deliberately no outcome color on the chart.
   episode: { label: 'EP', name: 'Rail episode', detail: 'One rail engagement', token: '--text-faint' },
@@ -315,13 +319,52 @@ const addLpsRegion = (regions, candles, startDate, endDate, lowValue, highValue,
   if (region) regions.push(region);
 };
 
-// A two-eyes row's bands: its box from the day it opened, and its LPS over its own days (the band spans those bars'
-// own lowest low and highest high). The old engine's phases are not carried on such a row.
+// The phase a word of the story lives in, which is the hue its band wears: the spring and its test are Phase C, the
+// upthrust Phase B's, and the SOS, a last supper and the right side's opening Phase D's.
+const STORY_TOKEN = {
+  spring: '--accent-pink',
+  'spring test': '--accent-pink',
+  upthrust: '--accent-purple',
+  SOS: '--accent-blue',
+  'last supper': '--accent-blue',
+  'Phase D': '--accent-blue',
+};
+
+// The ONE id of a word's band: the panel engages it and the overlay lights it by it.
+export const storyRegionId = (event) => `story:${event?.kind}:${event?.day}`;
+
+// A word's band: over its own swing (its first day to its last), or its one day when it carries no swing; Phase D
+// runs from the day the right side opened to the setup's last bar. Its price span is its bars' own (the overlay's
+// default for a band that names none).
+const storyRegion = (data, candles, event) => {
+  const last = setupEndIndex(data, candles);
+  const start = locateDay(candles, event?.first ?? event?.day);
+  const end = event?.kind === 'Phase D' ? last : locateDay(candles, event?.last ?? event?.day);
+  if (start == null || end == null || end < start) return null;
+  return buildRegion('story', candles, start, Math.min(end, last), {
+    id: storyRegionId(event),
+    token: STORY_TOKEN[event.kind] ?? REGION_DEFS.story.token,
+  });
+};
+
+// A two-eyes row's bands: its box from the day it opened, its mini (when it has one) inside its own lines, each word
+// of its story over its own days, and its LPS over its own days (the band spans those bars' own lowest low and
+// highest high). The old engine's phases are not carried on such a row.
 const twoEyesRegions = (data, candles) => {
   const regions = [];
   const parent = twoEyesBox(data, candles, 'parent');
   if (parent) {
     const region = buildRegion('b', candles, parent.openIndex, setupEndIndex(data, candles), { range: 'setupBox' });
+    if (region) regions.push(region);
+  }
+  const mini = twoEyesBox(data, candles, 'mini');
+  if (mini) {
+    const region = buildRegion('mini', candles, mini.openIndex, setupEndIndex(data, candles),
+      { high: mini.r, low: mini.s });
+    if (region) regions.push(region);
+  }
+  for (const event of data.two_eyes.events || []) {
+    const region = storyRegion(data, candles, event);
     if (region) regions.push(region);
   }
   const lps = data.two_eyes.lps;

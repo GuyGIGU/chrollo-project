@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TagRow } from './SetupTags';
+import TwoEyesStoryBank from './TwoEyesStoryBank';
 import { warningItems } from './chapterStrip.js';
 import { gradeCell, storyRows } from './setupStoryRows.js';
 import { explainTip } from '../formatting/tooltipText';
@@ -219,6 +220,27 @@ export default function SetupStoryPanel({ data, note, onRegionChange, regions = 
   // from before it, or the two-eyes reader's own grade — never the old grade's words on a new reader's row.
   const grade = gradeCell(data);
   const [engaged, setEngaged] = useState(null);
+  const header = (
+    <div className="stock-lens-section-header">
+      <span>Why It Stands Out</span>
+      {/* maxTags="auto" measures its own container, so flex:1 + minWidth:0 are
+          mandatory here or its ResizeObserver reads a collapsed width and
+          shows a single chip. */}
+      <TagRow compact data={data} maxTags="auto" style={{ flex: 1, minWidth: 0, padding: 0 }} />
+      {note ? <small>{note}</small> : null}
+    </div>
+  );
+
+  // A row the two-eyes reader wrote has none of the old grade's chapters (Tue 13/10/2026: the panel showed a grade
+  // and one "not graded" LPS). It tells its own read instead: the box, the story's words, the mini, the LPS.
+  if (data?.two_eyes) {
+    return (
+      <section className="stock-lens-section stock-lens-story">
+        {header}
+        <TwoEyesStoryBank data={data} grade={grade} onRegionChange={onRegionChange} regions={regions} />
+      </section>
+    );
+  }
 
   // Columns, with the LPS attached to its parent. Guarded on phase_d: an
   // archive payload can serve an orphan LPS with no Phase D to sit in, and it
@@ -247,14 +269,7 @@ export default function SetupStoryPanel({ data, note, onRegionChange, regions = 
 
   return (
     <section className="stock-lens-section stock-lens-story">
-      <div className="stock-lens-section-header">
-        <span>Why It Stands Out</span>
-        {/* maxTags="auto" measures its own container, so flex:1 + minWidth:0 are
-            mandatory here or its ResizeObserver reads a collapsed width and
-            shows a single chip. */}
-        <TagRow compact data={data} maxTags="auto" style={{ flex: 1, minWidth: 0, padding: 0 }} />
-        {note ? <small>{note}</small> : null}
-      </div>
+      {header}
 
       <div className="story-bank" style={{ '--story-track': track }}>
         <div className="story-total">

@@ -25,6 +25,7 @@ import { fundamentalsCells, fundamentalsNote, hasFundamentalsRead } from './fund
 import FundamentalsSheet from './FundamentalsSheet';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
 import { hasVolumeRead, volumeCells } from './volumeRead';
+import { twoEyesTechnicalCells } from './twoEyesStory';
 
 const pct = (value, digits = 1) => {
   const fixed = fx(value, digits, null);
@@ -91,18 +92,21 @@ const earningsDisplay = (earnings) => {
 
 // The Finviz-style dense read: one tight grid of the engine's technical facts.
 // Every cell is a measured structural fact from the scan payload — no invented
-// data; the fundamentals have their own section (FundamentalsGrid).
-function TechnicalReadGrid({ data, earnings }) {
+// data; the fundamentals have their own page. A row the two-eyes reader wrote
+// carries none of the old engine's counts (they printed as dashes, Tue
+// 13/10/2026): it shows its own read's facts instead.
+function TechnicalReadGrid({ data, earnings, regions }) {
   const contractions = finiteNumber(data.contraction_count);
   const earn = earningsDisplay(earnings);
+  const earningsCell = { k: 'Earnings', v: earn.value, tone: earn.tone, title: earn.title };
 
-  const cells = [
+  const cells = data.two_eyes ? [...twoEyesTechnicalCells(data, regions), earningsCell] : [
     { k: 'Box width', v: pct(boxWidthPct(data)) },
     { k: 'Base length', v: bars(data.base_len) },
     { k: 'LPS pullback', v: bars(data.lps_len) },
     { k: 'Contractions', v: contractions == null ? '-' : String(contractions) },
     { k: displayLabel('traversal_density'), v: fx(data.traversal_density, 2, '-') },
-    { k: 'Earnings', v: earn.value, tone: earn.tone, title: earn.title },
+    earningsCell,
   ];
 
   return <LensGridSection title="Technical read" note={data.setup || ''} cells={cells} />;
@@ -124,12 +128,40 @@ function LeadershipGrid({ data }) {
 
 // The fundamentals read (2026-10-03): the business beside the stock, apart from
 // the setup's grade. The note names the quarter the growth numbers describe.
-// From 2026-10-12 a scan carries the whole sheet and the fundamental grade; an
-// older payload keeps the four-number grid.
+// From 2026-10-12 a scan carries the whole sheet and the fundamental grade, and
+// from 2026-10-13 the sheet is the panel's second page (LensPageTabs); an older
+// payload keeps the four-number grid here.
 function FundamentalsGrid({ data }) {
-  if (hasFundamentalsSheet(data)) return <FundamentalsSheet data={data} />;
-  if (!hasFundamentalsRead(data)) return null;
+  if (hasFundamentalsSheet(data) || !hasFundamentalsRead(data)) return null;
   return <LensGridSection title="Fundamentals" note={fundamentalsNote(data)} cells={fundamentalsCells(data)} />;
+}
+
+const LENS_PAGES = [
+  { key: 'read', label: 'The read' },
+  { key: 'fundamentals', label: 'Fundamentals' },
+];
+
+// The panel's two pages (Tue 13/10/2026, his "show the fundamental card as a
+// second page rather then another block below"): F flips them, as on a card.
+function LensPageTabs({ page, onPageChange }) {
+  return (
+    <div className="lens-page-tabs" role="tablist" aria-label="Panel page">
+      {LENS_PAGES.map((tab) => (
+        <button
+          aria-selected={page === tab.key}
+          className={`lens-page-tab${page === tab.key ? ' is-active' : ''}`}
+          key={tab.key}
+          onClick={() => onPageChange(tab.key)}
+          role="tab"
+          title={`${tab.label} (F flips the page)`}
+          type="button"
+        >
+          {tab.label}
+        </button>
+      ))}
+      <span className="lens-page-hint">F</span>
+    </div>
+  );
 }
 
 // Volume at key points (2026-10-04): the LPS pullback and the Phase C spring
@@ -497,14 +529,34 @@ function FiredCrossedLine({ ticker }) {
   );
 }
 
-export default function ScreenerStockLens({ activeRegion, data, earnings, interval = 'D', onRegionChange, scanIdentity = null, ticker = null }) {
+export default function ScreenerStockLens({
+  activeRegion, data, earnings, interval = 'D', onPageChange = null, onRegionChange, page = 'read',
+  scanIdentity = null, ticker = null,
+}) {
   const showDailyStructure = interval === 'D';
   // The phase spans belong to the DAILY read — on a weekly/monthly pane there is
   // nothing on screen for them to point at, so the story rows keep their grades
-  // and drop their highlights rather than lighting bars that aren't there.
-  const regions = showDailyStructure ? buildPhaseRegions(data) : [];
+  // and drop their highlights rather than lighting bars that aren't there. The
+  // technical read counts its days on the daily bars whichever pane is up.
+  const dailyRegions = buildPhaseRegions(data);
+  const regions = showDailyStructure ? dailyRegions : [];
+  const tabs = onPageChange ? <LensPageTabs onPageChange={onPageChange} page={page} /> : null;
+
+  if (page === 'fundamentals' && hasFundamentalsSheet(data)) {
+    return (
+      <div className="stock-lens">
+        {tabs}
+        <FundamentalsSheet data={data} />
+      </div>
+    );
+  }
+
+  // The narrative panel speaks the OLD reader's tape; a two-eyes row is "not
+  // carried" there, so its read takes the whole width in two even columns.
+  const narrative = showDailyStructure && !data?.two_eyes;
   return (
     <div className="stock-lens">
+      {tabs}
       {/* The protagonist leads (operator 2026-08-12): the fused read is the
           first and widest thing in the panel; the measured grid and the
           narrative sit under it. */}
@@ -515,14 +567,14 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
         regions={regions}
       />
       {ticker ? <FiredCrossedLine ticker={ticker} /> : null}
-      <div className="stock-lens-bottom">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-          <LeadershipGrid data={data} />
-          <FundamentalsGrid data={data} />
-          <TechnicalReadGrid data={data} earnings={earnings} />
-          <VolumeGrid data={data} />
-        </div>
-        {showDailyStructure ? (
+      {narrative ? (
+        <div className="stock-lens-bottom">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+            <LeadershipGrid data={data} />
+            <FundamentalsGrid data={data} />
+            <TechnicalReadGrid data={data} earnings={earnings} regions={dailyRegions} />
+            <VolumeGrid data={data} />
+          </div>
           <NarrativePanel
             activeRegion={activeRegion}
             data={data}
@@ -530,8 +582,19 @@ export default function ScreenerStockLens({ activeRegion, data, earnings, interv
             scanIdentity={scanIdentity}
             ticker={ticker}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <div className="stock-lens-bottom is-even">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+            <TechnicalReadGrid data={data} earnings={earnings} regions={dailyRegions} />
+            <VolumeGrid data={data} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+            <LeadershipGrid data={data} />
+            <FundamentalsGrid data={data} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

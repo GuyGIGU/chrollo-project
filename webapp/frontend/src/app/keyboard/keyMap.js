@@ -27,6 +27,7 @@ export const KEY_SECTIONS = [
       { keys: ['Enter', ' '], does: 'Open the big chart for the card' },
       { keys: ['w'], does: 'Add to / remove from the watchlist' },
       { keys: ['l'], does: 'Like / unlike the setup' },
+      { keys: ['f'], does: 'Fundamentals page / back to the chart' },
     ],
   },
   {
@@ -37,6 +38,7 @@ export const KEY_SECTIONS = [
     routes: ['/', '/home', '/screener', '/archive'],
     rows: [
       { keys: ['t'], does: 'Open it on TradingView (new tab)' },
+      { keys: ['f'], does: 'Fundamentals page / back to the read' },
       { keys: ['Escape'], does: 'Close the big chart' },
     ],
   },

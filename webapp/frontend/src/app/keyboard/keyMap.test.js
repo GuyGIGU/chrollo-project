@@ -24,8 +24,9 @@ test('every calibration marking key is on the sheet, and every listed letter is 
 
 test('every card move is on the sheet, and every listed key is a real one', () => {
   const listed = keysOf('cards');
-  // The focused card's own keys (ScreenerCard): Enter and Space open the big chart, W stars, L likes.
-  const cardOwn = ['Enter', ' ', 'w', 'l'];
+  // The focused card's own keys (ScreenerCard): Enter and Space open the big chart, W stars, L likes, F flips the
+  // card to its fundamentals page.
+  const cardOwn = ['Enter', ' ', 'w', 'l', 'f'];
   for (const key of [...Object.keys(CARD_KEYS), ...cardOwn]) {
     assert.ok(listed.includes(key), `card key ${key} has no row`);
   }

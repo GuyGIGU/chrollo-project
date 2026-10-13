@@ -1,21 +1,14 @@
 import { fmtMoneyCompact } from '../formatting/format';
 import { cardHeader, checkRows, gradeNote, quarterRows, reportRows, sheetLines } from './fundamentalsSheetRead';
 
-// The fundamentals sheet (2026-10-12): his list, the business beside the stock,
-// graded apart from the setup. Reports and quarters as two small tables, the
-// estimates and earnings-quality lines, then the nine checks the grade rests on.
-export default function FundamentalsSheet({ data }) {
-  const sheet = data.fund_sheet;
+// The verdict, the snapshot and the two small tables: the numbers.
+function SheetNumbers({ sheet }) {
   const reports = reportRows(sheet);
   const quarters = quarterRows(sheet);
   const head = cardHeader(sheet);
   const snap = sheet.snapshot || {};
   return (
-    <section className="stock-lens-section fund-sheet">
-      <div className="stock-lens-section-header">
-        <span>Fundamentals</span>
-        <small>cap {fmtMoneyCompact(data.market_cap)}</small>
-      </div>
+    <div className="fund-sheet-numbers">
       <div className="fund-sheet-verdict" data-grade={head.letter || 'none'} title={head.title}>
         <span className="fund-grade-tile">{head.letter || '–'}</span>
         <span style={{ color: head.labelTone }}>{head.label}</span>
@@ -65,6 +58,14 @@ export default function FundamentalsSheet({ data }) {
           </tbody>
         </table>
       ) : null}
+    </div>
+  );
+}
+
+// The estimates and earnings-quality lines, then the nine checks: the words.
+function SheetWords({ sheet }) {
+  return (
+    <div className="fund-sheet-words">
       <div className="fund-sheet-lines">
         {sheetLines(sheet).map((line) => (
           <div key={line.k}><span className="lens-k">{line.k}</span> <span style={{ color: line.tone }}>{line.v}</span></div>
@@ -79,6 +80,28 @@ export default function FundamentalsSheet({ data }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// The fundamentals sheet (2026-10-12): his list, the business beside the stock,
+// graded apart from the setup. Reports and quarters as two small tables, the
+// estimates and earnings-quality lines, then the nine checks the grade rests on.
+// It is the big chart's second page (2026-10-13, his "a second page rather then
+// another block below"): the panel's whole width, the numbers on the left and
+// the lines and checks beside them.
+export default function FundamentalsSheet({ data }) {
+  const sheet = data.fund_sheet;
+  return (
+    <section className="stock-lens-section fund-sheet">
+      <div className="stock-lens-section-header">
+        <span>Fundamentals</span>
+        <small>cap {fmtMoneyCompact(data.market_cap)}</small>
+      </div>
+      <div className="fund-sheet-body">
+        <SheetNumbers sheet={sheet} />
+        <SheetWords sheet={sheet} />
+      </div>
     </section>
   );
 }
