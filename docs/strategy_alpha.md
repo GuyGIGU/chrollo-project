@@ -211,8 +211,37 @@ long advance with no visible turn from stage 1 (ANET) *"we take the last known v
 and mark them. Some look like dips/corrections and some like semi bases/bases."* His counts: SNOW
 2, FROG 1, HNGE 2, ANET 3, DDI 2. A rule written from them (the count starts once the weekly
 closes stop falling under a 40-week average that is not rising; a base ends only when a weekly
-close clears its top) matches three of the five; the pauses it adds on FROG and ANET are the open
-question.
+close clears its top) matches three of the five; the pauses it adds on FROG and ANET were the
+open question (his first-leg ruling below answers most of it).
+
+**The book's DECK and SYK (sent 2026-10-15).** Two more weekly charts from the book: DECK
+2006-2008, five bases, the fifth turning into the stage-3 top, and SYK 1990-1995, five bases
+from the 1990 bear-market low, a climax run (+65% in 11 weeks), stages 3 and 4, then "base 1"
+again in a new stage 2 in 1994. The rule above, run on their real weekly bars, finds every
+drawn base (SYK's first only by its last five weeks: the count restarts at the bear-market low
+inside it), its tops and lows sit on the SYK staircase's boxes by eye, and it restarts the
+count where the book does (the 1994 base reads 1). What it adds are short pauses the book
+leaves inside a run, in the same places it adds them on his five: in the first leg off the
+turn (DECK December 2005 to March 2006, like FROG's April shelf and June dip and ANET's 2025
+pauses), just under the next base (DECK October-November 2006, like ANET's July-August 2026
+pause), and in the last run into the top (DECK November 2007, SYK November 1991 inside the
+climax run). No size or length separates them: the skipped pauses ran 3 to 6 weeks and 11 to
+23% deep, while counted bases run as short as 4 weeks (DECK's third) and as shallow as 7%. A
+pause counting only when the stock runs 20% past it fits DECK but fails SYK, whose 1991 bases
+sit only about 12% apart. The widening is at the end, not base by base: DECK's bases ran 26,
+8, 7, 26 and 46% deep, and the 46% one (29 weeks, under the 40-week average) is the top. The
+two charts show the two endings: a late base that turns wide and loose (DECK) and a climax run
+out of the last base (SYK).
+
+**His ruling on the first leg (15/10/2026):** *"the pauses inside the first leg off the turn
+don't count. Base 1 is the first rest after that leg."* It is the book's point about letting
+someone else take the first leg up: base 1 comes once the first leg has shown that stage 2 is
+real. It answers FROG's April shelf and June dip and ANET's 2025 pauses. Still open: the pauses
+just under the next base and those in the last run into the top, and where the first leg ends
+in a rule. The only simple split found (base 1 is the first rest of 8 weeks or more) fits DECK,
+FROG, ANET, SNOW, DDI and SYK 1994, but it is fitted to them (ANET's skipped pause lasted 7
+weeks, SNOW's base 1 lasted 8). It misses HNGE's three-week May pit stop, and it misses SYK's
+1990 base, where the book counts the base that holds the bear-market low as base 1.
 
 *Status: not built.* Chrollo's base count reads 1 on every archived fire (it counts inside the
 latest short up-leg, never from the start of stage 2), so it is not shown. A real count needs
