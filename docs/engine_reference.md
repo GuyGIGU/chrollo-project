@@ -1533,6 +1533,54 @@ previous quarter until the FOLLOWING report.
 All Stage-2A fields persist to `setup_archive` (writer + seed parity) and are
 surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
 
+### The stage read (built Fri 16/10/2026, display + archive only)
+
+`engine_alpha/stage_read.py` reads the STOCK's life-cycle stage (1 neglect, 2 advance, 3 top,
+4 decline) on its weekly chart, and the week its current stage-2 advance began; the theory and the
+measurements are in [strategy_alpha.md](strategy_alpha.md), "Reading the stage". It lives at the top
+of `engine_alpha/` and not under `structure/context/` beside `htf.py` because the old reader's trees
+are frozen (`tests/engine/test_old_engine_frozen.py`); it imports only pandas, numpy,
+`config.settings` and the session calendar (`engine_alpha/market_sessions.py`).
+
+- `completed_weeks(daily)`: weeks ending Friday (high, low, last close), the forming week dropped
+  unless the frame's last day is its last session (the next NYSE session falls in a later week, so a
+  Good-Friday week completes on its Thursday).
+- `stages(weeks)`: one pass, left to right, carrying the last decided week. An advance week closes
+  above a rising `STAGE_MA_WEEKS` (40) average (above its value `STAGE_SLOPE_WEEKS` = 4 weeks earlier)
+  and at least `STAGE_OFF_LOW_MIN` (30%) over the `STAGE_LOW_WEEKS` (52) low of the weekly lows; a
+  decline week closes below a falling average. Stage 2 on an advance week and after one while the
+  average rises, 3 once it stops rising, 4 on a decline week, 1 after one or with neither in view;
+  None before the average and its four-weeks-earlier value exist (44 completed weeks).
+- `advance_start(weeks, upto)`: the week after the last weekly close under a 40-week average that is
+  not rising week over week (the count rule written from his counts, 12/10/2026). Its week-over-week test differs on
+  purpose from the stage's four-week slope: a shakeout week under an average that ticks down on the
+  week but still rises on the month is stage 2, and the count restarts (pinned in the tests).
+- `read_stage(daily)` returns `{"cycle_stage", "advance_start", "advance_weeks"}` (`STAGE_FACTS`),
+  the advance only in stage 2 and only when its start week lies in the frame; it never raises (a
+  frame it cannot use gives the three empties).
+- What the shape of the rule costs: its stage 3 needs the average to stop rising after an advance,
+  and on all seven of the book's tops the average turned down only with the price already under
+  it (2 straight to 4), so a fire, which needs the price over its averages, meets a top while the
+  read still says 2. A stage-3 read of a top on its fire days needs the topping-base signature, which
+  needs the advance's earlier bases (the first leg's end, his).
+
+**Where it rides.** `two_eyes_adapter.stock_stage(frame)`, beside `stock_trend`, on the WHOLE frame the
+universe door admitted (the cache's five years; never the two-year reading window), so every fire of
+the live reader carries `_cycle_stage`, `_advance_start`, `_advance_weeks`. The old reader's fires do
+not: `evaluation.py` is frozen, and a switch back leaves the three empty. The wire carries them in the
+leadership read (`dashboard._leadership_read`: `cycle_stage`, `advance_start`, `advance_weeks`, for
+both chart shapes); the detail panel's Leadership section shows "Stage" and "Advance"
+(`shared/setup/leadershipRead.js`, `stageCells`, labels only). The archive stores them in three
+model-only columns (`setup_archive.cycle_stage`, `advance_start`, `advance_weeks`; the Lane E pattern:
+the additive migrator adds them from the model at the next boot; the scan writer maps them, the seed
+and the manual add take them through the model-driven mapper). The four `STAGE_*` settings are not on
+the engine's version stamp: they move no fire. Cost: about 12 ms a fire.
+
+**The census.** `python -m tools.research.stage_read_census --db COPY --cache COPY [--json ...]` reads
+every archived episode on its first day, the matured ones' best gain in 40 trading days by stage and
+volatility third, the live reader's fires since the flip, his calibration setups and his five
+leaders (evidence: `research/evidence/stage_read_census_2026-10-16.json`).
+
 ### The Phase-A anchor family is partitioned, not pooled (2026-08-13)
 
 `bin_a_bars` / `bin_a_range_pct` / `bin_a_volume_ratio` / `bars_since_bc` /

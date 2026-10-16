@@ -184,6 +184,10 @@ from .engine import (
     HTF_STAGE_MA_SLOPE_BARS,
     HTF_WEEKLY_WINDOWS,
     HTF_MONTHLY_WINDOWS,
+    STAGE_MA_WEEKS,
+    STAGE_SLOPE_WEEKS,
+    STAGE_OFF_LOW_MIN,
+    STAGE_LOW_WEEKS,
 )
 
 from .scoring import (

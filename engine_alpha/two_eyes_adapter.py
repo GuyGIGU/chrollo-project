@@ -104,6 +104,16 @@ def stock_trend(frame) -> dict:
     return {f"_{key}": value for key, value in trend.items()}
 
 
+def stock_stage(frame) -> dict:
+    """The stock's life-cycle stage on its weekly chart and the week its advance began (the stage read, Fri
+    16/10/2026), the leadership read's other half: the stock, not the box. Read on the WHOLE frame the universe
+    door admitted (the cache's five years), never cut to the reader's two years, because a stage and an advance
+    run for years. Under the archive's names (``engine_alpha/stage_read.py``)."""
+    from engine_alpha.stage_read import read_stage
+
+    return {f"_{key}": value for key, value in read_stage(frame).items()}
+
+
 def _spring_day(read: Read) -> Optional[str]:
     """The day of the new reader's own spring (its tip), or None: the screen reads the volume at that key point on
     it (go-live plan task 3). Its story names one spring at most."""
@@ -116,7 +126,8 @@ def to_result(read: Read, frame=None):
     Returns ``EVAL_ERROR`` for a failed read, ``None`` for no setup, or a whole
     result dict for a fire. ``frame``, when given, is the chart the universe
     door admitted: a fire then carries the stock's trend template
-    (:func:`stock_trend`), as an old-reader fire does.
+    (:func:`stock_trend`), as an old-reader fire does, and its stage read
+    (:func:`stock_stage`), which an old-reader fire does not carry.
     """
     if read.failed:
         return EVAL_ERROR
@@ -223,6 +234,7 @@ def to_result(read: Read, frame=None):
         # column reads it: the archive family stores no event.
         "_spring_date": _spring_day(read),
         **({} if frame is None else stock_trend(frame)),
+        **({} if frame is None else stock_stage(frame)),
     }
     for key in WHOLE_NUMBER_KEYS:
         if result[key] is not None:        # whole when measured, empty when not

@@ -129,12 +129,18 @@ def _leadership_read(row, df):
     50-day liquidity off the frame. Two of the template's own measures ride
     along for the stage read (go-ahead 2026-10-03): the fraction above the
     52-week low and the 200-day average's one-month change in percent (archive
-    names, archive values)."""
+    names, archive values). The stage itself (1 to 4, on the weekly chart) and
+    the week the advance began ride beside them (Fri 16/10/2026,
+    ``engine_alpha/stage_read.py``): a new-reader fire carries them, an
+    old-reader fire leaves them empty."""
     return {
         'rs_rating': row.get('_rs_rating'),
         'stage2_trend_pass_count': row.get('_stage2_trend_pass_count'),
         'stage2_52w_low_pct': row.get('_stage2_52w_low_pct'),
         'stage2_ma200_slope_1m_pct': row.get('_stage2_ma200_slope_1m_pct'),
+        'cycle_stage': row.get('_cycle_stage'),
+        'advance_start': row.get('_advance_start'),
+        'advance_weeks': row.get('_advance_weeks'),
         'dollar_volume_50d': _dollar_volume_50d(df),
     }
 

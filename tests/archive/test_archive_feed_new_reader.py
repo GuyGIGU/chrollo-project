@@ -27,6 +27,7 @@ NEW_READER_FEED_FLOOR = (
     "Setup", "Tier",
     "_phase_b_start_date",
     "_stage2_52w_low_pct", "_stage2_ma200_slope_1m_pct", "_stage2_trend_pass_count",
+    "_cycle_stage",                        # the stage read (Fri 16/10/2026), on every frame of 44 weeks or more
     "_two_eyes_has_mini", "_two_eyes_lps_read_against",
     "_two_eyes_parent_daily_range", "_two_eyes_parent_opened_date",
     "_two_eyes_parent_r_anchor_date", "_two_eyes_parent_r_price",

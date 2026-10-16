@@ -48,6 +48,13 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   trend template) and fundamental. Not on the card, not in the board order yet. The SEC fill of
   year-ago quarters is ON (his email as the SEC contact, 2026-10-12). The card's chart well flips to a
   fundamentals page (F), with a descriptive label, a strict Code 33 badge and quality flags. Engine stamp `ece8546e`.
+- **The stage read** (2026-10-16, built for his book stops; display and archive only, no flag): every
+  fire of the live reader carries the stock's stage on its weekly chart (1 neglect, 2 advance, 3 top,
+  4 decline) and the week its stage-2 advance began (`engine_alpha/stage_read.py`; archived as
+  `cycle_stage`, `advance_start`, `advance_weeks`), shown in the detail panel's Leadership section.
+  It gates nothing, and by his ruling (16/10/2026) stage-1 and stage-3 fires stay on the board, the
+  stage shown only. The base count and the inter-base width still wait on where the first leg ends. Live after `update_dashboard.bat` and
+  the next scan.
 - **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
   panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
   display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated

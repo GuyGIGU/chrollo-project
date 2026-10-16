@@ -488,6 +488,11 @@ class SetupArchive(Base):
     fund_grade = Column(String, nullable=True)              # A/B/C/D; NULL = not enough data (or before 2026-10-12)
     fund_grade_score = Column(Float, nullable=True)         # share of the known checks passed (0..1)
     fund_sheet_json = Column(Text, nullable=True)           # the whole sheet as shown: EPS, quarters, revisions, reactions, quality, the checks
+    # The stage read (2026-10-16, display + archive only; engine_alpha/stage_read.py): the stock's life cycle on its
+    # weekly chart. NULL on old-reader rows and on every row before 2026-10-16.
+    cycle_stage = Column(Integer, nullable=True)            # 1 neglect, 2 advance, 3 top, 4 decline
+    advance_start = Column(String, nullable=True)           # ISO Friday of the week the current stage-2 advance began (stage 2 only)
+    advance_weeks = Column(Integer, nullable=True)          # completed weeks from that week to the week read, both counted
 
     # ── Engine provenance (frozen-config reproducibility) ────────
     # sha256 of the frozen engine-config manifest (engine_alpha/freeze/manifest.py) that
