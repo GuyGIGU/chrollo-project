@@ -143,10 +143,13 @@ def test_his_aapl_the_spring_test_is_the_valley_after_the_recovery_not_the_one_t
                         unit=b["unit"], read_bar=b["read_bar"], pullback=pullback)
     told = {e.kind: e for e in events}
     assert len(told) == len(events) == 4, [e.kind for e in events]
-    assert (told[record.SPRING].day, told[record.SPRING].first_day, told[record.SPRING].price) ==         (dt.date(2026, 10, 1), dt.date(2026, 9, 29), 325.81)
-    assert (told[record.SPRING_TEST].day, told[record.SPRING_TEST].price) == (dt.date(2026, 10, 6), 330.62),         "his test: the valley after the recovery, not the one THE SOS rises from"
+    assert (told[record.SPRING].day, told[record.SPRING].first_day, told[record.SPRING].price) == \
+        (dt.date(2026, 10, 1), dt.date(2026, 9, 29), 325.81)
+    assert (told[record.SPRING_TEST].day, told[record.SPRING_TEST].price) == (dt.date(2026, 10, 6), 330.62), \
+        "his test: the valley after the recovery, not the one THE SOS rises from"
     assert told[record.SPRING_TEST].committed and told[record.SPRING_TEST].known_day == dt.date(2026, 10, 7)
-    assert (told[record.SOS].first_day, told[record.SOS].day, told[record.SOS].price) ==         (dt.date(2026, 10, 12), dt.date(2026, 10, 13), 348.15)
+    assert (told[record.SOS].first_day, told[record.SOS].day, told[record.SOS].price) == \
+        (dt.date(2026, 10, 12), dt.date(2026, 10, 13), 348.15)
     assert (told[record.PHASE_D].day, told[record.PHASE_D].note) == (dt.date(2026, 10, 12), "round trip")
 
 

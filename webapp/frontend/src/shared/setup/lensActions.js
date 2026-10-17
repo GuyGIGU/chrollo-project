@@ -2,12 +2,12 @@
 // likes, T opens TradingView, so he can walk the filtered list with Next and act
 // on each chart without closing it. F flips the panel under the chart to the
 // fundamentals page and back (Tue 13/10/2026, his "show the fundamental card as a
-// second page"), as it flips a card. Pure, so node --test pins it; the lens
+// second page"), as it flips a card. B arms "fix the box" (Fri 17/10/2026). Pure, so node --test pins it; the lens
 // toolbar (ScreenerModalToolbar.jsx) does the DOM side of W/L/T, the lens
 // (ScreenerModal.jsx) the page's.
 import { hasCommandModifier, isTypingTarget } from '../navigation/keyboardGuard.js';
 
-export const LENS_ACTION_KEYS = { w: 'watch', l: 'like', t: 'tradingview', f: 'fundamentals' };
+export const LENS_ACTION_KEYS = { w: 'watch', l: 'like', t: 'tradingview', f: 'fundamentals', b: 'fixbox' };
 
 // Which lens action a keydown asks for, or null. A held key repeats (holding W
 // must not flicker the star); Ctrl+W / Ctrl+L / Ctrl+T are the browser's; keys

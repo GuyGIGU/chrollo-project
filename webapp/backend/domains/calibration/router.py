@@ -29,7 +29,9 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from domains.calibration.validation import TICKER_RE, parse_iso_date, validate_mark
-from models import CalibrationMark, CalibrationMarkEvent
+from domains.calibration import box_fixes
+from domains.calibration.schemas import BoxFixIn, BoxFixOut
+from models import BoxFix, CalibrationMark, CalibrationMarkEvent
 
 router = APIRouter(prefix="/calibration", tags=["calibration"])
 logger = logging.getLogger("chrollo.calibration")
@@ -809,3 +811,50 @@ def delete_mark(mark_id: int, db: Session = Depends(get_db)):
     db.commit()
     logger.info("mark deleted id=%s %s@%s", mark_id, mark.ticker, mark.as_of_date)
     return {"status": "deleted", "id": mark_id}
+
+
+# --------------------------------------------------------------------------- #
+# Box fixes: his correction of the reader's box, drawn on the lens            #
+# --------------------------------------------------------------------------- #
+@router.get("/box-fixes", response_model=List[BoxFixOut])
+def list_box_fixes(ticker: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    q = db.query(BoxFix)
+    if ticker:
+        q = q.filter(BoxFix.ticker == ticker.strip().upper())
+    return q.order_by(BoxFix.ticker, BoxFix.scan_day).all()
+
+
+@router.post("/box-fixes", response_model=BoxFixOut, dependencies=[Depends(require_same_app)])
+def save_box_fix(payload: BoxFixIn, db: Session = Depends(get_db)):
+    """Save his fix of one chart. One fix per (ticker, scan day): a second save on the same chart is his latest
+    word and bumps the revision; a calibration mark is never touched."""
+    data = box_fixes.normalize(payload.model_dump())
+    found = box_fixes.problems(data)
+    if found:
+        raise HTTPException(status_code=422, detail={"class": "invalid_fix", "problems": found})
+    now = datetime.now(timezone.utc)
+    fix = db.query(BoxFix).filter(BoxFix.ticker == data["ticker"], BoxFix.scan_day == data["scan_day"]).first()
+    if fix is None:
+        fix = BoxFix(created_at=now, revision=1)
+        db.add(fix)
+    else:
+        fix.revision += 1
+    for name in box_fixes.FIELDS:
+        setattr(fix, name, data[name])
+    fix.updated_at = now
+    db.commit()
+    db.refresh(fix)
+    logger.info("box fix saved id=%s %s@%s R %.4f (%s) S %.4f (%s) revision=%s", fix.id, fix.ticker, fix.scan_day,
+                fix.resistance, fix.r_day, fix.support, fix.s_day, fix.revision)
+    return fix
+
+
+@router.delete("/box-fixes/{fix_id}", dependencies=[Depends(require_same_app)])
+def delete_box_fix(fix_id: int, db: Session = Depends(get_db)):
+    fix = db.query(BoxFix).filter(BoxFix.id == fix_id).first()
+    if not fix:
+        raise HTTPException(status_code=404, detail={"class": "unknown_fix", "message": f"no box fix {fix_id}"})
+    db.delete(fix)
+    db.commit()
+    logger.info("box fix deleted id=%s %s@%s", fix_id, fix.ticker, fix.scan_day)
+    return {"status": "deleted", "id": fix_id}

@@ -83,3 +83,28 @@ class MarkOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class BoxFixIn(BaseModel):
+    """His correction of the reader's box on one lens chart. Cross-field sanity lives in
+    ``box_fixes.problems``; this model only shapes the boundary."""
+    ticker: str
+    scan_day: str
+    resistance: float
+    r_day: str
+    support: float
+    s_day: str
+    reader_resistance: Optional[float] = None
+    reader_r_day: Optional[str] = None
+    reader_support: Optional[float] = None
+    reader_s_day: Optional[str] = None
+    reader_opened_day: Optional[str] = None
+    ruleset: str = ""
+    note: Optional[str] = None
+
+
+class BoxFixOut(BoxFixIn):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    revision: int
+
+    model_config = {"from_attributes": True}

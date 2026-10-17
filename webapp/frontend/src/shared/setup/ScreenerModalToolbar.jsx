@@ -64,27 +64,29 @@ function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
 // W / L / T while the lens is open (operator 2026-10-03, suggestion #1): the
 // same acts as the top bar's buttons, and only where that button is drawn, so W
 // in a lens with no star does nothing.
-function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike) {
+function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix) {
   useEffect(() => {
     const onKey = (event) => {
       const action = lensKeyAction(event);
       if (action === 'watch' && onToggleWatchlist) onToggleWatchlist(ticker);
       else if (action === 'like' && onToggleLike) onToggleLike(ticker);
       else if (action === 'tradingview') window.open(tradingViewUrl(ticker), '_blank', 'noopener,noreferrer');
+      else if (action === 'fixbox' && onToggleFix) onToggleFix();
       else return;
       event.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [ticker, onToggleWatchlist, onToggleLike]);
+  }, [ticker, onToggleWatchlist, onToggleLike, onToggleFix]);
 }
 
 export default function ScreenerModalToolbar({
   data, onClose, onNext, onPrev, ticker, interval, onIntervalChange, hasWeekly, hasMonthly,
   watchlisted, onToggleWatchlist, liked, onToggleLike, position, skin = 'dark', onToggleSkin,
+  fixing = false, onToggleFix,
 }) {
   const changePct = dailyChangeFrac(data?.candles);
-  useLensActionKeys(ticker, onToggleWatchlist, onToggleLike);
+  useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix);
   return (
     <header style={{
       alignItems: 'center',
@@ -168,6 +170,22 @@ export default function ScreenerModalToolbar({
         >
           ↗ TV
         </a>
+        {/* "Fix the box" (Fri 17/10/2026): he corrects the reader's two lines on the daily chart; the fix is
+            saved beside the reader's pair, the material the chooser is learned from later. Drawn only where
+            the daily is a two-eyes read (the host hands in the toggle). */}
+        {onToggleFix && (
+          <button
+            type="button"
+            className="btn lens-toggle"
+            aria-pressed={Boolean(fixing)}
+            aria-label="Fix the box"
+            aria-keyshortcuts="B"
+            title={fixing ? 'Fixing the box: click the resistance bar, then the support bar (B to stop)' : 'Fix the box: draw your two lines on the daily chart (B)'}
+            onClick={onToggleFix}
+          >
+            {fixing ? 'fixing the box' : 'fix the box'}
+          </button>
+        )}
         {/* The lens's skin, paper or dark (Thu 16/10/2026); the choice is kept per browser. */}
         {onToggleSkin && (
           <button

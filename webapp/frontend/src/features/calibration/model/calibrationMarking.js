@@ -10,6 +10,8 @@
 // ticker|session|digest) so a draft can never bleed across frames — the same
 // corpus-integrity rule the backend enforces with frame_digest.
 
+import { snapRailPrice } from '../../../shared/charts/chartGeometry.js';
+
 export const MARK_EVENT_TYPES = ['phase_c', 'lps', 'spring_test', 'sos',
                                  'mini_consolidation', 'last_supper'];
 // A mini-consolidation is a small BOX, so its two clicks are CORNERS (bar AND
@@ -71,13 +73,10 @@ export function draftHasUnsavedWork(state) {
   return draftStarted(state.draft) || state.draft.verdict !== 'box';
 }
 
-// Rails snap to the clicked BAR's extreme — the operator measures wick to
-// wick, and a rail a few pixels off the wick is noise, not information. The
-// nearer of high/low to the click wins; without bar data the raw price stands.
-export function snapRailPrice(price, bar) {
-  if (!bar || !Number.isFinite(bar.high) || !Number.isFinite(bar.low)) return price;
-  return Math.abs(bar.high - price) <= Math.abs(bar.low - price) ? bar.high : bar.low;
-}
+// Rails snap to the clicked BAR's extreme: the rule moved to shared/charts/chartGeometry
+// (snapRailPrice) when the lens's "fix the box" needed it too (Fri 17/10/2026); re-exported
+// here so this model's callers and tests read it where they always did.
+export { snapRailPrice };
 
 // The end date of the LAST LPS on a draft (ISO dates compare chronologically),
 // or null when it has none — the bar the Trigger is anchored to.

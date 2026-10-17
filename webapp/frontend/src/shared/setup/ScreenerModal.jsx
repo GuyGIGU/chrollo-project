@@ -7,7 +7,9 @@ import TimeframeMainChart from '../charts/TimeframeMainChart';
 import useDailyStructureChart from '../charts/useDailyStructureChart';
 import ScreenerModalToolbar from './ScreenerModalToolbar';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
+import { fixPrompt, readerPair } from './boxFix';
 import { lensKeyAction } from './lensActions';
+import useBoxFix from './useBoxFix';
 import { htfStateLabel } from './screenerCardData';
 
 // The lens's skin (Thu 16/10/2026): 'dark' (the app's own colors, lifted inside the lens: the default he kept)
@@ -125,14 +127,34 @@ const ScreenerModal = ({
   }, [onClose]);
 
   // The daily is drawn wherever its pane sits (big, or in the side column): the slot word rebuilds it there.
-  const daily = useDailyStructureChart(chartContainerRef, ticker, data, activeRegion, interval === 'D' ? 'main' : 'side', skin);
+  // "Fix the box" (Fri 17/10/2026): the chart hands its clicks to the fix through clickRef while it is armed.
+  const clickRef = useRef(null);
+  const daily = useDailyStructureChart(chartContainerRef, ticker, data, activeRegion, interval === 'D' ? 'main' : 'side', skin, clickRef);
+  const canFix = Boolean(data?.two_eyes) && (data?.candles?.length ?? 0) > 0;
+  const fix = useBoxFix(ticker, data, scanIdentity, daily.chartRef, clickRef);
+  const reader = readerPair(data);
 
   const paneCanvas = (tf, big) => {
     if (tf === 'D') {
       return (
-        <div className="lens-daily-frame">
+        <div className={fix.armed ? 'lens-daily-frame is-fixing' : 'lens-daily-frame'}>
           <div ref={chartContainerRef} className="lens-daily-canvas" />
           <ChartZoomControls chartRef={daily.chartRef} onHome={daily.home} />
+          {(fix.armed || fix.draft.r != null) && (
+            <div className="lens-fix-strip" role="status">
+              <span className="lens-fix-word">{fix.armed ? 'FIX THE BOX' : 'YOUR BOX'}</span>
+              <span className="lens-fix-prompt">{fixPrompt(fix.draft)}</span>
+              <span className="lens-fix-reader">
+                {reader ? `reader: R ${reader.r.toFixed(2)} (${reader.rDay}) · S ${reader.s.toFixed(2)} (${reader.sDay})` : 'reader: no box shown'}
+              </span>
+              {fix.saved != null && <span className="lens-fix-saved">{fix.saved > 1 ? `saved (revision ${fix.saved})` : 'saved'} ✓</span>}
+              {fix.error && <span className="lens-fix-error">{fix.error}</span>}
+              <span className="lens-fix-acts">
+                <button type="button" className="btn" disabled={!fix.complete || fix.saving} onClick={fix.save}>{fix.saving ? 'Saving…' : 'Save fix'}</button>
+                <button type="button" className="btn" disabled={fix.draft.r == null} onClick={fix.clear}>Clear</button>
+              </span>
+            </div>
+          )}
         </div>
       );
     }
@@ -207,6 +229,8 @@ const ScreenerModal = ({
           onToggleSkin={toggleSkin}
           ticker={ticker}
           watchlisted={watchlisted}
+          fixing={fix.armed}
+          onToggleFix={canFix ? fix.toggle : undefined}
         />
         {/* THE LENS IS TWO BLOCKS (operator, Fri 17/10/2026): the CHART block — the three panes laid out
             as his TradingView (monthly over weekly in a side column, the daily big) with the grade board,

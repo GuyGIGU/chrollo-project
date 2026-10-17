@@ -39,6 +39,7 @@ export const KEY_SECTIONS = [
     rows: [
       { keys: ['t'], does: 'Open it on TradingView (new tab)' },
       { keys: ['f'], does: 'Fundamentals page / back to the read' },
+      { keys: ['b'], does: 'Fix the box: draw your two lines on the daily chart' },
       { keys: ['Escape'], does: 'Close the big chart' },
     ],
   },

@@ -497,7 +497,13 @@ colors lifted inside the lens so they pop (*"keep the original colors but make t
 up more"*: the canvas a step deeper than the page, the rails a clear blue, the gold brighter,
 the hues raised under `.screener-modal-shell[data-skin="dark"]`), and paper behind the
 toolbar's sun/moon button (a light page, white blocks, a white chart with ink bars), kept per
-browser as `chrollo.lensSkin`. The `--lens-*` tokens in `index.css` name the lens's surfaces,
+browser as `chrollo.lensSkin`. **The lens takes his correction of the box** (Fri 17/10/2026,
+his "fix the box"): the toolbar's `fix the box` toggle (B) arms the daily pane, the pointer
+becomes a crosshair, two clicks snap to a bar's high (the resistance) and a bar's low (the
+support), his two lines are drawn in the calibration red (`#e5484d`, never the structure blue)
+on the live chart without a rebuild, and a strip under the pane (`.lens-fix-strip`) says the
+next step, the reader's pair beside his, and Save / Clear; the fix goes to
+`/calibration/box-fixes` beside the reader's pair. The `--lens-*` tokens in `index.css` name the lens's surfaces,
 each skin re-points them, and the chart canvases read the skin off the shell
 (`chartTheme.lensSkinOf`). The rest of the app keeps the dark skin. The
 chart well is locked to the card's **width**, not the viewport's height: a

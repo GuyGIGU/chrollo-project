@@ -2046,6 +2046,26 @@ td {
 }
 
 .lens-daily-frame { position: relative; }
+/* "Fix the box" (Fri 17/10/2026): while armed the daily pane takes a crosshair pointer and the strip
+   under it says what the next click does; his two lines are drawn red by useBoxFix. */
+.lens-daily-frame.is-fixing .lens-daily-canvas { cursor: crosshair; }
+.lens-fix-strip {
+  align-items: center;
+  background: var(--lens-toolbar-bg, var(--bg-panel));
+  border-top: 1px solid var(--border-color);
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  gap: 14px;
+  padding: 6px 10px;
+}
+.lens-fix-word { color: #e5484d; font-weight: 800; letter-spacing: 0.06em; }
+.lens-fix-prompt { color: var(--text-main); }
+.lens-fix-saved { color: var(--success, #4ae38a); font-weight: 700; }
+.lens-fix-error { color: var(--danger, #ff7c87); }
+.lens-fix-acts { display: flex; gap: 6px; margin-left: auto; }
 
 .lens-daily-canvas {
   height: 100%;

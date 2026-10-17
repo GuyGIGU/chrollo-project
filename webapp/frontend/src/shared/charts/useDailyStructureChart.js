@@ -130,7 +130,10 @@ const setFocusedRange = (chart, data, container) => {
 // `slot` is a word for WHERE the lens seats the daily (the big pane or the side column, Fri 17/10/2026): it
 // rides the deps so the chart is rebuilt in the pane's new element when the panes swap.
 // Returns a handle for the zoom controls: the live chart (null between builds) and `home`, the opening view.
-export default function useDailyStructureChart(containerRef, ticker, data, activePhaseRegion = null, slot = 'main', skin = null) {
+// `clickRef` (optional) is a ref whose current value is a handler for a click on a bar, {date, price, bar},
+// or null: the lens's "fix the box" (Fri 17/10/2026) sets it while armed. Subscribed once per build and read
+// through the ref, so arming never rebuilds the chart.
+export default function useDailyStructureChart(containerRef, ticker, data, activePhaseRegion = null, slot = 'main', skin = null, clickRef = null) {
   const activeRegionRef = useRef(activePhaseRegion);
   const phaseOverlayRef = useRef(null);
   const chartRef = useRef(null);
@@ -184,8 +187,19 @@ export default function useDailyStructureChart(containerRef, ticker, data, activ
       addBoxRails(chart, data);
       addAnnotations(candleSeries, data.annotations || {});
       setFocusedRange(chart, data, containerRef.current);
+      const barsByDate = new Map((data.candles || []).map((candle) => [candle.time, candle]));
+      const onClick = (param) => {
+        const handler = clickRef?.current;
+        if (!handler || !param?.point || param.time == null) return;
+        const date = typeof param.time === 'string' ? param.time : null;
+        const price = candleSeries.coordinateToPrice(param.point.y);
+        if (!date || price == null || !Number.isFinite(price)) return;
+        handler({ date, price, bar: barsByDate.get(date) || null });
+      };
+      chart.subscribeClick(onClick);
 
       return () => {
+        try { chart.unsubscribeClick(onClick); } catch { /* the chart may already be gone */ }
         phaseOverlay.remove();
         if (phaseOverlayRef.current === phaseOverlay) phaseOverlayRef.current = null;
         if (chartRef.current === chart) chartRef.current = null;

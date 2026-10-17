@@ -185,3 +185,35 @@ class CalibrationMarkEvent(Base):
     )
 
 
+class BoxFix(Base):
+    """One correction of the READER's box, drawn on the lens (his "fix the box", proposed Tue 13/10/2026, built
+    Fri 17/10/2026): his two lines, each snapped to a bar's high or low, saved BESIDE the pair the reader showed
+    on that chart that day. Grain: one fix per (ticker, scan day); a second fix on the same chart is his latest
+    word and bumps ``revision``. Never a calibration mark and never the standard: the fixes are the material the
+    chooser will be learned from once enough of them differ. Geometry is ISO days + absolute prices."""
+
+    __tablename__ = "box_fixes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, nullable=False, index=True)
+    scan_day = Column(String, nullable=False, index=True)   # ISO; the last candle of the chart he fixed
+    resistance = Column(Float, nullable=False)              # his lines, snapped to the bar's high / low
+    r_day = Column(String, nullable=False)                  # ISO
+    support = Column(Float, nullable=False)
+    s_day = Column(String, nullable=False)                  # ISO
+    reader_resistance = Column(Float, nullable=True)        # the pair the reader showed, or nothing shown
+    reader_r_day = Column(String, nullable=True)
+    reader_support = Column(Float, nullable=True)
+    reader_s_day = Column(String, nullable=True)
+    reader_opened_day = Column(String, nullable=True)
+    ruleset = Column(String, nullable=False, default="")    # the reader's stamp that night
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False)           # UTC
+    updated_at = Column(DateTime, nullable=False)           # UTC
+    revision = Column(Integer, nullable=False, default=1)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "scan_day", name="uq_box_fix"),
+        CheckConstraint("resistance > support", name="ck_box_fix_rails_order"),
+        CheckConstraint("revision >= 1", name="ck_box_fix_revision"),
+    )

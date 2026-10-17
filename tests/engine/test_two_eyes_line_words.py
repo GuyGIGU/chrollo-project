@@ -536,7 +536,8 @@ def test_the_spring_test_is_the_first_valley_after_the_recovery_holding_over_the
     too_low = [t if t[0] != 3 else (3, V, 7.9 * u, 4) for t in line]
     assert [t["tip_bar"] for t in W.spring_tests(too_low, pc, 10.0 * u, unit=u)] == [5], "a lower low is no test"
     too_high = [t if t[0] != 3 else (3, V, 10.6 * u, 4) for t in line]
-    assert [t["tip_bar"] for t in W.spring_tests(too_high, pc, 10.0 * u, unit=u)] == [5],         "a valley over the support area is a higher low, not a test"
+    assert [t["tip_bar"] for t in W.spring_tests(too_high, pc, 10.0 * u, unit=u)] == [5], \
+        "a valley over the support area is a higher low, not a test"
     assert W.spring_tests(line, None, 10.0 * u, unit=u) == [], "no Phase C, no spring test"
 
 
@@ -574,7 +575,8 @@ def test_his_aapl_the_test_is_the_valley_after_the_recovery_and_the_valley_the_s
     assert [(t["tip_bar"], t["tip_price"]) for t in words["spring_tests"]] == [(15, 330.62)], "his test, Tue 06/10"
     # Were the SOS's own swing the first valley after the recovery, it would be the SOS's and no test.
     sos_first = {**words["the_sos"], "swing_bar": 15}
-    assert W.spring_tests(AAPL_LINE, words["phase_c"], b["S"], b["unit"], sos=sos_first) == [],         "the valley THE SOS rises from is part of the SOS"
+    assert W.spring_tests(AAPL_LINE, words["phase_c"], b["S"], b["unit"], sos=sos_first) == [], \
+        "the valley THE SOS rises from is part of the SOS"
 
 
 _RT_LINE = [(0, P, 14.0, 1), (2, V, 8.5, 3), (4, P, 13.6, 5), (6, V, 9.8, 7), (8, P, 12.5, 9), (10, V, 11.0, None)]

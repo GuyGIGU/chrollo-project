@@ -496,3 +496,12 @@ export const tradeVisibleLogicalRange = (candles, openingDate) => {
     to: Math.min(candles.length - 1, entryIndex + 45),
   };
 };
+
+// Rails snap to the clicked BAR's extreme: the operator measures wick to wick, and a rail a few
+// pixels off the wick is noise, not information. The nearer of high/low to the click wins;
+// without bar data the raw price stands. Read by the calibration workbench's rail tools and by
+// the lens's "fix the box" (Fri 17/10/2026).
+export function snapRailPrice(price, bar) {
+  if (!bar || !Number.isFinite(bar.high) || !Number.isFinite(bar.low)) return price;
+  return Math.abs(bar.high - price) <= Math.abs(bar.low - price) ? bar.high : bar.low;
+}
