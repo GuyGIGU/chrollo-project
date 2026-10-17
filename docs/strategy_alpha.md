@@ -777,9 +777,13 @@ default as ours.
    the dip: from the first bar under the support area to the tip. Its recovery is the swing
    after it, never the spring (his GFR, Thu 16/10/2026: *"you marked the bars going up, aka
    the recover after the swing, not the spring it self!"*). The spring's test is the first
-   valley after that recovery back inside the support area and above the tip, a swing of
-   its own: the low of the very bar whose high reached back into the area is the recovery,
-   not a test (*"one of them is already engulfed in the other"*). A thrust over the
+   valley after that recovery that holds over the spring's low and no higher than the top
+   of the support area; it may sit under support (his AAPL, Fri 17/10/2026: the test of
+   Tue 06/10 sat 0.55 ranges under it). It is a swing of its own: the low of the very bar
+   whose high reached back into the area is the recovery, not a test (*"one of them is
+   already engulfed in the other"*), and the valley THE SOS's swing rises from is the
+   SOS's own, never a test (*"what you marked as the Test is already a part of the
+   SOS"*). A thrust over the
    resistance area is named by the swing after it and by where it sits: THE upthrust, one
    per box, in Phase B, *"similar to a Spring but in reverse being a Resistance based
    event swing"* — price climbs quickly out of the structure, then crashes back into the

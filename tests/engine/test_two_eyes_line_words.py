@@ -522,15 +522,59 @@ def test_a_valley_on_the_reaching_peaks_own_bar_is_the_springs_recovery_and_no_t
 
 
 @UNITS
-def test_the_spring_test_is_the_first_valley_back_inside_the_support_area_after_the_phase_c(u):
+def test_the_spring_test_is_the_first_valley_after_the_recovery_holding_over_the_tip_and_no_higher_than_the_area(u):
+    """His AAPL (Fri 17/10/2026): the test may sit UNDER the support area, as long as it holds over the spring's
+    low (AAPL's test of Tue 06/10/2026 sat 0.55 ranges under support). The band is the tip, exclusive, to the
+    top of the support area; the first valley in it after the reaching peak's bar; one test per Phase C."""
     pc = {"tip_bar": 1, "tip_price": 8.0 * u, "reach_turn_bar": 2}
     line = _s([(0, P, 11.0, 1), (1, V, 8.0, 2), (2, P, 10.2, 3),
-               (3, V, 9.2, 4),                  # 0.8 under S: not back inside the area yet
-               (4, P, 10.5, 5), (5, V, 9.7, 6),     # 0.3 under S, higher than the tip: THE test
-               (6, P, 11.0, 7), (7, V, 9.8, 8),     # another valley in the area: not named
+               (3, V, 9.2, 4),                  # 0.8 under S, 1.2 over the tip: THE test
+               (4, P, 10.5, 5), (5, V, 9.7, 6),     # in the area: not named, the test is already named
+               (6, P, 11.0, 7), (7, V, 9.8, 8),
                (8, P, 11.2, None)], u)
-    assert [t["tip_bar"] for t in W.spring_tests(line, pc, 10.0 * u, unit=u)] == [5], "one test per Phase C"
+    assert [t["tip_bar"] for t in W.spring_tests(line, pc, 10.0 * u, unit=u)] == [3], "one test per Phase C"
+    too_low = [t if t[0] != 3 else (3, V, 7.9 * u, 4) for t in line]
+    assert [t["tip_bar"] for t in W.spring_tests(too_low, pc, 10.0 * u, unit=u)] == [5], "a lower low is no test"
+    too_high = [t if t[0] != 3 else (3, V, 10.6 * u, 4) for t in line]
+    assert [t["tip_bar"] for t in W.spring_tests(too_high, pc, 10.0 * u, unit=u)] == [5],         "a valley over the support area is a higher low, not a test"
     assert W.spring_tests(line, None, 10.0 * u, unit=u) == [], "no Phase C, no spring test"
+
+
+#: His AAPL (Fri 17/10/2026), the bars as the reader's own line, from Tue 15/09/2026 (bar 0) to Fri 16/10/2026
+#: (bar 23): the climax 345.34 of Tue 22/09 (bar 5), its reaction low 334.30 of Thu 24/09 (bar 7), the spring
+#: 325.81 of Thu 01/10 (bar 12), its recovery to 336.21 on Mon 05/10 (bar 14), HIS test 330.62 on Tue 06/10
+#: (bar 15), the run to 341.57 (bar 17), the dip to 330.70 on Fri 09/10 (bar 18), THE SOS from the valley 337.60
+#: of Mon 12/10 (bar 19) to 348.15 on Tue 13/10 (bar 20), the LPS of Wed 14/10 to Fri 16/10.
+AAPL_LINE = [(0, V, 328.35, 1), (2, P, 338.34, 2), (2, V, 330.18, 3), (4, P, 339.64, 4), (4, V, 333.05, 5),
+             (5, P, 345.34, 6), (7, V, 334.30, 8), (9, P, 342.99, 10), (10, V, 328.70, 11), (11, P, 339.50, 12),
+             (12, V, 325.81, 13), (14, P, 336.21, 15), (15, V, 330.62, 16), (17, P, 341.57, 17),
+             (18, V, 330.70, 18), (19, P, 342.63, 19), (19, V, 337.60, 20), (20, P, 348.15, 21),
+             (22, V, 341.60, 22), (22, P, 347.85, 23), (23, V, 340.46, None)]
+AAPL_HIGHS = np.array([331.78, 335.48, 338.34, 338.49, 339.64, 345.34, 341.80, 338.91, 341.67, 342.99, 337.09,
+                       339.50, 332.48, 334.54, 336.21, 334.38, 338.67, 341.57, 338.61, 342.63, 348.15, 347.09,
+                       347.85, 347.82])
+AAPL_LOWS = np.array([328.35, 330.70, 330.18, 332.53, 333.05, 338.75, 335.50, 334.30, 334.53, 338.04, 328.70,
+                      330.14, 325.81, 330.61, 331.65, 330.62, 332.78, 335.90, 330.70, 337.60, 340.74, 341.72,
+                      341.60, 340.46])
+AAPL_BOX = dict(start=5, R=345.34, S=334.30, unit=6.7496, read_bar=23, fifteenth=19)
+
+
+def test_his_aapl_the_test_is_the_valley_after_the_recovery_and_the_valley_the_sos_rises_from_is_the_sos():
+    """His AAPL (Fri 17/10/2026), the bars converted into swings on the lens: *"everything is correct expect the
+    Test after the spring, as you can see it happened earlier and what you marked as the Test is already a part
+    of the SOS."* The reader had named the valley of Mon 12/10 at 337.60, the day THE SOS's own swing starts.
+    His test is the valley of Tue 06/10 at 330.62: the first after the spring's recovery, over the spring's low
+    (325.81), 0.55 ranges under support (the support area's edge is 330.93, so "back inside the area" skipped
+    it). And a valley THE SOS rises from is the SOS's own, never a test."""
+    b = AAPL_BOX
+    words = W.assemble(AAPL_LINE, AAPL_HIGHS, AAPL_LOWS, start=b["start"], R=b["R"], S=b["S"], unit=b["unit"],
+                       read_bar=b["read_bar"], lps_start=21, lps_low_bar=23, fifteenth=b["fifteenth"])
+    assert (words["phase_c"]["tip_bar"], words["phase_c"]["reach_turn_bar"]) == (12, 14)
+    assert (words["the_sos"]["swing_bar"], words["the_sos"]["top_bar"]) == (19, 20)
+    assert [(t["tip_bar"], t["tip_price"]) for t in words["spring_tests"]] == [(15, 330.62)], "his test, Tue 06/10"
+    # Were the SOS's own swing the first valley after the recovery, it would be the SOS's and no test.
+    sos_first = {**words["the_sos"], "swing_bar": 15}
+    assert W.spring_tests(AAPL_LINE, words["phase_c"], b["S"], b["unit"], sos=sos_first) == [],         "the valley THE SOS rises from is part of the SOS"
 
 
 _RT_LINE = [(0, P, 14.0, 1), (2, V, 8.5, 3), (4, P, 13.6, 5), (6, V, 9.8, 7), (8, P, 12.5, 9), (10, V, 11.0, None)]
@@ -646,7 +690,7 @@ def test_the_reader_end_to_end_on_a_real_line():
     assert rec["last_suppers"] == [], "the bar-36 top (15.7) breaches R (15.5) but sits before the middle"
     assert rec["the_upthrust"] is None, "the same top: it never climbs out of the structure"
     assert (rec["phase_c"]["tip_bar"], rec["phase_c"]["state"], rec["phase_c"]["depth_ranges"]) == (30, "recovered", 0.7)
-    assert [t["tip_bar"] for t in rec["spring_tests"]] == [42]
+    assert rec["spring_tests"] == [], "the bar-42 valley is the swing THE SOS rises from: the SOS's own (his AAPL)"
     assert rec["phase_d"]["openings"] == {"round trip": 42, "SOS": 42, "LPS": 47}
     assert (rec["phase_d"]["opener"], rec["phase_d"]["position"]) == ("round trip", round(22 / 39, 3))
     assert rec["mini"]["lps_reads_against"] == "parent"

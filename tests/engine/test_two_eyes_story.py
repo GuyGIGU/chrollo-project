@@ -122,6 +122,34 @@ def test_the_spring_event_is_dated_on_its_own_dip_and_the_recovery_bars_own_low_
     assert record.SPRING_TEST not in events, "the reaching bar's own low is the recovery, not a test"
 
 
+def test_his_aapl_the_spring_test_is_the_valley_after_the_recovery_not_the_one_the_sos_rises_from():
+    """His AAPL (Fri 17/10/2026), the bars converted into swings on the lens: *"everything is correct expect the
+    Test after the spring, as you can see it happened earlier and what you marked as the Test is already a part
+    of the SOS."* The reader told: the spring's tip Thu 01/10 at 325.81; the spring's test Mon 12/10 at 337.60
+    (the valley THE SOS's swing starts from); THE SOS tops Tue 13/10 at 348.15. His test is the valley of Tue
+    06/10 at 330.62, the first after the spring's recovery (Mon 05/10), over the spring's low and 0.55 daily
+    ranges under support. The rest of the story stands as he passed it."""
+    from tests.engine.test_two_eyes_line_words import AAPL_BOX, AAPL_HIGHS, AAPL_LINE, AAPL_LOWS
+    turn = lambda bar, kind, price, known: SimpleNamespace(bar=bar, kind=kind, price=price, knowable_bar=known)
+    days = tuple(dt.date.fromisoformat(d) for d in (
+        "2026-09-15", "2026-09-16", "2026-09-17", "2026-09-18", "2026-09-21", "2026-09-22", "2026-09-23",
+        "2026-09-24", "2026-09-25", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02",
+        "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-12", "2026-10-13",
+        "2026-10-14", "2026-10-15", "2026-10-16"))
+    turns = [turn(*t) for t in AAPL_LINE]
+    pullback = SimpleNamespace(stood=True, start_bar=21, end_bar=23, crossed_bar=None)
+    b = AAPL_BOX
+    events = story.read(turns, AAPL_HIGHS, AAPL_LOWS, days, start_bar=b["start"], R=b["R"], S=b["S"],
+                        unit=b["unit"], read_bar=b["read_bar"], pullback=pullback)
+    told = {e.kind: e for e in events}
+    assert len(told) == len(events) == 4, [e.kind for e in events]
+    assert (told[record.SPRING].day, told[record.SPRING].first_day, told[record.SPRING].price) ==         (dt.date(2026, 10, 1), dt.date(2026, 9, 29), 325.81)
+    assert (told[record.SPRING_TEST].day, told[record.SPRING_TEST].price) == (dt.date(2026, 10, 6), 330.62),         "his test: the valley after the recovery, not the one THE SOS rises from"
+    assert told[record.SPRING_TEST].committed and told[record.SPRING_TEST].known_day == dt.date(2026, 10, 7)
+    assert (told[record.SOS].first_day, told[record.SOS].day, told[record.SOS].price) ==         (dt.date(2026, 10, 12), dt.date(2026, 10, 13), 348.15)
+    assert (told[record.PHASE_D].day, told[record.PHASE_D].note) == (dt.date(2026, 10, 12), "round trip")
+
+
 def test_the_ten_state_words_are_one_table_and_equal_the_one_the_screen_reads():
     assert record.STATE_WORDS == (
         "fired", "crossed", "lines, no LPS yet", "forming N of 15", "root candidate, unconfirmed",
@@ -585,17 +613,25 @@ def test_vik_reads_his_upthrust_and_no_spring_on_his_fire_day(his_last_receding_
     assert dt.date(2026, 4, 29) not in [e.day for e in _named(vik, record.SPRING)]
 
 
-def test_a_word_standing_on_the_forming_turn_is_provisional(his_last_receding_day):
+def test_a_word_standing_on_the_forming_turn_is_provisional():
     """The story reads the whole line, the turn still forming at the right edge included: that turn is what makes
-    a word provisional. NGL on Fri 16/01/2026: the spring's test of Thu 15/01/2026 stands on a low the line has
-    not committed yet, so it is named, provisional, with no day it became known. Every other word that day is
-    committed."""
-    (key,) = [k for k in _keys("NGL") if k.endswith("2026-01-20")]
-    read = his_last_receding_day[key]
-    provisional = [e for e in read.events if not e.committed]
-    assert [(e.kind, e.day, e.known_day) for e in provisional] == [(record.SPRING_TEST, dt.date(2026, 1, 15), None)]
-    assert ", provisional" in next(s.saying for s in read.trail if s.stage == story.STAGE)
-    assert all(e.known_day is not None for e in read.events if e.committed)
+    a word provisional. Hand-built: a spring (tip bar 5) recovered by bar 9 (a higher low over the support area,
+    so no test yet), and the read day's own low, bar 12 at 9.7, a valley the line has not committed, back under
+    support and over the spring's low: the spring's test, named, provisional, with no day it became known. The
+    spring is committed. (Until his AAPL, Fri 17/10/2026, the specimen was NGL on Fri 16/01/2026: its valley of
+    Thu 15/01 sat after THE SOS's swing, so it is the SOS's own now and no test; his NGL marks carry no test.)"""
+    turn = lambda bar, kind, price, known: SimpleNamespace(bar=bar, kind=kind, price=price, knowable_bar=known)
+    lows = np.array([10.5, 10.2, 9.8, 9.4, 9.2, 8.0, 9.0, 9.7, 10.3, 10.6, 11.0, 11.0, 9.7])
+    highs = lows + 0.6
+    highs[0] = 12.5                  # the peak the spring fell from: the recovery clears nothing, so no push, no SOS
+    days = tuple(dt.date(2026, 9, 1) + dt.timedelta(days=i) for i in range(len(lows)))
+    turns = [turn(0, "peak", 12.5, 1), turn(5, "valley", 8.0, 6), turn(8, "peak", 10.9, 9), turn(9, "valley", 10.6, 10),
+             turn(11, "peak", 11.6, 12), turn(12, "valley", 9.7, None)]
+    events = story.read(turns, highs, lows, days, start_bar=0, R=14.0, S=10.0, unit=1.0, read_bar=12)
+    assert [(e.kind, e.day, e.committed, e.known_day) for e in events] == [
+        (record.SPRING, days[5], True, days[10]), (record.SPRING_TEST, days[12], False, None)]
+    assert ", provisional" in story.record(events)[0].saying
+    assert all(e.known_day is not None for e in events if e.committed)
 
 
 def test_the_story_leans_only_on_a_pullback_that_stood():

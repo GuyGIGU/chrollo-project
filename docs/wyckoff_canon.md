@@ -159,7 +159,7 @@ guard `_vol_dry_refused` behind `if not holding_shelf:` — *"the shelf form is 
 | **BU** — back-up | `buec_shelf`, displayed *"LPS above R"* | **TAKEN**, but the canon *name* is retired — describe it plainly (§5) |
 | **Creek / Ice** | — | **DROPPED** — never an object, and the word is now purged from the repo (§5) |
 | **UT / UTAD / SOW / PSY** | — | **DROPPED** — distribution mirror, out of scope |
-| **LPSY** — last point of supply | — | **DEFERRED to engine β.** *"LPSY is like an LPS but for distribution processes — an event that signals weak buyers. Perhaps when we get to work on engine β I would touch on that; for now it has no use for us."* (operator, 2026-07-26) |
+| **LPSY** — last point of supply | — | **DEFERRED to engine β.** *"LPSY is like an LPS but for distribution processes — an event that signals weak buyers. Perhaps when we get to work on engine β I would touch on that; for now it has no use for us."* (operator, 2026-07-26). On 2026-10-16 he named engine β the short-side screener, built after Alpha, its setup the topping base ([decisions.md](decisions.md) 2026-10-16) |
 | **Cause & Effect → P&F target** | cause = base length (`SCORE_BASE_AGE`); **no target** | **HALF-TAKEN** — Chrollo hands over a setup, not a trade plan |
 | **Effort vs Result** | — | **DROPPED** by §0.3 |
 | **Composite Man / five-step / nine tests** | — | **DROPPED** |
@@ -278,7 +278,9 @@ Filtered against §0.2 — these are the ones with a plausible cost, not canon-c
 1. **Nothing asks "is this range distribution?"** A name that topped 3-6 months ago, ranges in the
    upper half, sits above a still-rising SMA_200 and is −20% YoY passes cleanly. The only live
    defence is the wick-basis respect gate plus the mandatory terminal LPS. This is a **geometry**
-   question, so it is in-scope under §0.3 if it ever costs money.
+   question, so it is in-scope under §0.3 if it ever costs money. Measured 2026-10-16: the live
+   reader fires inside the book's stage-3 tops and his Chipotle topping base ([strategy_alpha.md](strategy_alpha.md),
+   "The same four charts" and "The topping base").
 2. **The near-miss lane is volume-blind.** All 15 `GATE_LEGS` are price geometry, so three refusals
    leave *no telemetry*: the LPS volume dry-up, the extension filter, and the SMA-200 refusal.
    "The near-miss lane shows nothing" ≠ "the box gates rejected it". Relevant now — this is the

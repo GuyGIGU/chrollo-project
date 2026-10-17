@@ -396,17 +396,23 @@ def phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=None,
     return None
 
 
-def spring_tests(line, pc, S, unit):
-    """After the Phase C, the FIRST line valley back inside the support area holding higher than the tip: one test
-    per Phase C. (Naming every such valley named up to 11 on one box, so it could never miss one he drew.) A
-    test is a swing of its own, on a bar after the reaching peak's: the low of the very bar whose high reached
-    back into the area is the spring's recovery, not a test (his GFR, Thu 16/10/2026: two Phase C events, *"one
-    of them is already engulfed in the other"*)."""
+def spring_tests(line, pc, S, unit, sos=None):
+    """After the Phase C, the FIRST line valley after its recovery that holds over the spring's low and no higher
+    than the top of the support area: one test per Phase C. (Naming every such valley named up to 11 on one box,
+    so it could never miss one he drew.) A test is a swing of its own, on a bar after the reaching peak's: the
+    low of the very bar whose high reached back into the area is the spring's recovery, not a test (his GFR,
+    Thu 16/10/2026: two Phase C events, *"one of them is already engulfed in the other"*). It may sit UNDER the
+    support area, and the valley THE SOS's swing rises from is the SOS's own, never a test (his AAPL, Fri
+    17/10/2026: the test of Tue 06/10 sat 0.55 ranges under support, and *"what you marked as the Test is already
+    a part of the SOS"*)."""
     if pc is None:
         return []
     after = pc["reach_turn_bar"] if pc.get("reach_turn_bar") is not None else pc["tip_bar"]
+    before = sos["swing_bar"] if sos is not None else None
     for (b, k, p, know) in line:
-        if k == "valley" and b > after and abs(p - S) <= _area(unit) and p > pc["tip_price"]:
+        if before is not None and b >= before:
+            break
+        if k == "valley" and b > after and pc["tip_price"] < p <= S + _area(unit):
             return [{"tip_bar": int(b), "tip_price": float(p), "knowable_bar": know}]
     return []
 
@@ -479,7 +485,7 @@ def assemble(line, highs, lows, *, start: int, R: float, S: float, unit: float, 
     sos = pick_the_sos(pushes, lps_low_bar, after=spring["tip_bar"] if spring is not None else None,
                        line=line, highs=highs, start=start, read_bar=read_bar, unit=unit)
     return {"thrusts": pushes, "phase_c": spring, "the_sos": sos,
-            "spring_tests": spring_tests(line, spring, S, unit),
+            "spring_tests": spring_tests(line, spring, S, unit, sos=sos),
             "the_upthrust": the_upthrust(pushes, line, R, unit, spring, start, read_bar, fifteenth=fifteenth),
             "last_suppers": last_suppers(pushes, lows, unit, lps_start, R=R, pc=spring, start=start,
                                          read_bar=read_bar),
