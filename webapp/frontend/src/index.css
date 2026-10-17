@@ -1706,6 +1706,7 @@ td {
 }
 
 .phase-col.phase-bin-a  { --story-hue: var(--text-faint); }
+.phase-col.phase-bin-box { --story-hue: var(--accent-purple); }
 .phase-col.phase-bin-ut { --story-hue: var(--accent-purple); }
 .phase-col.phase-bin-c  { --story-hue: var(--accent-pink); }
 .phase-col.phase-bin-d  { --story-hue: var(--accent-blue); }

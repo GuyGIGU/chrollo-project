@@ -28,10 +28,10 @@ const chartOptions = (width, height, container) => {
     rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
     timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false,
                  lockVisibleTimeRangeOnResize: true },
-    // The bare wheel scrolls the lens page, never the bars (Thu 16/10/2026); Ctrl+wheel and the
-    // zoom cluster scale (ChartZoomControls); dragging the axis scales too.
-    handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
-    handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
+    // The wheel over the pane zooms it, as on TradingView (Fri 17/10/2026); the zoom cluster
+    // (ChartZoomControls) and the axis drags scale too; the lens page scrolls from outside the panes.
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+    handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
   };
 };
 
@@ -55,7 +55,6 @@ const homeView = (chart, candles, boxStart, show) => {
 // `bars` overrides the opening window (the lens's side column shows fewer, Fri 17/10/2026).
 export default function TimeframeMainChart({ candles, volumes, box, label, bars = null }) {
   const chartRef = useRef(null);
-  const frameRef = useRef(null);
   const boxR = box?.r;
   const boxS = box?.s;
   const boxStart = box?.start_date;
@@ -101,7 +100,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label, bars 
   }
 
   return (
-    <div ref={frameRef} style={{ height: '100%', minHeight: 0, position: 'relative' }}>
+    <div style={{ height: '100%', minHeight: 0, position: 'relative' }}>
       <CandleChart
         spec={{
           chartOptions: (container) =>
@@ -127,7 +126,6 @@ export default function TimeframeMainChart({ candles, volumes, box, label, bars 
       />
       <ChartZoomControls
         chartRef={chartRef}
-        frameRef={frameRef}
         onHome={() => { if (chartRef.current) homeView(chartRef.current, candles, boxStart, show); }}
       />
     </div>

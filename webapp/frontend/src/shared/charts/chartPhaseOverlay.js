@@ -352,6 +352,13 @@ const storyRegion = (data, candles, event) => {
 // highest high). The old engine's phases are not carried on such a row.
 const twoEyesRegions = (data, candles) => {
   const regions = [];
+  // The root swing the box stands on (the climax to the reaction low: the grey bars) as the 'a' band, so the
+  // board's Phase A lights the swing alone and not the whole box (Fri 17/10/2026, his nit).
+  const root = rootSwingRange(data, candles);
+  if (root) {
+    const region = buildRegion('a', candles, root.startIndex, root.endIndex, { detail: 'The root swing the box stands on' });
+    if (region) regions.push(region);
+  }
   const parent = twoEyesBox(data, candles, 'parent');
   if (parent) {
     const region = buildRegion('b', candles, parent.openIndex, setupEndIndex(data, candles), { range: 'setupBox' });

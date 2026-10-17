@@ -29,8 +29,8 @@ carried per setup (median 300 ≈ 14 months).
 > about 1140x480 with the volume pane under it, 150 bars at ~7.6 px per bar) beside a side column (29%, the
 > monthly over the weekly, 490x300 each: 60 and 100 bars) and `--lens-chart-band` is **600px**, so the phase
 > board under the panes still shows on the 1080 screen. When the daily is the small one (a D/W/M tab or a
-> caption click swaps the panes) it shows its newest 80 bars. Every pane zooms (+ − ⌂ ⤢, Ctrl+wheel; the
-> math in `chartZoom.js`). The W/M preview cubes and `CHART_FRAMING.htfPreview` are retired.
+> caption click swaps the panes) it shows its newest 80 bars. Every pane zooms (+ − ⌂ ⤢, and the wheel over
+> the pane with no modifier, his nit the same day; the buttons' math in `chartZoom.js`). The W/M preview cubes and `CHART_FRAMING.htfPreview` are retired.
 >
 > **Revised 2026-10-16** — the lens (the modal) opens on **150** bars (the second pass the same day; the first pass said 200), not the year of 252, its chart card is FULL WIDTH (the W/M column became its own card), its
 > chart block is **724px** tall on every monitor, and the volume sits in its OWN pane (a fifth of the height) (`--lens-chart-band`), the price band 86% of the

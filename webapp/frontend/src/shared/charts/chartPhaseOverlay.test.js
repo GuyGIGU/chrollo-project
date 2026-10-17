@@ -42,10 +42,13 @@ test('rootSwingRange: a two-eyes box greys the span between its two anchor days'
     makeCandles(40)), null);
 });
 
-test('buildPhaseRegions: a two-eyes row lights its box from the day it opened and its LPS over its own days', () => {
+test('buildPhaseRegions: a two-eyes row lights its root swing, its box from the day it opened and its LPS over its own days', () => {
   const regions = buildPhaseRegions(twoEyesPayload());
   const byKey = Object.fromEntries(regions.map((region) => [region.key, region]));
-  assert.deepEqual(Object.keys(byKey).sort(), ['b', 'lps']);
+  assert.deepEqual(Object.keys(byKey).sort(), ['a', 'b', 'lps']);
+  // The root swing (the climax to the reaction low, the grey bars) as its own band, so Phase A on the board lights
+  // the swing alone and never the box (Fri 17/10/2026).
+  assert.deepEqual([byKey.a.startIndex, byKey.a.endIndex], [15, 17]);
   assert.equal(byKey.b.startIndex, 14);
   assert.equal(byKey.b.endIndex, 39);
   assert.equal(byKey.b.range, 'setupBox');
@@ -69,7 +72,7 @@ test('buildPhaseRegions: a two-eyes row lights its mini and each word of its sto
     ],
   }));
   const byId = Object.fromEntries(regions.map((region) => [region.id, region]));
-  assert.deepEqual(regions.map((region) => region.key), ['b', 'mini', 'story', 'story', 'story', 'lps']);
+  assert.deepEqual(regions.map((region) => region.key), ['a', 'b', 'mini', 'story', 'story', 'story', 'lps']);
   // The mini over its own lines from the day it opened; never the box's key, so lighting the box lights it alone.
   assert.deepEqual([byId.mini.startIndex, byId.mini.endIndex, byId.mini.low, byId.mini.high], [23, 39, 15, 18]);
   // A word over its own swing, a word with no swing on its one day, Phase D from its day to the setup's last bar.
@@ -82,9 +85,9 @@ test('buildPhaseRegions: a two-eyes row lights its mini and each word of its sto
   assert.equal(storyRegionId({ kind: 'SOS', day: '2024-01-27' }), 'story:SOS:2024-01-27');
 });
 
-test('buildPhaseRegions: a two-eyes row with no LPS window lights its box alone', () => {
+test('buildPhaseRegions: a two-eyes row with no LPS window lights its root swing and its box alone', () => {
   const regions = buildPhaseRegions(twoEyesPayload({ lps: { against: 'parent' } }));
-  assert.deepEqual(regions.map((region) => region.key), ['b']);
+  assert.deepEqual(regions.map((region) => region.key), ['a', 'b']);
 });
 
 test('buildPhaseRegions: an old row is read exactly as before', () => {

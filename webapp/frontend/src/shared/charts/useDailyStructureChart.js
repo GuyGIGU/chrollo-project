@@ -34,11 +34,11 @@ const chartOptions = (width, height, container) => {
     // (2026-10-02).
     timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false,
                  lockVisibleTimeRangeOnResize: true, tickMarkMaxCharacterLength: 22, allowBoldLabels: false },
-    // The lens is a page that scrolls (Thu 16/10/2026): the wheel over the chart
-    // scrolls the page, as on Finviz, instead of zooming the bars. The chart still
-    // scales by dragging its time axis and pans by dragging the bars.
-    handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
-    handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
+    // The wheel over a pane ZOOMS it, as on TradingView (Fri 17/10/2026, his nit: "if the mouse is in
+    // the chart it works so i can zoom and drag without having to hold CNTRL"); the lens page scrolls
+    // from outside the panes. A sideways wheel pans; the axis drags scale; a double click resets.
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+    handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
   };
 };
 

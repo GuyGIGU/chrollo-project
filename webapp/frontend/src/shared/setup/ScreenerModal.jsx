@@ -78,7 +78,6 @@ const ScreenerModal = ({
   watchlisted = false, onToggleWatchlist, liked = false, onToggleLike, position = null,
 }) => {
   const chartContainerRef = useRef(null);
-  const dailyFrameRef = useRef(null);
   const [activeRegion, setActiveRegion] = useState(null);
   const [interval, selectInterval] = useState('D');
   // The panel under the chart has two pages (Tue 13/10/2026, his "show the fundamental card as a second page rather
@@ -131,9 +130,9 @@ const ScreenerModal = ({
   const paneCanvas = (tf, big) => {
     if (tf === 'D') {
       return (
-        <div ref={dailyFrameRef} className="lens-daily-frame">
+        <div className="lens-daily-frame">
           <div ref={chartContainerRef} className="lens-daily-canvas" />
-          <ChartZoomControls chartRef={daily.chartRef} frameRef={dailyFrameRef} onHome={daily.home} />
+          <ChartZoomControls chartRef={daily.chartRef} onHome={daily.home} />
         </div>
       );
     }
@@ -218,7 +217,7 @@ const ScreenerModal = ({
           <section key={skin} className="lens-block lens-block-chart">
             <header className="lens-block-head">
               <span>Chart</span>
-              <small>the daily big, the monthly and the weekly beside it; drag the bars, + − to zoom (or Ctrl + wheel), ⌂ back to the opening view, ⤢ the whole history; click a small pane to open it big</small>
+              <small>the daily big, the monthly and the weekly beside it; the wheel over a pane zooms it, drag the bars to pan, ⌂ back to the opening view, ⤢ the whole history; click a small pane to open it big</small>
             </header>
             <div className="lens-card">
               <div className="lens-chart-grid" style={{ flex: '0 0 auto' }}>

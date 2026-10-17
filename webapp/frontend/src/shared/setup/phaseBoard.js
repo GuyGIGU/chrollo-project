@@ -31,17 +31,35 @@ export function phaseBoard(data, regions = []) {
   const byKind = (kind) => events.filter((event) => event.kind === kind);
   const lps = block.lps || null;
 
-  // Phase A: the root swing the box stands on.
+  // Phase A: the root swing the box stands on. Its lines light the swing's own band ('a'), never the box
+  // (Fri 17/10/2026, his nit: "Phase A highlights the entire Box, where it only needs to highlight the root swing").
   const a = [];
+  const swing = ids.has('a') ? 'a' : null;
   if (parent) {
-    a.push(eventLine('a:r', 'Resistance', parent.r_day, 'the climax: the high the rise stopped at', { region: ids.has('b') ? 'b' : null, hero: fx(parent.r, 2) }));
-    a.push(eventLine('a:s', 'Support', parent.s_day, 'the reaction low: where the first fall after it ended', { region: ids.has('b') ? 'b' : null, hero: fx(parent.s, 2) }));
+    a.push(eventLine('a:r', 'Resistance', parent.r_day, 'the climax: the high the rise stopped at', { region: swing, hero: fx(parent.r, 2) }));
+    a.push(eventLine('a:s', 'Support', parent.s_day, 'the reaction low: where the first fall after it ended', { region: swing, hero: fx(parent.s, 2) }));
+  }
+
+  // The BOX: the consolidation itself, its own column (Fri 17/10/2026: "a section that's reserved for the
+  // consolidation itself and call it Box, which will highlight the entire Box and will list quality details about
+  // the structure itself"). Every line lights the whole box. The facts are the ones the wire carries: its lines,
+  // its height in its own daily ranges, the base days and how many had a bar in the box (the grade's own count),
+  // whether the base held. Tightness, spread and the swings' cleanness are not measured by the reader yet.
+  const boxLines = [];
+  if (parent) {
+    const whole = ids.has('b') ? 'b' : null;
     const days = block.grade?.base_days;
     const empty = block.grade?.empty_days;
-    a.push(eventLine('a:box', 'Box', parent.opened,
-      [parent.ranges_tall == null ? null : `${fx(parent.ranges_tall, 1)} of its daily ranges tall`,
-        days != null ? `${days} base days${empty != null ? `, ${days - empty} with a bar in it` : ''}` : null].filter(Boolean).join(' · '),
-      { region: ids.has('b') ? 'b' : null }));
+    boxLines.push(eventLine('box:lines', 'Box', parent.opened, `R ${fx(parent.r, 2)} / S ${fx(parent.s, 2)}, from the day it opened`, { region: whole, hero: `${fx(parent.r, 2)}/${fx(parent.s, 2)}` }));
+    if (parent.ranges_tall != null) {
+      boxLines.push(eventLine('box:height', 'Height', null, 'of its own daily ranges, resistance to support', { region: whole, hero: `${fx(parent.ranges_tall, 1)} ranges`, title: `The box is ${fx(parent.ranges_tall, 1)} of its own daily ranges tall.` }));
+    }
+    if (days != null) {
+      boxLines.push(eventLine('box:days', 'Base', null, empty != null ? `${days - empty} of them with a bar in the box` : 'days from the day the box opened', { region: whole, hero: `${days} days`, title: empty != null ? `${days} base days, ${days - empty} of them with a bar in the box (the grade counts the empty ones).` : `${days} base days.` }));
+    }
+    if (block.grade?.holds != null) {
+      boxLines.push(eventLine('box:holds', 'Hold', null, block.grade.holds ? 'no low fell through the support area after the SOS' : 'a low fell through the support area after the SOS', { region: whole, hero: block.grade.holds ? 'held' : 'broke', title: block.grade.holds ? 'The base held.' : 'The base did not hold: a low fell beyond the support area after the SOS top.' }));
+    }
   }
 
   // The upthrust on its own.
@@ -100,6 +118,7 @@ export function phaseBoard(data, regions = []) {
     note: facts ? `${block.grade.empty_days} of ${block.grade.base_days} base days empty · the base ${block.grade.holds ? 'held' : 'did not hold'}` : null,
     phases: [
       { key: 'a', token: 'A', name: 'Phase A', meaning: 'the root swing the box stands on', lines: a },
+      { key: 'box', token: 'BOX', name: 'Box', meaning: 'the consolidation itself, resistance to support', lines: boxLines.length ? boxLines : [eventLine('box:none', 'Box', null, 'no box on this row')] },
       ...(upthrusts.length ? [{ key: 'ut', token: 'UT', name: 'Upthrust', meaning: 'the run over resistance that came back', lines: upthrusts, aside: true }] : []),
       { key: 'c', token: 'C', name: 'Phase C', meaning: 'the shakeout under support', lines: c.length ? c : [eventLine('c:none', 'Spring', null, 'no dip under support recovered', { title: 'The reader named no spring on this box.' })] },
       { key: 'd', token: 'D', name: 'Phase D', meaning: opening
