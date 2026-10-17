@@ -101,6 +101,27 @@ def test_whether_a_read_fired_reads_no_event_and_no_state_word():
 # --------------------------------------------------------------------------- #
 # The state words: one closed table, one home for each word                   #
 # --------------------------------------------------------------------------- #
+def test_the_spring_event_is_dated_on_its_own_dip_and_the_recovery_bars_own_low_is_no_test():
+    """His GFR (Thu 16/10/2026), on the reader's own words for it: the spring of Fri 02/10/2026 was marked over
+    Fri 02/10 to Tue 06/10, "the bars going up, aka the recover after the swing, not the spring itself", and a
+    "spring test" was named on Tue 06/10, the low of the bar that recovered — "one of them is already engulfed
+    in the other". The event's days are the dip's, first bar under the support area to the tip; a valley on
+    the reaching bar's own day is no test."""
+    turn = lambda bar, kind, price, known: SimpleNamespace(bar=bar, kind=kind, price=price, knowable_bar=known)
+    lows = np.array([10.5, 10.2, 9.8, 9.4, 9.2, 8.0, 9.0, 9.7, 9.6, 10.3, 10.1, 10.8, 10.4, 11.0] + [10.6] * 26)
+    highs = lows + 0.6
+    days = tuple(dt.date(2026, 9, 1) + dt.timedelta(days=i) for i in range(len(lows)))
+    # The bar of 08 reaches the area with its high and carries its own low 9.6 (bar 8 is wide: peak, then valley).
+    turns = [turn(0, "peak", 11.1, 1), turn(5, "valley", 8.0, 6), turn(8, "peak", 10.9, 9), turn(8, "valley", 9.6, 9),
+             turn(13, "peak", 11.6, 14), turn(20, "valley", 10.6, 21), turn(39, "peak", 11.2, None)]
+    events = {e.kind: e for e in story.read(turns, highs, lows, days, start_bar=0, R=14.0, S=10.0, unit=1.0,
+                                             read_bar=39)}
+    spring = events[record.SPRING]
+    assert (spring.day, spring.first_day, spring.last_day) == (days[5], days[3], days[5])
+    assert spring.known_day == days[9] and spring.committed
+    assert record.SPRING_TEST not in events, "the reaching bar's own low is the recovery, not a test"
+
+
 def test_the_ten_state_words_are_one_table_and_equal_the_one_the_screen_reads():
     assert record.STATE_WORDS == (
         "fired", "crossed", "lines, no LPS yet", "forming N of 15", "root candidate, unconfirmed",

@@ -491,9 +491,39 @@ def test_the_recovery_stamps_its_reach_confirm_and_commit_bars():
         "the first high at S - 0.5 (bar 5, before the peak), the answering valley, its commit"
 
 
+def test_the_springs_own_days_are_its_bars_under_the_support_area_up_to_its_tip():
+    """His GFR (Thu 16/10/2026): "you marked the bars going up, aka the recover after the swing, not the spring
+    itself". The spring's own days run from the first bar under the support area to the tip; its recovery is
+    the swing after it, kept as the reach and the confirm, never as the spring's days."""
+    lows = np.array([10.5, 10.2, 9.8, 9.4, 9.2, 8.0, 9.0, 9.7, 10.3, 9.6, 10.1, 10.8], dtype=float)
+    highs = lows + 0.6
+    line = [(0, P, 11.1, 1), (5, V, 8.0, 6), (8, P, 10.9, 9), (9, V, 9.6, 10), (11, P, 11.4, None)]
+    (d,) = W.dips(line, highs, 0, 10.0, unit=1.0, lows=lows)
+    assert (d["first_bar"], d["tip_bar"]) == (3, 5), "bar 2 (9.8) sits in the area; bars 3, 4 and the tip are under it"
+    assert (d["reach_turn_bar"], d["confirm_bar"]) == (8, 9)
+    # A tip whose own bar is the first under the area: one day.
+    one = [(0, P, 11.1, 1), (4, V, 8.0, 5), (8, P, 10.9, 9), (9, V, 9.6, 10), (11, P, 11.4, None)]
+    lows2 = lows.copy(); lows2[3] = 9.6; lows2[4] = 8.0; lows2[5] = 9.0
+    (d,) = W.dips(one, lows2 + 0.6, 0, 10.0, unit=1.0, lows=lows2)
+    assert (d["first_bar"], d["tip_bar"]) == (4, 4)
+
+
+@UNITS
+def test_a_valley_on_the_reaching_peaks_own_bar_is_the_springs_recovery_and_no_test(u):
+    """His GFR (Thu 16/10/2026): the "spring test" of Tue 06/10/2026 was the low of the very bar whose high
+    reached back into the support area — one of the two Phase C events "already engulfed in the other". A test
+    is a swing of its own: a valley on a bar after the reaching peak's."""
+    pc = {"tip_bar": 1, "tip_price": 8.0 * u, "reach_turn_bar": 2}
+    line = _s([(0, P, 11.0, 1), (1, V, 8.0, 2), (2, P, 10.2, 3),
+               (2, V, 9.7, 4),                  # the reaching bar's own low, in the area: the recovery, no test
+               (4, P, 10.5, 5), (5, V, 9.8, 6),     # a valley of its own in the area: THE test
+               (8, P, 11.2, None)], u)
+    assert [t["tip_bar"] for t in W.spring_tests(line, pc, 10.0 * u, unit=u)] == [5]
+
+
 @UNITS
 def test_the_spring_test_is_the_first_valley_back_inside_the_support_area_after_the_phase_c(u):
-    pc = {"tip_bar": 1, "tip_price": 8.0 * u}
+    pc = {"tip_bar": 1, "tip_price": 8.0 * u, "reach_turn_bar": 2}
     line = _s([(0, P, 11.0, 1), (1, V, 8.0, 2), (2, P, 10.2, 3),
                (3, V, 9.2, 4),                  # 0.8 under S: not back inside the area yet
                (4, P, 10.5, 5), (5, V, 9.7, 6),     # 0.3 under S, higher than the tip: THE test

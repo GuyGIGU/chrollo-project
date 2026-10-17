@@ -128,6 +128,18 @@ setup grade nor the tier; its thresholds are canon defaults, to be recalibrated 
 archive. Read on his five: SNOW, FROG and ANET grade A; HNGE C (estimates cut, its latest report
 missed); DDI C (flat sales), the good chart on a flat business.
 
+**The chart outranks the business (the book, 2026-10-16).** Price turns before the earnings do.
+Vicor's first flat quarter came after its stock had already lost about 70%. Crocs gapped down on
+a quarter still up 144%, and its first losing quarter came only after a fall of about 73% (the
+book's figures). Green Mountain Coffee topped in 2011 on a quarter up 133% with raised guidance,
+and was slammed on one still up 96%. Illumina broke in July 2011 on a report that beat on both
+lines. The big holders sell on what they expect, so the chart shows it first. His words on
+it: *"good earnings & sales aren't the only indicators for good stocks and with out a clear
+signal from the chart ( a setup) we cannot count on it being a good buy"*. The fundamental grade
+confirms a business and never vouches for its chart: today it moves no fire, and a board order
+that uses it should sort inside the chart's grade, never above it (ours, from the book; the
+board order is still his to rule).
+
 ### The life cycle: the four stages
 
 A stock lives through stages (Minervini, after Weinstein), and nearly every big winner made its
@@ -159,6 +171,102 @@ stage-2 checklist did not separate the moves that reached +25% (all seven 12.9%,
 the 52-week low did separate, but only among volatile movers, and it is RS by another name,
 which is Tested-DEAD to score. The transition base has its own dark lane; he has said "not yet"
 to raising it, and it waits for him.
+
+**How stage 2 ends, on the book's charts (2026-10-16).** Four more weekly charts. Citigroup
+(2004 to 2009) spent three years in stage 1, poked above the range late in 2006, never turned
+into stage 2, and broke down in 2007. Bank of America had a short stage 2 in 2006 that stalled
+into a stage 3 of about eleven months. The book marks three points to cut the position: the
+first closes under the 40-week average, a lower dip under it, then the break under the range
+late in 2007. Vicor (1990 to 1993) ran about +450% in a year, topped within weeks after a
+climax-like run, and crashed in March 1992. Crocs went from stage 2 to stage 4 in one gap down,
+on the heaviest volume of its life. So stage 3 lasts anywhere from days to a year, and the
+volume swells on the way down as the big holders leave.
+
+**The same four charts, read by the live reader (2026-10-16).** Walked day by day on their real
+daily bars through the stages the book draws (dates read off its pictures), with the call the
+junk corpus makes: the door, then the reader. Days fired, of the trading days in each stage:
+
+| | Stage 1 | Stage 2 | Stage 3 (Citigroup: the failed turn) | Stage 4 |
+|---|---|---|---|---|
+| Vicor 1991-1992 | too early to read | 38 of 222 | 26 of 62, mostly S | 0 of 213 |
+| Bank of America 2005-2008 | 33 of 211 | 44 of 169 | 10 of 230, all S | 0 of 166 |
+| Citigroup 2006-2008 | 68 of 231 | it never turned | 28 of 230, mostly S | 0 of 166 |
+| Crocs 2006-2008 | too young to read | 35 of 224 | 2 of 15, grade C | 0 of 164 |
+
+Stage 4 never fires: the door reads only a stock above its 50-day and 200-day averages and not
+down 20% on the year, and that keeps every decline out. Stages 1 and 3 get through. A flat or
+stalling stock spends many days above both averages, and the reader judges a box's shape in the
+stock's own daily ranges, so a quiet bank's range 2 to 4% tall reads as a tight base. The trend
+template on the card shows some of it (Bank of America's top fired at a median 3 of 7, the
+200-day edging down) and misses the rest: Citigroup's failed turn read 6 of 7, and Vicor's top
+read 7 of 7, its 200-day still climbing about 13% a month after the climax-like run. The stage-2
+fires are the good side: the reader caught Vicor's run from about $4.30 in January 1991 and
+Crocs' from late 2006.
+
+His X on the stage-3 range and "no buying" in stage 1 say the other fires are not his setups.
+The trend template is not the tool to keep them out: it does not separate the archive's fires
+(the 332 with four or fewer checks reached +25% as often as the 7-of-7 ones, Nulls 2026-10-03),
+and it cannot see a top that comes after a climax run. Telling the stages apart needs the start
+of the advance and its age, the same read the base count needs (the bigger picture below).
+*Not built.*
+
+**The topping base, his reading on CMG (2026-10-16).** On the book's Chipotle chart he marked
+the timeline himself: the stage-2 run, the buying climax (BC) and its automatic reaction (AR),
+and the range they opened, labeled "topping base". His words: *"bases that show up after a long
+up trend run (usually they are also wider then their predecessors) tend to be viable setups for
+a short position"*, and *"notice the strength of sellers, even before the stock got slammed we
+were already beginning to down trend."* On the daily bars (2012 dollars): the BC topped at 442
+on 13 April and the AR bottomed at 401. Inside the range every rally peaked lower (424 in May,
+420 in June, 405 in July) and every dip reached lower (385, then 370), and the down days carried
+about 1.5 times the up days' volume in the climax week, the reaction and June. The price broke
+under the range at the end of June, rallied back up to its underside (where a broker upgraded it
+to a buy on 17 July), and three days later gapped to 317 on twelve times its average volume. So a
+topping base opens exactly like a base in an uptrend, with a climax and its reaction. What tells
+them apart is where it sits (late in a long run), its size against the bases before it, and
+which side wins inside it.
+
+*Wider than the bases before it*, measured with the base-count rule on the weekly bars of the
+book's tops (the topping base from its top week to the week before the break): DECK 46% deep
+against at most 26% before it, Bank of America 20% against at most 9%, AMGN 30-33% against
+19-30% (2026-10-03); all three were also the widest in the stock's own weekly bars, and the
+longest. Chipotle 16% against 14% for the base just before it, and the widest in its own weekly
+bars, though it had deeper bases in percent in 2009-2011 (and its 16% counts the break under the
+range). Vicor 27% against 26% for the one before, the same size: its top was a climax more than
+a wide base. "Usually", as he says. The live reader on the same Chipotle days fired S on seven
+of them inside the topping base: just after the climax (on a late-March box, 427/415) and on 20
+to 25 June (a box 409/384, its trigger about 414-420, the trend template 7 of 7), the third
+lower high, six trading days before the break.
+
+**Engine β.** He reads the topping base as a short setup for a future engine: *"Engine Beta β
+would focus on screening Short positions in the future after were done with Alpha"*. It confirms
+his 2026-07-26 deferral of the LPSY to engine β. The rally back up to the underside of the broken
+range, where Chipotle was upgraded, is the short side's mirror of Alpha's LPS: Wyckoff's last
+point of supply, *"like an LPS but for distribution processes — an event that signals weak
+buyers"* (his words, 2026-07-26). For Alpha the lesson is the stage-3 read above: a topping base
+is not his long setup. *Nothing short-side is built.*
+
+**The break (the book, 2026-10-16).** The book's sell signal: the largest one-day or one-week
+decline since the stage-2 advance began, on the largest volume, even when it comes on a good
+earnings report (Crocs fell 36% in a day on a quarter up 144%, then 99% in a year). His words:
+*"Notice how after gap down the stock broke down and that gap kickstarted its long downtrend.
+The largest daily decline for Crocs also came on the largest weekly decline on huge volume."*
+Measured on real daily bars from each advance's start (the base count's rule):
+
+- Crocs, Illumina and Chipotle broke on a gap far larger than any drop of their advance (36%,
+  18% and 22%, against at most 8%, 5% and 8% before), each on the advance's largest volume.
+- Vicor, Deckers and Stryker broke quietly, their first record drop only just past the earlier
+  ones and weeks after the top.
+- Every break came after the top, so it is a signal to sell, not a warning before the top. The
+  combination of a record drop on record volume also fires in the first weeks of an advance,
+  when every dip is the largest so far. The book's breaks all came six months or more into an
+  advance.
+
+The archive: 48 of 3,417 matured fires came within 65 trading days after such a break (26 weeks
+or more into the advance); they reached +25% as often as the rest (12.5% against 12.1%; too few
+to tell). The door already keeps most broken charts out, since they fall under their 50-day
+average. ANET, one of his five leaders, broke this way in May 2026 and went on to new highs. For
+Alpha nothing is built: Chrollo never manages an exit. For engine β, the break and the bounce
+after it are the short side's events.
 
 #### Bases inside stage 2, and counting them
 
@@ -335,9 +443,9 @@ cycle under other names, and Chrollo reads one part of it:
 
 | Minervini | Wyckoff | Chrollo today | Ruled or planned |
 |---|---|---|---|
-| Stage 1, neglect | accumulation after a markdown (a selling climax and its automatic rally open it) | mostly kept out by the door's trend floor; the selling-climax pair is reserved for the end of a main downtrend | the transition base: its own lane, dark, waiting on his word |
+| Stage 1, neglect | accumulation after a markdown (a selling climax and its automatic rally open it) | kept out by the door's trend floor only while the price is under an average: a flat stage 1 above both is read and fires (the book's Bank of America and Citigroup, measured 2026-10-16); the selling-climax pair is reserved for the end of a main downtrend | the transition base: its own lane, dark, waiting on his word |
 | Stage 2, advance | markup, with re-accumulation ranges along the way | **the core.** The box's climax is the top of an up-run (the buying climax and its automatic reaction), and the box, its LPS and its buy are a stage-2 base; the trend template and the stage cells are shown | base on base (the chain grammar below, dark); the base count needs the advance's start (not built) |
-| Stage 3, top | distribution | not named: the distribution side was deliberately left (the Wyckoff companion); a wide range is refused today by the width cap in percent of price | the method grades height in ranges instead of refusing (dark); the late-stage tell is an idea from one picture (not built) |
+| Stage 3, top | distribution | not named: the distribution side was deliberately left (the Wyckoff companion); the old reader refused a wide range by its width cap in percent of price, the live reader (since 10/10) has none, and it fires inside three of the book's four tops and his Chipotle topping base (measured 2026-10-16) | the method grades height in ranges instead of refusing (dark); the late-stage tell, a topping base wider than the bases before it, holds on four of the book's five tops (2026-10-16; not built); the short side is engine β's, after Alpha (his word, 2026-10-16) |
 | Stage 4, decline | markdown | kept out by the door's trend floor | a box that fails reads "broke down", one of the method's state words (dark) |
 
 **His sequences against the Reading Model's events.** The event chain is the same story his
@@ -538,7 +646,15 @@ default as ours.
    A pair shorter than one of its own daily ranges is listed and never a box (ours: from
    his huge spread being huge against the box itself). First in time stands: the first pair
    that BECAME a box is the box shown — then the earlier opening, then the earlier second
-   anchor, then the tighter pair (the tie-breaks are ours). The box opens on its earlier
+   anchor, then the tighter pair (the tie-breaks are ours). But among the pairs off ONE
+   opening anchor the order of trying is his sentence 5: the climax and its reaction first,
+   one pair to the right only while the bars have not come back to both of its rails. A
+   sibling one swing to the right (the same top, a lower low) that was answered sooner is
+   shown only until the reaction low is answered too; on that day the climax and its
+   reaction take the place (his GFR, Thu 16/10/2026: *"the AR ended where I marked it (the
+   red swing) the entire wave going down is already 2 swings and it's not part of the AR"*;
+   the reader had shown 6.78 / 5.76 for his 6.78 / 6.04). The form is ours; a pair off
+   ANOTHER anchor never comes back this way (below). The box opens on its earlier
    anchor, each line starts at its own anchor and is never extended left. The daily range
    the box is measured in is the range of its second anchor's day and is never the read
    day's (ours). An earlier, wider box is acceptable when his LPS reads against it: *"so
@@ -583,7 +699,8 @@ default as ours.
    opens on that rise's own end, once the far view says the rise ended there and that box
    is a box by the rule (the mirror for a fall; the form is ours). This is how the reader
    takes his other reading of ALB, the *"later pair"* after the run of 20/01 to 27/01/2026.
-   But for that way back, every hand-over goes to a pair that opened later. A pair that
+   But for that way back and the sibling tried first (stage 3), every hand-over goes to a
+   pair that opened later. A pair that
    opened EARLIER does not take the shown box's place on the day it becomes a box (ours:
    measured on his 37 on Thu 01/10/2026 in three forms, it put old wide pairs in the place
    of his own box on EGBN, NTCT and ST, or moved DRTS to its first reaction low). His
@@ -656,7 +773,13 @@ default as ours.
 5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
    beyond the support area is a Phase C candidate until the swing after its tip recovers it
    (a high back in the area, then a higher low) or fails it (a lower low first); one Phase
-   C per box, the deepest that recovered; *"Phase C = Spring"*. A thrust over the
+   C per box, the deepest that recovered; *"Phase C = Spring"*. The spring's own days are
+   the dip: from the first bar under the support area to the tip. Its recovery is the swing
+   after it, never the spring (his GFR, Thu 16/10/2026: *"you marked the bars going up, aka
+   the recover after the swing, not the spring it self!"*). The spring's test is the first
+   valley after that recovery back inside the support area and above the tip, a swing of
+   its own: the low of the very bar whose high reached back into the area is the recovery,
+   not a test (*"one of them is already engulfed in the other"*). A thrust over the
    resistance area is named by the swing after it and by where it sits: THE upthrust, one
    per box, in Phase B, *"similar to a Spring but in reverse being a Resistance based
    event swing"* — price climbs quickly out of the structure, then crashes back into the

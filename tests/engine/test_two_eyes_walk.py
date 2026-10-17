@@ -168,6 +168,14 @@ _SPRING_FAR = {0, 1, 2, 3, 5, 6, 8, 9, 11, 14, 17, 35, 38, 41, 44}
 _OUTER_PAIR_RESPECTED_LATE = _RISE + [(17, 76), (20, 70.5), (23, 75.6), (26, 70.8), (29, 75.8), (32, 71), (35, 75.5),
                                       (37, 72), (40, 79.6), (43, 71.2), (46, 79.2), (49, 71)]
 
+#: His GFR (Thu 16/10/2026): the climax 80 (bar 11) and its reaction low 70 (bar 14), a bounce to 76 and a SECOND
+#: swing down to 65.6 (bar 20): "the AR ended where I marked it ... the entire wave going down is already 2 swings
+#: and it's not part of the AR". The bars come back to the climax's level on bar 26, to 66's area on bar 29 (so
+#: 80 / 65.6 is a box first) and only on bar 30 to the reaction low's area: the climax and its reaction, the pair
+#: tried first, is a box on bar 30.
+_REACTION_ANSWERED_AFTER_A_LOWER_SIBLING = _RISE + [(17, 76), (20, 65.6), (23, 74), (26, 79.5), (28, 66.2),
+                                                    (31, 70.4), (34, 79.2), (37, 70.6), (40, 79), (43, 70.8)]
+
 #: The box, then a dip: a fall to 62 and three weeks on a lower pair, 68 / 62, whose resistance rests on the old
 #: support's area; on bar 49 it is a box and no bar has been back at the old rails: the reader follows the price
 #: down. Then the price comes back: at the old support on bar 55, at the old resistance on bar 57. His ROIV.
@@ -747,6 +755,29 @@ def test_an_earlier_pair_that_becomes_a_box_later_never_takes_the_shown_boxs_pla
     # The day before the outer pair is a box, and the day it is one: the same box shown.
     assert _box(_elect(chart, read_bar=48)) == _box(_elect(chart, read_bar=49)) == (76.0, 70.0)
     assert _pair(_elect(chart, read_bar=48), 80.0, 70.0).birth_bar is None
+
+
+def test_the_climax_and_its_reaction_take_the_place_of_a_lower_sibling_shown_before_them():
+    """His GFR (Thu 16/10/2026): "the AR ended where I marked it (the red swing) the entire wave going down is
+    already 2 swings and it's not part of the AR". Sentence 5: the first pair tried is the climax and its
+    reaction; one pair to the right only if the bars do not come back to both rails. Two pairs off the SAME
+    opening anchor: the lower sibling (80 / 65.6) is a box first, on bar 28, and is shown; on bar 30 the bars are
+    back at the reaction low too, the climax and its reaction (80 / 70) is a box, and it takes the place: it was
+    tried before the pair to its right. Read day by day with no memory. A pair that opened on ANOTHER anchor
+    still never comes back (the test below: his ROIV)."""
+    from engine_alpha.two_eyes import walk
+
+    chart = _chart(_REACTION_ANSWERED_AFTER_A_LOWER_SIBLING)
+    found = _elect(chart)
+    lower, reaction = _pair(found, 80.0, 65.6), _pair(found, 80.0, 70.0)
+    assert (lower.opening_bar, lower.birth_bar) == (11, 28) and (reaction.opening_bar, reaction.birth_bar) == (11, 30)
+    assert _box(found) == (80.0, 70.0)
+    assert found.lives[-1].why == walk.TRIED_FIRST and found.lives[-2].pair.feet == lower.feet
+    assert _shown_day_by_day(chart)[-2:] == [(80.0, 65.6, 28), (80.0, 70.0, 30)]
+    # The record says why, and the lower sibling stays in it as an earlier box.
+    boxes, trail, _ = walk.record(found)
+    assert [(b.resistance.price, b.support.price, b.role) for b in boxes[-2:]] == [(80.0, 65.6, "earlier"), (80.0, 70.0, "parent")]
+    assert any("tried before it" in step.saying for step in trail if step.stage == "hand-over")
 
 
 def test_a_dip_that_comes_back_gives_the_box_its_place_back():
@@ -1413,9 +1444,10 @@ def test_mtls_the_box_of_june_does_not_give_way_to_the_rails_of_the_july_run(his
 
 def test_the_boxes_life_on_his_drawings_moves_by_the_three_rules_and_goes_back_only_after_a_dip(his_reads):
     """Read with no memory on days up to his last receding day, the reader tells the same history: what a later
-    day tells of the days before is what those days told. Every hand-over is by one of the three rules, on or
+    day tells of the days before is what those days told. Every hand-over is by one of the four rules, on or
     after the day the box that takes the place became a box: to a pair that opened LATER (the box before it was
-    anchored inside a live trend; the price left it for good), or BACK to the box given up, when the price had
+    anchored inside a live trend; the price left it for good), to the SIBLING tried before it (the same opening
+    anchor, the earlier second anchor: his GFR), or BACK to the box given up, when the price had
     left it downward and the bars are back at both its rails. And the box shown on his last receding day is still
     the box on his buy day, on every drawing but the one named."""
     from engine_alpha.two_eyes import walk
@@ -1437,6 +1469,12 @@ def test_the_boxes_life_on_his_drawings_moves_by_the_three_rules_and_goes_back_o
                 assert walk.came_back_to(new.pair, row["high"], row["low"], old.shown_bar,
                                          new.shown_bar) == new.shown_bar, key
                 came_back += 1
+                continue
+            if new.why == walk.TRIED_FIRST:
+                # A sibling off the same opening anchor with an earlier second anchor, the day it is a box.
+                assert new.pair.opening_bar == old.pair.opening_bar and new.pair.second_bar < old.pair.second_bar, key
+                assert new.shown_bar == new.pair.birth_bar > old.shown_bar, key
+                hand_overs += 1
                 continue
             assert new.pair.opening_bar > old.pair.opening_bar, f"{key}: the shown line moved back"
             if new.why == walk.LEFT_FOR_GOOD:

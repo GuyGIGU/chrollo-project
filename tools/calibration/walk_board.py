@@ -61,7 +61,7 @@ from core.calibration.replay import fixture_frame, load_sealed_fixture  # noqa: 
 NAMED = ("VIK", "SYRE", "ALB", "FOSL", "MSGS", "ROIV", "EWTX", "NGL", "VLO", "ST", "NOK")
 BUDGET_SECONDS = 0.2
 VERDICTS = ("HIS", "CLOSE", "OTHER", "NONE")
-WHYS = (walk.FIRST_BOX, walk.LIVE_TREND, walk.LEFT_FOR_GOOD, walk.CAME_BACK)
+WHYS = (walk.FIRST_BOX, walk.LIVE_TREND, walk.LEFT_FOR_GOOD, walk.CAME_BACK, walk.TRIED_FIRST)
 
 
 def _date(value) -> Optional[dt.date]:

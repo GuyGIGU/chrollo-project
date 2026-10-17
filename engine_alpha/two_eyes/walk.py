@@ -91,7 +91,7 @@ from engine_alpha.two_eyes.runs import _cmp
 __all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
            "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lies_beyond", "lives", "measure",
            "move_began",
-           "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD",
+           "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD", "TRIED_FIRST",
            "LIVE_TREND", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
 
 #: Why a listed pair can never be a box.
@@ -100,6 +100,10 @@ UNFIT_WHOLE_MOVE = "the counter move took back the whole move before it"
 
 #: Why a box is shown.
 FIRST_BOX = "the first pair to become a box"
+#: His GFR (Thu 16/10/2026): a pair off the SAME opening anchor with an EARLIER second anchor — the climax and its
+#: reaction before the pair one swing to its right — was tried first (sentence 5) and takes the place the day it is
+#: a box. A pair that opened on another anchor never comes back this way (the Tested-DEAD rows of 2026-10-01).
+TRIED_FIRST = "the pair tried before it became a box"
 LIVE_TREND = "the box before it was anchored inside a live trend"
 LEFT_FOR_GOOD = "the price left the box before it and the bars no longer came back to both its rails"
 CAME_BACK = "the dip came back: the bars are back at both rails of the box it had given up"
@@ -487,7 +491,11 @@ def lives(pairs, trends, high, low, read_bar: int) -> tuple:
     judged once that trend end is known) or on the first day the price has left it for good (``left_for_good``).
     Each of those goes to a pair that opened later. One hand-over goes back: when the price had left a box
     DOWNWARD and a lower pair took its place, the box takes its place back on the first day the bars are back at
-    both its rails (``came_back_to``) — a dip that came back. Every box handed over stays, with the day its lines
+    both its rails (``came_back_to``) — a dip that came back. And one goes to a SIBLING: a pair off the shown
+    pair's own opening anchor with an earlier second anchor — the climax and its reaction, before the pair one
+    swing to its right — was tried first (sentence 5), and takes the place on the day it becomes a box
+    (``TRIED_FIRST``; his GFR, Thu 16/10/2026: *"the AR ended where I marked it ... the entire wave going down
+    is already 2 swings and it's not part of the AR"*). Every box handed over stays, with the day its lines
     stop; the last one stands."""
     born = sorted((p for p in pairs if p.birth_bar is not None), key=_key)
     if not born:
@@ -504,6 +512,13 @@ def lives(pairs, trends, high, low, read_bar: int) -> tuple:
         for pair in born:
             if best is not None and pair.birth_bar > best[0][0]:
                 break                   # born after the best day found: no later-born pair can come before it
+            if pair.opening_bar == shown.opening_bar and pair.second_bar < shown.second_bar \
+                    and int(pair.birth_bar) > day:
+                # The sibling tried before the shown pair (sentence 5) is a box: it takes the place on its birth.
+                order = (int(pair.birth_bar), _key(pair))
+                if best is None or order < best[0]:
+                    best = (order, pair, TRIED_FIRST, None)
+                continue
             if pair.opening_bar <= shown.opening_bar:
                 continue
             # The day this pair would take the shown box's place: the day a trend end that swallowed the shown
@@ -614,6 +629,11 @@ def _hand_over_words(walk: Walk, life: Life, new: Life) -> str:
         return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: the dip came back, the "
                 f"bars came back to both rails of the box before it, and {pair.R:.2f} / {pair.S:.2f} took its "
                 f"place again on {_when(walk, new.shown_bar)}")
+    elif new.why == TRIED_FIRST:
+        which = "the earlier reaction low" if pair.top_first else "the earlier reaction high"
+        return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: {pair.R:.2f} / "
+                f"{pair.S:.2f}, the same anchor and {which}, was tried before it and became a box on "
+                f"{_when(walk, new.shown_bar)}, and took its place")
     else:
         side = "above" if pair.S >= old.R - old.area else "below"
         why = f"the price left it {side} and the bars no longer came back to both its rails"

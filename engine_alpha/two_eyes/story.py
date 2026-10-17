@@ -77,8 +77,10 @@ def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: fl
     pushes, spring, sos = words["thrusts"], words["phase_c"], words["the_sos"]
     out = []
     if spring is not None:
+        # The spring's days are its own dip, first bar under the support area to the tip; the recovery is the
+        # swing after it (his GFR, Thu 16/10/2026: "not the spring itself"). Its commit day is the recovery's.
         out.append(Event(kind=SPRING, day=day(spring["tip_bar"]), price=spring["tip_price"],
-                         first_day=day(spring["start_bar"]), last_day=day(spring["confirm_bar"]),
+                         first_day=day(spring["first_bar"]), last_day=day(spring["tip_bar"]),
                          size=spring["depth_ranges"], committed=spring["knowable_bar"] is not None,
                          known_day=day(spring["knowable_bar"])))
     for test in words["spring_tests"]:

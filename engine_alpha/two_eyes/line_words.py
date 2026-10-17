@@ -294,10 +294,15 @@ def last_suppers(th, lows, unit, lps_start, *, R, pc, start, read_bar):
     return [] if best is None else [best[1]]
 
 
-def dips(line, highs, start, S, unit):
+def dips(line, highs, start, S, unit, lows=None):
     """Every line valley more than the rail area under S inside the box, with its recovery by the swing:
     recovered (the answering valley has committed), recovering (it is still forming, or the reaching swing has
-    not been answered yet), failed (a lower low than the tip printed first), or under S, undetermined."""
+    not been answered yet), failed (a lower low than the tip printed first), or under S, undetermined.
+
+    The dip's OWN days are ``first_bar`` to ``tip_bar``: the run of bars under the support area that ends at the
+    tip, read on ``lows`` (his GFR, Thu 16/10/2026: *"you marked the bars going up, aka the recover after the
+    swing, not the spring itself"*). The recovery is the swing after it: ``reach_bar`` (the first bar whose high
+    is back in the area), ``reach_turn_bar`` (the bar of the line peak that reached) and ``confirm_bar``."""
     area = _area(unit)
     out = []
     for i, (vb, vk, vp, _) in enumerate(line):
@@ -322,9 +327,14 @@ def dips(line, highs, start, S, unit):
         if reach is not None:          # from the tip's own bar: one bar may carry the tip and the reaching peak
             seg = np.asarray(highs[vb:line[reach][0] + 1], dtype=float)
             reach_bar = vb + int(np.argmax(seg >= S - area))
-        out.append({"start_bar": int(line[i - 1][0]) if i > 0 else None, "tip_bar": int(vb),
+        first_bar = int(vb)
+        if lows is not None:           # walk back over the bars under the area, never before the box opened
+            while first_bar - 1 >= start and float(lows[first_bar - 1]) < S - area:
+                first_bar -= 1
+        out.append({"start_bar": int(line[i - 1][0]) if i > 0 else None, "first_bar": first_bar, "tip_bar": int(vb),
                     "tip_price": float(vp), "depth_ranges": round(float((S - vp) / unit), 3), "state": state,
-                    "reach_bar": reach_bar, "confirm_bar": int(line[confirm][0]) if confirm is not None else None,
+                    "reach_bar": reach_bar, "reach_turn_bar": int(line[reach][0]) if reach is not None else None,
+                    "confirm_bar": int(line[confirm][0]) if confirm is not None else None,
                     "knowable_bar": line[confirm][3] if confirm is not None else None})
     return out
 
@@ -371,11 +381,11 @@ def _range_ran_on(line, i, R, S, unit, open_bar, half, fifteenth=None):
     return False
 
 
-def phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=None):
+def phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=None, lows=None):
     """One Phase C per box, the spring: the deepest dip that recovered by the swing and after which the range
     did not run on (back to the R area, then under the support area again, before the right side opened)."""
     at = {(t[0], t[1]): k for k, t in enumerate(line)}
-    recovered = sorted((d for d in dips(line, highs, start, S, unit) if d["state"] == "recovered"),
+    recovered = sorted((d for d in dips(line, highs, start, S, unit, lows=lows) if d["state"] == "recovered"),
                        key=lambda d: -d["depth_ranges"])
     half = _middle(start, read_bar)
     for d in recovered:
@@ -388,11 +398,15 @@ def phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=None)
 
 def spring_tests(line, pc, S, unit):
     """After the Phase C, the FIRST line valley back inside the support area holding higher than the tip: one test
-    per Phase C. (Naming every such valley named up to 11 on one box, so it could never miss one he drew.)"""
+    per Phase C. (Naming every such valley named up to 11 on one box, so it could never miss one he drew.) A
+    test is a swing of its own, on a bar after the reaching peak's: the low of the very bar whose high reached
+    back into the area is the spring's recovery, not a test (his GFR, Thu 16/10/2026: two Phase C events, *"one
+    of them is already engulfed in the other"*)."""
     if pc is None:
         return []
+    after = pc["reach_turn_bar"] if pc.get("reach_turn_bar") is not None else pc["tip_bar"]
     for (b, k, p, know) in line:
-        if k == "valley" and b > pc["tip_bar"] and abs(p - S) <= _area(unit) and p > pc["tip_price"]:
+        if k == "valley" and b > after and abs(p - S) <= _area(unit) and p > pc["tip_price"]:
             return [{"tip_bar": int(b), "tip_price": float(p), "knowable_bar": know}]
     return []
 
@@ -461,7 +475,7 @@ def assemble(line, highs, lows, *, start: int, R: float, S: float, unit: float, 
     caller's: the story counts it from the end of the trend, a box with no trend end (his own drawn box, in
     word recall) from its own first line."""
     pushes = thrusts(line, start, R, unit)
-    spring = phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=fifteenth)
+    spring = phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=fifteenth, lows=lows)
     sos = pick_the_sos(pushes, lps_low_bar, after=spring["tip_bar"] if spring is not None else None,
                        line=line, highs=highs, start=start, read_bar=read_bar, unit=unit)
     return {"thrusts": pushes, "phase_c": spring, "the_sos": sos,
