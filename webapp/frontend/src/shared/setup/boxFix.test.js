@@ -11,6 +11,8 @@ const data = {
   candles: [climax, reaction, last],
   two_eyes: { boxes: [{ role: 'parent', r: 345.34, r_day: '2026-09-22', s: 334.3, s_day: '2026-09-24', opened: '2026-09-22', end: null }] },
 };
+const nearHigh = (bar) => ({ date: bar.time, bar, price: bar.high - 0.3 });
+const nearLow = (bar) => ({ date: bar.time, bar, price: bar.low + 0.3 });
 
 test('the reader pair is the parent box on the wire, or null', () => {
   assert.deepEqual(readerPair(data), { r: 345.34, rDay: '2026-09-22', s: 334.3, sDay: '2026-09-24', opened: '2026-09-22' });
@@ -18,25 +20,42 @@ test('the reader pair is the parent box on the wire, or null', () => {
   assert.equal(readerPair({}), null);
 });
 
-test('the first click is the resistance on the bar HIGH, the second the support on the bar LOW, a third starts over', () => {
-  const one = applyFixClick(EMPTY_FIX, { date: climax.time, bar: climax });
+test('BC then AR: a click near the high is the resistance, the next near a low the support, a third starts over', () => {
+  const one = applyFixClick(EMPTY_FIX, nearHigh(climax));
   assert.deepEqual(one, { r: 345.34, rDay: '2026-09-22', s: null, sDay: null });
   assert.equal(fixComplete(one), false);
-  const two = applyFixClick(one, { date: reaction.time, bar: reaction });
+  const two = applyFixClick(one, nearLow(reaction));
   assert.deepEqual(two, { r: 345.34, rDay: '2026-09-22', s: 334.3, sDay: '2026-09-24' });
   assert.equal(fixComplete(two), true);
-  const three = applyFixClick(two, { date: last.time, bar: last });
+  const three = applyFixClick(two, nearHigh(last));
   assert.deepEqual(three, { r: 347.82, rDay: '2026-10-16', s: null, sDay: null });
-  assert.equal(applyFixClick(one, { date: null, bar: reaction }), one, 'no date: nothing moves');
-  assert.equal(applyFixClick(one, { date: reaction.time, bar: null }), one, 'no bar: nothing moves');
+  assert.equal(applyFixClick(one, { date: null, bar: reaction, price: 335 }), one, 'no date: nothing moves');
+  assert.equal(applyFixClick(one, { date: reaction.time, bar: null, price: 335 }), one, 'no bar: nothing moves');
 });
 
-test('a support over the resistance is no box, and the strip says what to do', () => {
-  const upside = applyFixClick({ r: 334.3, rDay: '2026-09-24', s: null, sDay: null }, { date: climax.time, bar: climax });
-  assert.equal(fixComplete(upside), false);
-  assert.match(fixPrompt(upside), /must sit under/);
-  assert.match(fixPrompt(EMPTY_FIX), /HIGH is the resistance/);
-  assert.match(fixPrompt({ r: 345.34, rDay: '2026-09-22', s: null, sDay: null }), /LOW is the support/);
+test('SC then AR: the first click may be the low, and the higher line is the resistance whatever the order', () => {
+  // A fall into a climax low (SC) and the reaction high (AR) after it.
+  const sc = { time: '2026-03-02', open: 8.4, high: 8.42, low: 6.77, close: 8.1 };
+  const ar = { time: '2026-03-11', open: 10.1, high: 11.5, low: 9.78, close: 11.2 };
+  const first = applyFixClick(EMPTY_FIX, nearLow(sc));
+  assert.deepEqual(first, { r: null, rDay: null, s: 6.77, sDay: '2026-03-02' });
+  assert.match(fixPrompt(first), /now click the reaction high/);
+  const second = applyFixClick(first, nearHigh(ar));
+  assert.deepEqual(second, { r: 11.5, rDay: '2026-03-11', s: 6.77, sDay: '2026-03-02' });
+  assert.equal(fixComplete(second), true);
+  // Two highs, or two lows: still the higher line over the lower one.
+  const twoHighs = applyFixClick(applyFixClick(EMPTY_FIX, nearHigh(ar)), nearHigh(sc));
+  assert.deepEqual(twoHighs, { r: 11.5, rDay: '2026-03-11', s: 8.42, sDay: '2026-03-02' });
+  const twoLows = applyFixClick(applyFixClick(EMPTY_FIX, nearLow(ar)), nearLow(sc));
+  assert.deepEqual(twoLows, { r: 9.78, rDay: '2026-03-11', s: 6.77, sDay: '2026-03-02' });
+});
+
+test('the strip says the next step, and one price twice is no box', () => {
+  assert.match(fixPrompt(EMPTY_FIX), /climax high \(BC\) or the climax low \(SC\)/);
+  assert.match(fixPrompt({ r: 345.34, rDay: '2026-09-22', s: null, sDay: null }), /now click the reaction low/);
+  const same = applyFixClick(applyFixClick(EMPTY_FIX, nearHigh(climax)), nearHigh(climax));
+  assert.equal(fixComplete(same), false);
+  assert.match(fixPrompt(same), /one price/);
   assert.equal(fixPrompt({ r: 345.34, rDay: '2026-09-22', s: 334.3, sDay: '2026-09-24' }), 'R 345.34 (2026-09-22) · S 334.30 (2026-09-24)');
 });
 

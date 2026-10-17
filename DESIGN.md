@@ -499,8 +499,9 @@ the hues raised under `.screener-modal-shell[data-skin="dark"]`), and paper behi
 toolbar's sun/moon button (a light page, white blocks, a white chart with ink bars), kept per
 browser as `chrollo.lensSkin`. **The lens takes his correction of the box** (Fri 17/10/2026,
 his "fix the box"): the toolbar's `fix the box` toggle (B) arms the daily pane, the pointer
-becomes a crosshair, two clicks snap to a bar's high (the resistance) and a bar's low (the
-support), his two lines are drawn in the calibration red (`#e5484d`, never the structure blue)
+becomes a crosshair, two clicks in either order each snap to the nearer end of their bar (BC
+then AR after a rise, SC then AR after a fall) and the higher line is the resistance, his two
+lines are drawn in the calibration red (`#e5484d`, never the structure blue)
 on the live chart without a rebuild, and a strip under the pane (`.lens-fix-strip`) says the
 next step, the reader's pair beside his, and Save / Clear; the fix goes to
 `/calibration/box-fixes` beside the reader's pair. The `--lens-*` tokens in `index.css` name the lens's surfaces,

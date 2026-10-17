@@ -3,6 +3,7 @@
 // lines on the daily chart, each click snapping to a bar's end point, and the fix is saved BESIDE
 // the pair the reader showed. Pure: no DOM, no chart; node --test pins it. The hook
 // (useBoxFix.js) does the clicks and the save, the lens draws the lines.
+import { snapRailPrice } from '../charts/chartGeometry.js';
 
 // The reader's parent box as the wire carries it (two_eyes.boxes), or null when it shows none.
 export function readerPair(data) {
@@ -14,15 +15,24 @@ export function readerPair(data) {
 // The empty draft: nothing drawn yet.
 export const EMPTY_FIX = { r: null, rDay: null, s: null, sDay: null };
 
-// One click while fixing. The FIRST line is the resistance, on the clicked bar's HIGH (a rail sits
-// only on the end point of a swing: the climax's high); the SECOND is the support, on the clicked
-// bar's LOW (the reaction's low). A third click starts over with a new resistance.
-export function applyFixClick(draft, { date, bar }) {
+// One click while fixing. The root swing is BC then AR after a rise and SC then AR after a fall
+// (his word, Fri 17/10/2026: "what if we came from a down swing and the root swing is SC -> AR"),
+// so the order is free: each click snaps to the nearer end of its bar (the high or the low), the
+// first click is the line it landed on, the second fills the other, and the higher of the two
+// lines is the resistance whatever the order. A third click starts over.
+export function applyFixClick(draft, { date, bar, price }) {
   if (!date || !bar || !Number.isFinite(bar.high) || !Number.isFinite(bar.low)) return draft;
-  if (draft.r == null || draft.s != null) {
-    return { r: bar.high, rDay: date, s: null, sDay: null };
+  const snapped = snapRailPrice(Number.isFinite(price) ? price : (bar.high + bar.low) / 2, bar);
+  const point = { price: snapped, day: date };
+  const have = draft.r != null ? { price: draft.r, day: draft.rDay }
+    : draft.s != null ? { price: draft.s, day: draft.sDay } : null;
+  if (have == null || (draft.r != null && draft.s != null)) {
+    return snapped === bar.high
+      ? { r: snapped, rDay: date, s: null, sDay: null }
+      : { r: null, rDay: null, s: snapped, sDay: date };
   }
-  return { ...draft, s: bar.low, sDay: date };
+  const [hi, lo] = have.price >= point.price ? [have, point] : [point, have];
+  return { r: hi.price, rDay: hi.day, s: lo.price, sDay: lo.day };
 }
 
 // A draft is a box once both lines stand and the resistance sits over the support.
@@ -32,9 +42,10 @@ export function fixComplete(draft) {
 
 // The step the strip under the chart tells him.
 export function fixPrompt(draft) {
-  if (draft?.r == null) return 'click the bar whose HIGH is the resistance';
-  if (draft?.s == null) return `resistance ${draft.r.toFixed(2)} on ${draft.rDay}: now click the bar whose LOW is the support`;
-  if (!fixComplete(draft)) return 'the support must sit under the resistance: click the resistance bar again';
+  if (draft?.r == null && draft?.s == null) return 'click the first end point of the root swing: the climax high (BC) or the climax low (SC)';
+  if (draft?.s == null) return `resistance ${draft.r.toFixed(2)} on ${draft.rDay}: now click the reaction low`;
+  if (draft?.r == null) return `support ${draft.s.toFixed(2)} on ${draft.sDay}: now click the reaction high`;
+  if (!fixComplete(draft)) return 'both clicks landed on one price: click the other end of the root swing';
   return `R ${draft.r.toFixed(2)} (${draft.rDay}) · S ${draft.s.toFixed(2)} (${draft.sDay})`;
 }
 

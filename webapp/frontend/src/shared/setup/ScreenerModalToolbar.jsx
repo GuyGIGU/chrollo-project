@@ -180,7 +180,7 @@ export default function ScreenerModalToolbar({
             aria-pressed={Boolean(fixing)}
             aria-label="Fix the box"
             aria-keyshortcuts="B"
-            title={fixing ? 'Fixing the box: click the resistance bar, then the support bar (B to stop)' : 'Fix the box: draw your two lines on the daily chart (B)'}
+            title={fixing ? 'Fixing the box: click the two end points of the root swing, in either order (B to stop)' : 'Fix the box: draw your two lines on the daily chart (B)'}
             onClick={onToggleFix}
           >
             {fixing ? 'fixing the box' : 'fix the box'}
