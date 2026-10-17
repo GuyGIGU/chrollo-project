@@ -42,6 +42,22 @@
   --myth-glow: rgba(79, 207, 196, 0.34);
   --myth-wash: rgba(79, 207, 196, 0.08);
   --accent-active: var(--myth);            /* semantic alias for interactive / live */
+  /* The lens (the big chart and its stats block) names its surfaces once, so a skin can re-point
+     them. The dark skin, the default, is the one he keeps ("I do want to keep the original colors
+     but make the colors pop up more", Thu 16/10/2026): the chart canvas sinks a step deeper than
+     the page so the bars, rails and gold stand off it, the blocks sit a step lighter with a
+     crisper hairline, and inside the lens the hues are lifted (the [data-skin="dark"] block). */
+  --lens-toolbar-bg: #1E2230;
+  --lens-chart-bg: #12141C;
+  --lens-cube-bg: rgba(255, 255, 255, 0.03);
+  --lens-panel-bg: #171A23;
+  --lens-section-bg: rgba(255, 255, 255, 0.04);
+  --lens-cell-bg: #1C1F2A;
+  --lens-hairline: rgba(255, 255, 255, 0.10);
+  --lens-hairline-soft: rgba(255, 255, 255, 0.08);
+  --lens-well: rgba(0, 0, 0, 0.22);
+  --lens-well-hover: rgba(0, 0, 0, 0.32);
+  --lens-chart-band: 600px;
   --glow-active: 0 0 0 1px var(--myth), 0 0 12px var(--myth-glow);
 
   /* Setup tier identity (DESIGN.md tier ladder). Reserved hues — one source of
@@ -500,7 +516,74 @@ body {
 .btn.lens-toggle[aria-pressed="true"] {
   color: var(--accent-yellow);
   border-color: var(--accent-yellow);
-  background: rgba(212, 175, 55, 0.16);
+  background: color-mix(in srgb, var(--accent-yellow) 16%, transparent);
+}
+
+/* The DARK lens, the default (Thu 16/10/2026, "keep the original colors but
+   make the colors pop up more"): the same hues as the app's, lifted a step
+   inside the lens so the story's gauges and chips, the LPS gold, the earnings
+   tones and the ink read louder against the deeper canvas. No gradient, no
+   glow at rest (DESIGN.md): contrast and saturation only. Scoped to the lens. */
+.screener-modal-shell[data-skin="dark"] {
+  --text-main: #F3F5FA;
+  --text-muted: #B0B8CA;
+  --text-faint: #8F98AD;
+  --border-color: #3E4863;
+  --border-strong: #55607F;
+  --accent-blue: #6E9CFF;
+  --accent-purple: #B494FF;
+  --accent-pink: #F28CB6;
+  --accent-yellow: #F2CF5B;
+  --accent-orange: #F0B06A;
+  --success: #4AE38A;
+  --danger: #FF7C87;
+  --warning: #F0C462;
+}
+
+/* The PAPER skin, behind the toolbar's ☾/☼ button (Thu 16/10/2026: he asked
+   for "the background/blocks ... in white or ... some other palette", then
+   kept the original colors as the default and the sun/moon as the option):
+   the lens on a light page, its blocks white, dark ink, every hue darkened to
+   read on white. Scoped to the lens shell: the rest of the app keeps the dark
+   skin; the choice is kept in localStorage (chrollo.lensSkin). Mythril stays
+   the one active accent, deepened so it reads as ink on white; tier hues are
+   reserved for rank and stay as they are. */
+.screener-modal-shell[data-skin="paper"] {
+  --bg-main: #F3F4F7;
+  --bg-sidebar: #FFFFFF;
+  --bg-panel: #FFFFFF;
+  --bg-hover: #EAEDF3;
+  --bg-elevated: #DFE4EC;
+  --text-main: #14181F;
+  --text-muted: #4A5366;
+  --text-faint: #6E7789;
+  --border-color: #D7DCE5;
+  --border-strong: #B9C1CF;
+  --myth: #157F77;
+  --myth-bright: #1A9A90;
+  --myth-dim: #116761;
+  --myth-soft: rgba(21, 127, 119, 0.14);
+  --myth-ink: #FFFFFF;
+  --accent-active: #157F77;
+  --accent-blue: #2E5FD6;
+  --accent-purple: #7449DD;
+  --accent-pink: #C3407A;
+  --accent-yellow: #A8820A;
+  --accent-orange: #C3701F;
+  --success: #178048;
+  --danger: #B83A46;
+  --warning: #8F6A0E;
+  --lens-toolbar-bg: #FFFFFF;
+  --lens-chart-bg: #FFFFFF;
+  --lens-cube-bg: #FFFFFF;
+  --lens-panel-bg: #F3F4F7;
+  --lens-section-bg: #FFFFFF;
+  --lens-cell-bg: #FFFFFF;
+  --lens-hairline: rgba(20, 24, 31, 0.10);
+  --lens-hairline-soft: rgba(20, 24, 31, 0.07);
+  --lens-well: rgba(20, 24, 31, 0.05);
+  --lens-well-hover: rgba(20, 24, 31, 0.09);
+  color: var(--text-main);
 }
 a.btn { text-decoration: none; }
 .lens-position {
@@ -962,7 +1045,7 @@ td {
 /* Bled edge to edge so the segments touch: the bank's top edge is ONE rule,
    and a fill is directly comparable to the fill two columns over. */
 .story-gauge {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--lens-hairline);
   display: block;
   height: 6px;
   margin: 0 -10px;
@@ -1166,7 +1249,7 @@ td {
 .story-sub {
   align-items: center;
   appearance: none;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--lens-well);
   border: 0;
   border-left: 2px solid var(--accent-yellow);
   border-radius: var(--radius-xs);
@@ -1184,7 +1267,7 @@ td {
   transition: background 120ms ease, box-shadow 120ms ease;
 }
 
-.story-sub:hover { background: rgba(0, 0, 0, 0.28); }
+.story-sub:hover { background: var(--lens-well-hover); }
 
 .story-sub:focus-visible,
 .story-sub.is-engaged {
@@ -1239,6 +1322,524 @@ td {
   font-size: 11px;
   line-height: 1.2;
   margin: 8px 0 0;
+}
+
+/* ── THE STORY BOARD (Thu 16/10/2026) ─────────────────────────────────────
+   "Why It Stands Out" for a row the two-eyes reader wrote, redrawn with the
+   room the scrolling lens gives it: the grade as one big letter on the left;
+   on the right a time RULER across the base (month ticks, every word's day as
+   a dot in its phase hue, the box, the mini and the LPS as spans), and under
+   it one CARD per thing the reader found, in chart order. The hues are the
+   chart's own band hues (phase-bin-*), so a card, its dot and its band on the
+   chart are one colour. No gradient, no glow at rest: a hue rule, a hairline
+   and the mythril bracket on hover. The old chapters (.story-bank) stay for
+   rows the old reader wrote. */
+.story-board {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 168px minmax(0, 1fr);
+  margin-top: 10px;
+}
+
+.story-board-grade {
+  align-content: start;
+  border-right: 1px solid var(--border-strong);
+  display: grid;
+  gap: 2px;
+  padding: 2px 16px 0 2px;
+}
+
+.story-board-letter {
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 52px;
+}
+
+.story-board-grade.is-broken .story-board-letter { color: var(--danger); }
+
+.story-board-score {
+  align-items: baseline;
+  display: flex;
+  gap: 4px;
+}
+
+.story-board-score-value {
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 24px;
+}
+
+.story-board-score-scale {
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.story-board-grade-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.story-board-grade-note {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.story-board-story {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The ruler: the base's days as one line; a tick and a month name where a month
+   starts; the spans under the line (the box the whole way, the mini from its
+   day, the LPS its receding days) and the dots on it. */
+.story-ruler {
+  height: 46px;
+  margin: 0 14px 0 6px;
+  position: relative;
+}
+
+.story-ruler-line {
+  background: var(--border-strong);
+  height: 1px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 22px;
+}
+
+.story-ruler-tick {
+  background: var(--border-strong);
+  height: 6px;
+  position: absolute;
+  top: 22px;
+  width: 1px;
+}
+
+.story-ruler-tick-label {
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  left: 3px;
+  position: absolute;
+  top: 7px;
+  white-space: nowrap;
+}
+
+.story-ruler-days {
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  position: absolute;
+  right: -14px;
+  top: 0;
+}
+
+.story-node { --story-hue: var(--text-muted); }
+.story-node.phase-bin-b,
+.story-card.phase-bin-b   { --story-hue: var(--accent-purple); }
+.story-node.phase-bin-c,
+.story-card.phase-bin-c   { --story-hue: var(--accent-pink); }
+.story-node.phase-bin-d,
+.story-card.phase-bin-d   { --story-hue: var(--accent-blue); }
+.story-node.phase-bin-lps,
+.story-card.phase-bin-lps { --story-hue: var(--accent-yellow); }
+
+.story-node-span {
+  background: color-mix(in srgb, var(--story-hue) 28%, transparent);
+  height: 5px;
+  position: absolute;
+  top: 20px;
+}
+
+.story-node.phase-bin-lps .story-node-span {
+  background: color-mix(in srgb, var(--story-hue) 60%, transparent);
+}
+
+.story-node-dot {
+  background: var(--story-hue);
+  border: 2px solid var(--lens-section-bg, var(--bg-panel));
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--story-hue);
+  height: 12px;
+  margin-left: -6px;
+  position: absolute;
+  top: 16px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  width: 12px;
+}
+
+.story-node-token {
+  color: var(--story-hue);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 800;
+  left: 50%;
+  position: absolute;
+  top: 13px;
+  transform: translateX(-50%);
+}
+
+.story-node.is-engaged .story-node-dot {
+  box-shadow: 0 0 0 2px var(--myth);
+  transform: scale(1.25);
+}
+
+/* The cards: one per thing the reader found, in chart order, equal widths. */
+.story-cards {
+  display: grid;
+  gap: 8px;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
+.story-card {
+  appearance: none;
+  background: color-mix(in srgb, var(--lens-cell-bg, var(--bg-panel)) 70%, transparent);
+  border: 1px solid var(--lens-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  cursor: help;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 10px 10px;
+  position: relative;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.story-card.is-static { cursor: default; }
+
+.story-card-rule {
+  background: var(--story-hue);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  display: block;
+  height: 4px;
+  margin: 0 -10px 4px;
+}
+
+.story-card.is-word .story-card-rule {
+  background: color-mix(in srgb, var(--story-hue) 55%, transparent);
+}
+
+.story-card-head {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.story-card-head .phase-bin-token {
+  border-color: color-mix(in srgb, var(--story-hue) 60%, transparent);
+  color: var(--story-hue);
+  flex-shrink: 0;
+  font-size: 9px;
+  height: 18px;
+  padding: 0 4px;
+  width: auto;
+}
+
+.story-card-name {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.story-card-figure {
+  align-items: baseline;
+  color: var(--text-main);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 24px;
+}
+
+.story-card.is-word .story-card-figure { color: var(--story-hue); }
+
+.story-card-dec {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.story-card-unit {
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-left: 6px;
+  text-transform: uppercase;
+}
+
+.story-card-figure.is-absent {
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.story-card-gauge {
+  background: var(--lens-hairline);
+  border-radius: 2px;
+  display: block;
+  height: 5px;
+  overflow: hidden;
+}
+
+.story-card-gauge-fill {
+  background: var(--story-hue);
+  display: block;
+  height: 100%;
+}
+
+.story-card-detail {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.story-card:hover,
+.story-card:focus-visible,
+.story-card.is-engaged {
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+  border-color: var(--myth);
+  outline: none;
+}
+
+.story-card.is-static:hover {
+  background: color-mix(in srgb, var(--lens-cell-bg, var(--bg-panel)) 70%, transparent);
+  border-color: var(--lens-hairline);
+}
+
+@media (max-width: 1100px) {
+  .story-board { grid-template-columns: 1fr; }
+  .story-board-grade { border-right: 0; }
+  .story-cards { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── THE PHASE BOARD (Thu 16/10/2026, his design) ───────────────────────────
+   "we Set the Phases at the top. then the events that occurred within these
+   phases below them." One score line, then the phases as column heads — A the
+   root swing, the upthrust on its own, C the spring, D the right side — each
+   with its hue rule and its meaning in one line, and under each the events
+   that happened in it: a hue dot, the name, the day, the price and one
+   sentence. The grade's letter is not repeated (the top bar has it). */
+.phase-board {
+  display: grid;
+  gap: 10px;
+  padding: 10px 16px 12px;
+}
+
+.phase-board-score {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+}
+
+.phase-board-score-value {
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 30px;
+}
+
+.phase-board-score-scale {
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.phase-board-score-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.phase-columns {
+  display: grid;
+  gap: 14px;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
+.phase-col {
+  --story-hue: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.phase-col.phase-bin-a  { --story-hue: var(--text-faint); }
+.phase-col.phase-bin-ut { --story-hue: var(--accent-purple); }
+.phase-col.phase-bin-c  { --story-hue: var(--accent-pink); }
+.phase-col.phase-bin-d  { --story-hue: var(--accent-blue); }
+.phase-col.is-aside { flex: 0 0 auto; }
+
+.phase-head {
+  display: grid;
+  gap: 5px;
+}
+
+.phase-head-rule {
+  background: var(--story-hue);
+  border-radius: 2px;
+  display: block;
+  height: 4px;
+}
+
+.phase-head-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.phase-head .phase-bin-token {
+  border-color: color-mix(in srgb, var(--story-hue) 65%, transparent);
+  color: var(--story-hue);
+  font-size: 10px;
+  height: 20px;
+  padding: 0 5px;
+  width: auto;
+}
+
+.phase-head-name {
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+
+.phase-head-meaning {
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.phase-events {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phase-event {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  cursor: help;
+  display: grid;
+  font-family: inherit;
+  gap: 10px;
+  grid-template-columns: 10px minmax(0, 1fr);
+  padding: 6px 8px 6px 6px;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.phase-event.is-static { cursor: default; }
+
+.phase-event-dot {
+  background: var(--story-hue);
+  border-radius: 50%;
+  height: 10px;
+  margin-top: 4px;
+  width: 10px;
+}
+
+.phase-event-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.phase-event-head {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.phase-event-name {
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.phase-event-day {
+  color: var(--story-hue);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.phase-event-hero {
+  color: var(--text-main);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.phase-event-text {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.phase-event:hover,
+.phase-event:focus-visible,
+.phase-event.is-engaged {
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+  border-color: var(--myth);
+  outline: none;
+}
+
+.phase-event.is-static:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+@media (max-width: 1100px) {
+  .phase-columns { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Narrower than the operator's monitor. No !important anywhere — the JSX sets
@@ -1331,118 +1932,254 @@ td {
   color: var(--accent-yellow);
 }
 
-/* The lens's chart band (W/M cubes + the daily pane) HOLDS ITS 1920 SIZE
-   (operator 2026-10-03): 567px is the band on his 1920x1080 screen, a 945px
-   Chrome viewport where the read panel's min(32vh, 300px) leaves the band
-   exactly this. Below that height the band is what the read panel leaves, as
-   before; above it (the 2560 screen) the band stops and the read panel below
-   takes every extra px — "make that block stretch more down so we could see
-   more". Without the cap the 2560 screen drew the daily pane 1318x926 against
-   1318x566, every setup 64% taller than on the other monitor. */
-.screener-modal-chart-row {
-  height: calc(100% - min(32vh, 300px));
-  max-height: 567px;
+/* THE THREE PANES (Fri 17/10/2026, his TradingView layout: "the advanced Chart
+   with 3 (Daily, Weekly, Monthly) cards just like in trading view"): the monthly
+   over the weekly in a side column, the daily big beside them, every pane a real
+   chart (drag, + / -, home, fit, Ctrl+wheel). The grid is one height on every
+   monitor (--lens-chart-band; 2026-10-03 "same goes for the big charts"), sized
+   so the grade board under it still shows on the 1080 screen: "I need to see
+   both the chart and the highlights it provides in the same screen". The lens
+   body scrolls on to the stats block (Thu 16/10/2026). */
+.lens-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 29%) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  height: var(--lens-chart-band);
+  min-width: 0;
 }
 
-.screener-modal-chart-shell {
-  background: #171922;
-  border-bottom: 1px solid var(--border-color);
-}
-
-/* W/M preview cubes in a side column to the LEFT of the daily chart (operator
-   2026-08-12: the higher timeframe is the context you read first). The old
-   full-width strip under the daily made each preview a ~700x110 brick; the
-   column splits the chart band's full height between two medium cubes and
-   gives the daily pane its width back. The panes keep the
-   .phase-bin-control hover/focus grammar (they are controls, not decor). */
-.timeframe-mini-col {
-  background: #171922;
-  border-bottom: 1px solid var(--border-color);
-  border-right: 1px solid var(--border-color);
-  display: flex;
-  flex: 0 0 clamp(300px, 26vw, 440px);
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-  padding: 8px 10px;
-  width: clamp(300px, 26vw, 440px);
-}
-
-.timeframe-mini-pane {
-  background: rgba(255, 255, 255, 0.015);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-  gap: 3px;
+.lens-chart-side {
+  border-right: 1px solid var(--border-strong);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
-  /* On a short viewport the flex basis can fall under the chart's own
-     min-height; clip at the pane so a squeezed cube never bleeds over its
-     neighbour's border. */
-  overflow: hidden;
-  padding: 4px 6px 5px;
 }
 
-.timeframe-mini-pane:hover,
-.timeframe-mini-pane:focus-visible {
-  background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
-  border-color: var(--border-strong);
+.lens-chart-side .lens-chart-pane + .lens-chart-pane {
+  border-top: 1px solid var(--border-strong);
+}
+
+.lens-chart-main {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lens-chart-pane {
+  background: var(--lens-chart-bg);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+/* The caption strip: the timeframe and its posture, TradingView's legend row;
+   on a side pane it is the button that opens the pane big. */
+.lens-pane-caption {
+  align-items: baseline;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--lens-hairline);
+  color: var(--text-muted);
+  display: flex;
+  flex: 0 0 auto;
+  font-family: inherit;
+  gap: 10px;
+  min-width: 0;
+  padding: 5px 10px 4px;
+  text-align: left;
+  width: 100%;
+}
+
+.lens-pane-caption.is-button { cursor: pointer; }
+
+.lens-pane-caption.is-button:hover,
+.lens-pane-caption.is-button:focus-visible {
+  background: color-mix(in srgb, var(--bg-hover) 60%, transparent);
   outline: none;
 }
 
-.timeframe-mini-caption {
-  align-items: baseline;
-  display: flex;
-  gap: 8px;
-  line-height: 1.15;
-  min-width: 0;
-}
-
-.timeframe-mini-name {
-  color: var(--text-muted);
-  font-size: 10px;
+.lens-pane-name {
+  color: var(--text-main);
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.timeframe-mini-state {
-  font-size: 10px;
+.lens-pane-state {
+  font-size: 11px;
   font-weight: 700;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.timeframe-mini-chart {
+.lens-pane-open {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.lens-pane-caption.is-button:hover .lens-pane-open,
+.lens-pane-caption.is-button:focus-visible .lens-pane-open { color: var(--myth); }
+
+.lens-pane-canvas {
+  display: flex;
   flex: 1 1 auto;
-  min-height: 90px;
-  overflow: hidden;
-  pointer-events: none;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lens-pane-canvas > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lens-daily-frame { position: relative; }
+
+.lens-daily-canvas {
+  height: 100%;
   position: relative;
 }
 
-/* The read panel is capped and scrolls; the charts above it are not, so this
-   cap IS the chart band's height budget. Sized so the story panel lands WHOLE
-   with a margin of the next section showing — 212px of panel inside a 224px
-   content box even on a maximized-Chrome viewport (~700px), where the previous
-   34vh/320px pairing silently clipped: the 320px arm can only be selected above
-   a 941px viewport, and the operator's screen is 864 in total. The axis rewrite
-   cut the panel 286 -> 200, so the rest of that give-back goes to the charts.
-   Since 2026-10-03 that budget lives on the band (.screener-modal-chart-row's
-   height), and the panel FILLS whatever the band leaves: the same 300px on the
-   1920 screen, ~660px on the 2560 one, where the band holds its 1920 height. */
+/* The zoom cluster over a pane's bottom-left corner (ChartZoomControls): faint
+   at rest, full when the pane is under the pointer. No glow, a hairline. */
+.chart-zoom {
+  background: color-mix(in srgb, var(--lens-panel-bg) 88%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  bottom: 34px;
+  display: flex;
+  gap: 2px;
+  left: 8px;
+  opacity: 0.55;
+  padding: 2px;
+  position: absolute;
+  transition: opacity 120ms ease;
+  z-index: 4;
+}
+
+.lens-chart-pane:hover .chart-zoom,
+.wl-htf-pane:hover .chart-zoom,
+.chart-zoom:focus-within { opacity: 1; }
+
+.chart-zoom-btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  height: 22px;
+  line-height: 1;
+  min-width: 24px;
+  padding: 0 4px;
+}
+
+.chart-zoom-btn:hover,
+.chart-zoom-btn:focus-visible {
+  background: color-mix(in srgb, var(--bg-hover) 80%, transparent);
+  color: var(--myth);
+  outline: none;
+}
+
+
+/* THE LENS PAGE (Thu 16/10/2026, second pass: "make them separate and not try to
+   squeeze them together"): the body is a page in the page colour; each block is
+   a HEADING ON THE PAGE (TradingView's grammar: a 20px title and a sentence
+   under it, no box around them) over a CARD (a panel tone off the page, a
+   strong border, 8px corners) that holds the content, with 44px of page between
+   blocks. The chart card is full width; the bigger picture (weekly | monthly)
+   is its own; the grade (the phase board) its own; the stock's numbers last.
+   Measured the same day on finviz, TradingView, Barchart, StockCharts, Yahoo
+   and Simply Wall St: a 16px gap and an eyebrow strip inside one box read as
+   one panel; a title on the page over a distinct card does not. */
+.lens-page {
+  background: var(--bg-main);
+  gap: 44px;
+  padding: 22px 28px 48px;
+}
+
+.lens-block {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lens-block-head {
+  align-items: baseline;
+  color: var(--text-main);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 20px;
+  font-weight: 700;
+  gap: 6px 14px;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.lens-block-head small {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.lens-card {
+  background: var(--lens-panel-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* The grade board sits in the chart card, under the three panes, over a
+   hairline (Fri 17/10/2026: the chart and the highlights it lights in ONE
+   screen). Its head is the card's section grammar; the board itself is below. */
+.lens-read {
+  border-top: 1px solid var(--border-strong);
+  display: grid;
+  gap: 2px;
+  padding: 10px 16px 12px;
+}
+
+.lens-read .stock-lens-section-header { padding: 0 0 4px; }
+
+.lens-read .phase-board { padding: 6px 0 0; }
+
+.lens-block-stats .stock-lens {
+  background: transparent;
+  padding: 12px 16px 20px;
+}
+
+/* The stats block (Thu 16/10/2026): the second block of the lens, at its own
+   natural height under the chart block, never squeezed into what the screen
+   leaves — the lens body scrolls to it. Before this it was capped and scrolled
+   inside itself (2026-10-03: "the panel FILLS whatever the band leaves"). */
 .stock-lens {
   align-content: start;
-  background: #1d202b;
+  background: var(--lens-panel-bg);
   display: grid;
-  flex: 1 1 auto;
-  gap: 10px;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 12px 14px;
+  flex: 0 0 auto;
+  gap: 12px;
+  padding: 14px 16px 28px;
 }
 
 .stock-lens-bottom {
@@ -1515,8 +2252,8 @@ td {
 }
 
 .stock-lens-section {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--lens-section-bg);
+  border: 1px solid var(--lens-hairline);
   border-radius: var(--radius-sm);
   min-width: 0;
   padding: 10px;
@@ -1560,7 +2297,7 @@ td {
 }
 
 .fund-sheet-table td {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--lens-hairline-soft);
   color: var(--text-main);
   font-family: 'JetBrains Mono', monospace;
   padding: 3px 6px;
@@ -1795,8 +2532,8 @@ td {
 /* Finviz-style dense read grid: hairline-separated label/value cells. The 1px
    gap over a light backing shows through as the cell separators. */
 .lens-grid {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--lens-hairline);
+  border: 1px solid var(--lens-hairline);
   border-radius: var(--radius-xs);
   display: grid;
   gap: 1px;
@@ -1806,7 +2543,7 @@ td {
 
 .lens-cell {
   align-items: center;
-  background: #1d202b;
+  background: var(--lens-cell-bg);
   display: flex;
   gap: 8px;
   justify-content: space-between;
@@ -2566,38 +3303,21 @@ td {
     overflow-y: auto;
   }
 
-  /* Stack the chart band so the shell's 430px basis below means HEIGHT again
-     (it did before the preview cubes became a side column — left as a row here,
-     the !important basis would pin the daily pane's WIDTH and push the
-     unshrinkable cube column off the modal's edge). The band also stops
-     flexing: at 430px + two cubes it is taller than the shell can give, and a
-     shrinkable band let its children paint straight over the read panel. Sized
-     by content, the body's own overflow-y scrolls to them instead. */
-  .screener-modal-chart-row {
-    /* !important for the same reason as the shell below: the band's flex is an
-       inline style, and a stylesheet rule loses to it. */
-    flex: 0 0 auto !important;
-    flex-direction: column;
-    /* ...and drops the desktop height budget (the band's 1920 cap) for the
-       same reason: sized by content. */
+  /* The three panes stack: the side column over the big pane, each at a
+     height of its own, the body's own overflow-y scrolls to them. */
+  .lens-chart-grid {
+    grid-template-columns: 1fr;
     height: auto;
-    max-height: none;
   }
 
-  .timeframe-mini-col {
-    border-bottom: 1px solid var(--border-color);
-    border-right: none;
-    flex: 0 0 auto;
-    flex-direction: row;
-    width: auto;
+  .lens-chart-side {
+    border-right: 0;
+    grid-template-rows: 280px 280px;
   }
 
-  .screener-modal-chart-shell {
-    flex: 0 0 430px !important;
-  }
-
-  .screener-modal-chart {
-    min-height: 420px !important;
+  .lens-chart-main {
+    border-top: 1px solid var(--border-strong);
+    height: 420px;
   }
 
   /* Stacked, the panel is sized by its content and the body scrolls to it —

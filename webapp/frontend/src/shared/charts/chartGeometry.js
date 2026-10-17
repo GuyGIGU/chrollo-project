@@ -107,13 +107,17 @@ export const CHART_FRAMING = {
     volumeScaleTop: 0.92,
   },
   modal: {
-    minWindowBars: 252,          // ONE TRADING YEAR — here the floor IS the span, because the
-                                 // modal's job is the stock, not the rest. 1050px plot / 252 =
-                                 // 4.17 px/bar, in band.
-                                 // The payload already carries a median 300 candles, so this
-                                 // costs nothing and is the literal fix for "I always got to
-                                 // zoom out to see the real stock" (operator 2026-09-02).
-    legibilityCeilingBars: 300,  // the whole carried history; 3.50 px/bar at the floor.
+    minWindowBars: 150,          // About seven months — here the floor IS the span,
+                                 // because the modal's job is the stock, not the rest. It was
+                                 // one trading year (252: "I always got to zoom out to see the
+                                 // real stock", operator 2026-09-02) until Thu 16/10/2026: at
+                                 // 5 px/bar over a 3:1 price band the year read "way too
+                                 // stretched horizontally"; 150 bars over the ~1650px plot of
+                                 // the full-width chart block is ~11 px/bar: lightweight-charts
+                                 // draws a 3px bar body from a 10px pitch to 16 (measured in its
+                                 // bundle, Thu 16/10/2026), a 1px stick under it. Drag the time
+                                 // axis to see the year.
+    legibilityCeilingBars: 300,  // the whole carried history; 4.2 px/bar at the floor.
     ceilingYieldShare: 0.6,      // inert here — the ceiling already IS the whole history — but
                                  // declared so every box-framed profile answers the same question.
     baseWidthCap: 0.35,          // DELIBERATELY at or below the card's: the card is the
@@ -123,8 +127,11 @@ export const CHART_FRAMING = {
                                  // modal's span is one trading year either way, so this only
                                  // binds on a rest long enough to need more than the year.
     minContextBars: 25,
-    scaleMargins: { top: 0.06, bottom: 0.16 },
-    volumeScaleTop: 0.84,
+    // The volume sits in its OWN pane, a fifth of the height (Thu 16/10/2026): the price pane keeps
+    // the rest for the bars (margins 4% / 6%). volumeScaleTop is the overlay fallback's.
+    scaleMargins: { top: 0.04, bottom: 0.06 },
+    volumeScaleTop: 0.90,
+    volumePane: 0.2,
   },
   market: {                      // UNTOUCHED — already a fixed-history window, no box to cap.
     visibleBars: 100,
@@ -158,18 +165,8 @@ export const CHART_FRAMING = {
     scaleMargins: { top: 0.07, bottom: 0.16 },
     volumeScaleTop: 0.88,
   },
-  // The W/M preview cubes beside the modal's daily chart. The full-pane W/M
-  // tabs keep their deep windows (160/120 bars); a ~360px preview showing that
-  // many bars is ~2.3px/bar — indecipherable (operator 2026-08-12). The preview
-  // exists to show the RECENT higher-timeframe posture, so it gets its own
-  // shallow budget at a readable per-bar width. UNTOUCHED — fixed W/M windows,
-  // never framed around a box.
-  htfPreview: {
-    weeklyBars: 64,
-    monthlyBars: 48,
-    scaleMargins: { top: 0.06, bottom: 0.16 },
-    volumeScaleTop: 0.84,
-  },
+  // The W/M preview cubes (htfPreview, 64/48 bars) retired Fri 17/10/2026 with the cubes: the
+  // lens's side panes are real charts (TimeframeMainChart's `bars`, 100/60 there).
 };
 
 // ~252 trading sessions per 365 calendar days. Used only to size a fetch window.

@@ -113,6 +113,16 @@ components:
   # chapters that light nothing (Cause, Trend) stay neutral steel. NO element
   # may wear a tier hue (Tier-Reserve). Warnings keep the only hot treatment,
   # beside the grade they discount.
+  # Thu 16/10/2026: for a row the TWO-EYES reader wrote the panel is a STORY BOARD
+  # instead (TwoEyesStoryBank.jsx): the grade as one big letter in its tier hue, a
+  # time ruler across the base (month ticks, each word's day as a dot in its phase
+  # hue, the box / mini / LPS as spans) and one card per thing the reader found, in
+  # chart order, a word's day big in its hue. Hue rule, hairline, mythril bracket on
+  # hover; no gradient, no glow. The stacks below describe the old reader's rows.
+  # Later the same day it became THE PHASE BOARD (the phases as column heads, the
+  # events inside each under them, no letter), and on Fri 17/10/2026 the board moved
+  # INTO the chart card, under the three panes (.lens-read), so the chart and the
+  # band a hovered event lights are one screen.
   setup-story-panel:
     total: "{typography.mono} 32px/800 + /100 marker in text-faint 12px, right-ruled in border-strong"
     column: "6px hue gauge (fill = engine-resolved fraction) · 20px mono figure · chip + 12.5px name · 3-line 10.5px detail"
@@ -470,11 +480,24 @@ see more of the website"): every card grid is `minmax(590px, 1fr)`, so a wider
 screen gets MORE cards, never bigger ones — three of 618px at 1920x1080, four of
 620px at 2560x1440. (The day before, "the clean 3 Charts per row rule" had been
 built as a three-card ceiling, which drew three 831px cards at 2560; his rule was
-the 1920 card, not the count.) **The big charts hold their 1920 size too**: the
-lens's chart band stays 567px tall (its daily pane 1318x566) and the Watchlist
-D/W/M band 1850x805, never a taller chart. The lens itself still fills the
-screen's height, so on the bigger screen its read panel takes the extra room
-(300px at 1920, ~660px at 2560: the whole read without scrolling). The
+the 1920 card, not the count.) **The big charts hold one size on every monitor too**: the
+Watchlist D/W/M band is 1850x805, and the lens's chart band is `--lens-chart-band`,
+600px on every screen. **The lens is TWO BLOCKS (third pass, Fri 17/10/2026)**: the CHART block is his TradingView layout, three panes in one grid (the monthly over the weekly in a side column 29% wide, the daily big beside them; the toolbar's D/W/M tab names the big pane, a side pane's caption opens it big), every pane a real chart with the zoom cluster over its bottom-left corner (+ − ⌂ ⤢; Ctrl+wheel zooms, the bare wheel scrolls the page), and THE PHASE BOARD right under the three panes in the same card, over a hairline, so the chart and the highlights it lights are one screen (*"I need to see both the chart and the highlights it provides in the same screen"*: the card is ~900px tall under the 52px toolbar, inside the 1080 screen); the STATS block under it. The grid is 600px so the board fits; the cards of the second pass below are the record of how it got here. **The lens was a page of separate cards** (second pass) (second pass the same day: *"make them separate and not try to squeeze them together"*: the daily chart full width with the volume in its own pane, then the bigger picture (weekly | monthly), then the grade as THE PHASE BOARD, then the stats, each a 20px heading on the page over a card a tone off it, 44px of page between blocks: measured the same day, a 16px gap and an eyebrow strip inside one box still read as one panel) (operator
+Thu 16/10/2026: *"One block for the chart. and another block for the Stats ... give much
+more room for both blocks but without the need to squeeze them together to fit in at the
+same time. I can scroll the page so the space is essentially infinite"*): the chart block
+at its own height (the daily pane about 1317x696, its price band about 2.1:1, Finviz's
+proportion; the 567px band it replaced drew a 3:1 band he called *"way too stretched
+horizontally"*), then the stats block at its natural height, never capped or scrolled
+inside itself. The daily pane opens on 200 bars (about 6.3 px per bar, Finviz's and
+TradingView's density; it was one year at 5 px). **The lens has a skin**: dark by default, the app's own
+colors lifted inside the lens so they pop (*"keep the original colors but make the colors pop
+up more"*: the canvas a step deeper than the page, the rails a clear blue, the gold brighter,
+the hues raised under `.screener-modal-shell[data-skin="dark"]`), and paper behind the
+toolbar's sun/moon button (a light page, white blocks, a white chart with ink bars), kept per
+browser as `chrollo.lensSkin`. The `--lens-*` tokens in `index.css` name the lens's surfaces,
+each skin re-points them, and the chart canvases read the skin off the shell
+(`chartTheme.lensSkinOf`). The rest of the app keeps the dark skin. The
 chart well is locked to the card's **width**, not the viewport's height: a
 **1.9:1** well (`--card-chart-aspect`) — "slightly more a cube like" than the
 ~2.2:1 well it replaced, and the same proportions on every monitor, so a setup is

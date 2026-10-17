@@ -43,16 +43,42 @@ function contrastRatio(a, b) {
 // --- token + declaration resolution against the REAL files ------------------
 // Reading the shipped CSS (rather than hard-coding the hexes) is what makes this
 // a guard: retune a token or put white ink back and the assertion moves.
+// The two skins a token can take: the dark skin's value in :root, and the lens's
+// paper skin (Thu 16/10/2026), which re-points the same tokens inside
+// `.screener-modal-shell[data-skin="paper"]`. A fill is measured on BOTH: the
+// day a skin block redefines a fill, the second value is what the operator sees
+// on that skin (review A8), so every assertion below runs once per skin.
+const SKINS = ['dark', 'lens', 'paper'];
+const SKIN_SELECTORS = {
+  dark: ':root',
+  lens: '\\.screener-modal-shell\\[data-skin="dark"\\]',
+  paper: '\\.screener-modal-shell\\[data-skin="paper"\\]',
+};
+function skinBlock(skin) {
+  const selector = SKIN_SELECTORS[skin];
+  const block = CSS.match(new RegExp(`\\n${selector}\\s*\\{([^}]*)\\}`));
+  assert.ok(block, `index.css: the ${skin} skin block not found`);
+  return block[1];
+}
+let SKIN = 'dark';
 function token(name) {
-  const matches = [...CSS.matchAll(new RegExp(`^\\s*--${name}:\\s*([^;]+);`, 'gm'))];
+  const find = (text) => [...text.matchAll(new RegExp(`^\\s*--${name}:\\s*([^;]+);`, 'gm'))];
+  let matches = find(skinBlock(SKIN));
+  if (!matches.length) matches = find(skinBlock('dark'));
   assert.ok(matches.length > 0, `token --${name} not found in index.css`);
-  // Measuring the FIRST definition is only honest while there is one. The day a
-  // theme block redefines a fill, the second value is what the operator sees on
-  // that theme and this file has to be taught to measure both — so fail here
-  // rather than keep reporting the light-theme number (review A8).
   assert.equal(matches.length, 1,
-    `--${name} is defined ${matches.length}x — this guard measures one value per token`);
+    `--${name} is defined ${matches.length}x in one skin block — this guard measures one value per token per skin`);
   return matches[0][1].trim();
+}
+function onEachSkin(body) {
+  for (const skin of SKINS) {
+    SKIN = skin;
+    try {
+      body(skin);
+    } finally {
+      SKIN = 'dark';
+    }
+  }
 }
 
 // Resolve a CSS color expression to a hex, following one level of var() alias.
@@ -82,29 +108,33 @@ function ruleInk(selector) {
 }
 
 test('the fill-entry BUY/SELL chips clear AA against their semantic fills', () => {
-  const ink = ruleInk('.fills-panel .fill-side-btn');
-  for (const fill of ['success', 'danger']) {
-    const ratio = contrastRatio(ink, resolveColor(token(fill)));
-    assert.ok(
-      ratio >= AA_NORMAL,
-      `fill-side-btn ink ${ink} on --${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
-    );
-  }
+  onEachSkin((skin) => {
+    const ink = ruleInk('.fills-panel .fill-side-btn');
+    for (const fill of ['success', 'danger']) {
+      const ratio = contrastRatio(ink, resolveColor(token(fill)));
+      assert.ok(
+        ratio >= AA_NORMAL,
+        `${skin}: fill-side-btn ink ${ink} on --${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
+      );
+    }
+  });
 });
 
 test('the shared primary and danger buttons take dark ink on their own fills', () => {
   // The button kit (index.css BUTTONS, 2026-10-03): the confirm dialog's danger
   // button wore white on --danger at 3.18:1; the kit's dark ink measures 5.31:1
   // there and 8.88:1 on the mythril primary.
-  for (const selector of ['.btn-primary', '.btn-danger']) {
-    const ink = ruleDecl(selector, 'color');
-    const fill = ruleDecl(selector, 'background');
-    const ratio = contrastRatio(ink, fill);
-    assert.ok(
-      ratio >= AA_NORMAL,
-      `${selector} ink ${ink} on ${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
-    );
-  }
+  onEachSkin((skin) => {
+    for (const selector of ['.btn-primary', '.btn-danger']) {
+      const ink = ruleDecl(selector, 'color');
+      const fill = ruleDecl(selector, 'background');
+      const ratio = contrastRatio(ink, fill);
+      assert.ok(
+        ratio >= AA_NORMAL,
+        `${skin}: ${selector} ink ${ink} on ${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
+      );
+    }
+  });
 });
 
 // The body of a top-level `const NAME = ... };` in the toolbar source, comments
@@ -139,14 +169,16 @@ test('the data-refresh button takes dark ink on every fill it can wear', () => {
   // literal: the old assertion only refused `'#fff'`, so swapping in
   // `var(--text-muted)` — about 2:1 on --accent-active — would have passed it
   // (council review 2026-09-07, A8).
-  const ink = toolbarEnabledInk();
-  for (const fill of toolbarFills()) {
-    const ratio = contrastRatio(ink, resolveColor(fill));
-    assert.ok(
-      ratio >= AA_NORMAL,
-      `toolbar ink ${ink} on ${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
-    );
-  }
+  onEachSkin((skin) => {
+    const ink = toolbarEnabledInk();
+    for (const fill of toolbarFills()) {
+      const ratio = contrastRatio(ink, resolveColor(fill));
+      assert.ok(
+        ratio >= AA_NORMAL,
+        `${skin}: toolbar ink ${ink} on ${fill} is ${ratio.toFixed(2)}:1, under ${AA_NORMAL}:1`,
+      );
+    }
+  });
 });
 
 test('the contrast math itself is right', () => {

@@ -15,12 +15,15 @@ export const CHART_COLORS = {
   success: '#3DD37A', // DESIGN.md --success
   danger: '#DE6E78', // DESIGN.md --danger
   accent: '#5b8aff', // DESIGN.md --accent-blue
-  rail: '#2457b8', // R/S box rails (card + modal, by construction)
-  innerRail: '#5f8fe6', // inner-box rails
-  midRail: 'rgba(139, 148, 158, 0.45)', // dashed box midline
-  candle: '#d8dbe5', // whitewashed structure bars
-  baseLimb: '#5d6474', // base-limb swing grey
-  gold: '#e3b341', // LPS span + trigger line (modal-weight gold)
+  // Lifted Thu 16/10/2026 ("make the colors pop up more"): the rails from a navy that sank into the
+  // canvas to a clear blue, the gold warmer and brighter, the bars a step whiter. Card and modal
+  // alike, by construction.
+  rail: '#3B7BFF', // R/S box rails (card + modal, by construction)
+  innerRail: '#86B0FF', // inner-box rails
+  midRail: 'rgba(150, 160, 182, 0.5)', // dashed box midline
+  candle: '#E6E9F2', // whitewashed structure bars
+  baseLimb: '#6E7689', // base-limb swing grey
+  gold: '#F5C84B', // LPS span + trigger line (modal-weight gold)
   goldMuted: '#d4b85a', // LPS bars on dense mini cards; avg-cost / entry lines
   marking: '#4FCFC4', // calibration draft IN PROGRESS (--myth — the ACTIVE color)
   markingWash: 'rgba(79, 207, 196, 0.12)', // marking at 12% — the hovered-bar band while a tool is armed
@@ -37,10 +40,28 @@ export const CHART_COLORS = {
 // surface tints (they sit in different panels), one place to see them all.
 const VARIANTS = {
   mini: { background: '#141721', text: '#747c8f', grid: 'rgba(47, 52, 71, 0.13)', border: 'rgba(47, 52, 71, 0.56)', fontSize: 10 },
-  modal: { background: '#171922', text: '#8b949e', grid: 'rgba(70, 77, 98, 0.18)', border: '#2f3447', fontSize: 12 },
+  // The lens's canvas (Thu 16/10/2026): a step deeper than the page, brighter axis ink, a cool grid.
+  modal: { background: '#12141C', text: '#A3ACBF', grid: 'rgba(98, 110, 140, 0.16)', border: '#363C50', fontSize: 12 },
   position: { background: '#1c1f2a', text: '#7f879a', grid: 'rgba(47, 52, 71, 0.28)', border: '#2f3447', fontSize: 11 },
   trade: { background: '#171a24', text: '#8c94a8', grid: 'rgba(65, 72, 96, 0.26)', border: '#2f3447', fontSize: 11 },
+  // The lens's PAPER skin (Thu 16/10/2026): a white chart like Finviz's, dark ink, a faint grid. Chosen in
+  // place of 'modal' when the canvas sits inside a shell wearing data-skin="paper" (lensSkinOf).
+  paper: { background: '#FFFFFF', text: '#5B6475', grid: 'rgba(20, 24, 31, 0.08)', border: '#C9CFDA', fontSize: 12 },
 };
+
+// Which skin a canvas is drawn under: 'paper' inside a lens shell that wears it, else null (the dark skin).
+// Read off the DOM so a chart in the Watchlist page, outside the lens, never follows the lens's choice.
+export const lensSkinOf = (container) =>
+  (container && typeof container.closest === 'function' && container.closest('[data-skin="paper"]') ? 'paper' : null);
+
+// The structure bars' colour under a skin: whitewashed on the dark skin, ink on paper.
+export const lensBarOptions = (container) => {
+  const color = lensSkinOf(container) === 'paper' ? '#1F2430' : CHART_COLORS.candle;
+  return { upColor: color, downColor: color, thinBars: false };
+};
+
+// The hl2 SMA-20's colour under a skin: the teal reads on the dark skin only.
+export const lensSmaOptions = (container) => (lensSkinOf(container) === 'paper' ? { color: 'rgba(23, 143, 134, 0.85)' } : {});
 
 // A variant's raw surface tints, for shells that must MATCH a chart's skin
 // (the calibration pane states render on the modal surface by construction —
@@ -50,8 +71,8 @@ export const surfaceOf = (variant) => VARIANTS[variant];
 // The common createChart skeleton for a variant. Sites spread this and override
 // their structural specifics (margins, crosshair mode, interactivity) — but the
 // look (background, text, grid, borders, font) comes from one palette.
-export const baseChartOptions = (variant, width, height) => {
-  const skin = VARIANTS[variant];
+export const baseChartOptions = (variant, width, height, container = null) => {
+  const skin = VARIANTS[variant === 'modal' && lensSkinOf(container) === 'paper' ? 'paper' : variant];
   return {
     width,
     height,

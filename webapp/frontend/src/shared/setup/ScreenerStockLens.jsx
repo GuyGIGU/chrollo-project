@@ -529,10 +529,11 @@ function FiredCrossedLine({ ticker }) {
   );
 }
 
+// `story`: false when the host draws "Why It Stands Out" in a block of its own (the lens page, Thu 16/10/2026).
 export default function ScreenerStockLens({
   activeRegion, data, earnings, interval = 'D', onPageChange = null, onRegionChange, page = 'read',
   scanIdentity = null, ticker = null,
-}) {
+ story = true }) {
   const showDailyStructure = interval === 'D';
   // The phase spans belong to the DAILY read — on a weekly/monthly pane there is
   // nothing on screen for them to point at, so the story rows keep their grades
@@ -560,12 +561,14 @@ export default function ScreenerStockLens({
       {/* The protagonist leads (operator 2026-08-12): the fused read is the
           first and widest thing in the panel; the measured grid and the
           narrative sit under it. */}
-      <SetupStoryPanel
-        data={data}
-        note={triggerRead(distanceToTriggerPct(data))}
-        onRegionChange={onRegionChange}
-        regions={regions}
-      />
+      {story ? (
+        <SetupStoryPanel
+          data={data}
+          note={triggerRead(distanceToTriggerPct(data))}
+          onRegionChange={onRegionChange}
+          regions={regions}
+        />
+      ) : null}
       {ticker ? <FiredCrossedLine ticker={ticker} /> : null}
       {narrative ? (
         <div className="stock-lens-bottom">

@@ -307,16 +307,16 @@ test('the box\'s open is NEVER cropped, at any base length, on any profile', () 
   }
 });
 
-test('modalFocusLogicalRange: opens on one trading year, running to the last candle', () => {
+test('modalFocusLogicalRange: opens on its fixed span, running to the last candle', () => {
   const candles = makeCandles(400);
   const range = modalFocusLogicalRange({ candles, base_len: 30, forward_bars: 2 });
-  assert.deepEqual(range, { from: 148, to: 399 }); // 400 - 252
+  assert.deepEqual(range, { from: 250, to: 399 }); // 400 - 150 (Thu 16/10/2026: one year read stretched)
   assert.equal(range.to - range.from + 1, CHART_FRAMING.modal.minWindowBars);
 });
 
-test('modalFocusLogicalRange: a tiny base takes the same year; short history clamps at 0', () => {
+test('modalFocusLogicalRange: a tiny base takes the same span; short history clamps at 0', () => {
   const candles = makeCandles(400);
-  assert.equal(modalFocusLogicalRange({ candles, base_len: 5, forward_bars: 0 }).from, 148);
+  assert.equal(modalFocusLogicalRange({ candles, base_len: 5, forward_bars: 0 }).from, 250);
   // history shorter than the year -> from 0, never negative
   assert.equal(modalFocusLogicalRange({ candles: makeCandles(40), base_len: 5, forward_bars: 0 }).from, 0);
   assert.equal(modalFocusLogicalRange({ candles: [], base_len: 5, forward_bars: 0 }), null);
@@ -340,7 +340,7 @@ test('modalFocusLogicalRange: a tall leg over a tiny box does NOT trim back to a
     return { ...c, open: level, close: level, high: level + (inBox ? 1 : 2), low: level - (inBox ? 1 : 2) };
   });
   const range = modalFocusLogicalRange({ candles, base_len: 31, forward_bars: 0, R: 401, S: 399 });
-  assert.deepEqual(range, { from: 48, to: 299 });
+  assert.deepEqual(range, { from: 150, to: 299 });
   assert.equal(range.to - range.from + 1, CHART_FRAMING.modal.minWindowBars);
 });
 

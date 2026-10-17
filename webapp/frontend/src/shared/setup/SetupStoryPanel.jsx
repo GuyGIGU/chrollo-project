@@ -233,10 +233,16 @@ export default function SetupStoryPanel({ data, note, onRegionChange, regions = 
 
   // A row the two-eyes reader wrote has none of the old grade's chapters (Tue 13/10/2026: the panel showed a grade
   // and one "not graded" LPS). It tells its own read instead: the box, the story's words, the mini, the LPS.
+  // It sits in the chart's own card, right under the three panes (Fri 17/10/2026: "I need to see both the
+  // chart and the highlights it provides in the same screen"), so the lens never scrolls between the two.
   if (data?.two_eyes) {
     return (
-      <section className="stock-lens-section stock-lens-story">
-        {header}
+      <section className="lens-read">
+        <div className="stock-lens-section-header">
+          <span>Why it stands out</span>
+          <TagRow compact data={data} maxTags="auto" style={{ flex: 1, minWidth: 0, padding: 0 }} />
+          <small>the phases, and the events inside each; hover one to light its bars above</small>
+        </div>
         <TwoEyesStoryBank data={data} grade={grade} onRegionChange={onRegionChange} regions={regions} />
       </section>
     );

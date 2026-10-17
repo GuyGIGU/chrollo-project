@@ -25,6 +25,22 @@ carried per setup (median 300 ≈ 14 months).
 > [2026-10-02 revision](#2026-10-02-revision--the-close-up-on-his-two-screens) is the 2026-09-02
 > record and is left as measured.
 >
+> **Revised 2026-10-17** — the lens's chart block is his TradingView grid: the daily big (about 1203x600, its plot
+> about 1140x480 with the volume pane under it, 150 bars at ~7.6 px per bar) beside a side column (29%, the
+> monthly over the weekly, 490x300 each: 60 and 100 bars) and `--lens-chart-band` is **600px**, so the phase
+> board under the panes still shows on the 1080 screen. When the daily is the small one (a D/W/M tab or a
+> caption click swaps the panes) it shows its newest 80 bars. Every pane zooms (+ − ⌂ ⤢, Ctrl+wheel; the
+> math in `chartZoom.js`). The W/M preview cubes and `CHART_FRAMING.htfPreview` are retired.
+>
+> **Revised 2026-10-16** — the lens (the modal) opens on **150** bars (the second pass the same day; the first pass said 200), not the year of 252, its chart card is FULL WIDTH (the W/M column became its own card), its
+> chart block is **724px** tall on every monitor, and the volume sits in its OWN pane (a fifth of the height) (`--lens-chart-band`), the price band 86% of the
+> pane and the volume a 10% strip (`CHART_FRAMING.modal`: `scaleMargins {0.04, 0.10}`,
+> `volumeScaleTop 0.90`). Operator, with the GFR lens: *"this entire thing reads way too stretched
+> horizontally ... look at finviz"*. Measured the same day (the external survey in the session's
+> notes): Finviz's interactive daily draws 5.9 px per bar, TradingView 6.1, Barchart 8.8, and no
+> site draws a price pane wider than 3.6:1; the modal drew 5 px per bar over a 3:1 band. Now
+> ~6.3 px per bar over ~2.1:1. The card is untouched.
+>
 > **Revised again 2026-10-04** — half way back out: the card and the glance cap the base at **0.40**
 > (the modal stays 0.35; the 88% band and the 1.9:1 well stand). Operator: *"zoom out a little bit
 > out of the base shown in the card"*. Census on the live artifact of 2026-10-02 (82 setups, 1920

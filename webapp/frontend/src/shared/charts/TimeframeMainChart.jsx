@@ -1,42 +1,61 @@
+import { useRef } from 'react';
 import { LineSeries } from 'lightweight-charts';
 import CandleChart from './CandleChart';
-import { buildFullLevelData, CHART_FRAMING, colorTimeframeCandles, finiteNumber } from './chartGeometry';
-import { baseChartOptions, RAIL_STYLE } from './chartTheme';
+import ChartZoomControls from './ChartZoomControls';
+import { buildFullLevelData, colorTimeframeCandles, finiteNumber } from './chartGeometry';
+import { baseChartOptions, lensBarOptions, lensSmaOptions, RAIL_STYLE } from './chartTheme';
 
-// The big, interactive weekly/monthly chart — behind the Screener modal's
-// D/W/M interval tabs AND the Watchlist page's stacked M/W panes. It's the
-// SAME Trend+Box read the daily engine does, one and two timeframes up ("all
+// The interactive weekly/monthly chart — the lens's three-pane grid (big or in
+// the side column) AND the Watchlist page's stacked M/W panes. It's the SAME
+// Trend+Box read the daily engine does, one and two timeframes up ("all
 // relative and derivative"): candles are resampled on the backend (the shared
 // core/pipeline/market_data/candles builders) from the full daily history; the blue rails
 // are the higher-timeframe consolidation box when one is in view (absent on a
-// clean candles-only payload); the caption is the plain-language structural
-// read. Styled to match the daily chart (useDailyStructureChart) so switching
-// timeframes feels like one TradingView pane.
+// clean candles-only payload). Styled to match the daily chart
+// (useDailyStructureChart) so the three panes read as one TradingView layout.
+// The preview mode (interactive=false, the W/M cubes) retired Fri 17/10/2026
+// with the cubes: every pane is a real chart now, with the zoom cluster.
 
-const chartOptions = (width, height, interactive) => {
-  const base = baseChartOptions('modal', width, height);
-  const margins = interactive
-    ? { top: 0.06, bottom: 0.16 }
-    : CHART_FRAMING.htfPreview.scaleMargins;
+const chartOptions = (width, height, container) => {
+  const base = baseChartOptions('modal', width, height, container);
   return {
     ...base,
     // Container-sized and range-locked, like the daily pane beside it: a UI-scale
     // change or a monitor move re-fits the pane and keeps its framed bars
     // (review 2026-10-02).
     autoSize: true,
-    crosshair: interactive ? { mode: 1 } : { horzLine: { visible: false }, vertLine: { visible: false } },
-    rightPriceScale: { ...base.rightPriceScale, scaleMargins: margins, autoScale: true },
+    crosshair: { mode: 1 },
+    rightPriceScale: { ...base.rightPriceScale, scaleMargins: { top: 0.06, bottom: 0.16 }, autoScale: true },
     timeScale: { ...base.timeScale, timeVisible: true, fixLeftEdge: false, fixRightEdge: false,
                  lockVisibleTimeRangeOnResize: true },
-    handleScroll: interactive,
-    handleScale: interactive,
+    // The bare wheel scrolls the lens page, never the bars (Thu 16/10/2026); Ctrl+wheel and the
+    // zoom cluster scale (ChartZoomControls); dragging the axis scales too.
+    handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+    handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
   };
 };
 
-// interactive=false is the mini-widget mode (TimeframeMiniRow): same read, same
-// rails, same bounded window — scroll/scale/crosshair off so the pane is a
-// static preview the wrapping control can own clicks for.
-export default function TimeframeMainChart({ candles, volumes, box, label, interactive = true }) {
+// The opening window: the newest `show` bars at a faithful per-bar width (fitContent on a long
+// resampled series stretches few bars across a wide pane — the most distorted path), unless the
+// box was born before that window: then the whole history, so the rails never start off-screen-left.
+const DEFAULT_BARS = { WEEKLY: 160, MONTHLY: 120 };
+const homeView = (chart, candles, boxStart, show) => {
+  const n = candles.length;
+  const viewFrom = Math.max(0, n - show);
+  if (boxStart) {
+    const anchor = candles.findIndex((candle) => candle.time >= boxStart);
+    if (anchor >= 0 && anchor < viewFrom) {
+      chart.timeScale().fitContent();
+      return;
+    }
+  }
+  chart.timeScale().setVisibleLogicalRange({ from: viewFrom, to: n - 1 });
+};
+
+// `bars` overrides the opening window (the lens's side column shows fewer, Fri 17/10/2026).
+export default function TimeframeMainChart({ candles, volumes, box, label, bars = null }) {
+  const chartRef = useRef(null);
+  const frameRef = useRef(null);
   const boxR = box?.r;
   const boxS = box?.s;
   const boxStart = box?.start_date;
@@ -44,6 +63,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
   const limbEnd = box?.limb_end_date;
   const lpsStart = box?.lps_start_date;
   const lpsEnd = box?.lps_end_date;
+  const show = bars ?? DEFAULT_BARS[label] ?? DEFAULT_BARS.WEEKLY;
 
   // Colour the structure candles exactly like the daily chart: base-limb swing
   // grey, the right-side LPS span gold. Dates come from htf.chart_box; bars
@@ -51,6 +71,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
   const coloredCandles = colorTimeframeCandles(candles || [], { limbStart, limbEnd, lpsStart, lpsEnd });
 
   const onReady = (chart) => {
+    chartRef.current = chart;
     const cand = candles || [];
     const r = finiteNumber(boxR);
     const s = finiteNumber(boxS);
@@ -67,28 +88,8 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
       chart.addSeries(LineSeries, RAIL_STYLE.rail).setData(buildFullLevelData(railBars, s));
       chart.addSeries(LineSeries, RAIL_STYLE.mid).setData(buildFullLevelData(railBars, (r + s) / 2));
     }
-
-    // Bounded recent window keeps weekly/monthly bars at a faithful per-bar
-    // width (fitContent on a long resampled series stretches few bars across the
-    // wide pane — the most distorted path). Fall back to fitContent when the box
-    // origin predates the recent window, so the rails never start off-screen-left.
-    // The preview cubes take a much shallower budget (CHART_FRAMING.htfPreview)
-    // and NEVER fitContent — in a ~360px pane that fallback smears the whole
-    // history into unreadable slivers; a rail whose origin predates the preview
-    // window just spans it edge-to-edge, and the full-pane tab tells the rest.
-    const n = cand.length;
-    const show = interactive
-      ? (label === 'WEEKLY' ? 160 : 120)
-      : (label === 'WEEKLY' ? CHART_FRAMING.htfPreview.weeklyBars : CHART_FRAMING.htfPreview.monthlyBars);
-    const viewFrom = Math.max(0, n - show);
-    if (interactive && boxStart) {
-      const anchor = cand.findIndex((candle) => candle.time >= boxStart);
-      if (anchor >= 0 && anchor < viewFrom) {
-        chart.timeScale().fitContent();
-        return;
-      }
-    }
-    chart.timeScale().setVisibleLogicalRange({ from: viewFrom, to: n - 1 });
+    homeView(chart, cand, boxStart, show);
+    return () => { if (chartRef.current === chart) chartRef.current = null; };
   };
 
   if (!candles?.length) {
@@ -100,19 +101,21 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
   }
 
   return (
-    <div className={interactive ? 'screener-modal-chart' : undefined} style={{ height: '100%', minHeight: 0, position: 'relative' }}>
+    <div ref={frameRef} style={{ height: '100%', minHeight: 0, position: 'relative' }}>
       <CandleChart
         spec={{
           chartOptions: (container) =>
-            chartOptions(container.clientWidth || 600, container.clientHeight || 360, interactive),
+            chartOptions(container.clientWidth || 600, container.clientHeight || 360, container),
           candles: coloredCandles,
+          barOptions: lensBarOptions,
+          smaOptions: lensSmaOptions,
           volumes,
           showVolume: !!volumes?.length,
-          volumeScaleTop: interactive ? 0.84 : CHART_FRAMING.htfPreview.volumeScaleTop,
+          volumeScaleTop: 0.84,
           showSma: true,
           onReady,
           onError: (err) => console.error('[TimeframeMainChart] init failed:', err),
-          deps: [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd, interactive],
+          deps: [candles, volumes, boxR, boxS, boxStart, limbStart, limbEnd, lpsStart, lpsEnd, show],
         }}
         candles={candles}
         style={{ height: '100%', position: 'relative' }}
@@ -121,6 +124,11 @@ export default function TimeframeMainChart({ candles, volumes, box, label, inter
             Chart unavailable
           </div>
         )}
+      />
+      <ChartZoomControls
+        chartRef={chartRef}
+        frameRef={frameRef}
+        onHome={() => { if (chartRef.current) homeView(chartRef.current, candles, boxStart, show); }}
       />
     </div>
   );

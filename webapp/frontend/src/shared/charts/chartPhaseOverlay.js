@@ -522,15 +522,25 @@ export const buildEpisodeRegions = (data) => {
   return regions;
 };
 
-const styledRegions = (data, container) =>
-  [...buildPhaseRegions(data), ...buildEpisodeRegions(data)].map((region) => {
+// A band's wash inside the lens (Thu 16/10/2026): twice as strong on the paper skin, where a 4.5% tint on
+// white is invisible, and a half again on the dark lens so the phases pop; the card keeps its own.
+const washScale = (container) => {
+  const shell = container && typeof container.closest === 'function' ? container.closest('[data-skin]') : null;
+  if (!shell) return 1;
+  return shell.dataset.skin === 'paper' ? 2 : 1.5;
+};
+
+const styledRegions = (data, container) => {
+  const scale = washScale(container);
+  return [...buildPhaseRegions(data), ...buildEpisodeRegions(data)].map((region) => {
     const color = region.color || tokenColor(container, region.token);
     return {
       ...region,
-      fillStyle: colorToRgba(color, region.key === 'lps' ? 0.08 : 0.045),
+      fillStyle: colorToRgba(color, (region.key === 'lps' ? 0.08 : 0.045) * scale),
       strokeStyle: colorToRgba(color, region.key === 'd' ? 0.72 : 0.56),
     };
   });
+};
 
 class PhaseRegionRenderer {
   constructor(drawData) {

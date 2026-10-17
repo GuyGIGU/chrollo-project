@@ -1,109 +1,74 @@
 import { useState } from 'react';
-import { twoEyesStory } from './twoEyesStory.js';
 import { formatScore } from '../formatting/scoreFormat.js';
 import { EMPTY } from '../formatting/format.js';
+import { dayMonth, phaseBoard } from './phaseBoard.js';
 
-// The grade panel's bank for a row the two-eyes reader wrote (Tue 13/10/2026): the grade, then the read left to right
-// in chart order — the box, each word of the story, the mini, the LPS. The same chrome as the old chapters (one
-// continuous hued rule across the top, a narrow rail for a word, the number line below it), so the panel reads the
-// same whichever reader wrote the row; only what fills it is the new reader's own. twoEyesStory owns the words.
+// THE PHASE BOARD (Thu 16/10/2026, his design): "we Set the Phases at the top. then the events that occurred within
+// these phases below them." Phase A is the root swing the reader chose for the box (the climax and its reaction);
+// Phase B is gone ("the only event that it has is upthrust and we can represent it on its own anyways"), so the
+// upthrust stands in a column of its own; Phase C holds the spring and its test; Phase D "can start from a bunch of
+// different events" (the recovery test, an SOS, an LPS, a mini, or straight after the middle) and holds the SOS, the
+// last supper, the mini and the LPS. The grade's letter is NOT repeated here: the top bar carries it. The score and
+// its two facts are one line over the phases. Every fact arrives resolved on the wire (EC-28); this file only
+// arranges them. Hover or focus an event and its band lights on the chart (the same region ids as before).
 
-// Hover/focus: the column engages locally and lights its own band on the chart (each band has its own id).
-const engageBind = (column, onEngage, onRegionChange) => ({
+const engageBind = (line, onEngage, onRegionChange) => ({
   onBlur: () => { onEngage(null); onRegionChange?.(null); },
-  onFocus: () => { onEngage(column.key); onRegionChange?.(column.region); },
-  onMouseEnter: () => { onEngage(column.key); onRegionChange?.(column.region); },
+  onFocus: () => { onEngage(line.key); onRegionChange?.(line.region); },
+  onMouseEnter: () => { onEngage(line.key); onRegionChange?.(line.region); },
   onMouseLeave: () => { onEngage(null); onRegionChange?.(null); },
   type: 'button',
 });
 
-function WordRail({ column, engaged, onEngage, onRegionChange }) {
-  const Element = column.region ? 'button' : 'div';
-  const bind = column.region ? engageBind(column, onEngage, onRegionChange) : {};
+function EventLine({ line, engaged, onEngage, onRegionChange }) {
+  const Element = line.region ? 'button' : 'div';
+  const bind = line.region ? engageBind(line, onEngage, onRegionChange) : {};
   return (
-    <div className={['story-col', 'story-col-mark', column.phase ? `phase-bin-${column.phase}` : '',
-      engaged === column.key ? 'is-engaged' : ''].filter(Boolean).join(' ')}
-    >
-      <Element
-        {...bind}
-        className={['story-face', 'story-face-mark', column.region ? '' : 'is-static',
-          engaged === column.key ? 'is-engaged' : ''].filter(Boolean).join(' ')}
-        title={column.title}
-      >
-        <span className="story-gauge is-mark" />
-        <span className="story-value is-mark">
-          <span className="phase-bin-token">{column.token}</span>
+    <Element {...bind} className={['phase-event', line.region ? '' : 'is-static', engaged === line.key ? 'is-engaged' : ''].filter(Boolean).join(' ')} title={line.title}>
+      <span className="phase-event-dot" />
+      <span className="phase-event-body">
+        <span className="phase-event-head">
+          <span className="phase-event-name">{line.name}</span>
+          {line.day ? <span className="phase-event-day">{dayMonth(line.day)}</span> : null}
+          {line.hero ? <span className="phase-event-hero">{line.hero}</span> : null}
         </span>
-        <span className="story-name">
-          <span className="story-name-text">{column.name}</span>
-        </span>
-        <span className="story-detail is-mark">{column.detail}</span>
-      </Element>
-    </div>
-  );
-}
-
-function FactColumn({ column, engaged, onEngage, onRegionChange }) {
-  const Element = column.region ? 'button' : 'div';
-  const bind = column.region ? engageBind(column, onEngage, onRegionChange) : {};
-  const [whole, decimal] = column.figure != null ? column.figure.split('.') : [];
-  return (
-    <div className={['story-col', column.phase ? `phase-bin-${column.phase}` : '',
-      engaged === column.key ? 'is-engaged' : ''].filter(Boolean).join(' ')}
-    >
-      <Element
-        {...bind}
-        className={['story-face', column.region ? '' : 'is-static',
-          engaged === column.key ? 'is-engaged' : ''].filter(Boolean).join(' ')}
-        title={column.title}
-      >
-        {/* A fill only where there is a measured share (the box: its days with a bar in it); a hairline otherwise,
-            never an empty track that would read as a measured zero. */}
-        {column.fraction != null ? (
-          <span className="story-gauge">
-            <span className="story-gauge-fill" style={{ width: `${(column.fraction * 100).toFixed(1)}%` }} />
-          </span>
-        ) : <span className="story-gauge is-mark" />}
-        <span className={`story-value${column.figure != null ? '' : ' is-absent'}`}>
-          {column.figure != null
-            ? <>{whole}{decimal != null ? <span className="story-dec">.{decimal}</span> : null}{column.unit ? <span className="story-unit">{column.unit}</span> : null}</>
-            : 'not read'}
-        </span>
-        <span className="story-name">
-          <span className="phase-bin-token">{column.token}</span>
-          {column.name === column.token ? null : <span className="story-name-text">{column.name}</span>}
-        </span>
-        <span className="story-detail">{column.detail}</span>
-      </Element>
-    </div>
+        <span className="phase-event-text">{line.sentence}</span>
+      </span>
+    </Element>
   );
 }
 
 export default function TwoEyesStoryBank({ data, grade, onRegionChange, regions = [] }) {
-  const { columns, footnote } = twoEyesStory(data, regions);
+  const board = phaseBoard(data, regions);
   const [engaged, setEngaged] = useState(null);
-  // Words take the narrow rail; the box, the mini and the LPS share what is left, capped like the old chapters.
-  const track = columns
-    .map((column) => (column.kind === 'mark' ? 'var(--story-mark-w)' : 'minmax(0, var(--story-col-max))'))
-    .join(' ');
+  if (!board) return null;
   return (
-    <>
-      <div className="story-bank" style={{ '--story-track': track }}>
-        <div className="story-total">
-          <span className="story-total-fig" title={grade.title}>
-            <span className="story-total-value">{grade.value != null ? formatScore(grade.value) : EMPTY}</span>
-            {grade.scale ? <span className="story-total-scale">{grade.scale}</span> : null}
-          </span>
-          <span className="story-total-label">{grade.label}</span>
-          <small className="story-total-note">{grade.note}</small>
-        </div>
-        {columns.map((column) => (column.kind === 'mark' ? (
-          <WordRail column={column} engaged={engaged} key={column.key} onEngage={setEngaged} onRegionChange={onRegionChange} />
-        ) : (
-          <FactColumn column={column} engaged={engaged} key={column.key} onEngage={setEngaged} onRegionChange={onRegionChange} />
-        )))}
+    <div className="phase-board">
+      <div className="phase-board-score" title={grade?.title}>
+        <span className="phase-board-score-value">{board.score != null ? formatScore(board.score) : EMPTY}</span>
+        <span className="phase-board-score-scale">/100</span>
+        <span className="phase-board-score-note">{board.note ?? grade?.note ?? ''}</span>
       </div>
-      {footnote ? <p className="story-footnote">{footnote}</p> : null}
-    </>
+      <div className="phase-columns">
+        {board.phases.map((phase) => (
+          <section className={['phase-col', `phase-bin-${phase.key}`, phase.aside ? 'is-aside' : ''].filter(Boolean).join(' ')} key={phase.key}>
+            <header className="phase-head">
+              <span className="phase-head-rule" />
+              <span className="phase-head-row">
+                <span className="phase-bin-token">{phase.token}</span>
+                <span className="phase-head-name">{phase.name}</span>
+              </span>
+              <span className="phase-head-meaning">{phase.meaning}</span>
+            </header>
+            <div className="phase-events">
+              {phase.lines.map((line) => (
+                <EventLine engaged={engaged} key={line.key} line={line} onEngage={setEngaged} onRegionChange={onRegionChange} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+      {!board.told ? <p className="story-footnote">No story came with this row: the archive keeps the boxes and the grade, and the story (spring, SOS, last supper) rides the night's scan.</p> : null}
+    </div>
   );
 }

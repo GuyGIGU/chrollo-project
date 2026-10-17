@@ -1,5 +1,5 @@
 export const hl2Sma20Options = {
-  color: 'rgba(45, 212, 191, 0.72)',
+  color: 'rgba(63, 230, 208, 0.85)', // lifted Thu 16/10/2026 with the rest of the chart colors
   crosshairMarkerVisible: false,
   lastValueVisible: false,
   lineWidth: 1,

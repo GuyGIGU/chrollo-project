@@ -10,8 +10,9 @@ const INTERVAL_TABS = [
   { key: 'M', label: 'M', name: 'Monthly' },
 ];
 
-// TradingView-style D/W/M timeframe switcher. Weekly/Monthly are disabled when
-// the row predates the higher-timeframe read (no resampled candles in payload).
+// TradingView-style D/W/M switcher: which of the three panes is the BIG one (Fri 17/10/2026; the
+// other two take the side column). Weekly/Monthly are disabled when the row predates the
+// higher-timeframe read (no resampled candles in payload).
 function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
   const enabled = { D: true, W: hasWeekly, M: hasMonthly };
   return (
@@ -38,7 +39,7 @@ function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
             aria-selected={active}
             disabled={!ok}
             onClick={() => ok && onIntervalChange(tab.key)}
-            title={ok ? `${tab.name} chart` : `${tab.name} — needs more history`}
+            title={ok ? `${tab.name} in the big pane` : `${tab.name} — needs more history`}
             style={{
               background: active ? 'var(--myth-soft)' : 'transparent',
               border: 'none',
@@ -80,14 +81,14 @@ function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike) {
 
 export default function ScreenerModalToolbar({
   data, onClose, onNext, onPrev, ticker, interval, onIntervalChange, hasWeekly, hasMonthly,
-  watchlisted, onToggleWatchlist, liked, onToggleLike, position,
+  watchlisted, onToggleWatchlist, liked, onToggleLike, position, skin = 'dark', onToggleSkin,
 }) {
   const changePct = dailyChangeFrac(data?.candles);
   useLensActionKeys(ticker, onToggleWatchlist, onToggleLike);
   return (
     <header style={{
       alignItems: 'center',
-      background: '#202330',
+      background: 'var(--lens-toolbar-bg)',
       borderBottom: '1px solid var(--border-color)',
       display: 'flex',
       gap: 16,
@@ -167,6 +168,19 @@ export default function ScreenerModalToolbar({
         >
           ↗ TV
         </a>
+        {/* The lens's skin, paper or dark (Thu 16/10/2026); the choice is kept per browser. */}
+        {onToggleSkin && (
+          <button
+            type="button"
+            className="btn btn-icon"
+            aria-pressed={skin === 'paper'}
+            aria-label="Paper skin"
+            title={skin === 'paper' ? 'Paper skin on: switch the lens to dark' : 'Switch the lens to paper (white blocks)'}
+            onClick={onToggleSkin}
+          >
+            {skin === 'paper' ? '☾' : '☼'}
+          </button>
+        )}
         {/* "– / 36" once the chart drops out of the list (un-starred on the Watchlist
             tier): the slot stays, so the star beside it never slides from under the pointer. */}
         {position && (

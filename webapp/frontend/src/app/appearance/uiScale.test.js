@@ -194,33 +194,40 @@ test('the card minimum is identical at all five sites', () => {
   }
 });
 
-test('the big charts hold their 1920 size on a bigger screen', () => {
-  // Operator 2026-10-03, "same goes for the big charts": the lens's chart band
-  // and the Watchlist D/W/M band are capped at the size they have on his
-  // 1920x1080 screen, so the 2560 screen draws every setup at the same size.
-  // The lens itself fills the screen's height and its read panel takes the
-  // rest ("make that block stretch more down so we could see more").
+test('the lens is two blocks on a page that scrolls, and the big charts hold one size on every screen', () => {
+  // Operator 2026-10-03, "same goes for the big charts": the lens's chart band and
+  // the Watchlist D/W/M band are one size on every monitor. Operator Thu
+  // 16/10/2026: the lens is TWO BLOCKS — the chart block at its own height and
+  // the stats block under it at its natural height, the body scrolling to it:
+  // "give much more room for both blocks but without the need to squeeze them
+  // together". Fri 17/10/2026: the chart block is the THREE-PANE GRID (monthly
+  // over weekly beside the big daily, his TradingView layout) at
+  // --lens-chart-band, sized so the grade board under it fits the 1080 screen
+  // with it ("I need to see both the chart and the highlights it provides in
+  // the same screen").
   const css = readRepo('src/index.css');
   const modal = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-shell"[\s\S]*?style=\{\{([\s\S]*?)\}\}/);
   assert.ok(modal, 'ScreenerModal: the lens shell style not found');
   assert.match(modal[1], /maxWidth: 1760,/, 'the lens is no longer held at its 1920 width');
-  assert.doesNotMatch(modal[1], /maxHeight/, 'the lens shell is height-capped again — the read panel loses the room below the chart');
-  const lensBand = css.match(/\n\.screener-modal-chart-row\s*\{([^}]*)\}/);
-  assert.ok(lensBand, 'index.css: the desktop .screener-modal-chart-row rule not found');
-  assert.match(lensBand[1], /max-height: 567px;/, 'the lens chart band is no longer held at its 1920 height');
-  // The cap alone holds nothing: a fixed or missing height leaves the band short of it.
-  assert.match(lensBand[1], /height: calc\(100% - min\(32vh, 300px\)\);/, 'the lens chart band lost its height budget — it no longer reaches its 567px cap');
-  const narrowBand = css.match(/@media \(max-width: 760px\)[\s\S]*?\n {2}\.screener-modal-chart-row\s*\{([^}]*)\}/);
-  assert.ok(narrowBand, 'index.css: the 760px .screener-modal-chart-row override not found');
-  assert.match(narrowBand[1], /height: auto;/, 'the stacked lens band keeps the desktop height budget again');
-  assert.match(narrowBand[1], /max-height: none;/, 'the stacked lens band keeps the desktop cap again');
-  const row = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-chart-row" style=\{\{([^}]*)\}\}/);
-  assert.ok(row, 'ScreenerModal: the chart band style not found');
-  assert.match(row[1], /flex: '0 0 auto'/, 'the chart band flexes again — it would grow past its cap or take the read panel\'s room');
+  assert.doesNotMatch(modal[1], /maxHeight/, 'the lens shell is height-capped again — the stats block loses the room below the chart');
+  assert.match(css, /--lens-chart-band: 600px;/, 'the chart grid lost its one height (600px on every monitor: the grade board must fit under it at 1080)');
+  const lensBand = css.match(/\n\.lens-chart-grid\s*\{([^}]*)\}/);
+  assert.ok(lensBand, 'index.css: the desktop .lens-chart-grid rule not found');
+  assert.match(lensBand[1], /height: var\(--lens-chart-band\);/, 'the chart grid no longer takes its own height');
+  assert.doesNotMatch(lensBand[1], /max-height|vh/, 'the chart grid is sized by the screen again');
+  const narrowBand = css.match(/@media \(max-width: 760px\)[\s\S]*?\n {2}\.lens-chart-grid\s*\{([^}]*)\}/);
+  assert.ok(narrowBand, 'index.css: the 760px .lens-chart-grid override not found');
+  assert.match(narrowBand[1], /height: auto;/, 'the stacked lens grid keeps the desktop block height again');
+  const body = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-body lens-page" style=\{\{([^}]*)\}\}/);
+  assert.ok(body, 'ScreenerModal: the lens body style not found');
+  assert.match(body[1], /overflowY: 'auto'/, 'the lens body no longer scrolls — the two blocks are squeezed into the screen again');
+  const row = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="lens-chart-grid" style=\{\{([^}]*)\}\}/);
+  assert.ok(row, 'ScreenerModal: the chart grid style not found');
+  assert.match(row[1], /flex: '0 0 auto'/, 'the chart grid flexes again — it would shrink to what the screen leaves');
   const panel = css.match(/\n\.stock-lens\s*\{([^}]*)\}/);
   assert.ok(panel, 'index.css: .stock-lens not found');
-  assert.match(panel[1], /flex: 1 1 auto;/, 'the read panel no longer takes the room the chart band leaves');
-  assert.doesNotMatch(panel[1], /max-height/, 'the read panel is capped again — the 2560 screen would show a void under it');
+  assert.match(panel[1], /flex: 0 0 auto;/, 'the stats block is squeezed into what the chart block leaves again');
+  assert.doesNotMatch(panel[1], /max-height|overflow-y/, 'the stats block scrolls inside itself again instead of the page');
   const band = css.match(/\.wl-top\s*\{([^}]*)\}/);
   assert.ok(band, 'index.css: .wl-top not found');
   assert.match(band[1], /max-height: 805px;/, 'the Watchlist chart band is no longer held at its 1920 height');

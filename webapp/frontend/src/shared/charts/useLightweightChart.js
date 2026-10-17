@@ -19,10 +19,18 @@ import { buildHl2SmaData, hl2Sma20Options } from './chartIndicators';
 //                  container (clientWidth/clientHeight) at creation time, exactly
 //                  as the hand-rolled sites did (required)
 //   candles      : bar data for the base BarSeries (required to draw)
-//   barOptions   : options for the base BarSeries (default: whitewashed bars)
+//   barOptions   : options for the base BarSeries (default: whitewashed bars), or a
+//                  (container) => options function so a site can read the skin the
+//                  canvas is drawn under (chartTheme.lensBarOptions)
+//   smaOptions   : overrides for the hl2 SMA-20 line's options, or a (container) =>
+//                  overrides function (chartTheme.lensSmaOptions)
 //   volumes      : if showVolume, histogram volume data
 //   showVolume   : draw the standard bottom-anchored volume histogram
-//   volumeScaleTop : top scaleMargin for the volume pane (default 0.8)
+//   volumeScaleTop : top scaleMargin for the volume strip (default 0.8) when it
+//                  overlays the price pane
+//   volumePane   : draw the volume in its OWN pane under the price pane instead
+//                  (lightweight-charts v5 panes); the number is the volume
+//                  pane's share of the height (e.g. 0.2)
 //   showSma      : draw the hl2 SMA-20 line (chartIndicators)
 //   onReady(chart, candleSeries) : draw everything site-specific here; may
 //                  return a cleanup fn (run before chart.remove(), e.g. to
@@ -51,7 +59,9 @@ export default function useLightweightChart(containerRef, spec) {
     volumes,
     showVolume = false,
     volumeScaleTop = 0.8,
+    volumePane = null,
     showSma = false,
+    smaOptions,
     onReady,
     onResize,
     resizeDelayMs,
@@ -104,10 +114,21 @@ export default function useLightweightChart(containerRef, spec) {
         typeof chartOptions === 'function' ? chartOptions(container) : chartOptions;
       chart = createChart(container, resolvedOptions);
 
-      const candleSeries = chart.addSeries(BarSeries, barOptions);
+      const candleSeries = chart.addSeries(BarSeries, typeof barOptions === 'function' ? barOptions(container) : barOptions);
       candleSeries.setData(candles);
 
-      if (showVolume) {
+      if (showVolume && volumePane) {
+        // Its own pane (Thu 16/10/2026, the lens): the price pane keeps its whole height for the bars and
+        // the volume reads on its own baseline, as on Barchart and MarketSmith.
+        const volumeSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' } }, 1);
+        volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } });
+        volumeSeries.setData(volumes || []);
+        const panes = chart.panes();
+        if (panes.length > 1) {
+          panes[0].setStretchFactor(1 - volumePane);
+          panes[1].setStretchFactor(volumePane);
+        }
+      } else if (showVolume) {
         const volumeSeries = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },
           priceScaleId: 'volume',
@@ -119,7 +140,8 @@ export default function useLightweightChart(containerRef, spec) {
       if (showSma) {
         const sma = buildHl2SmaData(candles);
         if (sma.length) {
-          chart.addSeries(LineSeries, hl2Sma20Options).setData(sma);
+          const smaOverride = typeof smaOptions === 'function' ? smaOptions(container) : smaOptions;
+          chart.addSeries(LineSeries, { ...hl2Sma20Options, ...(smaOverride || {}) }).setData(sma);
         }
       }
 
