@@ -906,7 +906,11 @@ def test_read_fills_the_record_from_the_walk():
     from core.calibration.replay import load_sealed_fixture
 
     frames, _ = load_sealed_fixture()
+    # The first frame: the loader sorts the setups, so it is the same one on every run (it came out of a set
+    # before, and the chain below, which reads the LPS against the parent alone, met NKTR's mini-after-pullback
+    # read one CI run in twenty, Fri 17/10/2026; that branch is pinned by name at the end).
     key, raw = next(iter(frames.items()))
+    assert key == sorted(frames)[0]
     read = two_eyes.read(key, raw)
     assert read.failed is False
     prepared = frame_module.prepare(raw)
@@ -939,6 +943,14 @@ def test_read_fills_the_record_from_the_walk():
     assert read.state_days == beside and read.grade == graded
     assert read.events == events and [s.stage for s in told] == [story.STAGE]
     assert read.parent is not None and len(said) == 1 and word in (lps.FIRED, lps.CROSSED, lps.LINES_NO_LPS)
+    # The LPS against the mini (task 13) when the mini became a box only after the pullback ended: the read says
+    # so in a step of its own and reads the LPS against the parent. The chain above does not model it; NKTR does.
+    # (Its LPS record is None on this day: the parent's read is what stands, the step is the pin.)
+    nktr = next((k for k in frames if k.startswith("NKTR:")), None)
+    if nktr is not None:
+        later = two_eyes.read(nktr, frames[nktr])
+        assert later.failed is False
+        assert any(s.stage == "LPS" and "became a box only" in s.saying for s in later.trail), later.trail
 
 
 # --------------------------------------------------------------------------- #

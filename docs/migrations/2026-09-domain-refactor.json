@@ -863,13 +863,6 @@
    "source": "git"
   },
   {
-   "old": "webapp/frontend/src/components/TimeframeMiniRow.jsx",
-   "new": "webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx",
-   "area": "frontend",
-   "similarity": 95,
-   "source": "git"
-  },
-  {
    "old": "webapp/frontend/src/components/TradeDetailDrawer.jsx",
    "new": "webapp/frontend/src/features/journal/components/TradeDetailDrawer.jsx",
    "area": "frontend",
@@ -4987,6 +4980,10 @@
   {
    "path": "webapp/frontend/src/components/ScreenerPager.jsx",
    "why": "The refactor moved it to webapp/frontend/src/features/screener/components/ScreenerPager.jsx; it was then DELETED when the shared webapp/frontend/src/shared/components/Pager.jsx replaced the app's four pagers (the operator's UX round, his suggestion 8, Sat 03/10/2026; claude/leadership-read)."
+  },
+  {
+   "path": "webapp/frontend/src/components/TimeframeMiniRow.jsx",
+   "why": "The refactor moved it to webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx; it was then DELETED when the lens became the operator's TradingView three-pane grid (the weekly and the monthly are real charts in the side column, so the preview cubes had no job; Fri 17/10/2026; claude/gfr-read-and-lens-three-panes)."
   }
  ]
 }

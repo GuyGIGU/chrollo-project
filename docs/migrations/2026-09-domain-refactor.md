@@ -4,14 +4,14 @@ The refactor on `claude/domain-refactor` grouped the code by what it does. It ru
 
 The machine-readable map is [2026-09-domain-refactor.json](2026-09-domain-refactor.json). [apply_move_map.py](../../tools/maintenance/apply_move_map.py) reads it to port a branch, and [test_apply_move_map.py](../../tests/tooling/test_apply_move_map.py) checks that the rewrite is idempotent, that every import it writes resolves, and that every file move in the JSON has a row on this page. The tables below are generated from the JSON; if you edit one, edit the other.
 
-The JSON records 574 file moves, 134 Python module moves, 10 whole-folder moves and 17 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; twelve of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
+The JSON records 573 file moves, 134 Python module moves, 10 whole-folder moves and 18 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; thirteen of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
 
 | Area | Files moved |
 |---|---|
 | Engine | 28 |
 | Pipeline | 21 |
 | Backend | 47 |
-| Frontend | 219 |
+| Frontend | 218 |
 | Tests | 150 |
 | Tools | 42 |
 | Research evidence | 67 |
@@ -187,6 +187,8 @@ On 2026-09-25 the final-method branch (`claude/method-steps-7-12`) was merged on
 
 On Sat 03/10/2026 the operator's UX round (his suggestion 8: one pager for the whole app) deleted a twelfth: `webapp/frontend/src/features/screener/components/ScreenerPager.jsx`, whose job `webapp/frontend/src/shared/components/Pager.jsx` now does for the screener, the archive table, the journal and the calibration list. Its move left `file_moves` the same way, and its old path is in `deleted`; the porter no longer rewrites an import of it to a file that is not there, so a branch that still imports it is ported to the new pager by hand (its props differ: `page`, `pageCount`, `onPage`, `label`).
 
+On Fri 17/10/2026 the lens became the operator's TradingView three-pane grid (the monthly over the weekly in a side column beside the big daily, every pane a real chart), which deleted a thirteenth: `webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx`, the two preview cubes the side column replaced. Its move left `file_moves` the same way, and its old path is in `deleted`; a branch that still mounts it is ported to `TimeframeMainChart` in a `LensChartPane` by hand.
+
 ## What was deleted, and why
 
 | Path | Why |
@@ -208,6 +210,7 @@ On Sat 03/10/2026 the operator's UX round (his suggestion 8: one pager for the w
 | `tools/power_play_fixture.py` | The refactor moved it to tools/regression/power_play_fixture.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
 | `tools/power_play_sheets.py` | The refactor moved it to tools/research/power_play_sheets.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
 | `webapp/frontend/src/components/ScreenerPager.jsx` | The refactor moved it to webapp/frontend/src/features/screener/components/ScreenerPager.jsx; it was then DELETED when the shared webapp/frontend/src/shared/components/Pager.jsx replaced the app's four pagers (the operator's UX round, his suggestion 8, Sat 03/10/2026; claude/leadership-read). |
+| `webapp/frontend/src/components/TimeframeMiniRow.jsx` | The refactor moved it to webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx; it was then DELETED when the lens became the operator's TradingView three-pane grid (the weekly and the monthly are real charts in the side column, so the preview cubes had no job; Fri 17/10/2026; claude/gfr-read-and-lens-three-panes). |
 
 Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webapp/backend/ibkr/`, which the first commit had left behind as aliases. Across the whole refactor git pairs each of them with its new home, so they appear as moves in the tables below, not here.
 
@@ -555,7 +558,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/SetupStoryPanel.jsx` | `webapp/frontend/src/shared/setup/SetupStoryPanel.jsx` |
 | `webapp/frontend/src/components/SetupTags.jsx` | `webapp/frontend/src/shared/setup/SetupTags.jsx` |
 | `webapp/frontend/src/components/TimeframeMainChart.jsx` | `webapp/frontend/src/shared/charts/TimeframeMainChart.jsx` |
-| `webapp/frontend/src/components/TimeframeMiniRow.jsx` | `webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx` |
 | `webapp/frontend/src/components/TradeDetailDrawer.jsx` | `webapp/frontend/src/features/journal/components/TradeDetailDrawer.jsx` |
 | `webapp/frontend/src/components/TradeTable.jsx` | `webapp/frontend/src/features/journal/components/TradeTable.jsx` |
 | `webapp/frontend/src/components/UniverseSwitcher.jsx` | `webapp/frontend/src/features/screener/components/UniverseSwitcher.jsx` |

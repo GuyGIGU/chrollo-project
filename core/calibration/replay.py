@@ -74,7 +74,9 @@ def load_sealed_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
     data = pd.read_parquet(SEALED_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
     with open(SEALED_BASELINE_JSON, "r", encoding="utf-8") as f:
         baseline = json.load(f)
-    level0 = set(data.columns.get_level_values(0))
+    # Sorted: a set's order follows the process's hash seed, so "the first frame" was a different setup
+    # on every run (a test that read one frame failed on CI one run in twenty, Fri 17/10/2026).
+    level0 = sorted(set(data.columns.get_level_values(0)))
     frames = {t: data[t].dropna() for t in level0}
     return frames, baseline
 
