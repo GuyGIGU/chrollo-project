@@ -41,7 +41,20 @@ class TierEdge(BaseModel):
     tail: TailRates
 
 
+class ReaderBaseline(TierEdge):
+    """The other reader's fires, one line under the tiers, never pooled with them."""
+    reader: str
+    first_scan: Optional[str]
+    last_scan: Optional[str]
+
+
 class EngineEdgeResponse(BaseModel):
+    # Which reader the headline and the tiers measure ('new' / 'old'): the one that
+    # wrote the latest scan, from its first scan day. The other is the baseline
+    # (his word Mon 12/10/2026, option A: an old S and a new S are not one letter).
+    reader: Optional[str] = None
+    reader_since: Optional[str] = None
+    baseline: Optional[ReaderBaseline] = None
     unbiased: bool
     contaminated_input: bool
     n_unbiased: int

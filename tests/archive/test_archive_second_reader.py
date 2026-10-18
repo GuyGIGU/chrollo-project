@@ -1067,7 +1067,12 @@ def test_the_seed_and_manual_writers_fill_the_family_from_their_own_row_shape():
     from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL, two_eyes_archive_values
     from domains.archive import actions as archive_actions
 
-    row = seed_row_from_result(to_result(_fired_read(with_mini=True, lps_box="mini")))
+    # The bars through the LPS's last day: the family's LPS volume is measured on
+    # them (his word Mon 12/10/2026), so without them that column would be empty.
+    days = pd.bdate_range(end="2026-03-06", periods=260)
+    bars = pd.DataFrame({"Open": 95.0, "High": 99.0, "Low": 93.0, "Close": 97.0,
+                         "Volume": 1000.0}, index=days)
+    row = seed_row_from_result(to_result(_fired_read(with_mini=True, lps_box="mini"), frame=bars))
     family = two_eyes_archive_values(row.get, prefixed=False)
     empty = {c for c, v in family.items() if v is None}
     assert empty == {"two_eyes_parent_end_date", "two_eyes_mini_end_date"}, \

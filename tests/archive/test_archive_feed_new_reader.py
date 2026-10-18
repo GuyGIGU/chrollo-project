@@ -34,6 +34,9 @@ NEW_READER_FEED_FLOOR = (
     "_two_eyes_parent_daily_range", "_two_eyes_parent_opened_date",
     "_two_eyes_parent_r_anchor_date", "_two_eyes_parent_r_price",
     "_two_eyes_parent_s_anchor_date", "_two_eyes_parent_s_price",
+    # His word Mon 12/10/2026 (option A): the LPS pullback's volume, the one setup
+    # fact that separated the archive's big winners, keeps being archived.
+    "_two_eyes_lps_volume_ratio",
 )
 
 

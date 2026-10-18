@@ -1021,11 +1021,17 @@ archived under the same columns. `reader._two_eyes` hands the admitted frame to
 `two_eyes_adapter.to_result(read, frame=...)`. The volume at key points is read on THIS reader's
 own days: the LPS pullback from the block's `lps.start` to `lps.end`, the spring on the story's
 spring tip (`_spring_date` on the row, no archive column; the story names one spring at most,
-committed or provisional), both through the one measure `dashboard._volume_vs_50d(df, day,
-first_day=None)` (a day, or a run of days, against the 50 days ending on the last), which the old
-reader's spring day reads exactly as before; a fire with no spring has `spring_volume_ratio`
-None (the card's dash), never the old reader's `_bin_c_event_date` or `_vol_contraction`. The
-frontend is unchanged (same field names; EC-28). *The night's record.* A chart whose frame breaks
+committed or provisional), both through the one measure `volume_vs_50d(df, day, first_day=None)`
+(a day, or a run of days, against the 50 days ending on the last; in
+`engine_alpha/two_eyes_archive.py` since Mon 12/10/2026, beside the column it fills, the old chart
+reader's files being frozen; the dashboard imports it as `_volume_vs_50d`), which the old reader's spring day reads exactly as before; a fire with no spring
+has `spring_volume_ratio` None (the card's dash), never the old reader's `_bin_c_event_date` or
+`_vol_contraction`. The frontend is unchanged (same field names; EC-28). *The archive keeps the LPS
+pullback's volume* (his word Mon 12/10/2026, option A, decisions row of that day): the adapter
+measures the same run of days by the same function on the admitted frame and stores it as
+`two_eyes_lps_volume_ratio` in the reader's family (empty when no frame reached the adapter). The
+old engine's `vol_contraction` stays empty on a new-reader row: it is 1 minus a ratio read on the
+OLD reader's LPS days, a different run, so the two never share a column. *The night's record.* A chart whose frame breaks
 the frame contract (27 on Thu 08/10/2026, every one a trading day missing from the middle, halted
 names among them) was answered as `EVAL_ERROR`, counted in `errored_tickers` and raised the
 "swallowed eval crash" alert with its name lost. The scan's worker under the new reader is now
@@ -1887,6 +1893,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 - **The stored absolutes are re-scaled before they are graded.** `trigger_price` and `s_level` sit on the SCAN-TIME price scale; the freshly downloaded series may not. `_price_scale_factor` recovers the factor from the stored scan close vs the re-read one, and has THREE outcomes: agree (1.0), a usable factor, and **UNKNOWN** when the implied factor lands outside `[0.2, 5.0]`. Unknown is an abstention, not a claim of "same scale" — a 10-for-1 split, or a 1-for-10 reverse split among the sub-$5 names, cannot be told from a bad stored close. On unknown, every column derived from a stored absolute (`triggered` / `trigger_date` / `days_to_*` / `trigger_volume_ratio` / `r_multiple_*` / `barrier_label` / `win_barrier`) is written NULL and the refusal is logged; the ratio metrics read only the fresh close and stay valid. `near_miss_outcomes` applies the same rule — an unknown scale never records "never triggered".
 - By default skips rows that already have `fwd_return_1d` populated; `--force` re-computes everything.
 - CLI: `python -m core.archive.forward_returns [--min-age N] [--force]`.
+- **The Home edge tile reads ONE reader at a time** (his word Mon 12/10/2026, option A; `webapp/backend/domains/archive/edge.py`): `core.backtest.loader.load_episodes_by_reader` splits the archive by the reader that wrote each row (the new reader's has-a-mini flag is 1 or 0 on every row it writes, empty on every old-reader row) BEFORE the episode collapse, as `leave_out_stamp` does. The headline and the letters measure the reader that wrote the latest unbiased row (scan day, then row id: both readers wrote Fri 09/10/2026); the other reader's fires ride under them as `baseline`, one line, never pooled, because an old S and a new S are different verdicts. The tile leads with P(MFE >= 25%) and P(>= 40%) in 20 days, as before; `reader` and `reader_since` name what it measures.
 - **Two contained passengers ride the same run** and never own its status: the near-miss lane's outcomes, and (since 2026-10-03) his calibration setups' (`run_calibration_maturation` → [core/archive/calibration_outcomes.py](../core/archive/calibration_outcomes.py)). A calibration setup is measured with the fires' own `_compute_returns`, anchored on the trading day BEFORE his trigger (the fire-day analog), with his trigger as the trigger, his support as the stop's rail, and the same price-scale guard (his `anchor_close` is the as-of close he drew on). Rows land in `calibration_outcomes`, one per mark, never in `setup_archive`; a mark is re-measured when it is new, redrawn (a new `revision`) or still inside the 60-bar window, and a deleted mark takes its outcome with it. `load_calibration_setups` is the one read-only loader the report card (section 7), the Home edge tile (`calibration`) and the Archive screen (`GET /archive/calibration-setups`) share; each shows them as their own group, never pooled into the fires. The in-process nightly path (`services/scan_runner.py`) runs the calibration pass too; the near-miss pass rides only the standalone job.
 
 ---

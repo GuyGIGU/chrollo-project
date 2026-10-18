@@ -4107,6 +4107,7 @@ td.cell-editable { overflow: hidden; }
 
 /* Engine Edge — measured-outcome tile (figures + per-tier rows + honest foot). */
 .home-edge-tile { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+.home-edge-reader { font-size: 10px; color: var(--text-muted); margin-bottom: -6px; }
 .home-edge-heads { display: flex; gap: 22px; flex-wrap: wrap; }
 .home-edge-fig { display: flex; flex-direction: column; gap: 1px; }
 .home-edge-val { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; line-height: 1; }

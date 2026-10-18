@@ -80,6 +80,12 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   [`flag_ledger.md`](flag_ledger.md): the live scan stamps `a2252c6c` (not the `0bbadfac` above, which
   predates the market-cap floor), the joined tree `8cae6fd9` with the switch off and `cdb7ee2d` on.
   The deploy now refuses a checkout that is not `main` or has uncommitted tracked files.
+- **The archive is the new reader's measuring stick** (his word Mon 12/10/2026, option A,
+  [`decisions.md`](decisions.md)): the Home edge tile reads one reader at a time (the one that
+  wrote the latest scan, the other as a baseline line, never pooled) and leads with the chance of
+  +25% and +40% in 20 days; the new reader's fires archive the LPS pullback's volume
+  (`two_eyes_lps_volume_ratio`). Live after `update_dashboard.bat`; the column fills from the
+  next scan on.
 - **Research:** the 2026-09-03 "no standalone edge" verdict has not been re-run on the
   corrected statistics ([`edge_denominator_2026-09-08.md`](edge_denominator_2026-09-08.md), [`asks.md`](asks.md)).
   Archive counts come from `python -m core.archive.analyze`; do not quote them from memory.

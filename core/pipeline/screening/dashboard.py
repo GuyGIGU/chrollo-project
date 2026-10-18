@@ -46,7 +46,9 @@ from engine_alpha.structure.events.event_map import narrative_chart_fields
 from engine_alpha.structure.context.htf import HTF_COLUMNS, chart_box
 from engine_alpha.structure.box.trace_export import election_trace_chart_fields
 from engine_alpha.scoring.tags import traversal_density_from_counts
-from engine_alpha.two_eyes_archive import SCREEN_KEY
+# Volume at a key point: ONE measure (EC-3), beside the archive column it also fills,
+# so the panel and the new reader's archive read the same number.
+from engine_alpha.two_eyes_archive import SCREEN_KEY, volume_vs_50d as _volume_vs_50d
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -193,36 +195,6 @@ def _dollar_volume_50d(df):
     traded = [float(v) for v in (df["Close"] * df["Volume"]).iloc[-50:]
               if math.isfinite(v)]
     return round(sum(traded) / len(traded)) if traded else None
-
-
-def _day_position(df, day):
-    """``day``'s row in the frame, or None when it is not there (exactly once)."""
-    if not day:
-        return None
-    try:
-        pos = df.index.get_loc(pd.Timestamp(day))
-    except (KeyError, TypeError, ValueError):
-        return None
-    return pos if isinstance(pos, int) else None
-
-
-def _volume_vs_50d(df, day, first_day=None):
-    """The volume on ``day`` — or the average volume from ``first_day`` to
-    ``day``, both included — against the 50-day average ending on ``day`` (that
-    day included, as the engine's Vol_50 counts it, which is how the old
-    reader's LPS read divides its pullback's volume). Volume at a key point, a
-    spring's day or an LPS pullback's run of days: ONE measure (EC-3), display
-    only. None when a day is not in the frame, the run ends before it starts,
-    or the average is unreadable."""
-    pos = _day_position(df, day)
-    start = pos if first_day is None else _day_position(df, first_day)
-    if pos is None or start is None or start > pos:
-        return None
-    volume = float(df["Volume"].iloc[start: pos + 1].mean())
-    average = float(df["Volume"].iloc[max(0, pos - 49): pos + 1].mean())
-    if not (math.isfinite(volume) and math.isfinite(average)) or average <= 0:
-        return None
-    return round(volume / average, 2)
 
 
 def _lps_volume_ratio(vol_contraction):

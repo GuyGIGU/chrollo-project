@@ -166,3 +166,39 @@ def load_episodes(
     return collapse_to_episodes(
         load_archive(db_path=db_path, source=source, con=con, universe_type=universe_type)
     )
+
+
+#: Which reader wrote a row. The new reader's family carries a three-state mini
+#: flag, 1 or 0 on every row it writes and NULL on every row the old reader writes
+#: ("never looked"), so the row itself says who read it, whatever its engine stamp.
+READER_NEW = "new"
+READER_OLD = "old"
+_READER_MARK = "two_eyes_has_mini"
+
+
+def reader_of_rows(df: pd.DataFrame) -> pd.Series:
+    """``READER_NEW`` or ``READER_OLD`` per row (an archive older than the new
+    reader's family is the old reader's throughout)."""
+    if _READER_MARK not in df.columns:
+        return pd.Series(READER_OLD, index=df.index)
+    return df[_READER_MARK].notna().map({True: READER_NEW, False: READER_OLD})
+
+
+def load_episodes_by_reader(
+    db_path: Optional[str] = None,
+    source: Optional[str] = None,
+    con: Optional[sqlite3.Connection] = None,
+    universe_type: Optional[str] = None,
+) -> dict[str, pd.DataFrame]:
+    """One episode frame per reader, ``{READER_NEW: ..., READER_OLD: ...}``.
+
+    The two readers' grades are different verdicts (an old S and a new S are not
+    the same letter), so their outcomes are never pooled (his word Mon
+    12/10/2026, option A: the archive measures the new reader). Split BEFORE the
+    collapse, as ``leave_out_stamp`` is: a base the old engine first saw on a
+    Friday and the new reader on the Monday is the new reader's own first
+    sighting too, not a continuation of the old engine's."""
+    raw = load_archive(db_path=db_path, source=source, con=con, universe_type=universe_type)
+    readers = reader_of_rows(raw)
+    return {name: collapse_to_episodes(raw[readers == name])
+            for name in (READER_NEW, READER_OLD)}
