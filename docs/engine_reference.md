@@ -1539,7 +1539,9 @@ same measure (go-live plan task 3). The detail panel shows them as "Volume at ke
 archived anew (the dry-up is already `setup_archive.vol_contraction`, the spring volume
 `bin_c_spring_vol_z`) and neither moves the grade, a gate or the election. Why these two:
 they are his key points (2026-09-13), and on 2026-10-04 the LPS dry-up was the one volume
-read that separated the +25% moves (decisions.md, Nulls). The breakout day's volume is not
+read that separated the +25% moves (decisions.md, Nulls): on the old reader's own LPS stretch;
+on the new reader's LPS days it does not (decisions.md, Nulls, 2026-10-12, measured by
+`tools/research/lps_volume_new_reader.py`). The breakout day's volume is not
 shown: a fire is read before its breakout; the outcome job records it per fire
 (`trigger_volume_ratio`).
 

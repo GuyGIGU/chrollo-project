@@ -67,7 +67,7 @@ not a promised sequence. The principles under it, and where Chrollo stands on ea
 |---|---|---|
 | Leaders, not cheap stocks | strength against the whole market comes first | the RS rating, ranked against every stock scanned; shown, never graded |
 | Price leads | an uptrend, well-formed bases, orderly pullbacks, support that holds, a convincing breakout | the universe door's trend floor, and the whole Reading Model below |
-| Volume is read with price, never alone | volume expanding on advances, drying up on pullbacks; heavy volume on a sharp decline is a caution | today the LPS pullback's volume dry-up earns points and the pullback form requires it; in the method (dark) volume is a fact on every event that never refuses, never elects and carries no points. Measured 2026-10-04: the quiet LPS pullback is the one volume read that separates the +25% moves (about 2.5 times from the loudest quarter to the quietest, among volatile stocks too and at every base length); up versus down volume inside the base does not, and heavy-volume declines are base length by another name |
+| Volume is read with price, never alone | volume expanding on advances, drying up on pullbacks; heavy volume on a sharp decline is a caution | since the new reader went live (Sat 10/10/2026) volume is a fact on every event that never refuses, never elects and carries no points (his answer 10); the card shows the LPS's volume against the 50-day average, and his criterion is *under* that average (Sun 11/10/2026). Measured 2026-10-04 on the old reader's own LPS, a 2-to-7-day stretch it chose partly by volume, the quiet LPS separated the +25% moves (about 2.5 times from the loudest quarter to the quietest); measured 2026-10-12 on the new reader's own LPS days, under-the-average separates nothing and neither do a loud SOS or volume fading day by day, while the quietest 2-to-5-day stretch of the last week is a lead (its quietest quarter about 1.5 times the rest) for the live archive to confirm; up versus down volume inside the base does not, and heavy-volume declines are base length by another name |
 | Accumulation is evidence, not proof | sideways trading alone is not accumulation; a base can hold distribution or stay unresolved | today a box's age earns points (Wyckoff's "cause"); the method's grade (dark) reads tightness and the event map, and age weighs nothing |
 | No falling knives | strength → an orderly pullback → renewed strength → entry | the door's trend floor; the LPS is a pullback inside strength, and the buy is its high crossed |
 | Group leadership is context | a strong stock can reveal a strong group, never prove one | owed: the industry and a count of peers also leading, shown only |
@@ -443,7 +443,11 @@ cycle under other names, and Chrollo reads one part of it:
 
 | Minervini | Wyckoff | Chrollo today | Ruled or planned |
 |---|---|---|---|
+<<<<<<< HEAD
 | Stage 1, neglect | accumulation after a markdown (a selling climax and its automatic rally open it) | kept out by the door's trend floor only while the price is under an average: a flat stage 1 above both is read and fires (the book's Bank of America and Citigroup, measured 2026-10-16); the selling-climax pair is reserved for the end of a main downtrend | the transition base: its own lane, dark, waiting on his word |
+=======
+| Stage 1, neglect | accumulation after a markdown (a selling climax and its automatic rally open it) | mostly kept out by the door's trend floor; a selling climax at the end of a main downtrend would open it (an SC also names the low of a down-swing whose reaction is a stage-2 base's root: see the legend) | the transition base: its own lane, dark, waiting on his word |
+>>>>>>> claude/quizzical-lewin-448381
 | Stage 2, advance | markup, with re-accumulation ranges along the way | **the core.** The box's climax is the top of an up-run (the buying climax and its automatic reaction), and the box, its LPS and its buy are a stage-2 base; the trend template and the stage cells are shown | base on base (the chain grammar below, dark); the base count needs the advance's start (not built) |
 | Stage 3, top | distribution | not named: the distribution side was deliberately left (the Wyckoff companion); the old reader refused a wide range by its width cap in percent of price, the live reader (since 10/10) has none, and it fires inside three of the book's four tops and his Chipotle topping base (measured 2026-10-16) | the method grades height in ranges instead of refusing (dark); the late-stage tell, a topping base wider than the bases before it, holds on four of the book's five tops (2026-10-16; not built); the short side is engine β's, after Alpha (his word, 2026-10-16) |
 | Stage 4, decline | markdown | kept out by the door's trend floor | a box that fails reads "broke down", one of the method's state words (dark) |
@@ -463,7 +467,7 @@ selection summary tells:
 |---|---|---|
 | Stage-2 criteria: price above the 150-day and 200-day, the 150 above the 200, the 200 turned up | the trend template's seven criteria, counted and shown ("7/7"), with the 200-day's one-month change | shown; measured, does not separate the +25% moves among fires |
 | 25 to 30% off the 52-week low before stage 2 | "Off 52-week low" | shown; separates only among volatile movers, and is RS by another name (Tested-DEAD to score) |
-| Big up weeks on volume against quiet pullbacks; more up weeks than down weeks on volume | today the LPS pullback's volume dry-up earns points; the method makes volume a fact only | measured (criteria 5 and 6): does not separate; inside the base (2026-10-04) up versus down volume does not either, while the quiet LPS pullback does |
+| Big up weeks on volume against quiet pullbacks; more up weeks than down weeks on volume | volume is a fact only (live since Sat 10/10/2026) | measured (criteria 5 and 6): does not separate; inside the base (2026-10-04) up versus down volume does not either; the quiet LPS separated on the old reader's own LPS stretch, not on the new reader's LPS days (2026-10-12), where only the quietest stretch of the last week is a lead |
 | VCP: two to six contractions, each tighter, the last one tight | today the contraction count and the last contraction's depth (in percent) earn points | the method weighs the count at zero and grades the LPS window's bar spread in ranges (dark) |
 | "Tight": weekly closes in a narrow range | the box's height in daily ranges and the bar texture inside the box and the LPS window, on the daily chart | today and the method both read it; the method never in percent of price |
 | Buy at the right price, as the stock is ready to move | the buy is the cross of the LPS's high; nothing fires without an LPS | today |
@@ -477,8 +481,9 @@ selection summary tells:
 the stage-2 base and its entry, the events tell his accumulation sequence, and the boxes are
 base-sized. The gaps are on the stock and the bigger picture: no read of where the stock is in
 its stage-2 run (the base count is broken and the bigger picture is not built), volume measured
-at its key points but not yet shown there (2026-10-04: of the Momentum Masters volume lines,
-only the quiet LPS pullback separates outcomes), no group read, and no read of the late stage.
+and shown at its key points but not graded (2026-10-04: of the Momentum Masters volume lines,
+only the old reader's quiet LPS stretch separated outcomes; 2026-10-12: on the new reader's LPS
+days none does), no group read, and no read of the late stage.
 Every gap is a display read first, measure-first, never a gate.
 
 ### For whoever designs a change
@@ -660,6 +665,28 @@ default as ours.
    day's (ours). An earlier, wider box is acceptable when his LPS reads against it: *"so
    nothing really disqualifies them (not until I've seen it ofc)"* (Sun 13/09/2026); the
    yardstick is concordance, never line replication.
+   **Promoted by the moves that follow** (ruled Sat 10/10/2026, on his MTLS): *"we walk the
+   box in pairs of swings we take one end from one swing and another from the next one. we
+   anchor a rail on each one, and if the price action afterwards respect it, we can promote
+   the swing between the two points to be a root swing. because that's the first swing where
+   a box from that point onward that is respected by the later moves that follow"*; and of
+   respect: *"if the bars keep coming back or near that area that means its in fact the
+   right one"*. So the root is the first pair in time whose box the later moves respect: the
+   reader's walk, with the box's life (stage 4) judging the moves that follow. On MTLS his eye
+   takes the next pair, his SC 6.39 and its AR 6.83, whose lines the bars reach and turn at all
+   summer, over the first pair, whose top, 7.00, the later tops approach (6.86 to 6.96) but
+   never reach outside the July upthrust, and over the reader's support there, 6.60, which the
+   lows run through. *Status: nothing to build.* Near stays sentence 6, within half a daily
+   range, the same evening:
+   *"coming within half a day's range of it? equals near and it counts as respect and i
+   understand where the conflict is, because it means that less correct versions of setups
+   can be detected because we excuse the margin between the bar and the rail, my corrections
+   come from the fact that with my eyes I can easily pick a better fitting pair and box with
+   out needing to rely on an algorithm"*. By that respect the first pair on MTLS is respected
+   too (its later tops come within a third of a daily range of 7.00), so the reader's first
+   respected pair stands, and picking the better-fitting box among respected ones is his eye's
+   work at review, as he put it on Sun 13/09/2026: *"for the engine's sake it's probably
+   better to keep it that way"*.
 4. **The box's life.** A box ends only by what the bars do, and only into a new box: *"if the
    price continues to Rise/Fall with out recovering we can deduce that either that the
    consolidating structure we measured ended and the price began to trend"*, *"its tricky
@@ -930,15 +957,26 @@ reads exactly as it did.
 
 | Term | Meaning | Reserved for |
 |------|---------|--------------|
-| **BC → AR** | Buying Climax → Automatic Reaction | the end of the **main uptrend** only |
-| **SC → AR** | Selling Climax → Automatic Rally | the end of the **main downtrend** only |
+| **BC → AR** | Buying Climax → Automatic Reaction | the root pair's climax when the move into it went **up**: the end of the main uptrend, or of an up-swing whose reaction is the root |
+| **SC → AR** | Selling Climax → Automatic Rally | the root pair's climax when the move into it went **down**: the end of a downtrend, or of a down-swing whose reaction is the root |
 | **Root Swing** | the climax→reaction pair *responsible for* the consolidation | whichever pair the cascade below settles on |
-| **mini climax / mini reaction** | smaller fractal analogues of BC/AR — every swing peak→valley pair is one | limbs inside/after the base; **never** labeled BC/AR |
+| **mini climax / mini reaction** | smaller fractal analogues of BC/AR — every swing peak→valley pair is one | limbs inside/after the base that are not the root; **never** labeled BC/AR |
 | **dead space** | the empty gap between a rail (R or S) and the consolidation's bars | a **rail-placement diagnostic only** — never a junk-chart label |
 
-BC/AR/SC are trend-end terms, full stop. Swings are fractal — small peaks and valleys are
-miniature climax→reaction pairs — but the *names* BC/AR belong to the main trend so the
-story stays readable.
+BC, SC and AR name the root pair and nothing else (ruled Sat 10/10/2026): **one climax per
+box**, at the root's first anchor, named by the direction of the move that ended there (up: a
+BC; down: an SC), and the root swing is that pair's AR, whose two ends anchor the resistance
+and the support. So a BC and an SC never follow each other in one reading: when the root steps
+from the first candidate to a later pair of limbs, the names move with it. His MTLS (2026):
+the rise ends at 7.00 on Mon 01/06, and if that pair were the root, 7.00 would be its BC and
+the fall to 6.39 its AR; his root is the next pair, so the fall to 6.39 is the move into the
+climax, 6.39 (Tue 09/06) is the SC and the swing up to 6.83 is the AR, and 7.00 carries no
+name. His words: *"we cannot have both BC and SC one after the other, that label is reserved
+for the climax of the previous move ... an SC (selling climax) gets the label if either we came
+from a downtrend or the next move in chart is downward and the "root swing" is the "AR" of
+that pair. because we anchor Resistance/Support from it's ponts!"* Swings are fractal — small
+peaks and valleys are miniature climax→reaction pairs — but the names stay with the root so
+the story stays readable.
 
 **Dead space (operator ruling, 2026-07-17):** too much — or plainly visible — dead space
 means either the consolidation was marked wrong (a tighter, better structure exists) or no
