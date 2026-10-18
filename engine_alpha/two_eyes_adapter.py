@@ -104,6 +104,21 @@ def stock_trend(frame) -> dict:
     return {f"_{key}": value for key, value in trend.items()}
 
 
+def stock_adr(frame) -> dict:
+    """The stock's ADR%, its average daily range: the archive's volatility column (the edge reads split fires into
+    ADR thirds) and the ADR cell of the big chart's leadership grid.
+
+    The stock's, not the setup's, read as :func:`stock_trend` reads the trend: the old chain's OWN ``adr_pct`` over
+    ``ADR_WINDOW`` days of the old chain's OWN frame (EC-3, one formula), so a chart both readers fire carries one
+    ADR, under the old row's key (``_adr_pct``). Carried, never graded: the new reader's grade reads no ADR.
+    """
+    from engine_alpha.frames import _trim_to_period
+    from engine_alpha.structure.metrics.indicators import adr_pct
+
+    daily = _trim_to_period(frame, settings.DAILY_STRUCTURE_PERIOD)
+    return {"_adr_pct": adr_pct(daily, settings.ADR_WINDOW)}
+
+
 def _spring_day(read: Read) -> Optional[str]:
     """The day of the new reader's own spring (its tip), or None: the screen reads the volume at that key point on
     it (go-live plan task 3). Its story names one spring at most."""
@@ -116,7 +131,8 @@ def to_result(read: Read, frame=None):
     Returns ``EVAL_ERROR`` for a failed read, ``None`` for no setup, or a whole
     result dict for a fire. ``frame``, when given, is the chart the universe
     door admitted: a fire then carries the stock's trend template
-    (:func:`stock_trend`), as an old-reader fire does.
+    (:func:`stock_trend`) and its ADR (:func:`stock_adr`), as an old-reader
+    fire does.
     """
     if read.failed:
         return EVAL_ERROR
@@ -222,7 +238,7 @@ def to_result(read: Read, frame=None):
         # never the old reader's spring (`_bin_c_event_date`). No archive
         # column reads it: the archive family stores no event.
         "_spring_date": _spring_day(read),
-        **({} if frame is None else stock_trend(frame)),
+        **({} if frame is None else {**stock_trend(frame), **stock_adr(frame)}),
     }
     for key in WHOLE_NUMBER_KEYS:
         if result[key] is not None:        # whole when measured, empty when not

@@ -1048,6 +1048,30 @@ both facts. A real crash still counts in `errored_tickers` and still alerts. Pro
 `tests/contracts/test_two_eyes_wire.py`, `tests/pipeline/test_scan_under_the_new_reader.py`,
 `tests/backend/test_scan_diagnosis.py` and `tests/backend/test_backend_services.py`.
 
+**The stock's ADR on a new-reader fire (Tue 13/10/2026; no reading, fire, score or tier moved).**
+Since the flip every new-reader fire was written without its ADR. The old chain puts `_adr_pct` on
+its row from its scoring context (`adr_pct` over `ADR_WINDOW` = 20 days of its daily frame, the one
+formula); the adapter never did, so the archive writer stored `adr_pct` NULL on every new-reader row
+(the edge reads that split fires into ADR thirds lost them, silently) and the big chart's leadership
+grid showed a dash in its ADR cell (`_two_eyes_chart` carried no `adr_pct`). Now
+`two_eyes_adapter.stock_adr` puts `_adr_pct` on a new-reader fire beside the trend template, read as
+`stock_trend` reads it: the old chain's own `adr_pct` and `ADR_WINDOW` on the old chain's own frame
+(the frame the universe door admitted, cut to `DAILY_STRUCTURE_PERIOD`), so a chart both readers
+fire carries one ADR, in the same archive column (the nightly writer's row and the seed's re-keyed
+one alike), and `dashboard._two_eyes_chart` carries it as `adr_pct`, unrounded, exactly as the old
+shape does (the frontend is unchanged). Carried, never graded: the new reader's grade reads no ADR,
+no setting joined the manifest and the ruleset stamp stands (no rule of the reader changed). Rows
+written before this day keep their NULL. Measured on the shadow fleet and his sealed charts, ten
+read days each (770 reads, 328 fires): every answer is the one before but for the added key; every
+fire's ADR is the old chain's own on that frame (1.42% to 9.87%, none 0); on the 152 days both
+readers fire, the two are equal to the last digit. Proved by `tests/contracts/test_two_eyes_wire.py`
+(his ALB on Tue 07/04/2026 through the one door with each reader: 4.99% on the row the archive
+writes and on the card; `adr_pct` joins `TWO_EYES_WIRE_KEYS`) and
+`tests/archive/test_archive_feed_new_reader.py` (`_adr_pct` joins the new reader's feed floor); six
+deliberate breaks each caught (the ADR dropped, another window, a second formula, the wire's key
+dropped, rounded, read from another key), and one that survives by construction (the ADR read on
+the uncut frame: the same last 20 days).
+
 | Stage | Landed | What it does, and what proves it |
 |---|---|---|
 | the grade panel tells the new reader's read; fundamentals as the big chart's second page | 2026-10-13 | No reading moves (his "the Grade section at the advanced chart block is completely broken and we should show the fundamental card as a second page"). The old panel's columns are the old grade's chapters, which a two-eyes row does not carry, so it showed the grade and one "not graded" LPS. **The wire** gains two facts: each screen box carries `ranges_tall` (its height in its own daily range frozen at birth, from the family's stored `daily_range` in the one shaper `two_eyes_screen_boxes`, so the archive's chart gets it too; a ratio, untouched by the rescale), and the block carries `events` (`two_eyes_adapter._wire_event`: every word the reader named on the box shown, with its day, price, its swing's first and last day, its size in daily ranges, committed or not, and the reader's note; scan-only, the archive keeps no event, so the archive's chart says it has no story). **The browser**: `chartPhaseOverlay.twoEyesRegions` adds a band for the mini (key `mini`) and one per word (key `story`, id `storyRegionId`), keys of their own so lighting the box never lights them; `shared/setup/twoEyesStory.js` (pure, node-tested) orders the panel's columns in chart order (the box, the words and the mini by their day, the LPS last) and words them; `TwoEyesStoryBank.jsx` draws them in the old chapters' chrome (the box's gauge fills with the base days that had a bar in it, the grade's own dead space); the technical read shows the read's own facts instead of the old engine's dashed counts; a row with no narrative panel lays its grids in two even halves. **The second page**: `ScreenerModal` holds the page (`read` / `fundamentals`, back to the read on every ticker), F flips it (`lensActions` `f`, on the key sheet with the card's own F), `ScreenerStockLens` draws the tabs and the sheet across the whole panel (`FundamentalsSheet`: the numbers left, the lines and checks right). Proved by `tests/contracts/test_two_eyes_wire.py` (3 deliberate breaks caught) and the frontend's `twoEyesStory`, `chartPhaseOverlay`, `lensActions` and `keyMap` tests. |
@@ -1293,7 +1317,7 @@ ADR%(20) = 100 × (mean(High / Low over the last 20 bars) - 1)
 
 This captures the stock's **absolute volatility character**: a high-ADR stock resting in a tight base is a stronger momentum-continuation candidate than a low-range stock with the same visual structure. The metric is guarded at source: insufficient history, zero lows, NaN/Inf, or malformed ranges return `0.0`, so the dashboard payload never receives non-finite values from ADR.
 
-Scoring uses `adr_quality = min(ADR% / ADR_FULL_PCT, 1.0)`, with full credit at `ADR_FULL_PCT = 5.0`. Persisted as `adr_pct` and the `score_adr` sub-score. The frontend ⚡ **High ADR** tag chip currently fires when `score_adr` reaches 80% of its sub-score cap. **Bonus-only / measure-first** — quiet names earn 0 points and are never filtered or penalized.
+Scoring uses `adr_quality = min(ADR% / ADR_FULL_PCT, 1.0)`, with full credit at `ADR_FULL_PCT = 5.0`. Persisted as `adr_pct` and the `score_adr` sub-score. A two-eyes fire carries the same `adr_pct` (since Tue 13/10/2026: `two_eyes_adapter.stock_adr`, this function on the old chain's own frame) and no `score_adr`: the new reader's grade reads no ADR. The frontend ⚡ **High ADR** tag chip currently fires when `score_adr` reaches 80% of its sub-score cap. **Bonus-only / measure-first** — quiet names earn 0 points and are never filtered or penalized.
 
 ---
 
