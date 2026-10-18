@@ -154,10 +154,12 @@ def _payload(monkeypatch, row: dict, frame=None) -> dict:
 
 #: What a two-eyes row carries to the screen: the candles (the frame's own), the verdicts every row carries, the
 #: sector, the advisory facts the scan attaches to any row, the leadership read and the volume at key points (go-live
-#: plan task 3: the stock's read, as an old fire carries it), the grade's number, and THE block. Exact on purpose: a
-#: key added or dropped here is a deliberate edit, never drift.
+#: plan task 3: the stock's read, as an old fire carries it), the stock's ADR (Tue 13/10/2026: the grid's ADR cell
+#: showed a dash on every new-reader chart), the grade's number, and THE block. Exact on purpose: a key added or
+#: dropped here is a deliberate edit, never drift.
 TWO_EYES_WIRE_KEYS = (
     "R", "S",
+    "adr_pct",
     "candles",
     "days_to_earnings",
     "dollar_volume_50d",
@@ -252,6 +254,31 @@ def test_a_two_eyes_fire_carries_the_leadership_read_exactly_as_an_old_fire_does
     assert {k: new[k] for k in LEADERSHIP_KEYS} == {k: old[k] for k in LEADERSHIP_KEYS}
     assert new["stage2_trend_pass_count"] == 6 and new["rs_rating"] == 84.21
     assert new["dollar_volume_50d"] is not None, "the 50-day dollar volume is read off the frame, for either reader"
+
+
+def test_a_two_eyes_fire_carries_the_adr_an_old_fire_of_the_same_frame_carries(monkeypatch):
+    """Since the flip a new-reader fire carried no ADR: the archive stored `adr_pct` empty on every such row (the edge
+    reads split fires into ADR thirds, and an empty row falls out of them silently) and the leadership grid's ADR cell
+    showed a dash. The ADR is the stock's, not the setup's: his ALB, read by each reader through the one door on Tue
+    07/04/2026 (a day both fire), carries ONE number on the row the archive writes and on the card, the old chain's
+    own formula and window (4.99%), never a second one."""
+    from core.calibration.replay import load_sealed_fixture
+    from engine_alpha import reader
+
+    frames, _ = load_sealed_fixture()
+    alb = frames["ALB:2026-04-13"].loc[:pd.Timestamp("2026-04-07")]
+    assert reader.which_reader() == reader.READER_NEW, "the switch is off: this test reads the new reader"
+    new = reader.evaluate_ticker("ALB", alb)
+    with reader.the_old_reader_answers():
+        old = reader.evaluate_ticker("ALB", alb)
+    assert isinstance(old, dict) and isinstance(new, dict), "each reader fires on his ALB that day"
+    assert "_wire_two_eyes" in new and "_wire_two_eyes" not in old, "each fire is its own reader's"
+    assert round(old["_adr_pct"], 2) == 4.99
+    assert new.get("_adr_pct") == old["_adr_pct"], "the row the archive writes: the old fire's ADR, to the last digit"
+
+    old_card, new_card = _payload(monkeypatch, old, alb), _payload(monkeypatch, new, alb)
+    assert "two_eyes" in new_card and "two_eyes" not in old_card
+    assert new_card.get("adr_pct") == old_card["adr_pct"] == old["_adr_pct"], "the card: the same number, unrounded"
 
 
 def _quiet_frame():

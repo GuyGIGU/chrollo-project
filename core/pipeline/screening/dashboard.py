@@ -144,10 +144,11 @@ def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df)
 
     The frame's own candles, the verdicts every row carries (the lines, the
     tier, the score, the price, the trigger), the sector, the advisory facts,
-    the leadership read and the volume at key points (go-live plan task 3: the
-    stock's read exactly as an old fire's; the volume read on THIS reader's own
-    LPS pullback and spring days, empty when it has none, never the old
-    reader's days), the grade's 0-100 number, and THE block: the boxes with their roles and
+    the leadership read, the stock's ADR and the volume at key points (go-live
+    plan task 3, the ADR since Tue 13/10/2026: the stock's read exactly as an
+    old fire's; the volume read on THIS reader's own LPS pullback and spring
+    days, empty when it has none, never the old reader's days), the grade's
+    0-100 number, and THE block: the boxes with their roles and
     each line's day, the LPS and the box it was read against, the state word,
     the grade. The wire carries days and resolved prices; the browser only
     finds each day's bar and draws. Nothing of the old engine's families: a
@@ -175,6 +176,8 @@ def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df)
         'price': round(float(row['Current Price']), 2),
         'trigger': round(float(row['_trigger_price']), 2),
         **_leadership_read(row, df),
+        # The stock's ADR (the lens's leadership grid shows it), as the old shape carries it.
+        'adr_pct': row.get('_adr_pct'),
         'lps_volume_ratio': _volume_vs_50d(df, block['lps']['end'], first_day=block['lps']['start']),
         'spring_volume_ratio': _volume_vs_50d(df, row.get('_spring_date')),
         **{key: row.get('_' + key) for key in ADVISORY_KEYS},
