@@ -17,6 +17,15 @@ The board counts them; `--pages` draws one OHLC page per differing drawing (the 
 lines, blue the reader's) and a contact sheet. Nothing here chooses: the chooser is learned only once thirty to
 fifty fixes differ, and proven on fixes it never saw (the graveyard in decisions.md says why).
 
+HIS EVENTS on a fix (Sat 18/10/2026, *"lets widen it by letting me put events (spring, upthrust, sos, lps/former
+lps, span, mini consolidation.)"*): each event he placed is read against the reader's words on the same bars, and
+the board says per fix whether they agree (the reader names the same kind on the same day, or on a day inside his
+span; his LPS and the reader's LPS share a day; his mini and the reader's mini share their lines within half a
+range) and prints every disagreement with its bars, so a tuning session can read them. A FORMER LPS is the pattern
+he named (*"the screener shows stock that already had clear prior entry points and todays 'lps' are simply some
+one bar correction post break out"*): the line says how many trading days after his former LPS the reader's LPS
+began — the entry was earlier. A span is his word alone and is listed, never counted.
+
 Offline, read-only, sidecars only.
 
     python -m tools.calibration.box_gap                  # the board, his 40 and every fix
@@ -110,12 +119,22 @@ def load_fixes(db_path: str | None = None) -> list:
     try:
         con.row_factory = sqlite3.Row
         try:
-            rows = con.execute("SELECT ticker, scan_day, resistance, r_day, support, s_day, reader_resistance, "
+            rows = con.execute("SELECT id, ticker, scan_day, resistance, r_day, support, s_day, reader_resistance, "
                                "reader_r_day, reader_support, reader_s_day, reader_opened_day, ruleset, note, "
                                "revision FROM box_fixes ORDER BY ticker, scan_day").fetchall()
         except sqlite3.OperationalError:          # no such table: no fix saved yet
             return []
-        return [dict(r) for r in rows]
+        fixes = [dict(r) for r in rows]
+        events = {}
+        try:
+            for e in con.execute("SELECT fix_id, kind, first_day, last_day, price, band_high, band_low, label "
+                                 "FROM box_fix_events ORDER BY fix_id, first_day").fetchall():
+                events.setdefault(e["fix_id"], []).append(dict(e))
+        except sqlite3.OperationalError:          # the events table is younger than the fixes: none placed yet
+            pass
+        for fix in fixes:
+            fix["events"] = events.get(fix.get("id"), [])
+        return fixes
     finally:
         con.close()
 
@@ -129,7 +148,148 @@ def fix_setup(fix: dict) -> dict:
             "anchors": {"R": fix["r_day"], "S": fix["s_day"]}, "box": [first, fix["scan_day"]],
             "lps": [fix["scan_day"], fix["scan_day"]], "lps2": None, "trigger": None,
             "reader_then": {"R": fix.get("reader_resistance"), "S": fix.get("reader_support")},
-            "revision": fix.get("revision", 1)}
+            "revision": fix.get("revision", 1), "events": list(fix.get("events") or [])}
+
+
+# --------------------------------------------------------------------------- #
+# His events against the reader's words                                       #
+# --------------------------------------------------------------------------- #
+#: His kind -> the reader's word for it (record.EVENT_KINDS); the LPS, the mini and the former LPS are read apart.
+_READER_WORD = {"spring": "spring", "upthrust": "upthrust", "sos": "SOS"}
+_HIS_NAME = {"spring": "spring", "upthrust": "upthrust", "sos": "SOS", "lps": "LPS", "former_lps": "former LPS",
+             "span": "span", "mini": "mini"}
+COUNTED = ("spring", "upthrust", "sos", "lps", "mini")
+
+
+def _iso(day) -> str:
+    return day.isoformat() if hasattr(day, "isoformat") else str(day)
+
+
+def _trading_days_between(days: list, a: str, b: str) -> int:
+    """Trading days from day a to day b on the frame (b after a: positive)."""
+    iso = [_iso(d) for d in days]
+    try:
+        return iso.index(b) - iso.index(a)
+    except ValueError:
+        return (dt.date.fromisoformat(b) - dt.date.fromisoformat(a)).days
+
+
+def event_agreement(row: dict) -> list:
+    """One line per event he placed on this fix, read against the reader's words on the same bars: ``verdict`` is
+    'agree', 'differ' or 'noted' (a span, and a former LPS, are his words: listed, never counted), ``words`` says
+    what the reader named instead, ``days`` the stretch to print the bars of when they differ."""
+    read = row.get("read")
+    his_events = (row.get("setup") or {}).get("events") or []
+    if not his_events:
+        return []
+    days = row["days"]
+    unit = float(row["unit"])
+    reader_events = list(getattr(read, "events", ()) or ())
+    lps = getattr(read, "lps", None)
+    minis = [b for b in (getattr(read, "boxes", ()) or ()) if getattr(b, "role", "") == "mini"]
+    out = []
+    for his in his_events:
+        kind, first, last = his["kind"], str(his["first_day"]), str(his["last_day"])
+        name = _HIS_NAME.get(kind, kind)
+        line = {"kind": kind, "name": name, "his": his, "days": [first, last], "verdict": "noted", "words": ""}
+        if kind in _READER_WORD:
+            same = [e for e in reader_events if e.kind == _READER_WORD[kind]]
+            hit = [e for e in same if first <= _iso(e.day) <= last]
+            if hit:
+                line.update(verdict="agree", words=f"the reader's {name} on {dt.date.fromisoformat(_iso(hit[0].day)):%d/%m} too")
+            elif same:
+                named = ", ".join(f"{dt.date.fromisoformat(_iso(e.day)):%d/%m} at {e.price:.2f}" for e in same)
+                line.update(verdict="differ", words=f"the reader's {name} is on {named}")
+            else:
+                line.update(verdict="differ", words=f"the reader names no {name} on this box")
+        elif kind == "lps":
+            if lps is not None and _iso(lps.start_day) <= last and _iso(lps.end_day) >= first:
+                line.update(verdict="agree", words=f"the reader's LPS {dt.date.fromisoformat(_iso(lps.start_day)):%d/%m} to "
+                                                   f"{dt.date.fromisoformat(_iso(lps.end_day)):%d/%m} shares a day")
+            elif lps is not None:
+                line.update(verdict="differ", words=f"the reader's LPS is {dt.date.fromisoformat(_iso(lps.start_day)):%d/%m} to "
+                                                    f"{dt.date.fromisoformat(_iso(lps.end_day)):%d/%m}")
+            else:
+                line.update(verdict="differ", words="the reader reads no LPS on this box")
+        elif kind == "former_lps":
+            if lps is None:
+                line.update(words="the reader reads no LPS tonight")
+            elif _iso(lps.start_day) > last:
+                gap = _trading_days_between(days, last, _iso(lps.start_day))
+                line.update(words=f"the entry was earlier: the reader's LPS begins {gap} trading days after your former LPS "
+                                  f"ended ({dt.date.fromisoformat(_iso(lps.start_day)):%d/%m})", earlier_by=gap)
+            else:
+                line.update(words="the reader's LPS sits on your former LPS: it reads the earlier entry as tonight's")
+        elif kind == "mini":
+            hit = [b for b in minis if _iso(b.opened_day) <= last and (b.end_day is None or _iso(b.end_day) >= first)
+                   and abs(float(b.resistance.price) - float(his["band_high"])) <= 0.5 * unit
+                   and abs(float(b.support.price) - float(his["band_low"])) <= 0.5 * unit]
+            if hit:
+                line.update(verdict="agree", words=f"the reader's mini {hit[0].resistance.price:.2f} / {hit[0].support.price:.2f} too")
+            elif minis:
+                line.update(verdict="differ", words="the reader's mini is " + "; ".join(
+                    f"{b.resistance.price:.2f} / {b.support.price:.2f} from {dt.date.fromisoformat(_iso(b.opened_day)):%d/%m}" for b in minis))
+            else:
+                line.update(verdict="differ", words="the reader shows no mini")
+        else:                                     # a span: his word alone
+            line.update(words=f'your word{": " + chr(34) + his["label"] + chr(34) if his.get("label") else ""}')
+        out.append(line)
+    return out
+
+
+def _his_event_words(event: dict) -> str:
+    first, last = str(event["first_day"]), str(event["last_day"])
+    when = f"{dt.date.fromisoformat(first):%d/%m}" if first == last else f"{dt.date.fromisoformat(first):%d/%m}-{dt.date.fromisoformat(last):%d/%m}"
+    if event["kind"] == "mini":
+        return f"{when} {float(event['band_high']):.2f} / {float(event['band_low']):.2f}"
+    return f"{when}{' at ' + format(float(event['price']), '.2f') if event.get('price') is not None else ''}"
+
+
+def bars_words(row: dict, first: str, last: str, pad: int = 1) -> list:
+    """The OHLC bars over a stretch of his days, one line each, with ``pad`` bars either side."""
+    prepared, days = row["prepared"], row["days"]
+    iso = [_iso(d) for d in days]
+    lo = max(0, next((i for i, d in enumerate(iso) if d >= first), 0) - pad)
+    hi = min(len(iso), next((i for i, d in enumerate(iso) if d > last), len(iso)) + pad)
+    out = []
+    for i in range(lo, hi):
+        bar = prepared.iloc[i]
+        out.append(f"{days[i]:%a %d/%m}  O {bar['Open']:.2f}  H {bar['High']:.2f}  L {bar['Low']:.2f}  C {bar['Close']:.2f}")
+    return out
+
+
+def format_events(rows: list) -> str:
+    """The events block of the board: the count per kind, the former-LPS pattern, and every disagreement with
+    its bars. Empty when no fix carries an event."""
+    lined = [(r, event_agreement(r)) for r in rows if "refused" not in r and (r.get("setup") or {}).get("events")]
+    if not lined:
+        return ""
+    counts = {k: [0, 0] for k in COUNTED}
+    earlier, formers = [], 0
+    for _, lines in lined:
+        for line in lines:
+            if line["kind"] in counts:
+                counts[line["kind"]][1] += 1
+                counts[line["kind"]][0] += line["verdict"] == "agree"
+            elif line["kind"] == "former_lps":
+                formers += 1
+                if line.get("earlier_by") is not None:
+                    earlier.append(line["earlier_by"])
+    out = ["", f"  HIS EVENTS on {len(lined)} fixes: " + " · ".join(
+        f"{_HIS_NAME[k]} {a}/{n}" for k, (a, n) in counts.items() if n)
+           + (f"  (agree/placed)" if any(n for _, n in counts.values()) else "")]
+    if formers:
+        out.append(f"  former LPS placed {formers}: the entry was earlier on {len(earlier)}"
+                   + (f" (the reader's LPS {min(earlier)}-{max(earlier)} trading days after it)" if earlier else ""))
+    out.append("")
+    out.append("  each fix's events: his · the reader's words; the bars under every disagreement")
+    for row, lines in lined:
+        for line in lines:
+            tag = {"agree": "agree ", "differ": "DIFFER", "noted": "noted "}[line["verdict"]]
+            out.append(f"  {row['key']:<22}{tag}  {line['name']} {_his_event_words(line['his'])} · {line['words']}")
+            if line["verdict"] == "differ":
+                out.extend(f"{'':<31}{bar}" for bar in bars_words(row, *line["days"]))
+    return "\n".join(out)
 
 
 def cached_bars(tickers: list) -> dict:
@@ -240,6 +400,9 @@ def main() -> int:
     rows += fix_rows(load_fixes())
     refused = [r for r in rows if "refused" in r]
     print(format_board(rows, refused))
+    events = format_events(rows)
+    if events:
+        print(events)
     if args.pages:
         diff = differing(rows)
         pages = walk_board.render_pages(diff, {r["key"]: r["setup"] for r in diff}, args.pages)

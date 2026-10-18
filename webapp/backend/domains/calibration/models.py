@@ -212,8 +212,38 @@ class BoxFix(Base):
     updated_at = Column(DateTime, nullable=False)           # UTC
     revision = Column(Integer, nullable=False, default=1)
 
+    events = relationship("BoxFixEvent", back_populates="fix", cascade="all, delete-orphan",
+                          order_by="BoxFixEvent.first_day")
+
     __table_args__ = (
         UniqueConstraint("ticker", "scan_day", name="uq_box_fix"),
         CheckConstraint("resistance > support", name="ck_box_fix_rails_order"),
         CheckConstraint("revision >= 1", name="ck_box_fix_revision"),
+    )
+
+
+class BoxFixEvent(Base):
+    """One event HE placed on a fixed box (his words, Sat 18/10/2026: *"lets widen it by letting me put events
+    (spring, upthrust, sos, lps/former lps, span, mini consolidation.)"*): the vocabulary is ``box_fixes.EVENT_KINDS``.
+    A spring or an upthrust is a day (its tip or top); the SOS, an LPS, a former LPS and a span are a stretch of
+    days; the mini is a small box, so it alone carries a price band. Saved beside the fix and gone with it; the
+    reader never reads this table at scan time: it is his ground truth for the measuring tools."""
+
+    __tablename__ = "box_fix_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    fix_id = Column(Integer, ForeignKey("box_fixes.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(String, nullable=False)                   # box_fixes.EVENT_KINDS
+    first_day = Column(String, nullable=False)              # ISO; a one-day event has first_day == last_day
+    last_day = Column(String, nullable=False)               # ISO
+    price = Column(Float, nullable=True)                    # the tip / top / the span's low, snapped to a bar
+    band_high = Column(Float, nullable=True)                # the mini's two lines
+    band_low = Column(Float, nullable=True)
+    label = Column(Text, nullable=True)                     # his word for a span, or a note on any event
+
+    fix = relationship("BoxFix", back_populates="events")
+
+    __table_args__ = (
+        CheckConstraint("first_day <= last_day", name="ck_box_fix_event_days"),
+        CheckConstraint("band_high IS NULL OR band_low IS NULL OR band_high > band_low", name="ck_box_fix_event_band"),
     )

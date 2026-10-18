@@ -8,6 +8,7 @@ import useDailyStructureChart from '../charts/useDailyStructureChart';
 import ScreenerModalToolbar from './ScreenerModalToolbar';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
 import { fixPrompt, readerPair } from './boxFix';
+import { EVENT_NAMES, EVENT_TAG, eventPrompt, eventWords } from './boxFixEvents';
 import { lensKeyAction } from './lensActions';
 import useBoxFix from './useBoxFix';
 import { htfStateLabel } from './screenerCardData';
@@ -107,25 +108,6 @@ const ScreenerModal = ({
     setPage('read');
   }, [ticker]);
 
-  // F flips the page, as it flips a card; only where there is a second page to flip to.
-  useEffect(() => {
-    if (!hasSheet) return undefined;
-    const onKey = (event) => {
-      if (lensKeyAction(event) !== 'fundamentals') return;
-      event.preventDefault();
-      setPage((now) => (now === 'read' ? 'fundamentals' : 'read'));
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [hasSheet]);
-
-  // Escape closes the lens from every mount (not all parents wire it).
-  useEffect(() => {
-    const onKey = (event) => { if (event.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   // The daily is drawn wherever its pane sits (big, or in the side column): the slot word rebuilds it there.
   // "Fix the box" (Fri 17/10/2026): the chart hands its clicks to the fix through clickRef while it is armed.
   const clickRef = useRef(null);
@@ -134,16 +116,51 @@ const ScreenerModal = ({
   const fix = useBoxFix(ticker, data, scanIdentity, daily.chartRef, clickRef);
   const reader = readerPair(data);
 
+  // F flips the page, as it flips a card; only where there is a second page to flip to. While the fix is
+  // armed the letters place his events instead (Sat 18/10/2026): S U O L F P M arm one, Escape drops it.
+  const { armed: fixing, tool: fixTool, arm: armFixEvent } = fix;
+  const fixToolRef = useRef(null);
+  fixToolRef.current = fixing ? fixTool : null;
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Escape' && fixToolRef.current) {
+        event.preventDefault();
+        armFixEvent(null);
+        return;
+      }
+      const action = lensKeyAction(event, { fixing });
+      if (action?.startsWith('event:')) {
+        event.preventDefault();
+        armFixEvent(action.slice('event:'.length));
+      } else if (action === 'fundamentals' && hasSheet) {
+        event.preventDefault();
+        setPage((now) => (now === 'read' ? 'fundamentals' : 'read'));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [hasSheet, fixing, armFixEvent]);
+
+  // Escape closes the lens from every mount (not all parents wire it); with an event armed it only drops the event.
+  useEffect(() => {
+    const onKey = (event) => {
+      if (fixToolRef.current) return;
+      if (event.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const paneCanvas = (tf, big) => {
     if (tf === 'D') {
       return (
         <div className={fix.armed ? 'lens-daily-frame is-fixing' : 'lens-daily-frame'}>
           <div ref={chartContainerRef} className="lens-daily-canvas" />
           <ChartZoomControls chartRef={daily.chartRef} onHome={daily.home} />
-          {(fix.armed || fix.draft.r != null) && (
+          {(fix.armed || fix.draft.r != null || fix.events.length > 0) && (
             <div className="lens-fix-strip" role="status">
               <span className="lens-fix-word">{fix.armed ? 'FIX THE BOX' : 'YOUR BOX'}</span>
-              <span className="lens-fix-prompt">{fixPrompt(fix.draft)}</span>
+              <span className="lens-fix-prompt">{eventPrompt(fix.marks) ?? fixPrompt(fix.draft)}</span>
               <span className="lens-fix-reader">
                 {reader ? `reader: R ${reader.r.toFixed(2)} (${reader.rDay}) · S ${reader.s.toFixed(2)} (${reader.sDay})` : 'reader: no box shown'}
               </span>
@@ -151,8 +168,45 @@ const ScreenerModal = ({
               {fix.error && <span className="lens-fix-error">{fix.error}</span>}
               <span className="lens-fix-acts">
                 <button type="button" className="btn" disabled={!fix.complete || fix.saving} onClick={fix.save}>{fix.saving ? 'Saving…' : 'Save fix'}</button>
-                <button type="button" className="btn" disabled={fix.draft.r == null} onClick={fix.clear}>Clear</button>
+                <button type="button" className="btn" disabled={fix.draft.r == null && fix.events.length === 0} onClick={fix.clear}>Clear</button>
               </span>
+              {/* His events (Sat 18/10/2026): the letters arm one, the chips list what is placed; a span takes his name. */}
+              {fix.armed && (
+                <span className="lens-fix-keys" aria-label="Event keys">
+                  {Object.entries(EVENT_TAG).map(([kind, tag]) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      className="btn lens-fix-key"
+                      aria-pressed={fix.tool === kind}
+                      title={`${EVENT_NAMES[kind]} (${tag})`}
+                      onClick={() => fix.arm(kind)}
+                    >
+                      <kbd>{tag}</kbd> {EVENT_NAMES[kind]}
+                    </button>
+                  ))}
+                </span>
+              )}
+              {fix.events.length > 0 && (
+                <span className="lens-fix-events">
+                  {fix.events.map((event, index) => (
+                    <span key={`${event.kind}-${event.first_day}-${index}`} className="lens-fix-chip">
+                      {eventWords(event)}
+                      {event.kind === 'span' && (
+                        <input
+                          type="text"
+                          className="lens-fix-label"
+                          placeholder="name it"
+                          aria-label="Name this span"
+                          value={event.label ?? ''}
+                          onChange={(e) => fix.label(index, e.target.value)}
+                        />
+                      )}
+                      <button type="button" className="lens-fix-chip-x" aria-label={`Remove ${EVENT_NAMES[event.kind]}`} onClick={() => fix.remove(index)}>×</button>
+                    </span>
+                  ))}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -231,6 +285,7 @@ const ScreenerModal = ({
           watchlisted={watchlisted}
           fixing={fix.armed}
           onToggleFix={canFix ? fix.toggle : undefined}
+          fixedSummary={fix.fixed?.summary ?? null}
         />
         {/* THE LENS IS TWO BLOCKS (operator, Fri 17/10/2026): the CHART block — the three panes laid out
             as his TradingView (monthly over weekly in a side column, the daily big) with the grade board,

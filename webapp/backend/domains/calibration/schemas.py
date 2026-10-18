@@ -101,10 +101,31 @@ class BoxFixIn(BaseModel):
     note: Optional[str] = None
 
 
+class BoxFixEventIn(BaseModel):
+    """One event he placed on a fixed box (Sat 18/10/2026). The vocabulary and the cross-field sanity live in
+    ``box_fixes.EVENT_KINDS`` / ``box_fixes.event_problems``; this model only shapes the boundary."""
+    kind: str
+    first_day: str
+    last_day: Optional[str] = None
+    price: Optional[float] = None
+    band_high: Optional[float] = None
+    band_low: Optional[float] = None
+    label: Optional[str] = None
+
+
+class BoxFixEventOut(BoxFixEventIn):
+    id: int
+
+    model_config = {"from_attributes": True}
+
+
 class BoxFixOut(BoxFixIn):
     id: int
     created_at: datetime
     updated_at: datetime
     revision: int
+    events: List[BoxFixEventOut] = []
+    #: "fixed 18/10/2026: rails + 2 events: spring, LPS" — resolved by the backend, drawn by the lens (EC-28).
+    summary: str = ""
 
     model_config = {"from_attributes": True}

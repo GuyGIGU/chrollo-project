@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { KEY_SECTIONS, keyLabel, keySectionsFor } from './keyMap.js';
 import { HOTKEY_TOOLS } from '../../features/calibration/model/calibrationHotkeys.js';
 import { CARD_KEYS } from '../../features/screener/model/cardNavigation.js';
-import { LENS_ACTION_KEYS } from '../../shared/setup/lensActions.js';
+import { LENS_ACTION_KEYS, LENS_EVENT_KEYS } from '../../shared/setup/lensActions.js';
 
 const section = (id) => KEY_SECTIONS.find((s) => s.id === id);
 const keysOf = (id) => section(id).rows.flatMap((row) => row.keys);
@@ -54,6 +54,16 @@ test("the big chart's action keys are on the sheet, and every listed letter is a
   assert.ok(!keysOf('lens').includes('w') && !keysOf('lens').includes('l'), 'W/L listed where no lens draws a star or heart');
 });
 
+test('every event key of the fix is on its own sheet section, and every listed letter is a real one', () => {
+  const listed = keysOf('lens-fix');
+  for (const key of Object.keys(LENS_EVENT_KEYS)) {
+    assert.ok(listed.includes(key), `fix key ${key} has no row`);
+  }
+  for (const key of listed.filter((k) => k.length === 1)) {
+    assert.ok(Object.hasOwn(LENS_EVENT_KEYS, key), `row for ${key}, which nothing handles`);
+  }
+});
+
 test('no key means two things in one section', () => {
   const global = keysOf('global');
   assert.equal(new Set(global).size, global.length, 'global');
@@ -65,13 +75,13 @@ test('no key means two things in one section', () => {
 
 test('keySectionsFor shows Everywhere plus this page', () => {
   const ids = (pathname) => keySectionsFor(pathname).map((s) => s.id);
-  assert.deepEqual(ids('/screener'), ['global', 'cards', 'lens', 'lens-screener']);
+  assert.deepEqual(ids('/screener'), ['global', 'cards', 'lens', 'lens-fix', 'lens-screener']);
   assert.deepEqual(ids('/calibration'), ['global', 'calibration']);
   assert.deepEqual(ids('/watchlist'), ['global', 'watchlist']);
   // Home and the Archive open a big chart too ('/' is Home itself, never every page).
-  assert.deepEqual(ids('/'), ['global', 'lens']);
-  assert.deepEqual(ids('/home'), ['global', 'lens']);
-  assert.deepEqual(ids('/archive'), ['global', 'lens']);
+  assert.deepEqual(ids('/'), ['global', 'lens', 'lens-fix']);
+  assert.deepEqual(ids('/home'), ['global', 'lens', 'lens-fix']);
+  assert.deepEqual(ids('/archive'), ['global', 'lens', 'lens-fix']);
   assert.deepEqual(ids('/portfolio'), ['global']);
 });
 

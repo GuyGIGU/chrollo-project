@@ -30,8 +30,8 @@ from sqlalchemy.orm import Session
 from database import get_db
 from domains.calibration.validation import TICKER_RE, parse_iso_date, validate_mark
 from domains.calibration import box_fixes
-from domains.calibration.schemas import BoxFixIn, BoxFixOut
-from models import BoxFix, CalibrationMark, CalibrationMarkEvent
+from domains.calibration.schemas import BoxFixEventIn, BoxFixIn, BoxFixOut
+from models import BoxFix, BoxFixEvent, CalibrationMark, CalibrationMarkEvent
 
 router = APIRouter(prefix="/calibration", tags=["calibration"])
 logger = logging.getLogger("chrollo.calibration")
@@ -816,12 +816,21 @@ def delete_mark(mark_id: int, db: Session = Depends(get_db)):
 # --------------------------------------------------------------------------- #
 # Box fixes: his correction of the reader's box, drawn on the lens            #
 # --------------------------------------------------------------------------- #
+def _fix_out(fix: BoxFix) -> BoxFixOut:
+    """The fix with his events and the one sentence the lens shows (box_fixes.summary), resolved here."""
+    events = [{name: getattr(e, name) for name in box_fixes.EVENT_FIELDS} | {"id": e.id} for e in fix.events]
+    fields = {name: getattr(fix, name) for name in box_fixes.FIELDS}
+    fields.update(id=fix.id, created_at=fix.created_at, updated_at=fix.updated_at, revision=fix.revision,
+                  events=events, summary=box_fixes.summary({**fields, "updated_at": fix.updated_at}, events))
+    return BoxFixOut(**fields)
+
+
 @router.get("/box-fixes", response_model=List[BoxFixOut])
 def list_box_fixes(ticker: Optional[str] = Query(None), db: Session = Depends(get_db)):
     q = db.query(BoxFix)
     if ticker:
         q = q.filter(BoxFix.ticker == ticker.strip().upper())
-    return q.order_by(BoxFix.ticker, BoxFix.scan_day).all()
+    return [_fix_out(fix) for fix in q.order_by(BoxFix.ticker, BoxFix.scan_day).all()]
 
 
 @router.post("/box-fixes", response_model=BoxFixOut, dependencies=[Depends(require_same_app)])
@@ -846,7 +855,27 @@ def save_box_fix(payload: BoxFixIn, db: Session = Depends(get_db)):
     db.refresh(fix)
     logger.info("box fix saved id=%s %s@%s R %.4f (%s) S %.4f (%s) revision=%s", fix.id, fix.ticker, fix.scan_day,
                 fix.resistance, fix.r_day, fix.support, fix.s_day, fix.revision)
-    return fix
+    return _fix_out(fix)
+
+
+@router.put("/box-fixes/{fix_id}/events", response_model=BoxFixOut, dependencies=[Depends(require_same_app)])
+def save_box_fix_events(fix_id: int, payload: List[BoxFixEventIn], db: Session = Depends(get_db)):
+    """His events on one fixed box, as a whole: the list sent REPLACES the fix's events (his latest word on that
+    chart), so a cleared chart saves an empty list. The fix's own lines and revision are untouched."""
+    fix = db.query(BoxFix).filter(BoxFix.id == fix_id).first()
+    if not fix:
+        raise HTTPException(status_code=404, detail={"class": "unknown_fix", "message": f"no box fix {fix_id}"})
+    events = box_fixes.normalize_events([e.model_dump() for e in payload])
+    found = box_fixes.event_problems(events, fix.scan_day)
+    if found:
+        raise HTTPException(status_code=422, detail={"class": "invalid_events", "problems": found})
+    fix.events = [BoxFixEvent(**event) for event in events]
+    fix.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(fix)
+    logger.info("box fix events saved fix=%s %s@%s: %s", fix.id, fix.ticker, fix.scan_day,
+                ", ".join(f"{e['kind']} {e['first_day']}..{e['last_day']}" for e in events) or "none")
+    return _fix_out(fix)
 
 
 @router.delete("/box-fixes/{fix_id}", dependencies=[Depends(require_same_app)])

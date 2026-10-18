@@ -2066,6 +2066,27 @@ td {
 .lens-fix-saved { color: var(--success, #4ae38a); font-weight: 700; }
 .lens-fix-error { color: var(--danger, #ff7c87); }
 .lens-fix-acts { display: flex; gap: 6px; margin-left: auto; }
+/* His events on the fix (Sat 18/10/2026): the letter keys as small buttons, the placed events as chips with
+   a × and, on a span, a box for his name. The saved fix's mark: one glyph, one word, the operator hue (the
+   committed-marks token; never a tier hue, never mythril). */
+.lens-fix-keys { display: flex; flex-basis: 100%; flex-wrap: wrap; gap: 4px; }
+.btn.lens-fix-key { font-family: inherit; font-size: 11px; padding: 1px 7px; }
+.btn.lens-fix-key kbd { border: 1px solid var(--border-color); border-radius: 3px; font-family: inherit; padding: 0 3px; }
+.btn.lens-fix-key[aria-pressed="true"] { border-color: #e5484d; color: #e5484d; }
+.lens-fix-events { display: flex; flex-basis: 100%; flex-wrap: wrap; gap: 6px; }
+.lens-fix-chip { align-items: center; border: 1px solid #e5484d; border-radius: 4px; color: var(--text-main); display: inline-flex; gap: 6px; padding: 1px 6px; }
+.lens-fix-chip-x { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
+.lens-fix-label { background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-main); font-family: inherit; font-size: 11px; padding: 0 4px; width: 120px; }
+.lens-fixed-mark {
+  border: 1px solid rgba(var(--operator-rgb), 0.45);
+  border-radius: 6px;
+  color: var(--operator);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.card-fixed-mark { color: var(--operator); flex-shrink: 0; font-size: 12px; line-height: 1; }
 
 .lens-daily-canvas {
   height: 100%;

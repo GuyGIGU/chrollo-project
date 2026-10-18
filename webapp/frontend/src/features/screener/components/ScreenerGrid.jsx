@@ -11,6 +11,7 @@ import WatchLanePanel from './WatchLanePanel';
 import { universeLabel, isEtfUniverse } from '../../../shared/presentation/universeSwitcherData';
 import useScanRunner from '../hooks/useScanRunner';
 import useReviews from '../../watchlist/hooks/useReviews';
+import useFixedBoxes from '../../../shared/setup/useFixedBoxes';
 import useScreenerData, { DEFAULT_UNIVERSE } from '../hooks/useScreenerData';
 import useScreenerFilters from '../hooks/useScreenerFilters';
 import useWatchlist from '../../watchlist/hooks/useWatchlist';
@@ -39,6 +40,8 @@ const ScreenerGrid = () => {
   const etfUniverse = isEtfUniverse(universe);
   const { watchlist, toggleWatchlist } = useWatchlist();
   const { liked, toggleLiked } = useReviews();
+  // The charts he fixed on the lens, for the card's glyph; re-read when the lens closes (a fix may have been saved).
+  const { fixed: fixedBoxes, refresh: refreshFixedBoxes } = useFixedBoxes();
   const { screenerData, status, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData(universe);
 
   const navigate = useNavigate();
@@ -87,9 +90,10 @@ const ScreenerGrid = () => {
   );
   const cycleModal = useCallback((ticker) => patchParams({ t: ticker }, { replace: true }), [patchParams]);
   const closeModal = useCallback(() => {
+    refreshFixedBoxes();
     if (closesByPop(window.history.state?.usr, PUSHED_BY_LENS)) navigate(-1);
     else patchParams({ t: null }, { replace: true });
-  }, [navigate, patchParams]);
+  }, [navigate, patchParams, refreshFixedBoxes]);
   const backToGrid = useCallback(() => {
     if (closesByPop(window.history.state?.usr, PUSHED_BY_DRILLDOWN)) navigate(-1);
     else patchParams({ dd: null, t: null }, { replace: true });
@@ -338,6 +342,7 @@ const ScreenerGrid = () => {
                     onToggleWatchlist={handleToggleWatchlist}
                     liked={liked.has(ticker)}
                     onToggleLike={toggleLiked}
+                    fixed={fixedBoxes.get(ticker) ?? null}
                     onClick={openModal}
                     onDrilldown={etfUniverse ? handleDrilldown : undefined}
                   />

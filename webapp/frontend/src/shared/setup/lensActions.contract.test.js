@@ -56,7 +56,7 @@ test('the counter is drawn only with a position; ↗ TV in every lens; the order
 
 test('W and L act only where their button is drawn; T opens TradingView in a new tab', () => {
   const src = read(TOOLBAR);
-  assert.match(src, /useLensActionKeys\(ticker, onToggleWatchlist, onToggleLike, onToggleFix\);/);
+  assert.match(src, /useLensActionKeys\(ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing\);/);
   assert.match(src, /action === 'fixbox' && onToggleFix\) onToggleFix\(\);/, 'B arms "fix the box" only where the host hands in the toggle');
   assert.match(src, /action === 'watch' && onToggleWatchlist\) onToggleWatchlist\(ticker\);/);
   assert.match(src, /action === 'like' && onToggleLike\) onToggleLike\(ticker\);/);
@@ -69,7 +69,7 @@ test('W and L act only where their button is drawn; T opens TradingView in a new
   assert.ok(start >= 0 && end > start, 'the useLensActionKeys hook is gone');
   const hook = src.slice(start, end);
   assert.match(hook, /window\.addEventListener\('keydown', onKey\);/);
-  assert.match(hook, /\}, \[ticker, onToggleWatchlist, onToggleLike, onToggleFix\]\);/);
+  assert.match(hook, /\}, \[ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing\]\);/);
 });
 
 test('the screener grid hands the lens the star (drill-down aware), the heart and the counter', () => {

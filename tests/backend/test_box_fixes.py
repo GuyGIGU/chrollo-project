@@ -80,7 +80,7 @@ def test_a_fix_without_a_reader_box_is_saved_with_the_readers_fields_empty(db):
 def test_the_fix_writes_are_guarded_by_the_same_app_header():
     guarded = {r.path for r in router.routes if "box-fixes" in r.path
                and any(d.dependency is require_same_app for d in r.dependencies)}
-    assert guarded == {"/calibration/box-fixes", "/calibration/box-fixes/{fix_id}"}
+    assert guarded == {"/calibration/box-fixes", "/calibration/box-fixes/{fix_id}", "/calibration/box-fixes/{fix_id}/events"}
     reads = [r for r in router.routes if r.path == "/calibration/box-fixes" and "GET" in r.methods]
     assert reads and not any(d.dependency is require_same_app for d in reads[0].dependencies)
 

@@ -64,10 +64,11 @@ function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
 // W / L / T while the lens is open (operator 2026-10-03, suggestion #1): the
 // same acts as the top bar's buttons, and only where that button is drawn, so W
 // in a lens with no star does nothing.
-function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix) {
+function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing) {
   useEffect(() => {
     const onKey = (event) => {
-      const action = lensKeyAction(event);
+      // While the fix is armed L and F name his events (the lens handles them), never the like or the page.
+      const action = lensKeyAction(event, { fixing });
       if (action === 'watch' && onToggleWatchlist) onToggleWatchlist(ticker);
       else if (action === 'like' && onToggleLike) onToggleLike(ticker);
       else if (action === 'tradingview') window.open(tradingViewUrl(ticker), '_blank', 'noopener,noreferrer');
@@ -77,16 +78,16 @@ function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix)
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [ticker, onToggleWatchlist, onToggleLike, onToggleFix]);
+  }, [ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing]);
 }
 
 export default function ScreenerModalToolbar({
   data, onClose, onNext, onPrev, ticker, interval, onIntervalChange, hasWeekly, hasMonthly,
   watchlisted, onToggleWatchlist, liked, onToggleLike, position, skin = 'dark', onToggleSkin,
-  fixing = false, onToggleFix,
+  fixing = false, onToggleFix, fixedSummary = null,
 }) {
   const changePct = dailyChangeFrac(data?.candles);
-  useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix);
+  useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing);
   return (
     <header style={{
       alignItems: 'center',
@@ -112,6 +113,11 @@ export default function ScreenerModalToolbar({
         }}>
           {data.tier} TIER
         </span>
+        {/* A fixed box is visibly a fixed box (Sat 18/10/2026): one glyph, one word, the operator hue; the
+            sentence is the backend's (what was fixed, and when). */}
+        {fixedSummary && (
+          <span className="lens-fixed-mark" title={fixedSummary} aria-label={fixedSummary}>✎ fixed</span>
+        )}
         <IntervalTabs
           hasMonthly={hasMonthly}
           hasWeekly={hasWeekly}

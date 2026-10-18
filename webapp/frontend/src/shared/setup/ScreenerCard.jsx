@@ -187,7 +187,7 @@ const ReadDivider = () => (
 // Watchlist's clean card, so every card kind's chart starts at the same height.
 // Score, setup name, and the next-earnings date live in the click-through detail
 // lens, keeping the card face to the chart itself.
-function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike, page, onTogglePage }) {
+function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike, page, onTogglePage, fixed = null }) {
   const changePct = dailyChangeFrac(data.candles);
   const hasHtf = data.htf_w_trend_state != null || data.htf_m_trend_state != null;
   const hasLeadership = hasLeadershipRead(data);
@@ -199,6 +199,8 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onTog
           {ticker}
         </span>
         <span style={tierBadgeStyle(data.tier)}>{data.tier}</span>
+        {/* He fixed this box on the lens (Sat 18/10/2026): one glyph in the operator hue, the backend's sentence as its title. */}
+        {fixed ? <span className="card-fixed-mark" title={fixed} aria-label={fixed}>✎</span> : null}
         {data.sector_etf ? (
           <span style={{ alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, height: 15, lineHeight: 1, padding: '0 4px' }}>
             {data.sector_etf}
@@ -275,7 +277,7 @@ const drillButtonStyle = {
   width: '100%',
 };
 
-const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, liked, onToggleLike, onClick, onDrilldown }) => {
+const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, liked, onToggleLike, onClick, onDrilldown, fixed = null }) => {
   const [page, setPage] = useState('chart');
   const hasSheet = hasFundamentalsSheet(data);
   const togglePage = hasSheet ? () => setPage((now) => (now === 'chart' ? 'fundamentals' : 'chart')) : null;
@@ -335,6 +337,7 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, l
   >
     <CardHeader
       data={data}
+      fixed={fixed}
       liked={liked}
       onToggleLike={onToggleLike}
       onToggleWatchlist={onToggleWatchlist}
