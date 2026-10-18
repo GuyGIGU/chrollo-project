@@ -140,6 +140,69 @@ confirms a business and never vouches for its chart: today it moves no fire, and
 that uses it should sort inside the chart's grade, never above it (ours, from the book; the
 board order is still his to rule).
 
+**The market leader (the book, 2026-10-17).** Before a buy the book sorts the company into one of
+six kinds (market leaders, top competitors, institutional favourites, turnarounds, cyclicals, and
+past leaders and laggards) and makes most of its money on the first: the company growing its
+earnings fastest (20% a year or more, the best 35 to 45% for years), near the top of its industry
+in sales and earnings and taking share, whose stock rises most when a rally starts and reaches new
+highs first, which is why most traders are afraid to buy it. The two halves fall on the two
+grades. The business half is the fundamental grade: its growth floors are O'Neil's 25% (the
+book's own floor for a leader, 20%, is for the recalibration), and its label names the kind of
+growth, not the book's six kinds. The chart half is the RS rating, and the archive agrees with
+the book on it: fires at RS 90 or more reached +25% in 32% of cases, at 80 to 89 in 21%, under 80
+in 9% (3,417 matured fires, June to August 2026). Measured on the book's example and the archive
+(2026-10-17):
+
+- **Cisco, 1990.** It closed over its July high on 23/10/1990, eight trading days after the
+  market's low and sixteen weeks before the S&P 500 got back over its own (13/02/1991); by then it
+  was up 194% from the low against 25% for the index, and 21 times its low by May 1993. The live
+  reader fired on it on 135 days in sixteen stretches from 21/12/1990 to 28/05/1993, 79 of them S,
+  and the weekly stage read (built on its own branch) reads stage 2 on every one. Its first new high
+  came on its 173rd trading day after listing, before the door's 200, so his rule, *let new
+  listings build a record*, cost the first leg (+115% from the low to the first fire), not the
+  leader: from the first fire it still rose about tenfold.
+- **Going into new high ground first adds nothing to the RS rating.** After the 30/03/2026 low,
+  14% of stocks closed at a new 52-week high before the S&P 500 did; inside each RS band their
+  fires reached +25% no more often than the rest (a Nulls row). Rising most in the rally's first
+  two weeks separates only through volatility, and the RS line at a new high on the fire day is
+  too rare to read (23 fires).
+
+So the leader's chart half is the RS rating, already on the card, and the stock grade (owed from
+measurement) starts there. Not read anywhere: the industry rank (owed: the industry and its peers
+also leading) and the return on equity and the debt the book counts as signs of good management.
+
+**Price follows earnings, the book's second lesson on the leader (2026-10-17).** In its fast-growth
+years a leader always looks expensive, and the faster it grows the worse the market prices it, so
+over time its price follows its earnings, the faster the surer. Its risk is expectations: each beat
+raises the bar until a report misses. The aim is the leader early in its growth, when its profits
+are speeding up. The book's examples are Cisco (quarterly earnings up over 100% for four years) and
+Walmart in the early 1980s (earnings up 38% for fourteen quarters, the stock up about 1,000%, at
+first on as few as 20,000 shares a day). Chrollo reads no valuation anywhere, in step with the
+book. Measured with each fire's earnings as they stood on its day (the latest report against the
+one a year earlier, from the earnings history the fundamental grade reads; 3,102 of the 3,417
+matured fires of June to August 2026; the best gain within 60 trading days, so months, never the
+book's years):
+
+- **Accelerating profits pay, on a stock that leads.** Fires whose earnings growth rose over the
+  last three reports reached +25% in 46.5% of cases at RS 90 or more, against 20.5% when it slowed
+  or wavered, and 26.6% against 15.4% at RS 80 or more; under RS 80, 8.7% against 7.5%. The book's
+  aim, the leader early in its growth while its profits speed up, is the part that holds.
+- **The level of growth alone barely counts.** Earnings up 20% or more: 10.6% against 9.1%, and
+  nothing inside any volatility third. The 20 to 50% band is the weakest of all (4 to 8%); only
+  growth of 100% or more stands out (16.6%).
+- **The beats count for nothing here** (all four of the last four beaten 11.9%, the latest a miss
+  14.6%).
+- **The biggest 60-day tail sits in companies still losing money** (the loss narrowed 33.8%, even
+  widened 31.6%, turned to a profit 19.8%), among the volatile stocks as well: the speculative
+  tail, not the book's leader. The grade reads their growth checks as not known, never failed.
+- **Walmart, 1980 to 1984.** The live reader fired on it on 134 days, 101 of them S and 125 in
+  stage 2. The door's 50,000 shares a day would have held it out until August 1982 (its 50-day
+  average was 5,000 to 40,000 shares as traded), the first +225% of its run; it still nearly
+  tripled after. A floor in shares is set for today's market, and 1980's bars cannot judge it.
+
+So the stock grade (owed from measurement) has its first direction: the speed-up of the earnings
+on a leading stock, more than their level, and never the beats on their own.
+
 ### The life cycle: the four stages
 
 A stock lives through stages (Minervini, after Weinstein), and nearly every big winner made its
@@ -724,6 +787,17 @@ default as ours.
    opens on that rise's own end, once the far view says the rise ended there and that box
    is a box by the rule (the mirror for a fall; the form is ours). This is how the reader
    takes his other reading of ALB, the *"later pair"* after the run of 20/01 to 27/01/2026.
+   But a run past the top of a box ALREADY born is not the rise going on by itself
+   (sentences 8 and 9): when the bars come back to both rails of the box within the
+   fifteen trading days from that top, the run was a poke that came back and the box
+   stands; when they do not, the rise's end takes the place, and no sooner than the last of
+   those days, so a reader on any day tells the same history (his EXPD, drawn Sat
+   17/10/2026: the box 189.99 / 185.02 was a box on Fri 04/09, the poke to 194.59 on Tue
+   15/09 was back at the support on Fri 18/09, and his SOS and LPS of October read in that
+   box; the reader had hopped to the poke's pair). The mirror for a fall is not built: on
+   his WTS the base he drew came after the fall of Mon 30/03/2026, and the hand-over to
+   that fall's end is what reaches it (measured Sat 18/10/2026 on his 46 drawings: the rise
+   side alone 27 / 10 / 9 to 28 / 10 / 8 with the sealed 40 unchanged; both sides lose WTS).
    But for that way back and the sibling tried first (stage 3), every hand-over goes to a
    pair that opened later. A pair that
    opened EARLIER does not take the shown box's place on the day it becomes a box (ours:
