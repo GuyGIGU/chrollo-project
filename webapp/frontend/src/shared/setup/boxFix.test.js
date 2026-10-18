@@ -1,7 +1,7 @@
 // "Fix the box" (Fri 17/10/2026, the tools Sat 18/10/2026): the pure half, pinned on his AAPL swings.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EMPTY_FIX, applyRailClick, fixComplete, fixDiffers, fixPayload, readerPair } from './boxFix.js';
+import { EMPTY_FIX, applyRailClick, draftFromFix, fixComplete, fixDiffers, fixPayload, readerPair } from './boxFix.js';
 
 // His AAPL: the climax bar of Tue 22/09/2026 (high 345.34) and the reaction low of Thu 24/09 (334.30).
 const climax = { time: '2026-09-22', open: 340.14, high: 345.34, low: 338.75, close: 339.75 };
@@ -63,4 +63,11 @@ test('the payload carries his lines, the reader pair beside them, the chart last
   const bare = fixPayload('AAPL', { candles: [last] }, draft);
   assert.equal(bare.reader_resistance, null);
   assert.equal(bare.ruleset, '');
+});
+
+test('the draft is seated from the fix saved before, so a save never puts the reader pair back over his lines', () => {
+  const saved = { resistance: 79.11, r_day: '2026-08-03', support: 75.31, s_day: '2026-08-04', events: [] };
+  assert.deepEqual(draftFromFix(saved), { r: 79.11, rDay: '2026-08-03', s: 75.31, sDay: '2026-08-04' });
+  assert.equal(draftFromFix(null), EMPTY_FIX);
+  assert.equal(draftFromFix({ resistance: null, support: 1 }), EMPTY_FIX);
 });

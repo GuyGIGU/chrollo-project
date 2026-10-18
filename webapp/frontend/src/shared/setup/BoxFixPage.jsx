@@ -1,19 +1,17 @@
 import { useEffect, useRef } from 'react';
 import ChartZoomControls from '../charts/ChartZoomControls';
-import { CHART_COLORS } from '../charts/chartTheme';
 import useDailyStructureChart from '../charts/useDailyStructureChart';
 import { readerPair } from './boxFix';
 import { TOOLS, TOOL_HOW, TOOL_NAMES, eventWords, miniEvent, toolPrompt } from './boxFixEvents';
-import { drawFixLayer, removeLayer } from './boxFixDraw';
 import useBoxFix from './useBoxFix';
-import { fixedLayer } from './useFixedBox';
 
 // The fix page (Sat 18/10/2026, his word: "more like a pop chart (like calibration, a new page
 // covers this one)"): the toolbar's "fix the box" button (or B) covers the lens with this page,
 // the daily chart big, and a rail of buttons beside it: the box's two lines, the mini's two lines
 // and its span (the mini works exactly like the box), his events, what is placed with a × each,
 // Save and Back. Saving returns him to the chart he came from (`onSaved`), as does Back and Escape.
-// The reader's read stays drawn under his lines; the fix saved before, if any, in the operator colour.
+// The reader's read stays drawn under his lines; the fix saved before, if any, is SEATED as the draft (his
+// lines, his events, his mini, red), so the page opens on his latest word and Save re-sends the whole.
 const GROUPS = [
   { name: 'The box', tools: ['rail-r', 'rail-s'] },
   { name: 'Mini consolidation', tools: ['mini-r', 'mini-s', 'mini-span'] },
@@ -24,20 +22,10 @@ export default function BoxFixPage({ ticker, data, scanIdentity, skin, fixed, on
   const containerRef = useRef(null);
   const clickRef = useRef(null);
   const daily = useDailyStructureChart(containerRef, ticker, data, null, 'main', skin, clickRef);
-  const fix = useBoxFix(ticker, data, scanIdentity, daily.chartRef, clickRef, onSaved);
+  const fix = useBoxFix(ticker, data, scanIdentity, daily.chartRef, clickRef, onSaved, fixed);
   const reader = readerPair(data);
   const lastDay = data?.candles?.length ? data.candles[data.candles.length - 1].time : null;
   const mini = miniEvent(fix.mini, lastDay);
-
-  // The fix saved before, under his draft, in the operator colour.
-  const fixedSeries = useRef([]);
-  useEffect(() => {
-    const chart = daily.chartRef.current;
-    removeLayer(chart, fixedSeries.current);
-    fixedSeries.current = chart && data?.candles?.length && fixed
-      ? drawFixLayer(chart, data.candles, fixedLayer(fixed), CHART_COLORS.operator) : [];
-    return () => { removeLayer(daily.chartRef.current, fixedSeries.current); fixedSeries.current = []; };
-  }, [fixed, data, daily.chartRef]);
 
   // Escape: back to the chart, the page's own listener (the lens's closer stands down while the page is up).
   useEffect(() => {
@@ -115,7 +103,7 @@ export default function BoxFixPage({ ticker, data, scanIdentity, skin, fixed, on
               ))}
             </div>
           </section>
-          {fixed?.summary && <div className="box-fix-fixed" title={fixed.summary}>✎ {fixed.summary}</div>}
+          {fixed?.summary && <div className="box-fix-fixed" title={fixed.summary}>✎ {fixed.summary} · seated here, Save is your latest word</div>}
         </aside>
       </div>
     </div>

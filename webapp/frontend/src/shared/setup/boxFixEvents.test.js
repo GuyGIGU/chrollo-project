@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EMPTY_EVENTS, EVENT_KINDS, TOOLS, TOOL_NAMES, TOOL_HOW, allEvents, applyToolClick, armTool, eventWords, eventsPayload,
-  labelEvent, miniEvent, removeEvent, removeMiniPart, toolPrompt,
+  labelEvent, marksFromFix, miniEvent, removeEvent, removeMiniPart, toolPrompt,
 } from './boxFixEvents.js';
 
 // His AAPL: the spring's tip Thu 01/10 (low 325.81), THE SOS launching Mon 12/10 and topping Tue 13/10
@@ -93,4 +93,19 @@ test('the page tells him the next click', () => {
   assert.equal(toolPrompt(armTool(EMPTY_EVENTS, 'mini-r')), "click the mini's top bar: the line lands on its high");
   const half = applyToolClick(armTool(EMPTY_EVENTS, 'lps'), click('2026-10-14'), candles);
   assert.equal(toolPrompt(half), '14/10: now click the last day of the LPS');
+});
+
+test('the marks are seated from the fix saved before: its events as they were, the mini as lines and span', () => {
+  const saved = { events: [
+    { id: 1, kind: 'span', first_day: '2026-08-03', last_day: '2026-10-07', price: 70.55, band_high: null, band_low: null, label: null },
+    { id: 5, kind: 'mini', first_day: '2026-08-31', last_day: '2026-10-07', price: null, band_high: 82.65, band_low: 78.18, label: null },
+    { id: 2, kind: 'spring', first_day: '2026-09-10', last_day: '2026-09-10', price: 70.55, band_high: null, band_low: null, label: 'his' },
+  ] };
+  const seated = marksFromFix(saved);
+  assert.equal(seated.tool, null);
+  assert.deepEqual(seated.events.map((e) => [e.kind, e.first_day, e.last_day, e.price, e.label]),
+    [['span', '2026-08-03', '2026-10-07', 70.55, null], ['spring', '2026-09-10', '2026-09-10', 70.55, 'his']]);
+  assert.deepEqual(seated.mini, { r: 82.65, rDay: '2026-08-31', s: 78.18, sDay: '2026-08-31', spanStart: '2026-08-31', spanEnd: '2026-10-07' });
+  assert.deepEqual(miniEvent(seated.mini, '2026-10-16'), { kind: 'mini', first_day: '2026-08-31', last_day: '2026-10-07', price: null, band_high: 82.65, band_low: 78.18, label: null }, 'the seated mini re-saves as it was');
+  assert.deepEqual(marksFromFix(null), EMPTY_EVENTS);
 });

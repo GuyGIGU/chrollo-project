@@ -14,6 +14,13 @@ export function readerPair(data) {
 // The empty draft: nothing drawn yet.
 export const EMPTY_FIX = { r: null, rDay: null, s: null, sDay: null };
 
+// The draft seated from the fix he saved on this chart before (the page opens on his latest word, so a
+// save never replaces his lines with the reader's pair: Sat 18/10/2026, his DSGX lost 79.11 / 75.31 that way).
+export function draftFromFix(fix) {
+  if (!fix || fix.resistance == null || fix.support == null) return EMPTY_FIX;
+  return { r: fix.resistance, rDay: fix.r_day, s: fix.support, sDay: fix.s_day };
+}
+
 // One click with the Resistance or the Support tool armed: the resistance lands on the bar's high,
 // the support on its low, each remembering its day. The root swing is BC then AR after a rise and SC
 // then AR after a fall (his word, Fri 17/10/2026: "what if we came from a down swing and the root

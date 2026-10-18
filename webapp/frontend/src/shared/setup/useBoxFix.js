@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE } from '../../api/base';
-import { EMPTY_FIX, applyRailClick, fixComplete, fixPayload, readerPair } from './boxFix';
+import { EMPTY_FIX, applyRailClick, draftFromFix, fixComplete, fixPayload, readerPair } from './boxFix';
 import {
-  EMPTY_EVENTS, allEvents, applyToolClick, armTool, eventsPayload, labelEvent, removeEvent, removeMiniPart,
+  EMPTY_EVENTS, allEvents, applyToolClick, armTool, eventsPayload, labelEvent, marksFromFix, removeEvent, removeMiniPart,
 } from './boxFixEvents';
 import { drawFixLayer, removeLayer } from './boxFixDraw';
 
@@ -22,7 +22,9 @@ const refusal = (body, status) => {
   return detail?.problems ? detail.problems.join('; ') : detail?.message || `save failed (${status})`;
 };
 
-export default function useBoxFix(ticker, data, scanIdentity, chartRef, clickRef, onSaved) {
+// `existing` is the fix he saved on this chart before, or null: the page opens on it (his lines, his events, his
+// mini) so a save is his latest word on the whole, never the reader's pair put back over his lines.
+export default function useBoxFix(ticker, data, scanIdentity, chartRef, clickRef, onSaved, existing = null) {
   const [draft, setDraft] = useState(EMPTY_FIX);
   const [marks, setMarks] = useState(EMPTY_EVENTS);
   const [saved, setSaved] = useState(null);      // the saved fix's revision after a save this sitting, or null
@@ -31,13 +33,13 @@ export default function useBoxFix(ticker, data, scanIdentity, chartRef, clickRef
   const draftSeries = useRef([]);
   const lastDay = data?.candles?.length ? data.candles[data.candles.length - 1].time : null;
 
-  // A new chart: everything starts over.
+  // A new chart, or the fix saved on it arriving: the draft is seated from the saved fix, else empty.
   useEffect(() => {
-    setDraft(EMPTY_FIX);
-    setMarks(EMPTY_EVENTS);
+    setDraft(draftFromFix(existing));
+    setMarks(marksFromFix(existing));
     setSaved(null);
     setError(null);
-  }, [ticker]);
+  }, [ticker, existing]);
 
   // The chart's clicks: the box's line tools move the draft, every other tool the marks. The ref
   // carries the armed tool into the handler without re-subscribing it on every click.
@@ -96,13 +98,16 @@ export default function useBoxFix(ticker, data, scanIdentity, chartRef, clickRef
     setError(null);
   }, []);
 
-  // What the save sends as his two lines: the draft when both stand, else the reader's pair under his
-  // events alone; nothing to save without one or the other.
+  // What the save sends as his two lines: the draft when both stand; else, under events alone, the lines he
+  // saved before, else the reader's pair ("the box is right, here are its events"); nothing without one of them.
   const lines = useMemo(() => {
     if (fixComplete(draft)) return draft;
+    if (!events.length) return null;
+    const before = draftFromFix(existing);
+    if (fixComplete(before)) return before;
     const reader = readerPair(data);
-    return events.length && reader ? { r: reader.r, rDay: reader.rDay, s: reader.s, sDay: reader.sDay } : null;
-  }, [draft, data, events.length]);
+    return reader ? { r: reader.r, rDay: reader.rDay, s: reader.s, sDay: reader.sDay } : null;
+  }, [draft, data, events.length, existing]);
   const complete = Boolean(lines);
 
   const save = useCallback(async () => {

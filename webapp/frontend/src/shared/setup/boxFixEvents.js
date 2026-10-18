@@ -37,6 +37,23 @@ const ONE_CLICK = new Set(['spring', 'upthrust', 'mini-r', 'mini-s']);
 export const EMPTY_MINI = { r: null, rDay: null, s: null, sDay: null, spanStart: null, spanEnd: null };
 export const EMPTY_EVENTS = { tool: null, anchor: null, events: [], mini: EMPTY_MINI };
 
+// The marks seated from the fix he saved before: its events as they were, the mini as the mini's lines
+// and span (the backend keeps the mini as one event: its band and its days).
+export function marksFromFix(fix) {
+  const events = [];
+  let mini = EMPTY_MINI;
+  for (const saved of fix?.events || []) {
+    if (saved.kind === 'mini') {
+      mini = { r: saved.band_high, rDay: saved.first_day, s: saved.band_low, sDay: saved.first_day,
+               spanStart: saved.first_day, spanEnd: saved.last_day };
+    } else {
+      events.push({ kind: saved.kind, first_day: saved.first_day, last_day: saved.last_day, price: saved.price ?? null,
+                    band_high: null, band_low: null, label: saved.label ?? null });
+    }
+  }
+  return { tool: null, anchor: null, events, mini };
+}
+
 // A button arms its tool; the same button again, or null, disarms. A half-placed first click is dropped.
 export function armTool(state, tool) {
   const next = tool && tool !== state.tool && TOOLS.includes(tool) ? tool : null;

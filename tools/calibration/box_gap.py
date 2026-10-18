@@ -31,6 +31,7 @@ Offline, read-only, sidecars only.
     python -m tools.calibration.box_gap                  # the board, his 40 and every fix
     python -m tools.calibration.box_gap --pages OUT      # the board AND one OHLC page per differing drawing
     python -m tools.calibration.box_gap --fixes-only     # the fixes alone
+    python -m tools.calibration.box_gap --fixes-only --db PATH   # a worktree reading the live journal
 """
 from __future__ import annotations
 
@@ -111,10 +112,22 @@ def load_fixes(db_path: str | None = None) -> list:
     if db_path is None:
         import database  # noqa: PLC0415 — the backend's one DB path, on the path since configure_path(backend=True)
         db_path = database._DB_PATH
-    uri = "file:" + pathname2url(os.path.abspath(db_path)) + "?mode=ro&immutable=1"
-    try:
-        con = sqlite3.connect(uri, uri=True)
-    except sqlite3.OperationalError:
+    # Read-only, WITH the write-ahead log: the service runs the journal in WAL mode, so the newest fixes and
+    # every event sit in the -wal file until a checkpoint; `immutable=1` skips that file and read a state hours
+    # old (Sat 18/10/2026: his DSGX fix at revision 2 and no events table at all). `immutable` only as the
+    # fallback when a plain read-only open is refused (a path with no -shm to touch).
+    base = "file:" + pathname2url(os.path.abspath(db_path))
+    con = None
+    for query in ("?mode=ro", "?mode=ro&immutable=1"):
+        try:
+            con = sqlite3.connect(base + query, uri=True)
+            con.execute("SELECT 1 FROM sqlite_master LIMIT 1")
+            break
+        except sqlite3.OperationalError:
+            if con is not None:
+                con.close()
+            con = None
+    if con is None:
         return []
     try:
         con.row_factory = sqlite3.Row
@@ -393,11 +406,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--pages", metavar="DIR", help="also write one OHLC page per differing drawing and a contact sheet")
     ap.add_argument("--fixes-only", action="store_true", help="read the lens fixes alone, not the sealed drawings")
+    ap.add_argument("--db", metavar="PATH", help="the journal to read the fixes from, read-only (default: this checkout's; "
+                                                 "a worktree has a scratch journal of its own, so name the live one)")
     args = ap.parse_args()
     if args.pages:
         refuse_sealed_output(args.pages)
     rows = [] if args.fixes_only else sealed_rows()
-    rows += fix_rows(load_fixes())
+    rows += fix_rows(load_fixes(args.db))
     refused = [r for r in rows if "refused" in r]
     print(format_board(rows, refused))
     events = format_events(rows)
