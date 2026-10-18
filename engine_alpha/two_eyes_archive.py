@@ -30,6 +30,7 @@ names each writer and fails at add time if one is left out.
 from __future__ import annotations
 
 import datetime
+import math
 
 import pandas as pd
 
@@ -42,6 +43,7 @@ __all__ = [
     "TWO_EYES_LPS_BOXES",
     "two_eyes_archive_values",
     "two_eyes_screen_boxes",
+    "volume_vs_50d",
 ]
 
 #: The roles a box can hold, and the closed set the LPS column is drawn from.
@@ -72,6 +74,12 @@ TWO_EYES_COLUMN_SQL: dict[str, str] = {
     "two_eyes_lps_read_against": "TEXT",
     # 1 / 0 / NULL — and NULL is not "no".
     "two_eyes_has_mini": "INTEGER",
+    # The LPS pullback's average volume against the 50-day average ending on its
+    # last day, on this reader's own LPS days: the one setup fact that separated
+    # the archive's big winners (decisions.md Nulls, 2026-10-04). Archived so the
+    # archive can keep measuring it after the flip (his word Mon 12/10/2026,
+    # option A). A fact: never a gate, never a point.
+    "two_eyes_lps_volume_ratio": "FLOAT",
 }
 
 _DATE_COLUMNS = frozenset(
@@ -159,6 +167,39 @@ def two_eyes_screen_boxes(values: dict) -> list:
                       "s": part("s_price"), "s_day": part("s_anchor_date"),
                       "opened": part("opened_date"), "end": part("end_date")})
     return boxes
+
+
+def _day_position(df, day):
+    """``day``'s row in the frame, or None when it is not there (exactly once)."""
+    if not day:
+        return None
+    try:
+        pos = df.index.get_loc(pd.Timestamp(day))
+    except (KeyError, TypeError, ValueError):
+        return None
+    return pos if isinstance(pos, int) else None
+
+
+def volume_vs_50d(df, day, first_day=None):
+    """The volume on ``day`` — or the average volume from ``first_day`` to
+    ``day``, both included — against the 50-day average ending on ``day`` (that
+    day included, as the engine's Vol_50 counts it, which is how the old
+    reader's LPS read divides its pullback's volume). Volume at a key point, a
+    spring's day or an LPS pullback's run of days: ONE measure (EC-3), shared by
+    the screen's panel and the family's ``two_eyes_lps_volume_ratio`` so the two
+    cannot disagree. It lives here, beside the column it fills, because the old
+    chart reader's files are frozen and both callers already load this module.
+    A fact, never a gate or a point. None when a day is not in the frame, the
+    run ends before it starts, or the average is unreadable."""
+    pos = _day_position(df, day)
+    start = pos if first_day is None else _day_position(df, first_day)
+    if pos is None or start is None or start > pos:
+        return None
+    volume = float(df["Volume"].iloc[start: pos + 1].mean())
+    average = float(df["Volume"].iloc[max(0, pos - 49): pos + 1].mean())
+    if not (math.isfinite(volume) and math.isfinite(average)) or average <= 0:
+        return None
+    return round(volume / average, 2)
 
 
 def _yes_or_no(value) -> int:

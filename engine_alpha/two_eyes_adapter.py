@@ -27,7 +27,7 @@ from typing import Optional
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR, WATCH_WIRE_STATES
 from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, SPRING, Read
-from engine_alpha.two_eyes_archive import SCREEN_KEY, two_eyes_archive_values, two_eyes_screen_boxes
+from engine_alpha.two_eyes_archive import SCREEN_KEY, two_eyes_archive_values, two_eyes_screen_boxes, volume_vs_50d
 
 #: Keys downstream reads with square brackets — a missing one is a KeyError in
 #: the middle of a night's write, not a None in a column. A fire row is whole
@@ -222,6 +222,11 @@ def to_result(read: Read, frame=None):
         # never the old reader's spring (`_bin_c_event_date`). No archive
         # column reads it: the archive family stores no event.
         "_spring_date": _spring_day(read),
+        # The LPS pullback's volume against the 50-day average, on the block's
+        # own days, by the panel's one measure: an archive fact (his word Mon
+        # 12/10/2026, option A), empty when the frame is not there to read.
+        "_two_eyes_lps_volume_ratio": None if frame is None else volume_vs_50d(
+            frame, lps.end_day.isoformat(), first_day=lps.start_day.isoformat()),
         **({} if frame is None else stock_trend(frame)),
     }
     for key in WHOLE_NUMBER_KEYS:

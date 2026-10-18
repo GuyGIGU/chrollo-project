@@ -4,6 +4,7 @@ import { PulseIcon } from '../../../shared/components/NavIcons';
 import { pct, signedPct } from '../presentation/homeFormat';
 import { tierColor } from '../../../shared/presentation/theme';
 import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary';
+import { fmtDay } from '../../../shared/formatting/format';
 
 // Display floors: a median MFE over very few rows is noise; a win-rate over few
 // LABELLED (resolved) rows is worse. Below the floor we show the n, never a
@@ -20,6 +21,10 @@ const TIERS = TIER_LETTERS;
 // Format only. The threshold arrives on the wire beside the rate it was measured
 // against, so this labels what the backend measured and never declares it (EC-28).
 const bandLabel = (band) => `≥${Math.round((band?.threshold ?? 0) * 100)}%`;
+
+// Which reader wrote the rows, in his words. Presentational only: the backend
+// decides which reader is current (the one that wrote the latest scan).
+const READER_LABEL = { new: 'New reader', old: 'Old engine' };
 
 function Figure({ value, label }) {
   return (
@@ -55,6 +60,26 @@ function CalibrationLine({ b }) {
   );
 }
 
+// The other reader's fires (his word Mon 12/10/2026, option A): one line under the
+// tiers, never pooled with them, since an old S and a new S are not one grade. Both
+// tail bands, as the headline shows them: the chance of a big move leads.
+function BaselineLine({ b }) {
+  if (!b || !b.n) return null;
+  const tail = b.tail ?? { n: 0, bands: [] };
+  const bands = tail.bands ?? [];
+  const tailCell = tail.n >= TAIL_MIN_N ? bands.map((x) => pct(x.rate)).join(' / ') : `n=${tail.n}`;
+  const name = READER_LABEL[b.reader] ?? b.reader;
+  return (
+    <div
+      className="home-edge-cal"
+      title={`${name}: ${b.n} setups first seen ${fmtDay(b.first_scan)} to ${fmtDay(b.last_scan)}. The baseline the current reader is measured against, never pooled with it.`}
+    >
+      <span>{name} ({b.n}) to {fmtDay(b.last_scan)}</span>
+      {bands.length > 0 && <span>MFE {bands.map(bandLabel).join(' / ')} in 20d <b>{tailCell}</b></span>}
+    </div>
+  );
+}
+
 export default function EdgePulse() {
   const { data, status } = useEdgePulse();
   const icon = <PulseIcon className="home-zone-iconsvg" />;
@@ -67,7 +92,9 @@ export default function EdgePulse() {
   }
 
   const n = data?.n_unbiased || 0;
-  if (!data || n === 0 || data.headline_mfe_median == null) {
+  // The current reader may have no measured outcomes yet (its first weeks after a
+  // flip): the tile still shows its count and the baseline, never a blank.
+  if (!data || (n === 0 && !data.baseline)) {
     return <HomeZone title="Engine Edge" icon={icon} status="empty" empty="Not enough measured outcomes yet." />;
   }
 
@@ -90,6 +117,11 @@ export default function EdgePulse() {
   return (
     <HomeZone title="Engine Edge" icon={icon} status="ready">
       <div className="home-edge-tile">
+        {data.reader && (
+          <span className="home-edge-reader">
+            {READER_LABEL[data.reader] ?? data.reader} · from {fmtDay(data.reader_since)}
+          </span>
+        )}
         <div className="home-edge-heads">
           <Figure value={tailValue} label={tailLabel} />
           <Figure value={headlineMfe} label="median MFE" />
@@ -121,6 +153,7 @@ export default function EdgePulse() {
             );
           })}
         </div>
+        <BaselineLine b={data.baseline} />
         <CalibrationLine b={data.calibration} />
         <span className="home-edge-foot">
           median MFE, elapsed window · tier column {headBands[tierBandIdx] ? `= MFE ${bandLabel(headBands[tierBandIdx])} in 20d` : ''} · unbiased, excludes seed · n={n}

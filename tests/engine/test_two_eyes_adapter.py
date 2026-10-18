@@ -147,6 +147,28 @@ def test_the_two_lines_and_their_days_survive_the_crossing():
     assert result["_lps_zone_end_date"] == "2026-03-06"
 
 
+def test_the_lps_pullback_volume_reaches_the_archive_on_the_reads_own_days():
+    """His word Mon 12/10/2026 (option A): the quiet LPS pullback is the one setup
+    fact that separated the archive's big winners, and the flip left it empty on
+    every new-reader row. The adapter measures it on the read's own LPS days by the
+    panel's one measure, and the archive family stores it; with no frame it is
+    empty, never a made-up number."""
+    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.two_eyes_archive import two_eyes_archive_values
+
+    days = pd.bdate_range(end="2026-03-06", periods=260)
+    lps_run = [600.0, 500.0, 400.0, 300.0, 200.0]  # Mon 02/03 to Fri 06/03, each day different
+    frame = pd.DataFrame({"Open": 10.0, "High": 11.0, "Low": 9.0, "Close": 10.5,
+                          "Volume": [1000.0] * 255 + lps_run}, index=days)
+    result = to_result(_read_with_lines(), frame=frame)
+    # The run's average (400) over the 50-day average ending on its last day: 0.43;
+    # the last day alone would read 0.21, the 50-day window cut short another number.
+    expected = round(400.0 / ((45 * 1000.0 + sum(lps_run)) / 50), 2)
+    assert result["_two_eyes_lps_volume_ratio"] == expected
+    assert two_eyes_archive_values(result.get, prefixed=True)["two_eyes_lps_volume_ratio"] == expected
+    assert to_result(_read_with_lines())["_two_eyes_lps_volume_ratio"] is None
+
+
 def test_the_state_word_crosses_without_the_old_engine_rewording_it():
     """The screen's vocabulary is the operator's, and the adapter may not
     invent a word that is not in it."""

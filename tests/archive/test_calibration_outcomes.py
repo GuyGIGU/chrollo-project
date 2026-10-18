@@ -238,7 +238,11 @@ def test_the_report_card_prints_them_beside_the_fires_never_pooled():
 def test_the_edge_tile_carries_them_beside_the_tiers_never_inside(monkeypatch):
     from domains.archive import edge
 
-    monkeypatch.setattr(edge, "load_episodes", lambda universe_type=None: _fires())
+    # One reader's fires (the tile reads one reader at a time since Mon 12/10/2026);
+    # the scan day and row id say which reader wrote the latest scan.
+    fires = _fires().assign(scan_date="2026-10-09", id=range(1, 6))
+    monkeypatch.setattr(edge, "load_episodes_by_reader",
+                        lambda universe_type=None: {"new": fires.iloc[0:0], "old": fires})
     monkeypatch.setattr(edge, "load_calibration_setups", lambda: _calibration())
     out = edge._compute()
     assert out["n_unbiased"] == 3

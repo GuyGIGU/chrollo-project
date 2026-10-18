@@ -7,6 +7,12 @@ be mutated here). The headline is BIAS-SAFE by construction: it is computed on t
 flagged, never averaged in. The per-tier slices are likewise computed on the
 unbiased basis only.
 
+ONE reader at a time (his word Mon 12/10/2026, option A): the headline and the tiers
+measure the reader that wrote the latest scan, and the other reader's fires ride
+under them as one baseline line, never pooled. The two readers' letters are
+different verdicts, and the new reader's rows leave the old engine's measurement
+columns empty, so a pooled tile would read neither.
+
 Cached with a short TTL so the index route does not re-read the whole archive on
 every Home load. The TTL (vs. a scan-cadence signature) is the deliberately lean
 choice for a single-user local app: it also picks up overnight forward-return
@@ -21,7 +27,7 @@ import time
 
 from core.archive.calibration_outcomes import load_calibration_setups
 from core.backtest.edge_report import UNBIASED_SOURCE, edge_block, headline_edge, slice_by
-from core.backtest.loader import load_episodes
+from core.backtest.loader import load_episodes_by_reader
 from core.pipeline.universe import default_universe
 
 _TTL_SECONDS = 300.0
@@ -72,6 +78,9 @@ def _tier_view(block: dict) -> dict:
 
 def _empty() -> dict:
     return {
+        "reader": None,
+        "reader_since": None,
+        "baseline": None,
         "unbiased": True,
         "contaminated_input": False,
         "n_unbiased": 0,
@@ -93,17 +102,59 @@ def _calibration_view():
     return _tier_view(edge_block(df)) if not df.empty else None
 
 
+def _scan_days(df):
+    """The first and last scan day of a reader's fires on the unbiased basis."""
+    if "source" in df.columns:
+        df = df[df["source"] == UNBIASED_SOURCE]
+    days = df["scan_date"].dropna().astype(str) if "scan_date" in df.columns else []
+    return (min(days), max(days)) if len(days) else (None, None)
+
+
+def _last_written(df):
+    """A reader's latest unbiased fire as (scan day, row id), or None. The id
+    breaks a tie of days: on the flip, both readers wrote rows for the same scan
+    day (Fri 09/10/2026), and the reader that wrote last is the one running."""
+    if "source" in df.columns:
+        df = df[df["source"] == UNBIASED_SOURCE]
+    if df.empty or "scan_date" not in df.columns:
+        return None
+    return str(df["scan_date"].max()), int(df["id"].max()) if "id" in df.columns else 0
+
+
+def _current_and_baseline(by_reader: dict):
+    """The reader that wrote the latest scan is the one the tile measures; the
+    other is its baseline, one line, never pooled (his word Mon 12/10/2026,
+    option A). Recency, not a name: switched back, the old engine is current."""
+    last = {name: _last_written(df) for name, df in by_reader.items()}
+    read = [name for name in last if last[name] is not None]
+    if not read:
+        return None, None
+    current = max(read, key=lambda name: last[name])
+    others = [name for name in read if name != current]
+    return current, (others[0] if others else None)
+
+
+def _baseline_view(df, reader: str) -> dict:
+    """The other reader's fires as one line: the same figures as a tier, its name
+    and the scan days it covers."""
+    basis = df[df["source"] == UNBIASED_SOURCE] if "source" in df.columns else df
+    first, last = _scan_days(df)
+    return {**_tier_view(edge_block(basis)), "reader": reader, "first_scan": first, "last_scan": last}
+
+
 def _compute() -> dict:
     try:
         # Stock universe only: the edge tile measures the US-equities screener, and
         # the ETF universes now archive under the same source='screener'. Pin the
         # universe_type via the descriptor (single source for the key<->universe_type
         # duality) so their setups stay out of this population.
-        df_all = load_episodes(universe_type=default_universe().universe_type)
+        by_reader = load_episodes_by_reader(universe_type=default_universe().universe_type)
     except FileNotFoundError:
         return _empty()
-    if df_all is None or getattr(df_all, "empty", True):
+    reader, baseline = _current_and_baseline(by_reader)
+    if reader is None:
         return _empty()
+    df_all = by_reader[reader]
 
     # Headline is bias-safe by construction: filters to the screener basis and
     # flags contamination if any seed/manual rows were present in the input.
@@ -118,6 +169,9 @@ def _compute() -> dict:
 
     abnormal = headline.get("abnormal") or {}
     return {
+        "reader": reader,
+        "reader_since": _scan_days(df_all)[0],
+        "baseline": None if baseline is None else _baseline_view(by_reader[baseline], baseline),
         "unbiased": bool(headline.get("unbiased", True)),
         "contaminated_input": bool(headline.get("contaminated_input", False)),
         "n_unbiased": int(headline.get("n_unbiased", 0)),
