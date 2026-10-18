@@ -54,7 +54,10 @@ His sentences, and where each lives:
 10. *The box gives way to a newer pair only when the price left it and did not come back: the bars now hang on
     the newer rails and no longer come back to the old ones* — ``left_for_good``, judged on every day from the
     day the newer pair is a box, both halves: over the last fifteen trading days the bars came back to both
-    rails of the newer pair, and not to both rails of the shown box.
+    rails of the newer pair, and not to the shown box's FAR rail, the one the price would have to cross coming
+    back: its support when the newer pair lies above, its resistance when it lies below (his DSGX, Sat
+    18/10/2026: a spring that touched a lower pair's rails while the bars still came back to the box's
+    resistance had the box "left downward" fifteen days later, with the price over its top).
 
 His earlier words that still place the rest: *"usually when a trend ends it reaches some sort of climax ->
 counter move -> consolidation ... so were looking for the first instance that a consolidation is respected!"*
@@ -74,7 +77,9 @@ level in its run: a later poke does not move his line); the live-trend rule as a
 birth, and that a rise whose climax printed after the shown box was born swallows it only when the bars did
 not come back to both its rails within the fifteen days from that top, judged on the last of them (his EXPD,
 Sat 18/10/2026: a poke a range over a box already born that came back is the box's own; the mirror for a fall
-is not built, his WTS); "beyond" as resting on the shown rail's area or further; how long "no longer" is (his fifteen days); that
+is not built, his WTS); "beyond" as resting on the shown rail's area or further; how long "no longer" is (his fifteen days); which
+old rail "no longer come back" is read on (the far one; the "not both" it was until his DSGX, Sat 18/10/2026, let a
+box be left downward while the bars sat on its resistance); that
 a shown line moves back only to the box it gave up, and only after a DIP (when the price left a box upward and a
 box above took its place, a fall back into the old box is the newer box's own dip: his ST, where the spring under
 his box is at both rails of the box under it); the unit of a pair (the range of its second anchor's day); the day
@@ -92,7 +97,7 @@ from engine_alpha.two_eyes.record import LINES_NO_LPS, NO_LINES, ROLE_EARLIER, R
 from engine_alpha.two_eyes.runs import _cmp
 
 __all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
-           "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lies_beyond", "lives", "measure",
+           "far_rail", "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lies_beyond", "lives", "measure",
            "move_began", "poke_came_back",
            "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD", "TRIED_FIRST",
            "LIVE_TREND", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
@@ -457,6 +462,24 @@ def _back_at_both(pair: Pair, high, low, first: int, days) -> np.ndarray:
     return (at_r[days - first + 1] > at_r[since - first]) & (at_s[days - first + 1] > at_s[since - first])
 
 
+def _back_at_rail(pair: Pair, rail: str, high, low, first: int, days) -> np.ndarray:
+    """For each day of ``days``: over the last fifteen trading days, never before ``first``, a bar was back at
+    ONE rail of the pair, its resistance or its support."""
+    last = int(days[-1])
+    on_r, on_s = _respects(high[first:last + 1], low[first:last + 1], pair.R, pair.S, pair.area)
+    at = np.concatenate(([0], np.cumsum(on_r if rail == RESISTANCE else on_s)))
+    since = np.maximum(first, days - (int(M.BOX_DAYS) - 1))
+    return at[days - first + 1] > at[since - first]
+
+
+def far_rail(new: Pair, shown: Pair) -> str:
+    """The shown box's rail the price would have to cross to come back from the newer pair: its support when the
+    newer pair lies above the box, its resistance when it lies below. "No longer come back to the old ones" is
+    read on it (his DSGX, Sat 18/10/2026): a box is left upward when the bars stop coming back to its support, and
+    downward when they stop coming back to its resistance — never downward while they still sit on its top."""
+    return SUPPORT if new.S >= shown.R - shown.area else RESISTANCE
+
+
 def lies_beyond(new: Pair, shown: Pair) -> bool:
     """The position half of his sentences 9 and 10: the newer pair lies BEYOND the shown box — its support in
     or above the shown resistance's area, or its resistance in or below the shown support's area. A pair that
@@ -470,10 +493,13 @@ def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) 
     above the shown resistance's area, or its resistance in or below the shown support's area — and *"the bars
     now hang on the newer rails and no longer come back to the old ones"*, both halves: over the last fifteen
     trading days, never before the newer pair opened, the bars came back to both rails of the newer pair and not
-    to both rails of the shown box. The first such day from ``since`` on, never before the newer pair is a box;
-    None when there is none by the read day. A pair inside or across the shown box is its own leg, a poke, a dip
-    or a mini, and never takes its place; nor does a pair the bars have left (his MTLS: the pair of the July run,
-    a box by the rule on a day the price was already back under it)."""
+    to the shown box's far rail (``far_rail``: its support for a pair above, its resistance for a pair below).
+    The first such day from ``since`` on, never before the newer pair is a box; None when there is none by the
+    read day. A pair inside or across the shown box is its own leg, a poke, a dip or a mini, and never takes its
+    place; nor does a pair the bars have left (his MTLS: the pair of the July run, a box by the rule on a day the
+    price was already back under it). Until his DSGX (Sat 18/10/2026) the old box counted as left when the bars
+    missed EITHER of its rails: a spring that touched a lower pair's rails had the box left downward fifteen days
+    after its last day at the support, while the bars sat on the box's resistance and the price over its top."""
     if new.opening_bar <= shown.opening_bar:
         return None
     if not lies_beyond(new, shown):
@@ -482,7 +508,7 @@ def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) 
     if start > read_bar:
         return None
     days = np.arange(start, read_bar + 1)
-    left = ~_back_at_both(shown, high, low, first, days)
+    left = ~_back_at_rail(shown, far_rail(new, shown), high, low, first, days)
     if not left.any():
         return None
     gone = np.flatnonzero(left & _back_at_both(new, high, low, first, days))

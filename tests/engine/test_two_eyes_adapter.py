@@ -270,6 +270,7 @@ SPENT_RULESETS = (
     "two-eyes-0.9.1-grade",
     "two-eyes-0.9.2-test",
     "two-eyes-0.9.3-poke",
+    "two-eyes-0.9.4-far-rail",
 )
 
 

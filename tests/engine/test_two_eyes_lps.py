@@ -662,29 +662,34 @@ def _junk_days(key: str) -> list:
     return [(ts.date(), raw.loc[:ts]) for ts in sessions]
 
 
-def test_aef_the_pullback_he_refused_fires_only_on_its_first_day_and_each_later_refusal_names_his_sentence():
+def test_aef_the_pullback_he_refused_fires_on_no_day_and_each_refusal_names_his_sentence():
     """His AEF words (Mon 14/09/2026): "3 bars with huge increases in both spread and price changes meaning the
     pull back is increasing with sellers, not to mention you cut the move off and it's a part of a bigger swing
     downwards that reaches support". That pullback runs from Wed 03/06/2026; from its second day on it is refused,
-    each day by his own sentence. On its FIRST day it is one receding day inside the reader's box (9.98 / 9.57,
-    the rule he settled on Thu 01/10/2026), none of his sentences is true of it yet, and the read fires at 10.00;
-    the next day falls and nothing crosses it. On the box of tasks 10 and 11 that day was refused by sentence
-    four, and AEF fired on no day."""
+    each day by his own sentence. Its FIRST day is one receding day a range and more over the box of April (9.04 /
+    8.66), refused by sentence four: since the walk of Sat 18/10/2026 (his EXPD's poke rule; the far rail of his
+    DSGX the same evening keeps it) that box stands through Fri 05/06, and 9.98 / 9.57 takes the place only on Mon
+    08/06, when the fall reached its rails. On the rule as it stood from Thu 01/10/2026 the box of 9.98 / 9.57 was
+    shown already and that first day fired at 10.00; on the box of tasks 10 and 11, as now, AEF fired on no day."""
     from engine_alpha import two_eyes
     from engine_alpha.two_eyes import lps
 
-    said, fires = {}, []
+    said, fires, boxes = {}, [], {}
     for day, cut in _junk_days("AEF"):
         read = two_eyes.read("AEF", cut)
         assert read.failed is False
         if read.fired:
             fires.append((day, read.lps.trigger_price))
         said[day] = next((s.saying for s in read.trail if s.stage == "LPS"), "")
-    assert fires == [(dt.date(2026, 6, 3), pytest.approx(10.00))]
+        parent = next(b for b in read.boxes if b.role == "parent")
+        boxes[day] = (round(parent.resistance.price, 2), round(parent.support.price, 2))
+    assert fires == []
+    assert boxes[dt.date(2026, 6, 5)] == (9.04, 8.66) and boxes[dt.date(2026, 6, 8)] == (9.98, 9.57)
     assert "one receding day under the top of Tue 02/06/2026" in said[dt.date(2026, 6, 3)]
+    assert lps.OVER_RESISTANCE in said[dt.date(2026, 6, 3)]
     assert lps.SELLERS_RISING in said[dt.date(2026, 6, 4)] and lps.SELLERS_RISING in said[dt.date(2026, 6, 5)]
     assert lps.SLICE in said[dt.date(2026, 6, 8)] and lps.SLICE in said[dt.date(2026, 6, 9)]
-    assert all("no LPS" in words for day, words in said.items() if day > dt.date(2026, 6, 3))
+    assert all("no LPS" in words for words in said.values())
 
 
 @pytest.fixture(scope="module")
@@ -710,27 +715,31 @@ def junk_fire_days() -> dict:
 #: The junk charts none of his four sentences and nothing in the box's rules keeps silent today. His words on them
 #: are about the box ("Extreme Width, Spread, Messy non tight structure"; on OHI "lps is fine though"), which his
 #: method grades (task 14) and never gates.
-_JUNK_THAT_FIRES = ("ABEV", "AEF", "BBVA", "BBVA@2026-06-05", "BMRN", "COLM", "DGII", "ENIC", "FLG", "FRPH", "KWR",
+_JUNK_THAT_FIRES = ("ABEV", "BBVA", "BBVA@2026-06-05", "BMRN", "COLM", "DBD", "DGII", "ENIC", "FLG", "FRPH", "KWR",
                     "OHI", "RLGT", "SPCB")
 
 
 def test_the_junk_charts_that_fire_and_the_two_that_stay_silent(junk_fire_days):
     firing = sorted(key for key, days in junk_fire_days.items() if days)
     assert firing == sorted(_JUNK_THAT_FIRES)
-    # DBD by his third sentence and the door, GOOD by the door. On the box of the rule he settled AEF fires on one
-    # day (the test above); DBD, which fired before the rebuild, is silent. BBVA joined on Fri 02/10/2026: once a
-    # dip that comes back gives a box its place back, its box is the one over the dip (23.74 / 22.89) and three
-    # days of its window fire. He had set the junk charts aside the evening before ("idc about bodi, nor about
-    # other junk charts lets focus on Working intended examples").
-    assert sorted(set(junk_fire_days) - set(firing)) == ["DBD", "GOOD"]
-    assert junk_fire_days["AEF"] == [dt.date(2026, 6, 3)]
+    # GOOD by the door; AEF since the walk of Sat 18/10/2026 (its April box stands through its window, so its one
+    # firing day of the rule of Thu 01/10/2026 is a range over resistance, refused; the test above). DBD, silent by
+    # his third sentence and the door from the rebuild of Thu 01/10/2026, fires on Wed 03/06 and Fri 05/06 since the
+    # same walk of 18/10 (one receding day each, inside the box 78.64 / 75.71 of April): the junk charts stay set
+    # aside, his word of Wed 30/09/2026 ("idc about bodi, nor about other junk charts lets focus on Working intended
+    # examples"). BBVA joined on Fri 02/10/2026: once a dip that comes back gives a box its place back, its box is
+    # the one over the dip (23.74 / 22.89) and three days of its window fire.
+    assert sorted(set(junk_fire_days) - set(firing)) == ["AEF", "GOOD"]
+    assert junk_fire_days["AEF"] == []
+    assert junk_fire_days["DBD"] == [dt.date(2026, 6, 3), dt.date(2026, 6, 5)]
     assert junk_fire_days["BBVA"] == [dt.date(2026, 6, 18), dt.date(2026, 6, 24), dt.date(2026, 6, 26)]
 
 
 @pytest.mark.xfail(strict=True, reason=(
     "THE STOP RULE'S JUNK CLAUSE, not met at task 12a and not met on the rule of the pair he settled (Thu "
-    "01/10/2026): today's engine fires on 8 of the 16 junk charts, the new reader on 14 (13 before a dip that "
-    "comes back gave a box its place back, 12 before the rebuild). He set the junk charts aside on Thu 01/10/2026. "
+    "01/10/2026): today's engine fires on 8 of the 16 junk charts, the new reader on 14 since the walk of Sat "
+    "18/10/2026 (AEF silent, DBD firing; 14 from Thu 01/10/2026, 13 before a dip that comes back gave a box its "
+    "place back, 12 before the rebuild). He set the junk charts aside on Thu 01/10/2026. "
     "The bar was fixed on Sun 20/09/2026 and is not moved here; his ruling at the core sitting, or the grade "
     "(task 14), owes it. The day this passes, this mark comes off deliberately."))
 def test_no_more_junk_charts_fire_than_under_todays_engine(junk_fire_days):

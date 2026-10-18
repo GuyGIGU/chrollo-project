@@ -211,6 +211,17 @@ _POKE_OVER_A_BORN_BOX = _BOX + [(38, 71), (41, 82.2), (44, 70.6), (47, 79.4), (5
                                 (59, 79), (62, 70.9), (65, 79.2)]
 _POKE_FAR = {0, 1, 2, 3, 5, 6, 41, 44, 47, 50, 53, 56, 59, 62, 65}
 
+#: His DSGX (drawn Sat 18/10/2026): the rise pauses at 71 / 66 on bars 8 and 9 (a pair under the box, its top a
+#: range under the box's support), then the box 80 / 70, a box on bar 25. On bar 38 a spring dips to 66, under the
+#: support, and touches that lower pair's own support; the price recovers in two days and from then consolidates
+#: HIGHER: its highs keep coming back to the box's resistance, its lows hold 76, and one dip to 71.9 on bar 44 rests
+#: on the lower pair's top without reaching the box's support area. The step 79.3 / 76.2 is the base's own extension
+#: (his mini), never a new base.
+_RISE_WITH_A_PAUSE = _PREFIX + [(5, 60), (6, 55), (8, 71), (9, 66), (11, 80), (14, 70)]
+_SPRING_THEN_A_STEP_UP = _RISE_WITH_A_PAUSE + _BOX[len(_RISE):] + [
+    (38, 66), (40, 79.5), (44, 71.9), (47, 79.3), (50, 76.2), (53, 79.4), (56, 76.1), (59, 79.6), (62, 76.3),
+    (65, 79.2), (68, 76.4), (71, 79.5)]
+
 
 # --------------------------------------------------------------------------- #
 # His picture: respect is the nearness of a bar's high or low to a rail       #
@@ -768,6 +779,56 @@ def test_a_poke_over_a_box_already_born_does_not_put_it_inside_a_live_trend():
     assert not low_box.top_first and fall["kind"] == "SC" and fall["climax_bar"] > low_box.birth_bar
     assert walk.inside_a_live_trend(low_box, dip, down.ends, mirrored["n"] - 1, mirrored["high"], mirrored["low"]) is fall
     assert _box(down) == (89.4, 77.8) and down.lives[-1].why == walk.LIVE_TREND
+
+
+def test_a_box_is_left_only_through_its_far_rail_so_a_spring_that_came_back_never_leaves_it_downward():
+    """His DSGX (Sat 18/10/2026), sentences 9 and 10 read together. The box 80 / 70; a spring to 66 on bar 38 touches
+    the support of a pair UNDER the box (71 / 66) and comes back in two days; the price then consolidates a step
+    higher, 79.3 / 76.2, its highs still at the box's resistance, and one dip (bar 44, 71.9) rests on the lower
+    pair's top without reaching the box's support area. On bar 52 the last fifteen days hold both rails of the lower
+    pair (38, 44) and no bar at the box's support (the last was bar 37) — and "the bars no longer come back to both
+    old rails" said the price had left the box DOWNWARD for good, with the bars at its resistance all the while (bars
+    40 and 47). On his DSGX the June box went to a pair below it on Thu 01/10/2026 on exactly this reading, while the
+    price stood at 83, over its resistance, and the step pair took the parent's place the next day. Sentence 10 is
+    read through the rail the price would have to cross coming back: a box is left UPWARD when the bars no longer
+    come back to its support, DOWNWARD when they no longer come back to its resistance. A dip that touched a lower
+    pair's rails while the bars still come back to the box's resistance is the box's own dip (sentence 9), and the
+    step is the base's own extension (his words: "the price simply continued to consolidate at a higher price ...
+    it serves as an extension of the original")."""
+    from dataclasses import replace
+
+    from engine_alpha.two_eyes import walk
+
+    chart = _chart(_SPRING_THEN_A_STEP_UP)
+    high, low, last = chart["high"], chart["low"], chart["n"] - 1
+    found = _elect(chart)
+    box, pause = _pair(found, 80.0, 70.0), _pair(found, 71.0, 66.0)
+    assert box.birth_bar == 25 and pause.birth_bar == 38
+    # The pause pair opened before the box (bar 8), so sentence 10's "newer pair" never means it. His DSGX's lower
+    # pair opened eleven days after the box did (12/06 to the box's 01/06): read the pause as if it had, a day after.
+    below = replace(pause, opening_bar=12)
+    assert walk.lies_beyond(below, box) and below.R <= box.S + box.area and not (below.S >= box.R - box.area)
+    # Bar 52: both of the lower pair's rails in the window, the box's support not, its resistance yes.
+    window = np.array([52])
+    assert walk._back_at_both(below, high, low, 12, window)[0] and not walk._back_at_both(box, high, low, 12, window)[0]
+    assert walk._respects(high[38:53], low[38:53], box.R, box.S, box.area)[0].any()
+    # The far rail for a pair below is the resistance, which the bars keep coming back to: never left downward.
+    assert walk.left_for_good(box, below, high, low, 0, last) is None
+    # The mirror, upside down: a box 90 / 80 after a decline, a poke to 94 that touches a pair ABOVE it (94 / 89),
+    # then the price steps down with its lows still at the box's support. The far rail for a pair above is the
+    # support, which the bars keep coming back to: never left upward.
+    mirrored = _chart([(bar, 160.0 - price) for bar, price in _SPRING_THEN_A_STEP_UP])
+    down = _elect(mirrored)
+    low_box, above = _pair(down, 90.0, 80.0), replace(_pair(down, 94.0, 89.0), opening_bar=12)
+    assert walk.lies_beyond(above, low_box) and above.S >= low_box.R - low_box.area
+    assert walk.left_for_good(low_box, above, mirrored["high"], mirrored["low"], 0, mirrored["n"] - 1) is None
+    # The chart itself: the box stands, read day by day with no memory.
+    assert _shown_day_by_day(chart) == [(80.0, 70.0, 25)]
+    # A box the price really left upward is still left: the breakout chart hands over on bar 49 as before, because
+    # the bars no longer come back to the old support, the far rail; and a breakout that came back hands over on bar
+    # 58 as before.
+    assert _shown_day_by_day(_chart(_BOX_THEN_BREAKOUT)) == [(80.0, 70.0, 25), (94.0, 88.0, 49)]
+    assert _shown_day_by_day(_chart(_BREAKOUT_THAT_CAME_BACK)) == [(80.0, 70.0, 25), (94.0, 88.0, 58)]
 
 
 def test_a_shown_line_moves_back_only_when_a_dip_came_back_read_day_by_day_with_no_memory():

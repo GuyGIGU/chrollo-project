@@ -774,13 +774,25 @@ default as ours.
    — its support resting on the shown resistance's area or above it, or its resistance on
    the shown support's area or below — and over the last fifteen trading days, never
    reaching back before the newer pair opened, the bars came back to both rails of the
-   newer pair, and not to both rails of the shown box. Both halves of his sentence are
+   newer pair, and not to the shown box's FAR rail, the one the price would have to cross
+   coming back: its support when the newer pair lies above, its resistance when it lies
+   below. Both halves of his sentence are
    read: the box never gives way to rails the bars have left (on his MTLS the pair of the
    July run became a box on a day the price was already back under it; the reader used to
    hop to it, and from it to a pair under it). It is judged on every day, not once: a
    breakout that failed keeps the box
    while the bars still come back to it, and the box gives way on the fifteenth day after
-   they stopped. What "beyond" is and how long "no longer" is (his fifteen days) are ours.
+   they stopped. A box is never left DOWNWARD while the bars still sit on its top: on his
+   DSGX (Sat 18/10/2026) the spring of Thu 10/09 touched the rails of an old pair under the
+   June box, and fifteen days after its last day at the box's support, with the price at 83
+   over the box's resistance, the reader had the box "left downward", went to the pair under
+   it and chained from there to the step above the box; read on the far rail the June box
+   stands, the step 82.65 / 78.18 is its mini, his SOS of Thu 01/10 and his LPS of 02 to
+   07/10 read in it, and the one-bar "LPS" fires of 14 and 16/10, after the breakout, are
+   gone. His words on the step: *"after the base the price simply continued to consolidate
+   at a higher price and so both resistance and support gradually shifted into the mini
+   base and it serves as an extension of the original"*. What "beyond" is, how long "no
+   longer" is (his fifteen days) and which old rail it is read on are ours.
    And his anchor rule: *"We can't start the anchor from the opposite direction of the trend
    if we are still inside that trend"* (Mon 27/07/2026). A box whose first anchor sat on a
    top inside a rise that had not ended — a pause on the way up — gives way to the box that
