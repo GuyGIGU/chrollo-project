@@ -43,7 +43,10 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
 - **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
   panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
   display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated
-  outcomes in the archive (decisions.md Nulls, 2026-10-04).
+  outcomes in the archive (decisions.md Nulls, 2026-10-04): the old reader's own LPS stretch.
+  On the new reader's LPS days nothing separates, his criterion (under the 50-day average)
+  included; the quietest 2-to-5-day stretch of the last week is a lead, not graded
+  (decisions.md Nulls, 2026-10-12).
 - **His calibration setups are archived setups too** (2026-10-03, his ruling; built 2026-10-04):
   each is measured like a fire from the day before his trigger (`calibration_outcomes`, filled by the nightly outcome job as a contained passenger) and
   shown as its own group, never pooled: report card section 7, a line on the Home edge tile, and
