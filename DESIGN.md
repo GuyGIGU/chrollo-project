@@ -502,12 +502,13 @@ his "fix the box"): the toolbar's `fix the box` toggle (B) arms the daily pane, 
 becomes a crosshair, two clicks in either order each snap to the nearer end of their bar (BC
 then AR after a rise, SC then AR after a fall) and the higher line is the resistance, his two
 lines are drawn in the calibration red (`#e5484d`, never the structure blue)
-on the live chart without a rebuild, and a strip under the pane (`.lens-fix-strip`) says the
-next step, the reader's pair beside his, and Save / Clear; the fix goes to
-`/calibration/box-fixes` beside the reader's pair. **His events ride on the fix** (Sat 18/10/2026):
-while the fix is armed the letters S U O L F P M arm a spring, an upthrust, the SOS, an LPS, a former
-LPS, a span or a mini (the strip shows them as small `kbd` buttons), the clicks place it, and the placed
-events are chips in the strip (a span with a box for his name). **A fixed box is visibly fixed:** `✎ fixed`
+on the live chart without a rebuild, and a WINDOW over the pane's top-left corner (`.lens-fix-panel`,
+Sat 18/10/2026, his word: *"give me an interface, clicking the button makes a pop up window appear with
+all of the relevant options"*) holds every option as a button: the two lines, each event with what to
+click, the next step, the reader's pair, the placed events as chips with a × (a span with a box for his
+name), Save, Clear and close; the fix goes to `/calibration/box-fixes` beside the reader's pair.
+**His events ride on the fix**: a spring, an upthrust, the SOS, an LPS, a former LPS, a span or a
+mini, each a button in the window (the letters S U O L F P M on the buttons are hints, and still work). **A fixed box is visibly fixed:** `✎ fixed`
 beside the ticker in the lens toolbar (`.lens-fixed-mark`) and `✎` on the screener card (`.card-fixed-mark`),
 one glyph and one word in `--operator` (the committed-marks token, never a tier hue, never mythril), the
 backend's sentence as the title; the saved fix's lines and events are drawn in `CHART_COLORS.operator`

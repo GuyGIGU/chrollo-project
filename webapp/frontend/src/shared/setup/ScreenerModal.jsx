@@ -7,8 +7,8 @@ import TimeframeMainChart from '../charts/TimeframeMainChart';
 import useDailyStructureChart from '../charts/useDailyStructureChart';
 import ScreenerModalToolbar from './ScreenerModalToolbar';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
-import { fixPrompt, readerPair } from './boxFix';
-import { EVENT_NAMES, EVENT_TAG, eventPrompt, eventWords } from './boxFixEvents';
+import { readerPair } from './boxFix';
+import BoxFixPanel from './BoxFixPanel';
 import { lensKeyAction } from './lensActions';
 import useBoxFix from './useBoxFix';
 import { htfStateLabel } from './screenerCardData';
@@ -157,58 +157,7 @@ const ScreenerModal = ({
         <div className={fix.armed ? 'lens-daily-frame is-fixing' : 'lens-daily-frame'}>
           <div ref={chartContainerRef} className="lens-daily-canvas" />
           <ChartZoomControls chartRef={daily.chartRef} onHome={daily.home} />
-          {(fix.armed || fix.draft.r != null || fix.events.length > 0) && (
-            <div className="lens-fix-strip" role="status">
-              <span className="lens-fix-word">{fix.armed ? 'FIX THE BOX' : 'YOUR BOX'}</span>
-              <span className="lens-fix-prompt">{eventPrompt(fix.marks) ?? fixPrompt(fix.draft)}</span>
-              <span className="lens-fix-reader">
-                {reader ? `reader: R ${reader.r.toFixed(2)} (${reader.rDay}) · S ${reader.s.toFixed(2)} (${reader.sDay})` : 'reader: no box shown'}
-              </span>
-              {fix.saved != null && <span className="lens-fix-saved">{fix.saved > 1 ? `saved (revision ${fix.saved})` : 'saved'} ✓</span>}
-              {fix.error && <span className="lens-fix-error">{fix.error}</span>}
-              <span className="lens-fix-acts">
-                <button type="button" className="btn" disabled={!fix.complete || fix.saving} onClick={fix.save}>{fix.saving ? 'Saving…' : 'Save fix'}</button>
-                <button type="button" className="btn" disabled={fix.draft.r == null && fix.events.length === 0} onClick={fix.clear}>Clear</button>
-              </span>
-              {/* His events (Sat 18/10/2026): the letters arm one, the chips list what is placed; a span takes his name. */}
-              {fix.armed && (
-                <span className="lens-fix-keys" aria-label="Event keys">
-                  {Object.entries(EVENT_TAG).map(([kind, tag]) => (
-                    <button
-                      key={kind}
-                      type="button"
-                      className="btn lens-fix-key"
-                      aria-pressed={fix.tool === kind}
-                      title={`${EVENT_NAMES[kind]} (${tag})`}
-                      onClick={() => fix.arm(kind)}
-                    >
-                      <kbd>{tag}</kbd> {EVENT_NAMES[kind]}
-                    </button>
-                  ))}
-                </span>
-              )}
-              {fix.events.length > 0 && (
-                <span className="lens-fix-events">
-                  {fix.events.map((event, index) => (
-                    <span key={`${event.kind}-${event.first_day}-${index}`} className="lens-fix-chip">
-                      {eventWords(event)}
-                      {event.kind === 'span' && (
-                        <input
-                          type="text"
-                          className="lens-fix-label"
-                          placeholder="name it"
-                          aria-label="Name this span"
-                          value={event.label ?? ''}
-                          onChange={(e) => fix.label(index, e.target.value)}
-                        />
-                      )}
-                      <button type="button" className="lens-fix-chip-x" aria-label={`Remove ${EVENT_NAMES[event.kind]}`} onClick={() => fix.remove(index)}>×</button>
-                    </span>
-                  ))}
-                </span>
-              )}
-            </div>
-          )}
+          {fix.armed && <BoxFixPanel fix={fix} reader={reader} />}
         </div>
       );
     }

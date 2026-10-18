@@ -2046,37 +2046,61 @@ td {
 }
 
 .lens-daily-frame { position: relative; }
-/* "Fix the box" (Fri 17/10/2026): while armed the daily pane takes a crosshair pointer and the strip
-   under it says what the next click does; his two lines are drawn red by useBoxFix. */
+/* "Fix the box" (Fri 17/10/2026, the window Sat 18/10/2026): while armed the daily pane takes a crosshair
+   pointer and a WINDOW over the pane's top-left corner (the old history; the setup sits at the right edge) holds every option as a button (his word: "give me
+   an interface, clicking the button makes a pop up window appear with all of the relevant options"): the
+   two lines, each event with what to click, the placed events as chips with a × (a span with a box for his
+   name), Save, Clear and close. His draft is drawn red by useBoxFix; the letters on the buttons are hints.
+   The saved fix's mark: one glyph, one word, the operator hue (the committed-marks token; never a tier
+   hue, never mythril). */
 .lens-daily-frame.is-fixing .lens-daily-canvas { cursor: crosshair; }
-.lens-fix-strip {
-  align-items: center;
+.lens-fix-panel {
   background: var(--lens-toolbar-bg, var(--bg-panel));
-  border-top: 1px solid var(--border-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   color: var(--text-muted);
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-  gap: 14px;
-  padding: 6px 10px;
+  gap: 6px;
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  left: 10px;
+  position: absolute;
+  top: 10px;
+  width: 340px;
+  z-index: 3;
 }
+.lens-fix-panel-head { align-items: center; display: flex; justify-content: space-between; }
 .lens-fix-word { color: #e5484d; font-weight: 800; letter-spacing: 0.06em; }
 .lens-fix-prompt { color: var(--text-main); }
-.lens-fix-saved { color: var(--success, #4ae38a); font-weight: 700; }
-.lens-fix-error { color: var(--danger, #ff7c87); }
-.lens-fix-acts { display: flex; gap: 6px; margin-left: auto; }
-/* His events on the fix (Sat 18/10/2026): the letter keys as small buttons, the placed events as chips with
-   a × and, on a span, a box for his name. The saved fix's mark: one glyph, one word, the operator hue (the
-   committed-marks token; never a tier hue, never mythril). */
-.lens-fix-keys { display: flex; flex-basis: 100%; flex-wrap: wrap; gap: 4px; }
-.btn.lens-fix-key { font-family: inherit; font-size: 11px; padding: 1px 7px; }
-.btn.lens-fix-key kbd { border: 1px solid var(--border-color); border-radius: 3px; font-family: inherit; padding: 0 3px; }
-.btn.lens-fix-key[aria-pressed="true"] { border-color: #e5484d; color: #e5484d; }
-.lens-fix-events { display: flex; flex-basis: 100%; flex-wrap: wrap; gap: 6px; }
+.lens-fix-group-name { color: var(--text-faint); font-size: 10px; letter-spacing: 0.08em; margin-top: 6px; text-transform: uppercase; }
+.btn.lens-fix-option {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+  font-size: 12px;
+  gap: 1px;
+  height: auto;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: normal;
+}
+.btn.lens-fix-option[aria-pressed="true"] { border-color: #e5484d; color: #e5484d; }
+.lens-fix-option-name { flex-shrink: 0; font-weight: 700; }
+.lens-fix-option-name kbd { border: 1px solid var(--border-color); border-radius: 3px; font-family: inherit; font-size: 10px; margin-left: 4px; padding: 0 3px; }
+.lens-fix-option-how { color: var(--text-muted); font-size: 11px; }
+.lens-fix-events { display: flex; flex-wrap: wrap; gap: 6px; }
 .lens-fix-chip { align-items: center; border: 1px solid #e5484d; border-radius: 4px; color: var(--text-main); display: inline-flex; gap: 6px; padding: 1px 6px; }
 .lens-fix-chip-x { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
 .lens-fix-label { background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-main); font-family: inherit; font-size: 11px; padding: 0 4px; width: 120px; }
+.lens-fix-acts { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.lens-fix-saved { color: var(--success, #4ae38a); font-weight: 700; }
+.lens-fix-error { color: var(--danger, #ff7c87); }
 .lens-fixed-mark {
   border: 1px solid rgba(var(--operator-rgb), 0.45);
   border-radius: 6px;
