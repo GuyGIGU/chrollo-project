@@ -94,7 +94,7 @@ def gives_way(pair, found, high, low, day: int):
             continue
         if walk.left_for_good(pair, other, high, low, pair.birth_bar, day) is not None:
             return other, walk.LEFT_FOR_GOOD
-        if walk.inside_a_live_trend(pair, other, found.ends, day) is not None:
+        if walk.inside_a_live_trend(pair, other, found.ends, day, high, low) is not None:
             return other, walk.LIVE_TREND
     return None
 

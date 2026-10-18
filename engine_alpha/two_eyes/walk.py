@@ -71,7 +71,10 @@ and the day after a reaction low, still resting on it, is no come-back by itself
 alone (for a top, the lowest
 low since the price was last above it); the first foot of a trend end's walk (the first swing end of the climax's
 level in its run: a later poke does not move his line); the live-trend rule as a hand-over at the newer box's
-birth; "beyond" as resting on the shown rail's area or further; how long "no longer" is (his fifteen days); that
+birth, and that a rise whose climax printed after the shown box was born swallows it only when the bars did
+not come back to both its rails within the fifteen days from that top, judged on the last of them (his EXPD,
+Sat 18/10/2026: a poke a range over a box already born that came back is the box's own; the mirror for a fall
+is not built, his WTS); "beyond" as resting on the shown rail's area or further; how long "no longer" is (his fifteen days); that
 a shown line moves back only to the box it gave up, and only after a DIP (when the price left a box upward and a
 box above took its place, a fall back into the old box is the newer box's own dip: his ST, where the spring under
 his box is at both rails of the box under it); the unit of a pair (the range of its second anchor's day); the day
@@ -90,7 +93,7 @@ from engine_alpha.two_eyes.runs import _cmp
 
 __all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
            "first_foot", "inside_a_live_trend", "known_by", "left_for_good", "lies_beyond", "lives", "measure",
-           "move_began",
+           "move_began", "poke_came_back",
            "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD", "TRIED_FIRST",
            "LIVE_TREND", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
 
@@ -407,17 +410,37 @@ class Life:
     trend_end: Optional[dict] = None    # the trend end whose rise or fall swallowed the box before it
 
 
-def inside_a_live_trend(shown: Pair, new: Pair, trends, day: int) -> Optional[dict]:
+def poke_came_back(shown: Pair, high, low, climax_bar: int, read_bar: int) -> Optional[bool]:
+    """His EXPD (Sat 18/10/2026), sentences 8 and 9 on a run past the top of a box ALREADY born: it is the box's
+    own poke when, within the fifteen trading days from the run's top, the bars came back to both rails of the
+    box; then the rise did not go on and the box stands. None while those fifteen days are not all known: the
+    judgment is made once, on their last day, so a reader on any day tells the same history."""
+    last = int(climax_bar) + int(M.BOX_DAYS) - 1
+    if int(read_bar) < last:
+        return None
+    days = np.arange(int(climax_bar), last + 1)
+    return bool(_back_at_both(shown, high, low, int(climax_bar), days).any())
+
+
+def inside_a_live_trend(shown: Pair, new: Pair, trends, day: int, high=None, low=None) -> Optional[dict]:
     """The shown pair opened on a top inside a rise that had not ended (on a low inside a fall): a trend end
     known by ``day`` whose run began before that anchor and whose walk starts after it, the newer pair opening
     on or after that first foot. His anchor rule — *"We can't start the anchor from the opposite direction of
-    the trend if we are still inside that trend"*. Returns that trend end, or None."""
+    the trend if we are still inside that trend"*. With the bars given, a rise whose climax printed AFTER the
+    shown pair was a box swallows it only once the fifteen trading days from that climax are known and the bars
+    did not come back to both its rails in them (``poke_came_back``; his EXPD, Sat 18/10/2026): a poke that came
+    back is the box's own. The mirror for a fall is not built: on his WTS the base he drew came after such a
+    fall, and the hand-over to the fall's end is what reaches it. Returns that trend end, or None."""
     found = None
     for trend in trends:
         if trend["known_bar"] > day or trend.get("foot_bar") is None or trend["foot_bar"] > new.opening_bar:
             continue
         if (trend["kind"] == "BC") != shown.top_first:
             continue                    # a rise swallows a pair that opened on a top, a fall one on a low
+        if trend["kind"] == "BC" and high is not None and shown.birth_bar is not None \
+                and trend["climax_bar"] > shown.birth_bar \
+                and poke_came_back(shown, high, low, trend["climax_bar"], day) is not False:
+            continue                    # a run past the top of a box already born: not judged yet, or a poke
         if trend["start_bar"] < shown.opening_bar < trend["foot_bar"] and \
                 (found is None or trend["known_bar"] < found["known_bar"]):
             found = trend               # the one known first
@@ -524,9 +547,13 @@ def lives(pairs, trends, high, low, read_bar: int) -> tuple:
             # The day this pair would take the shown box's place: the day a trend end that swallowed the shown
             # pair was known (never before the pair is a box), or the first day the price has left for good.
             when = took = by = None
-            swallowed = inside_a_live_trend(shown, pair, trends, read_bar)
+            swallowed = inside_a_live_trend(shown, pair, trends, read_bar, high, low)
             if swallowed is not None:
                 when, took, by = max(int(pair.birth_bar), int(swallowed["known_bar"])), LIVE_TREND, swallowed
+                if swallowed["kind"] == "BC" and swallowed["climax_bar"] > int(shown.birth_bar):
+                    # A run past the top of a box already born is judged on the last of the fifteen days from
+                    # its top (``poke_came_back``, by then known): the rise takes the place no sooner.
+                    when = max(when, int(swallowed["climax_bar"]) + int(M.BOX_DAYS) - 1)
             left = left_for_good(shown, pair, high, low, day, read_bar)
             if left is not None and (when is None or left < when):
                 when, took, by = left, LEFT_FOR_GOOD, None

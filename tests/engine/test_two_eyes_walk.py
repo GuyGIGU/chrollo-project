@@ -203,6 +203,14 @@ _RUN_ABOVE_THEN_UNDER_THE_BOX = _BOX[:-1] + [(35, 94), (38, 88), (41, 93.5), (45
 _SPRING_INTO_THE_BOX_UNDER_IT = _BOX[:-1] + [(35, 94), (38, 88), (41, 93.5), (44, 88.4), (47, 93), (50, 88.8),
                                              (53, 92.6), (58, 70.6), (62, 93.2), (65, 88.4), (68, 93), (71, 88.6)]
 
+#: His EXPD (drawn Sat 17/10/2026): the box 80 / 70 is a box on bar 25. On bar 41 the price pokes to 82.2, a range
+#: over the resistance, and is back at the support on bar 44; the base goes on inside the box, and a push back to
+#: the poke's level on bar 53 (his SOS) makes 82.2 / 70.6 a box on bar 56. The far view folds the box's own swings
+#: away: to it ONE rise runs from the prefix's low to 82.2, and the box's top sits inside that rise.
+_POKE_OVER_A_BORN_BOX = _BOX + [(38, 71), (41, 82.2), (44, 70.6), (47, 79.4), (50, 70.8), (53, 81.6), (56, 71),
+                                (59, 79), (62, 70.9), (65, 79.2)]
+_POKE_FAR = {0, 1, 2, 3, 5, 6, 41, 44, 47, 50, 53, 56, 59, 62, 65}
+
 
 # --------------------------------------------------------------------------- #
 # His picture: respect is the nearness of a bar's high or low to a rail       #
@@ -710,6 +718,56 @@ def test_a_spring_under_a_box_that_opened_on_a_top_does_not_unmake_it():
     low_first = _pair(found, 77.0, 70.0)
     assert not low_first.top_first and fall["start_bar"] < low_first.opening_bar < fall["foot_bar"]
     assert walk.inside_a_live_trend(low_first, later, found.ends, chart["n"] - 1) is fall
+
+
+def test_a_poke_over_a_box_already_born_does_not_put_it_inside_a_live_trend():
+    """His EXPD (drawn Sat 17/10/2026, read Sat 18/10/2026): the box 189.99 / 185.02 (Mon 17/08 and Thu 20/08) was
+    a box on Fri 04/09; the poke to 194.59 on Tue 15/09, a range over the top, was back at the support on Fri 18/09,
+    and he kept the box through his SOS (Thu 01/10 to Mon 05/10) and his LPS (Tue 06/10 to Thu 08/10). The reader
+    hopped to 194.59 / 186.72 on Mon 05/10: the far view called the poke the end of a rise begun on Thu 30/07, before
+    the box opened, so the box read as "anchored inside a live trend". Sentences 8 and 9: a run past a rail never
+    unmakes a pair, and once a box it stays a box through pokes that come back. A rise whose climax printed AFTER
+    the box was born swallows nothing: the box was a box before the price ran past its top. The mirror is NOT
+    built: on his WTS the base he drew came after such a fall, and the hand-over to the fall's end is what reaches
+    it (measured Sat 18/10/2026: 26 / 10 / 4 on his sealed 40 with the rise side alone, WTS lost with both)."""
+    from engine_alpha.two_eyes import walk
+
+    chart = _chart(_POKE_OVER_A_BORN_BOX)
+    found = _elect(chart, _POKE_FAR)
+    rise = found.ends[1]
+    box, poke = _pair(found, 80.0, 70.0), _pair(found, 82.2, 70.6)
+    # The far view's rise ends on the poke and began before the box opened; the poke's pair is a box on bar 56.
+    assert (rise["kind"], rise["climax_price"], rise["climax_bar"], rise["start_bar"], rise["known_bar"]) == \
+        ("BC", 82.2, 41, 3, 48)
+    assert (box.opening_bar, box.birth_bar, poke.opening_bar, poke.birth_bar) == (11, 25, 41, 56)
+    assert rise["start_bar"] < box.opening_bar < rise["foot_bar"] <= poke.opening_bar and rise["climax_bar"] > box.birth_bar
+    # Not by the other rule either: the poke's pair lies across the box, not beyond it.
+    assert walk.left_for_good(box, poke, chart["high"], chart["low"], 0, chart["n"] - 1) is None
+    # The poke came back: within the fifteen days from its top the bars were back at the box's resistance (bar 43,
+    # on the way down) and at its support (bar 44). Judged once, on the last of those days; not before.
+    high, low = chart["high"], chart["low"]
+    assert walk.poke_came_back(box, high, low, 41, 54) is None
+    assert walk.poke_came_back(box, high, low, 41, 55) is True
+    # So the box stands: by the bars' geometry alone the rise swallows it, with the bars read it does not.
+    assert walk.inside_a_live_trend(box, poke, found.ends, chart["n"] - 1) is rise
+    assert walk.inside_a_live_trend(box, poke, found.ends, chart["n"] - 1, high, low) is None
+    assert _box(found) == (80.0, 70.0) and len(found.lives) == 1
+    assert _shown_day_by_day(chart, _POKE_FAR) == [(80.0, 70.0, 25)]
+    # A run that did NOT come back is the rise going on: the pause chart (his VLO) hands over as before, and no
+    # sooner than the last of the fifteen days from its top (bar 24 + 14 = 38, the day 80 / 68.5 is a box).
+    pause = _chart(_PAUSE_INSIDE_A_RISE)
+    found_pause = _elect(pause, _PAUSE_FAR)
+    assert walk.poke_came_back(_pair(found_pause, 70.0, 66.0), pause["high"], pause["low"], 24, 38) is False
+    assert _shown_day_by_day(pause, _PAUSE_FAR) == [(70.0, 66.0, 22), (80.0, 68.5, 38)]
+    # The mirror: the same chart upside down, the box opening on a low after a decline, the "poke" a dip under its
+    # support that the far view calls the decline's end. The fall still swallows it (his WTS).
+    mirrored = _chart([(bar, 160.0 - price) for bar, price in _POKE_OVER_A_BORN_BOX])
+    down = _elect(mirrored, _POKE_FAR)
+    low_box, dip = _pair(down, 90.0, 80.0), _pair(down, 89.4, 77.8)
+    fall = down.ends[1]
+    assert not low_box.top_first and fall["kind"] == "SC" and fall["climax_bar"] > low_box.birth_bar
+    assert walk.inside_a_live_trend(low_box, dip, down.ends, mirrored["n"] - 1, mirrored["high"], mirrored["low"]) is fall
+    assert _box(down) == (89.4, 77.8) and down.lives[-1].why == walk.LIVE_TREND
 
 
 def test_a_shown_line_moves_back_only_when_a_dip_came_back_read_day_by_day_with_no_memory():
