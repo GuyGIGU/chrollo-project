@@ -2046,38 +2046,54 @@ td {
 }
 
 .lens-daily-frame { position: relative; }
-/* "Fix the box" (Fri 17/10/2026, the window Sat 18/10/2026): while armed the daily pane takes a crosshair
-   pointer and a WINDOW over the pane's top-left corner (the old history; the setup sits at the right edge) holds every option as a button (his word: "give me
-   an interface, clicking the button makes a pop up window appear with all of the relevant options"): the
-   two lines, each event with what to click, the placed events as chips with a × (a span with a box for his
-   name), Save, Clear and close. His draft is drawn red by useBoxFix; the letters on the buttons are hints.
-   The saved fix's mark: one glyph, one word, the operator hue (the committed-marks token; never a tier
-   hue, never mythril). */
-.lens-daily-frame.is-fixing .lens-daily-canvas { cursor: crosshair; }
-.lens-fix-panel {
-  background: var(--lens-toolbar-bg, var(--bg-panel));
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+/* "Fix the box" (Fri 17/10/2026; the PAGE Sat 18/10/2026, his word: "more like a pop chart (like
+   calibration, a new page covers this one)"): the toolbar's button covers the lens with a page, the
+   daily chart big and a rail of buttons beside it (the box's two lines, the mini's two lines and
+   span, the events, what is placed with a x each), Save and Back in its head; the armed chart takes
+   a crosshair pointer; his draft is drawn red by useBoxFix. The saved fix's mark: one glyph, one
+   word, the operator hue (the committed-marks token; never a tier hue, never mythril). */
+.box-fix-page {
+  background: var(--bg-main);
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  position: absolute;
+  z-index: 4;
+}
+.box-fix-head {
+  align-items: center;
+  background: var(--lens-toolbar-bg);
+  border-bottom: 1px solid var(--border-color);
   color: var(--text-muted);
   display: flex;
+  flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  gap: 14px;
+  min-height: 52px;
+  padding: 8px 14px;
+}
+.box-fix-ticker { color: var(--text-main); font-family: 'JetBrains Mono', monospace; font-size: 20px; }
+.box-fix-reader { color: var(--text-muted); }
+.box-fix-acts { align-items: center; display: flex; gap: 8px; margin-left: auto; }
+.box-fix-body { display: flex; flex: 1; gap: 10px; min-height: 0; padding: 10px; }
+.box-fix-chart { flex: 1; min-width: 0; position: relative; }
+.box-fix-chart.is-armed .lens-daily-canvas { cursor: crosshair; }
+.box-fix-rail {
+  display: flex;
+  flex: 0 0 320px;
   flex-direction: column;
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-  gap: 6px;
-  max-height: calc(100% - 20px);
+  gap: 10px;
   overflow-y: auto;
-  padding: 10px 12px;
-  left: 10px;
-  position: absolute;
-  top: 10px;
-  width: 340px;
-  z-index: 3;
 }
-.lens-fix-panel-head { align-items: center; display: flex; justify-content: space-between; }
+.box-fix-group { display: flex; flex-direction: column; gap: 4px; }
+.box-fix-empty { color: var(--text-faint); }
+.box-fix-fixed { color: var(--operator); font-size: 11px; margin-top: auto; }
 .lens-fix-word { color: #e5484d; font-weight: 800; letter-spacing: 0.06em; }
 .lens-fix-prompt { color: var(--text-main); }
-.lens-fix-group-name { color: var(--text-faint); font-size: 10px; letter-spacing: 0.08em; margin-top: 6px; text-transform: uppercase; }
+.lens-fix-group-name { color: var(--text-faint); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
 .btn.lens-fix-option {
   align-items: flex-start;
   display: flex;
@@ -2091,15 +2107,12 @@ td {
   white-space: normal;
 }
 .btn.lens-fix-option[aria-pressed="true"] { border-color: #e5484d; color: #e5484d; }
-.lens-fix-option-name { flex-shrink: 0; font-weight: 700; }
-.lens-fix-option-name kbd { border: 1px solid var(--border-color); border-radius: 3px; font-family: inherit; font-size: 10px; margin-left: 4px; padding: 0 3px; }
+.lens-fix-option-name { font-weight: 700; }
 .lens-fix-option-how { color: var(--text-muted); font-size: 11px; }
 .lens-fix-events { display: flex; flex-wrap: wrap; gap: 6px; }
 .lens-fix-chip { align-items: center; border: 1px solid #e5484d; border-radius: 4px; color: var(--text-main); display: inline-flex; gap: 6px; padding: 1px 6px; }
 .lens-fix-chip-x { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
 .lens-fix-label { background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-main); font-family: inherit; font-size: 11px; padding: 0 4px; width: 120px; }
-.lens-fix-acts { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.lens-fix-saved { color: var(--success, #4ae38a); font-weight: 700; }
 .lens-fix-error { color: var(--danger, #ff7c87); }
 .lens-fixed-mark {
   border: 1px solid rgba(var(--operator-rgb), 0.45);

@@ -1,13 +1,14 @@
 import { LineSeries, createSeriesMarkers } from 'lightweight-charts';
-import { EVENT_TAG } from './boxFixEvents.js';
 
-// Draws one layer of a box fix on the live daily chart (Fri 17 and Sat 18/10/2026): his two lines
-// from their day to the chart's edge, and his events, each as a short line over its days at its
-// price (a mini as its two lines) with the event's letter as a marker on its first day. Every
-// series is returned so the caller can remove the layer without rebuilding the chart (a click
-// must never cost his zoom). The in-flight draft wears the calibration red; a SAVED fix wears the
-// operator colour (CHART_COLORS.operator, the committed-marks hue), over the reader's read and
-// never in its place.
+// Draws one layer of a box fix on a live daily chart (Fri 17 and Sat 18/10/2026): his two lines
+// from their day to the chart's edge, any lone line (a mini with one line so far), and his events,
+// each as a short line over its days at its price (a mini as its two lines) with the event's word
+// as a marker on its first day. Every series is returned so the caller can remove the layer
+// without rebuilding the chart (a click must never cost his zoom). The in-flight draft wears the
+// calibration red; a SAVED fix wears the operator colour (CHART_COLORS.operator, the
+// committed-marks hue), over the reader's read and never in its place.
+const MARK = { spring: 'spring', upthrust: 'UT', sos: 'SOS', lps: 'LPS', former_lps: 'former LPS', span: 'span', mini: 'mini' };
+
 const lineOptions = (color, lineWidth) => ({
   color, lineWidth, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
 });
@@ -32,12 +33,14 @@ const add = (chart, options, points, out) => {
   }
 };
 
-// `fix` is { r, rDay, s, sDay, events }: the rails may be absent (an event placed before a line),
-// the events empty. Returns the series drawn.
+// `fix` is { r, rDay, s, sDay, events, lines }: the rails may be absent (an event placed before a
+// line), `lines` is a list of [day, price] drawn from that day to the edge, the events may be empty.
+// Returns the series drawn.
 export function drawFixLayer(chart, candles, fix, color, { lastValueVisible = false } = {}) {
   const out = [];
   if (!chart || !candles?.length || !fix) return out;
-  for (const [day, price] of [[fix.rDay, fix.r], [fix.sDay, fix.s]]) {
+  const edgeLines = [[fix.rDay, fix.r], [fix.sDay, fix.s], ...(fix.lines || [])];
+  for (const [day, price] of edgeLines) {
     if (price == null || !day) continue;
     add(chart, { ...lineOptions(color, 2), lastValueVisible }, fromDay(candles, day, price), out);
   }
@@ -53,9 +56,9 @@ export function drawFixLayer(chart, candles, fix, color, { lastValueVisible = fa
     try {
       createSeriesMarkers(carrier, [{
         time: event.first_day, position: event.kind === 'upthrust' ? 'aboveBar' : 'belowBar', shape: 'circle', color,
-        text: EVENT_TAG[event.kind] ?? '?',
+        text: MARK[event.kind] ?? '?',
       }]);
-    } catch { /* the letter is decoration */ }
+    } catch { /* the word is decoration */ }
   }
   return out;
 }

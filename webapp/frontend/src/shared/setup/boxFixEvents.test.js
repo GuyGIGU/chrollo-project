@@ -2,8 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  EMPTY_EVENTS, EVENT_KINDS, EVENT_TAG, applyEventClick, armEvent, eventPrompt, eventWords, eventsPayload,
-  labelEvent, removeEvent,
+  EMPTY_EVENTS, EVENT_KINDS, TOOLS, TOOL_NAMES, TOOL_HOW, allEvents, applyToolClick, armTool, eventWords, eventsPayload,
+  labelEvent, miniEvent, removeEvent, removeMiniPart, toolPrompt,
 } from './boxFixEvents.js';
 
 // His AAPL: the spring's tip Thu 01/10 (low 325.81), THE SOS launching Mon 12/10 and topping Tue 13/10
@@ -17,57 +17,66 @@ const candles = [
   { time: '2026-10-16', open: 346.09, high: 347.82, low: 340.46, close: 343.46 },
 ];
 const bar = (day) => candles.find((c) => c.time === day);
-const click = (day, price) => ({ date: day, bar: bar(day), price: price ?? (bar(day).high + bar(day).low) / 2 });
+const click = (day) => ({ date: day, bar: bar(day), price: (bar(day).high + bar(day).low) / 2 });
+const place = (state, tool, ...days) => days.reduce((now, day) => applyToolClick(now, click(day), candles), armTool(state, tool));
 
-test('the vocabulary is his seven, each with a letter', () => {
+test('the vocabulary is his seven, and every tool has a name and a how', () => {
   assert.deepEqual(EVENT_KINDS, ['spring', 'upthrust', 'sos', 'lps', 'former_lps', 'span', 'mini']);
-  assert.deepEqual(Object.keys(EVENT_TAG).sort(), [...EVENT_KINDS].sort());
-  assert.equal(new Set(Object.values(EVENT_TAG)).size, 7, 'no two events share a letter');
+  assert.deepEqual(TOOLS, ['rail-r', 'rail-s', 'mini-r', 'mini-s', 'mini-span', 'spring', 'upthrust', 'sos', 'lps', 'former_lps', 'span']);
+  for (const tool of TOOLS) assert.ok(TOOL_NAMES[tool] && TOOL_HOW[tool], tool);
 });
 
-test('a letter arms its event, the same letter disarms, an unknown word arms nothing', () => {
-  const armed = armEvent(EMPTY_EVENTS, 'spring');
+test('a button arms its tool, the same button disarms, an unknown word arms nothing', () => {
+  const armed = armTool(EMPTY_EVENTS, 'spring');
   assert.equal(armed.tool, 'spring');
-  assert.equal(armEvent(armed, 'spring').tool, null);
-  assert.equal(armEvent(armed, 'lps').tool, 'lps');
-  assert.equal(armEvent(EMPTY_EVENTS, 'creek').tool, null);
-  assert.equal(applyEventClick(EMPTY_EVENTS, click('2026-10-01'), candles), EMPTY_EVENTS, 'no tool: nothing moves');
+  assert.equal(armTool(armed, 'spring').tool, null);
+  assert.equal(armTool(armed, 'lps').tool, 'lps');
+  assert.equal(armTool(EMPTY_EVENTS, 'creek').tool, null);
+  assert.equal(applyToolClick(EMPTY_EVENTS, click('2026-10-01'), candles), EMPTY_EVENTS, 'no tool: nothing moves');
 });
 
 test('a spring is one click on its tip, an upthrust one click on its top, and the tool disarms', () => {
-  const spring = applyEventClick(armEvent(EMPTY_EVENTS, 'spring'), click('2026-10-01'), candles);
+  const spring = place(EMPTY_EVENTS, 'spring', '2026-10-01');
   assert.deepEqual(spring.events, [{ kind: 'spring', first_day: '2026-10-01', last_day: '2026-10-01', price: 325.81, band_high: null, band_low: null, label: null }]);
   assert.equal(spring.tool, null);
-  const up = applyEventClick(armEvent(spring, 'upthrust'), click('2026-10-13'), candles);
+  const up = place(spring, 'upthrust', '2026-10-13');
   assert.equal(up.events[1].price, 348.15);
   assert.equal(up.events[1].kind, 'upthrust');
 });
 
 test('the SOS is the launch low then the top, in either order; an LPS is its first and last day at the lowest low', () => {
-  let state = armEvent(EMPTY_EVENTS, 'sos');
-  state = applyEventClick(state, click('2026-10-13'), candles);
+  let state = armTool(EMPTY_EVENTS, 'sos');
+  state = applyToolClick(state, click('2026-10-13'), candles);
   assert.equal(state.anchor.date, '2026-10-13');
-  assert.equal(eventPrompt(state), 'launch 13/10: now click the SOS top');
-  state = applyEventClick(state, click('2026-10-12'), candles);
+  assert.equal(toolPrompt(state), 'launch 13/10: now click the SOS top');
+  state = applyToolClick(state, click('2026-10-12'), candles);
   assert.deepEqual(state.events, [{ kind: 'sos', first_day: '2026-10-12', last_day: '2026-10-13', price: 348.15, band_high: null, band_low: null, label: null }]);
-  state = applyEventClick(applyEventClick(armEvent(state, 'lps'), click('2026-10-16'), candles), click('2026-10-14'), candles);
+  state = place(state, 'lps', '2026-10-16', '2026-10-14');
   assert.deepEqual(state.events[1], { kind: 'lps', first_day: '2026-10-14', last_day: '2026-10-16', price: 340.46, band_high: null, band_low: null, label: null });
-  state = applyEventClick(applyEventClick(armEvent(state, 'former_lps'), click('2026-10-12'), candles), click('2026-10-12'), candles);
+  state = place(state, 'former_lps', '2026-10-12', '2026-10-12');
   assert.equal(state.events[2].first_day, state.events[2].last_day, 'a one-day stretch is allowed');
 });
 
-test('the mini takes two corners, each snapping to the nearer end of its bar, the higher one its resistance', () => {
-  let state = armEvent(EMPTY_EVENTS, 'mini');
-  state = applyEventClick(state, click('2026-10-14', 347.9), candles);   // near the high 348.0
-  assert.equal(state.anchor.snapped, 348.0);
-  state = applyEventClick(state, click('2026-10-16', 340.6), candles);   // near the low 340.46
-  assert.deepEqual(state.events, [{ kind: 'mini', first_day: '2026-10-14', last_day: '2026-10-16', price: null, band_high: 348.0, band_low: 340.46, label: null }]);
-  const flat = applyEventClick(applyEventClick(armEvent(EMPTY_EVENTS, 'mini'), click('2026-10-14', 347.9), candles), click('2026-10-14', 347.95), candles);
-  assert.deepEqual(flat.events, [], 'two corners on one price are no mini: the first is dropped');
+test('the mini works like the box: Mini resistance on a high, Mini support on a low, its own span, else the earlier line to the edge', () => {
+  let state = place(EMPTY_EVENTS, 'mini-r', '2026-10-14');
+  assert.deepEqual(state.mini, { r: 348.0, rDay: '2026-10-14', s: null, sDay: null, spanStart: null, spanEnd: null });
+  assert.equal(miniEvent(state.mini, '2026-10-16'), null, 'one line is no mini');
+  state = place(state, 'mini-s', '2026-10-15');
+  assert.deepEqual(miniEvent(state.mini, '2026-10-16'), { kind: 'mini', first_day: '2026-10-14', last_day: '2026-10-16', price: null, band_high: 348.0, band_low: 341.8, label: null });
+  state = place(state, 'mini-span', '2026-10-15', '2026-10-13');
+  assert.deepEqual(state.mini, { r: 348.0, rDay: '2026-10-14', s: 341.8, sDay: '2026-10-15', spanStart: '2026-10-13', spanEnd: '2026-10-15' });
+  assert.equal(miniEvent(state.mini, '2026-10-16').first_day, '2026-10-13');
+  assert.equal(miniEvent(state.mini, '2026-10-16').last_day, '2026-10-15');
+  assert.equal(allEvents(state, '2026-10-16').length, 1, 'the mini rides with the events');
+  assert.deepEqual(removeMiniPart(state, 'span').mini, { ...state.mini, spanStart: null, spanEnd: null });
+  assert.equal(removeMiniPart(state, 'r').mini.r, null);
+  // Crossed lines: the Support click on a bar whose low sits over the Resistance click's high.
+  const crossed = place(place(EMPTY_EVENTS, 'mini-r', '2026-10-01'), 'mini-s', '2026-10-14');
+  assert.deepEqual([crossed.mini.r, crossed.mini.rDay, crossed.mini.s, crossed.mini.sDay], [343.1, '2026-10-14', 333.0, '2026-10-01']);
 });
 
 test('a span keeps his label, an event can be removed, and the payload is the list as a whole', () => {
-  let state = applyEventClick(applyEventClick(armEvent(EMPTY_EVENTS, 'span'), click('2026-10-12'), candles), click('2026-10-15'), candles);
+  let state = place(EMPTY_EVENTS, 'span', '2026-10-12', '2026-10-15');
   state = labelEvent(state, 0, ' the dull middle ');
   assert.equal(eventWords(state.events[0]), 'span 12/10–15/10 337.60 "the dull middle"');
   assert.deepEqual(eventsPayload(state.events), [{ kind: 'span', first_day: '2026-10-12', last_day: '2026-10-15', price: 337.6, band_high: null, band_low: null, label: 'the dull middle' }]);
@@ -76,11 +85,12 @@ test('a span keeps his label, an event can be removed, and the payload is the li
   assert.equal(eventWords({ kind: 'mini', first_day: '2026-10-14', last_day: '2026-10-16', band_high: 348, band_low: 340.46 }), 'mini 14/10–16/10 348.00/340.46');
 });
 
-test('the strip tells him the next click', () => {
-  assert.equal(eventPrompt(EMPTY_EVENTS), null);
-  assert.equal(eventPrompt(armEvent(EMPTY_EVENTS, 'spring')), "click the spring's tip: the bar whose low poked under support");
-  assert.equal(eventPrompt(armEvent(EMPTY_EVENTS, 'former_lps')), 'click the first day of the former LPS');
-  assert.equal(eventPrompt(armEvent(EMPTY_EVENTS, 'mini')), 'click one corner of the mini');
-  const half = applyEventClick(armEvent(EMPTY_EVENTS, 'lps'), click('2026-10-14'), candles);
-  assert.equal(eventPrompt(half), '14/10: now click the last day of the LPS');
+test('the page tells him the next click', () => {
+  assert.equal(toolPrompt(EMPTY_EVENTS), null);
+  assert.equal(toolPrompt(armTool(EMPTY_EVENTS, 'spring')), 'click its tip: the bar whose low poked under support');
+  assert.equal(toolPrompt(armTool(EMPTY_EVENTS, 'former_lps')), 'click the first day of the former LPS');
+  assert.equal(toolPrompt(armTool(EMPTY_EVENTS, 'mini-span')), "click the mini's first day");
+  assert.equal(toolPrompt(armTool(EMPTY_EVENTS, 'mini-r')), "click the mini's top bar: the line lands on its high");
+  const half = applyToolClick(armTool(EMPTY_EVENTS, 'lps'), click('2026-10-14'), candles);
+  assert.equal(toolPrompt(half), '14/10: now click the last day of the LPS');
 });

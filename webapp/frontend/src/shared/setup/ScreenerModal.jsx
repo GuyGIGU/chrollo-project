@@ -7,10 +7,9 @@ import TimeframeMainChart from '../charts/TimeframeMainChart';
 import useDailyStructureChart from '../charts/useDailyStructureChart';
 import ScreenerModalToolbar from './ScreenerModalToolbar';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
-import { readerPair } from './boxFix';
-import BoxFixPanel from './BoxFixPanel';
+import BoxFixPage from './BoxFixPage';
 import { lensKeyAction } from './lensActions';
-import useBoxFix from './useBoxFix';
+import useFixedBox from './useFixedBox';
 import { htfStateLabel } from './screenerCardData';
 
 // The lens's skin (Thu 16/10/2026): 'dark' (the app's own colors, lifted inside the lens: the default he kept)
@@ -109,42 +108,32 @@ const ScreenerModal = ({
   }, [ticker]);
 
   // The daily is drawn wherever its pane sits (big, or in the side column): the slot word rebuilds it there.
-  // "Fix the box" (Fri 17/10/2026): the chart hands its clicks to the fix through clickRef while it is armed.
-  const clickRef = useRef(null);
-  const daily = useDailyStructureChart(chartContainerRef, ticker, data, activeRegion, interval === 'D' ? 'main' : 'side', skin, clickRef);
+  const daily = useDailyStructureChart(chartContainerRef, ticker, data, activeRegion, interval === 'D' ? 'main' : 'side', skin);
+  // "Fix the box" (Fri 17/10/2026; the page Sat 18/10/2026): the toolbar's button (or B) covers the lens with the
+  // fix page; the fix saved before is drawn on this chart in the operator colour and named in the toolbar.
+  const [fixing, setFixing] = useState(false);
+  const fixingRef = useRef(false);
+  fixingRef.current = fixing;
   const canFix = Boolean(data?.two_eyes) && (data?.candles?.length ?? 0) > 0;
-  const fix = useBoxFix(ticker, data, scanIdentity, daily.chartRef, clickRef);
-  const reader = readerPair(data);
+  const fixedBox = useFixedBox(ticker, data, daily.chartRef);
+  useEffect(() => { setFixing(false); }, [ticker]);
 
-  // F flips the page, as it flips a card; only where there is a second page to flip to. While the fix is
-  // armed the letters place his events instead (Sat 18/10/2026): S U O L F P M arm one, Escape drops it.
-  const { armed: fixing, tool: fixTool, arm: armFixEvent } = fix;
-  const fixToolRef = useRef(null);
-  fixToolRef.current = fixing ? fixTool : null;
+  // F flips the page, as it flips a card; only where there is a second page to flip to.
   useEffect(() => {
+    if (!hasSheet) return undefined;
     const onKey = (event) => {
-      if (event.key === 'Escape' && fixToolRef.current) {
-        event.preventDefault();
-        armFixEvent(null);
-        return;
-      }
-      const action = lensKeyAction(event, { fixing });
-      if (action?.startsWith('event:')) {
-        event.preventDefault();
-        armFixEvent(action.slice('event:'.length));
-      } else if (action === 'fundamentals' && hasSheet) {
-        event.preventDefault();
-        setPage((now) => (now === 'read' ? 'fundamentals' : 'read'));
-      }
+      if (fixingRef.current || lensKeyAction(event) !== 'fundamentals') return;
+      event.preventDefault();
+      setPage((now) => (now === 'read' ? 'fundamentals' : 'read'));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hasSheet, fixing, armFixEvent]);
+  }, [hasSheet]);
 
-  // Escape closes the lens from every mount (not all parents wire it); with an event armed it only drops the event.
+  // Escape closes the lens from every mount (not all parents wire it); while the fix page is up it is the page's.
   useEffect(() => {
     const onKey = (event) => {
-      if (fixToolRef.current) return;
+      if (fixingRef.current) return;
       if (event.key === 'Escape') onClose?.();
     };
     window.addEventListener('keydown', onKey);
@@ -154,10 +143,9 @@ const ScreenerModal = ({
   const paneCanvas = (tf, big) => {
     if (tf === 'D') {
       return (
-        <div className={fix.armed ? 'lens-daily-frame is-fixing' : 'lens-daily-frame'}>
+        <div className="lens-daily-frame">
           <div ref={chartContainerRef} className="lens-daily-canvas" />
           <ChartZoomControls chartRef={daily.chartRef} onHome={daily.home} />
-          {fix.armed && <BoxFixPanel fix={fix} reader={reader} />}
         </div>
       );
     }
@@ -212,6 +200,7 @@ const ScreenerModal = ({
           maxWidth: 1760,
           minHeight: 0,
           overflow: 'hidden',
+          position: 'relative',
         }}
         onClick={event => event.stopPropagation()}
       >
@@ -232,10 +221,22 @@ const ScreenerModal = ({
           onToggleSkin={toggleSkin}
           ticker={ticker}
           watchlisted={watchlisted}
-          fixing={fix.armed}
-          onToggleFix={canFix ? fix.toggle : undefined}
-          fixedSummary={fix.fixed?.summary ?? null}
+          fixing={fixing}
+          onToggleFix={canFix ? () => setFixing((now) => !now) : undefined}
+          fixedSummary={fixedBox.fixed?.summary ?? null}
         />
+        {/* The fix page covers the lens (Sat 18/10/2026, "a new page covers this one"); Save or Back returns here. */}
+        {fixing && (
+          <BoxFixPage
+            data={data}
+            fixed={fixedBox.fixed}
+            onClose={() => setFixing(false)}
+            onSaved={(fix) => { fixedBox.setFixed(fix); setFixing(false); }}
+            scanIdentity={scanIdentity}
+            skin={skin}
+            ticker={ticker}
+          />
+        )}
         {/* THE LENS IS TWO BLOCKS (operator, Fri 17/10/2026): the CHART block — the three panes laid out
             as his TradingView (monthly over weekly in a side column, the daily big) with the grade board,
             the phases over their events, right under them in the SAME card, so the chart and the

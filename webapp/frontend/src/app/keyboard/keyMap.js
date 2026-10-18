@@ -44,23 +44,6 @@ export const KEY_SECTIONS = [
     ],
   },
   {
-    // While "fix the box" is armed (Sat 18/10/2026): the letters place his events on the daily chart;
-    // L and F are the like and the page only outside the fix.
-    id: 'lens-fix',
-    title: 'Big chart, while fixing the box',
-    routes: ['/', '/home', '/screener', '/archive'],
-    rows: [
-      { keys: ['s'], does: 'Spring: click its tip' },
-      { keys: ['u'], does: 'Upthrust: click its top' },
-      { keys: ['o'], does: 'SOS: click the launch low, then the top' },
-      { keys: ['l'], does: 'LPS: click its first and last day' },
-      { keys: ['f'], does: 'Former LPS: click its first and last day' },
-      { keys: ['p'], does: 'Span: click its first and last day, then name it' },
-      { keys: ['m'], does: 'Mini: click two corners' },
-      { keys: ['Escape'], does: 'Drop the armed event' },
-    ],
-  },
-  {
     // Stepping and the star/heart are the Screener grid's: only it hands the lens a list and its lists.
     id: 'lens-screener',
     title: 'Big chart on the Screener',

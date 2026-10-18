@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { LENS_ACTION_KEYS, LENS_EVENT_KEYS, lensKeyAction, tradingViewUrl } from './lensActions.js';
+import { LENS_ACTION_KEYS, lensKeyAction, tradingViewUrl } from './lensActions.js';
 
 const ev = (over = {}) => ({
   key: 'w', repeat: false, target: { tagName: 'DIV' },
@@ -20,19 +20,6 @@ test('W, L, T, F and B map to the five acts, in either case', () => {
   assert.equal(lensKeyAction(ev({ key: 'F', shiftKey: true })), 'fundamentals');
   assert.equal(lensKeyAction(ev({ key: 'b' })), 'fixbox');
   assert.deepEqual(Object.values(LENS_ACTION_KEYS).sort(), ['fixbox', 'fundamentals', 'like', 'tradingview', 'watch']);
-});
-
-test('while the fix is armed, S U O L F P M place his events and L / F are not the like and the page', () => {
-  assert.deepEqual(LENS_EVENT_KEYS, { s: 'event:spring', u: 'event:upthrust', o: 'event:sos', l: 'event:lps', f: 'event:former_lps', p: 'event:span', m: 'event:mini' });
-  for (const [key, action] of Object.entries(LENS_EVENT_KEYS)) {
-    assert.equal(lensKeyAction(ev({ key }), { fixing: true }), action, key);
-    assert.equal(lensKeyAction(ev({ key: key.toUpperCase(), shiftKey: true }), { fixing: true }), action, key.toUpperCase());
-  }
-  assert.equal(lensKeyAction(ev({ key: 'l' }), { fixing: false }), 'like', 'outside the fix L likes');
-  assert.equal(lensKeyAction(ev({ key: 'f' })), 'fundamentals', 'outside the fix F flips the page');
-  assert.equal(lensKeyAction(ev({ key: 'b' }), { fixing: true }), 'fixbox', 'B still leaves the fix');
-  assert.equal(lensKeyAction(ev({ key: 'w' }), { fixing: true }), 'watch', 'W still stars');
-  assert.equal(lensKeyAction(ev({ key: 's', repeat: true }), { fixing: true }), null, 'a held S places nothing');
 });
 
 test('a held key does not repeat the act (holding W must not flicker the star)', () => {

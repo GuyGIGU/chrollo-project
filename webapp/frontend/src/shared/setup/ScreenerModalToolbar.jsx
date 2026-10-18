@@ -64,11 +64,10 @@ function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
 // W / L / T while the lens is open (operator 2026-10-03, suggestion #1): the
 // same acts as the top bar's buttons, and only where that button is drawn, so W
 // in a lens with no star does nothing.
-function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing) {
+function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix) {
   useEffect(() => {
     const onKey = (event) => {
-      // While the fix is armed L and F name his events (the lens handles them), never the like or the page.
-      const action = lensKeyAction(event, { fixing });
+      const action = lensKeyAction(event);
       if (action === 'watch' && onToggleWatchlist) onToggleWatchlist(ticker);
       else if (action === 'like' && onToggleLike) onToggleLike(ticker);
       else if (action === 'tradingview') window.open(tradingViewUrl(ticker), '_blank', 'noopener,noreferrer');
@@ -78,7 +77,7 @@ function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix,
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing]);
+  }, [ticker, onToggleWatchlist, onToggleLike, onToggleFix]);
 }
 
 export default function ScreenerModalToolbar({
@@ -87,7 +86,7 @@ export default function ScreenerModalToolbar({
   fixing = false, onToggleFix, fixedSummary = null,
 }) {
   const changePct = dailyChangeFrac(data?.candles);
-  useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix, fixing);
+  useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix);
   return (
     <header style={{
       alignItems: 'center',
@@ -186,7 +185,7 @@ export default function ScreenerModalToolbar({
             aria-pressed={Boolean(fixing)}
             aria-label="Fix the box"
             aria-keyshortcuts="B"
-            title={fixing ? 'The fix window is open: close it (B)' : 'Fix the box: open the window with the two lines and the events (B)'}
+            title={fixing ? 'Back to the chart (B)' : 'Fix the box: open the fix page over this chart (B)'}
             onClick={onToggleFix}
           >
             {fixing ? 'fixing the box' : 'fix the box'}
