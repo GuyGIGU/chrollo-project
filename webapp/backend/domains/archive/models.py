@@ -450,6 +450,7 @@ class SetupArchive(Base):
     # The LPS pullback's volume against the 50-day average (his word Mon
     # 12/10/2026, option A): a fact, never a gate or a point.
     two_eyes_lps_volume_ratio = Column(Float, nullable=True)
+    two_eyes_clarity_json = Column(Text, nullable=True)
 
     # ── Power-Play species family — RETIRED with the species lane (the final
     # method, build step 12, point 25, Sat 19/09/2026). The columns stay for

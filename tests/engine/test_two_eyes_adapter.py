@@ -271,6 +271,8 @@ SPENT_RULESETS = (
     "two-eyes-0.9.2-test",
     "two-eyes-0.9.3-poke",
     "two-eyes-0.9.4-far-rail",
+    "two-eyes-0.9.5-mini-height",
+    "two-eyes-0.10.0-clarity",
 )
 
 

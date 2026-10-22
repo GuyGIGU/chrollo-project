@@ -1059,7 +1059,10 @@ def test_read_fills_the_record_from_the_walk():
     final, beside = state_word.decide(result, word, high, low, len(prepared) - 1)
     assert (read.boxes, read.lps, read.trail, read.state) == \
         (boxes, the_lps, trail + said + told + grade.record(graded), final)
-    assert read.state_days == beside and read.grade == graded
+    from dataclasses import replace
+
+    assert read.state_days == beside and replace(read.grade, clarity=None) == graded
+    assert read.grade.clarity["facts"]["base_start"] == days[won.opening_bar].isoformat()
     assert read.events == events and [s.stage for s in told] == [story.STAGE]
     assert read.parent is not None and len(said) == 1 and word in (lps.FIRED, lps.CROSSED, lps.LINES_NO_LPS)
     # The LPS against the mini (task 13) when the mini became a box only after the pullback ended: the read says

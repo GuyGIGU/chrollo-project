@@ -1,32 +1,14 @@
-"""The two-eyes reader — his method, read in his order, beside the old engine.
+"""The two-eyes chart reader.
 
-Task 5 of the two-eyes-reader build: the walking skeleton. Today this answers
-"no lines" for every chart in the world, and that is the whole point. It
-travels the entire route the old reader's answer travels — the door, the
-adapter, the archive row, the wire, the screen and the board — so that when
-stages 1 to 7 fill it in, nothing downstream changes shape again.
+Build one shared swing line, walk the parent and mini boxes, read the LPS and
+its trigger, then add the story, grade and state word to the read record.
 
-**It is a leaf.** This package imports nothing from the old chart reader
-(`engine_alpha.evaluation`, `engine_alpha.structure`, `engine_alpha.scoring`),
-and a test proves it. The proven pieces arrive later by COPY (task 7), with
-their own tests, and the originals freeze. Growing the new inside the old is
-how the last three attempts ended up measuring the old engine wearing a new
-name.
-
-The order the stages will fill in is his, not the old engine's:
-
-    the bars -> one swing line -> the end of the trend -> the two lines,
-    found by walking right like two legs -> the box's life -> the story left
-    to right -> the LPS and its trigger -> the grade and the state word
-
-Built so far: every stage. Stages 1 to 4 and 6 — the core, the box and the
-LPS, which his ruling of Sat 26/09/2026 put first; then the story (stage 5,
-task 12b), the mini (task 13) and the grade (stage 7, task 14).
-
-Reading order for the next session: `record.py` is the shape everything is
-built against; `frame.py` is what a chart must be before it is read.
+Clarity facts are measured beside the integrity read. The adapter's scoring
+seam composes the technical grade for scan, archive and screen.
 """
 from __future__ import annotations
+
+from dataclasses import replace
 
 from engine_alpha.two_eyes import grade as grade_stage
 from engine_alpha.two_eyes import lps
@@ -87,14 +69,13 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         # guard: the record cuts every day on the way in and raises on
         # anything else, and that raise must arrive as a counted failure.
         as_of = _as_day(as_of)
-        # Stage 1 (task 8): the contract, each day's range on the long frame,
+        # Stage 1: the contract, each day's range on the long frame,
         # the cut to the reading window, and the ONE line every later stage
         # reads. Built here, once per read, and handed down; a stage that
         # rebuilt it could read a different line from the same bars.
         prepared = prepare(df)
         line = build_line(prepared)
-        # Stages 2 to 4 (rebuilt Thu 01/10/2026 on the rule of the pair he
-        # settled): the swings' end points, every end of a trend the far view
+        # Stages 2 to 4: the swings' end points, every end of a trend the far view
         # shows, every pair of ends a swing connects, the first to become a
         # box, and the box's life — it gives way only to a pair that opened
         # later, when it was anchored inside a live trend or the price left
@@ -108,10 +89,10 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         found = walk.elect(line.committed, [t for t in far if t.committed], ranges, high, low,
                            days=days, read_bar=len(prepared) - 1)
         boxes, trail, state = walk.record(found, keep_listing=keep_listing)
-        # The mini (task 13): a second box inside the parent's right side, read
+        # The mini: a second box inside the parent's right side, read
         # with the walk's own functions and put on the record LAST, after the
-        # walk's (earlier..., parent). Its guard is the INVERSE of the story's:
-        # a fault here leaves the parent-only read standing with a step that
+        # walk's (earlier..., parent). A fault here leaves the parent-only
+        # read standing with a step that
         # says why, never `crashed`, because by his ruling the LPS may be read
         # against the mini (stage 6), so a bug in the mini must never cost a
         # fire.
@@ -125,14 +106,14 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                     boxes, trail = boxes + (mini_box,), trail + (step,)
             except Exception as exc:                  # the parent-only read stands; the trail says why
                 mini_box, mini_pair, trail = None, None, trail + mini.could_not_be_read(exc)
-        # Stage 6 (task 12a): the last run of receding days against the box
+        # Stage 6: the last run of receding days against the box
         # shown, its trigger at the last day's high, refused only by his four
         # sentences. Read on the bars' highs and lows: no close decides it.
         pullback = None
         if found.winner is not None:
             pullback = lps.read(high, low, ranges, line.committed, R=found.winner.R, S=found.winner.S,
                                 box_unit=found.winner.unit, born_bar=found.winner.birth_bar)
-        # The LPS against the mini (task 13), on his condition: when the
+        # The LPS against the mini, on his condition: when the
         # pullback's low is in, on or near the mini (the mini's own area), it
         # is measured again against the mini's lines and stamped with which
         # box and how; its window and trigger are the bars' and do not move.
@@ -142,7 +123,7 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         against, how, extra = ROLE_PARENT, None, ()
         parent_pullback = pullback
         if pullback is not None and mini_pair is not None:
-            try:                                      # the chooser is the mini's side too (verify-13, P2)
+            try:                                      # the chooser is the mini's side too
                 against, how = mini.lps_box(pullback.low, mini_pair)
                 if against == ROLE_MINI:
                     inner = lps.read(high, low, ranges, line.committed, R=mini_pair.R, S=mini_pair.S,
@@ -167,7 +148,7 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
             the_lps, said, word = lps.record(parent_pullback, days, read_bar=len(prepared) - 1)
             extra = extra + (Step("LPS", f"the LPS record against the mini could not be made: {type(exc).__name__}: "
                                          f"{exc}; read against the parent"),)
-        # The archive tie (deferred from build task 6): "mini" is said only
+        # The archive tie: "mini" is said only
         # with a stored mini. The mini's pair and its box are set together, so
         # this cannot happen by construction; if it ever does, the parent's
         # read stands, with a sentence — inside the guard, never a raise on
@@ -177,7 +158,7 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
             extra = extra + (Step("LPS", "the LPS was read against the mini but no mini box is on the record: "
                                          "read against the parent"),)
         trail, state = trail + said + extra, word or state
-        # Stage 5 (task 12b): the story, the words the drawing printed against the box shown. It runs AFTER the
+        # Stage 5: the story, the words the drawing printed against the box shown. It runs AFTER the
         # fire is decided and inside its own guard: a word never costs a fire, a bug in a word rule included.
         # It reads the whole line (the forming turn is what makes a word provisional), the box shown and no
         # earlier box, and the pullback stage 6 measured.
@@ -191,7 +172,7 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                 trail = trail + story.record(events)
             except Exception as exc:                  # the read stands; the words are missing; the trail says why
                 events, trail = (), trail + story.could_not_be_read(exc)
-        # Stage 7 (task 14): the grade — his dead space on the setup's box (the parent) and whether the base held.
+        # Stage 7: the grade — his dead space on the setup's box (the parent) and whether the base held.
         # After the story, because the swings it forgives are the story's own events, and in its own guard: a grade
         # never costs a fire, a bug in a grade rule included.
         the_grade = None
@@ -200,10 +181,15 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                 the_grade = grade_stage.read(high, low, days, line.committed, events, R=found.winner.R,
                                              S=found.winner.S, unit=found.winner.unit,
                                              opening_bar=found.winner.opening_bar, read_bar=len(prepared) - 1)
+                from engine_alpha.two_eyes.clarity import measure
+
+                facts = measure(line, events, days, R=found.winner.R, S=found.winner.S,
+                                opening_bar=found.winner.opening_bar, read_bar=len(prepared) - 1)
+                the_grade = replace(the_grade, clarity={"facts": facts})
                 trail = trail + grade_stage.record(the_grade)
             except Exception as exc:                  # the read stands; the grade is missing; the trail says why
                 the_grade, trail = None, trail + grade_stage.could_not_be_read(exc)
-        # The state word (task 12b), decided LAST and in its own guard: `fired` and `crossed` are final; with no
+        # The state word, decided LAST and in its own guard: `fired` and `crossed` are final; with no
         # fire and no cross the right edge is read (bars wholly past a line's area), and with no box a young pair
         # the bars came back to is `forming N of 15`. A decision that falls over leaves the word above standing.
         state_days = None

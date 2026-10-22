@@ -1,26 +1,12 @@
-"""What a read of a chart IS — the record the whole rewrite fills in.
+"""The shared record of a two-eyes chart read.
 
-Task 5 of the two-eyes-reader build. Every later stage turns a field here from
-empty to answered; none of them may change its SHAPE, because the adapter, the
-archive row and the screen are all built against this from the first commit.
-That is the point of writing it while it is still empty.
+A read carries concurrent parent and mini boxes, earlier boxes, dated rail
+anchors, the LPS and which box it used, and the trail explaining the read.
+The adapter, archive and screen share this contract. The mini belongs to the
+same setup as its parent and keeps its own rails (operator ruling,
+20/09/2026); the two boxes do not replace one another.
 
-The shape follows his method, not the old engine's:
-
-* a read holds a LIST of boxes, not one. The mini is a second box that lives
-  at the same time as its parent — his ruling of Sun 20/09/2026, "if you are
-  reffering to mini consolidations then both boxes live, they are a part of
-  the same setup" — and the walk also passes boxes it considered and left
-  behind, which is what `earlier` is for.
-* a box carries the DAY each line was anchored, not just the price. A price
-  alone cannot be redrawn once the window slides, and "did the engine open on
-  his day" is unanswerable without it.
-* the LPS says which box it was read against. With two live boxes, "the last
-  run of receding days" is ambiguous until you say receding INSIDE WHAT.
-* the trail is how the winner was chosen. He asked to see why, not just what,
-  so it rides every read rather than being reconstructed on demand.
-
-Nothing here judges. These are facts and the record of how they were found.
+These dataclasses store facts and resolved judgments; they compute no grade.
 """
 from __future__ import annotations
 
@@ -33,8 +19,7 @@ from typing import Optional
 #: package into the old reader's nightly path.
 from engine_alpha.two_eyes_roles import ROLE_EARLIER, ROLE_MINI, ROLE_PARENT, ROLES  # noqa: E402,F401
 
-#: The state words a read can carry. The first version answers only "no lines"
-#: — honestly empty beats accidentally right.
+#: Separate an absent structure from a failed read.
 NO_LINES = "no lines"
 READ_FAILED = "no lines, the read failed"
 
@@ -196,6 +181,7 @@ class Grade:
     empty_days: int
     base_days: int
     holds: bool
+    clarity: Optional[dict] = None
 
     def __post_init__(self):
         if self.letter not in GRADE_LETTERS:

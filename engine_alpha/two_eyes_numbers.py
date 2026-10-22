@@ -87,6 +87,9 @@ BOX_DAYS = 15
 #: number is OURS, the listing gate's bound (task 9).
 BOX_MIN_HEIGHT_RANGES = 1.0
 
+#: A mini must be strictly smaller than this share of its parent's R-S price height (operator, 2026-10-21).
+MINI_MAX_PARENT_HEIGHT_RATIO = 0.8
+
 # --- Stage 6 (task 12a): the numbers the LPS and its trigger read --------------------------------------
 
 #: A pullback is read on at most this many bars, its top day and its receding days: "2 - 5 bars" (Tue

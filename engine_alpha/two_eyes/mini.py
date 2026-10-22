@@ -1,44 +1,19 @@
-"""The mini: a second box inside the parent's right side, read with the walk's own functions (build task 13).
+"""Read a smaller box alongside its parent, using the walk's own life rules.
 
-His two sentences: *"if you are reffering to mini consolidations then both boxes live, they are a part of the same
-setup"* (Sun 20/09/2026) and *"The Mini consolidation is always built with it's own rail set - the LPS read can be
-against it if it is inside/near it/resting on it and the trigger is always read against the LPS by itself"* (asked
-Sat 12/09/2026, answered Sun 13/09/2026). And what a mini is: *"like a small box, same as the regular
-consolidation"* (Wed 26/08/2026).
+Candidates open after the parent's birth, sit inside or across it, and have less than
+80% of its price height (operator ruling, 2026-10-21). Filter size before the inner
+walk so an oversized box cannot block a smaller candidate. The selected box must
+also clear the parent's support area and differ from its two rails.
 
-The walk already lists every pair of swing ends a swing connects, with the day each became a box, and it refuses
-the parent's place to any pair inside or across the parent (``walk.left_for_good``: *"its own leg, a poke, a dip or
-a mini"*). This stage runs the walk's own ``lives`` over the inner boxes (layers 1 and 2 below) — the same rule of
-the pair, the same hand-overs, inside the subset — and the box that life shows is THE mini when it has the shape
-(layers 3 and 4); otherwise there is none. Nothing here moves the parent; the
-story and the state word keep reading the parent; the LPS may be read against the mini (stage 6, on his
-condition). A mini never costs a fire: the read calls this stage inside its own guard.
-
-The three layers (OURS, no new number — the parent's own area, half its frozen range, is the only width; his and
-frozen):
-
-1. **the parent's right side** — the pair opened after the parent BECAME a box (its birth, not its opening: a pair
-   that opened between the parent's opening and its birth is the parent's own counter move, not a rest inside it);
-2. **inside or across the parent** — the negation of the walk's "beyond" test: its support under the parent's
-   resistance area, its resistance over the parent's support area (otherwise it is a new box's candidate, the
-   parent's business);
-3. **a small box inside it** — its bottom not under the parent's support area (never wrapping the parent; the
-   standard's own ``S < bottom``), and not the parent again (not both lines within the parent's own line areas).
-
-Where the mini sits in the parent is NOT a layer. The build of Sat 03/10/2026 had a fourth, "at the top" (its top
-at or over the parent's resistance area, fitted to his two kept minis and three deletions) and asked him; his
-answer the same evening: *"what is "at the top" rule? that mini consolidation can only appear at the top of a
-consolidation? I don't think we should rule it to be that way we should gate mini consolidation by their
-structure its just a semi smaller base inside/in the vicinity of a bigger one"*. The layer is gone: ST's deleted
-mini 35.41 / 33.77 (a small box inside, its top under the parent's resistance area) is a mini again, by structure.
-
-Measured on his 40 on his last receding day (Sat 03/10/2026): the three layers leave 11; with the fourth, 5 (DSGN,
-EWTX, RGR, VIK, VLO); without layer 3 as well, 22.
+A mini has its own rails and never replaces the parent. It need not sit at the top.
+The LPS uses it only when its low is in, on or near it; mini-side faults fall back
+to the parent read.
 """
 from __future__ import annotations
 
 from typing import Optional
 
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.record import ROLE_MINI, ROLE_PARENT, Box, Step
 from engine_alpha.two_eyes.walk import Life, Pair, Walk, _box_record, lies_beyond, lives
 
@@ -49,39 +24,37 @@ STAGE = "mini"
 
 
 # --------------------------------------------------------------------------- #
-# The three layers, each one predicate                                        #
+# Candidate geometry                                                         #
 # --------------------------------------------------------------------------- #
 def on_the_right_side(pair: Pair, parent: Pair) -> bool:
-    """Layer 1: the pair opened after the parent became a box."""
+    """The pair opened after the parent became a box."""
     return pair.opening_bar > parent.birth_bar
 
 
 def inside_or_across(pair: Pair, parent: Pair) -> bool:
-    """Layer 2: not beyond the parent — the walk's own judgment (``walk.lies_beyond``), negated."""
+    """Inside or across the parent, using the walk's definition of beyond."""
     return not lies_beyond(pair, parent)
 
 
 def a_small_box_inside(pair: Pair, parent: Pair) -> bool:
-    """Layer 3: its bottom over the parent's support area (never wrapping the parent), and not the parent again
-    (both lines within the parent's own line areas is the parent, not a second box)."""
+    """Its bottom clears the parent's support area, and its rails are not the parent's twin."""
     twin = abs(pair.R - parent.R) <= parent.area and abs(pair.S - parent.S) <= parent.area
     return pair.S >= parent.S - parent.area and not twin
 
 
 def candidates(found: Walk) -> list:
-    """Every pair of the walk's listing that became a box inside the parent's right side (layers 1 and 2), in the
-    order they open: the inner boxes the walk's own life is run over."""
+    """Born inner pairs below the size limit, in opening order, before the inner walk."""
     parent = found.winner
     if parent is None:
         return []
     return [p for p in found.pairs.values()
             if p.birth_bar is not None and p.feet != parent.feet
-            and on_the_right_side(p, parent) and inside_or_across(p, parent)]
+            and on_the_right_side(p, parent) and inside_or_across(p, parent)
+            and p.height < M.MINI_MAX_PARENT_HEIGHT_RATIO * parent.height]
 
 
 def is_a_mini(pair: Pair, parent: Pair) -> bool:
-    """Layer 3 on the inner box the walk's life shows: a small box inside the parent — its structure, not where
-    it sits (his ruling of Sat 03/10/2026)."""
+    """Check the selected inner box's support and distinct rails; no top-only restriction."""
     return a_small_box_inside(pair, parent)
 
 
@@ -89,11 +62,7 @@ def is_a_mini(pair: Pair, parent: Pair) -> bool:
 # The mini's life, by the walk's own rule                                     #
 # --------------------------------------------------------------------------- #
 def find(found: Walk, high, low, read_bar: int) -> tuple:
-    """The mini's life on the read day: ``walk.lives`` over the inner boxes (layers 1 and 2) — the first to
-    become a box is shown, and inside the subset it gives way exactly as the parent would. The last life is THE
-    mini when the box it shows is a small box inside the parent (layer 3); the lives before it
-    are the chain the read tells (words only). Empty when there is none, or when the inner box the walk shows is
-    not a mini (a twin of the parent, a band under its support area)."""
+    """Walk eligible inner pairs; return their history only if the last is a small box inside the parent."""
     chosen = candidates(found)
     if not chosen:
         return ()

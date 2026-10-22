@@ -1075,8 +1075,8 @@ def test_the_seed_and_manual_writers_fill_the_family_from_their_own_row_shape():
     row = seed_row_from_result(to_result(_fired_read(with_mini=True, lps_box="mini"), frame=bars))
     family = two_eyes_archive_values(row.get, prefixed=False)
     empty = {c for c, v in family.items() if v is None}
-    assert empty == {"two_eyes_parent_end_date", "two_eyes_mini_end_date"}, \
-        f"only the live boxes' end days may be empty; empty: {sorted(empty)}"
+    assert empty == {"two_eyes_parent_end_date", "two_eyes_mini_end_date", "two_eyes_clarity_json"}, \
+        f"only live end days and clarity unmeasured by this legacy-shaped read may be empty: {sorted(empty)}"
     assert family["two_eyes_has_mini"] == 1 and set(family) == set(TWO_EYES_COLUMN_SQL)
 
     for fn in (seed.seed_archive, archive_actions.add_setup_manually):
@@ -1166,7 +1166,7 @@ def test_an_etf_universe_that_fails_after_refusing_rows_still_counts(monkeypatch
 def test_his_dsgn_fills_both_boxes_through_the_real_writer(writer_on_a_scratch_db):
     """Build task 13: the stage that FINDS the mini exists. His DSGN drawing, read on his last receding day
     (Mon 30/03/2026) by the new reader itself, crosses the adapter into the real writer as one row with both
-    pairs — his parent 10.31 / 9.00 and the mini 10.97 / 9.66 with its own anchor days — one trigger, the LPS
+    pairs — his parent 10.31 / 9.00 and the size-eligible mini 10.745 / 9.82 with its own anchor days — one trigger, the LPS
     read against the mini, the flag 1."""
     from engine_alpha import two_eyes
     from core.calibration.replay import fixture_frame, load_sealed_fixture
@@ -1180,8 +1180,8 @@ def test_his_dsgn_fills_both_boxes_through_the_real_writer(writer_on_a_scratch_d
     stored = _archive_one(writer_on_a_scratch_db, read)
     assert (round(stored.two_eyes_parent_r_price, 2), stored.two_eyes_parent_r_anchor_date) == (10.31, "2025-12-05")
     assert (round(stored.two_eyes_parent_s_price, 2), stored.two_eyes_parent_s_anchor_date) == (9.0, "2025-12-10")
-    assert (round(stored.two_eyes_mini_r_price, 2), stored.two_eyes_mini_r_anchor_date) == (10.97, "2026-01-23")
-    assert (round(stored.two_eyes_mini_s_price, 2), stored.two_eyes_mini_s_anchor_date) == (9.66, "2026-01-26")
-    assert stored.two_eyes_mini_opened_date == "2026-01-23" and stored.two_eyes_mini_end_date is None
+    assert (round(stored.two_eyes_mini_r_price, 2), stored.two_eyes_mini_r_anchor_date) == (10.74, "2026-02-03")
+    assert (round(stored.two_eyes_mini_s_price, 2), stored.two_eyes_mini_s_anchor_date) == (9.82, "2026-01-30")
+    assert stored.two_eyes_mini_opened_date == "2026-01-30" and stored.two_eyes_mini_end_date is None
     assert stored.two_eyes_lps_read_against == "mini" and stored.two_eyes_has_mini == 1
     assert round(stored.trigger_price, 2) == 10.70 if hasattr(stored, "trigger_price") else True

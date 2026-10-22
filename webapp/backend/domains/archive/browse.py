@@ -1,6 +1,7 @@
 """Archive setup browsing, detail, chart, linked-trade, and label endpoints."""
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -315,7 +316,10 @@ def _two_eyes_block(setup, ratio: float) -> Dict[str, Any]:
     return {
         "boxes": boxes,
         "lps": {"against": stored["two_eyes_lps_read_against"]},
-        "grade": {"score": setup.score, "letter": setup.tier} if setup.tier else None,
+        "grade": {"score": setup.score, "letter": setup.tier,
+                  **({"clarity": json.loads(stored["two_eyes_clarity_json"])}
+                     if stored["two_eyes_clarity_json"] else {})}
+                 if setup.tier else None,
     }
 
 

@@ -1,6 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gradeCell, lpsGrade, storyRows } from './setupStoryRows.js';
+import { phaseBoard } from './phaseBoard.js';
+
+test('experimental clarity displays the resolved grade and component explanations', () => {
+  const summary = 'Experimental clarity · base integrity 100/100';
+  const data = { two_eyes: { boxes: [{ role: 'parent', r: 100, s: 90, opened: '2026-01-01' }],
+    grade: { score: 68, letter: 'A', clarity: { summary, components: [
+      { key: 'swings', label: 'Main zigzag', points: 18.2, max_points: 50, explanation: 'Main swings retain measured travel' },
+      { key: 'rails', label: 'Rail definition', points: null, max_points: 50, explanation: 'No rail turns measured' },
+    ] } } } };
+  assert.equal(gradeCell(data).value, 68);
+  assert.equal(gradeCell(data).note, summary);
+  const box = phaseBoard(data).phases.find((phase) => phase.key === 'box');
+  const lines = box.lines.filter((line) => line.key.startsWith('box:clarity:'));
+  assert.equal(lines[0].hero, '18.2 / 50');
+  assert.equal(lines[0].sentence, 'Main swings retain measured travel');
+  assert.equal(lines[1].hero, '—');
+});
 
 // A graded payload as the wire serves it: chapters + engine-resolved fractions.
 // Three chapters since the 2026-08-12 re-partition — Cause and Phase B fused to

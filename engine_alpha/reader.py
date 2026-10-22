@@ -1,35 +1,12 @@
-"""The ONE door to the chart reader.
+"""The shared entry points for the legacy and two-eyes chart readers.
 
-Task 4 of the two-eyes-reader build. Two readers exist side by side —
-today's engine and the new one written in his order — and the only way
-that can be safe is if every caller asks the same door which reader answered.
+All callers use the same selection through :func:`which_reader`, including
+the scan, archive, calibration and replay tools. The optional ``stamp`` sink
+names the selected reader without changing its result payload.
 
-**Why a door at all.** The reader has three entry points, not one, and they are
-reached from ten places outside the engine: the nightly scan and the archive
-seed (production), the chart-state page, the single archive row's re-read and
-the calibration workbench's "why did this mark miss" (the backend), the marks
-ratchet, the junk corpus, the fleet shadow and the agreement harness (the
-gates), and the replay seam they share. The reader pin is NOT among them — it
-reads the engine's event vocabulary straight out of the bricks and never asks
-for a chart read — so a switch here does not reach it. A switch behind the
-scan's entry point would have
-reached the scan and nothing else — the page you use to see why a mark missed
-would have kept reading the old engine while the board read the new one, and
-nobody would have been told.
-
-**What the door does NOT do.** It does not change a single byte of what the
-engine returns. With the switch off every function here forwards to today's
-engine, and the flag-off output is the same object it always was. The reader's NAME
-rides out of band, through an optional ``stamp`` dict — the sink idiom this
-codebase already uses for ``watch`` and ``near_miss`` — so "which reader
-answered" can be printed on a board or asserted in a test without appearing in
-a result dict, an archive row or a wire payload.
-
-**The switch is read in ONE function**, :func:`which_reader`, and nowhere else.
-
-**A read only one reader can give refuses the other by name** (:class:`NotThisReader`): the old
-reader's box read, :func:`read_box`, under the new reader; the new reader's record,
-:func:`read_record` (the workbench's "why did this mark miss", go-live plan task 5), under the old.
+Reader-specific requests refuse the other reader by name
+(:class:`NotThisReader`): :func:`read_box` belongs to the legacy reader and
+:func:`read_record` to the two-eyes reader.
 """
 from __future__ import annotations
 
@@ -41,9 +18,7 @@ import pandas as pd
 
 from config import settings
 
-#: What :func:`which_reader` can answer. ``OLD`` is today's engine; ``NEW`` is
-#: the two-eyes reader (every stage built, dark), behind
-#: ``TWO_EYES_READER_ENABLED``.
+#: Reader identities selected by ``TWO_EYES_READER_ENABLED``.
 READER_OLD = "old"
 READER_NEW = "new"
 
@@ -51,10 +26,7 @@ READER_NEW = "new"
 def which_reader() -> str:
     """The one place the reader switch is read.
 
-    Everything else in the codebase asks this. ``getattr`` with a default keeps
-    the door working against a settings module that predates the switch (the
-    manifest is a hand-curated allow-list, so a new key is simply absent until
-    it is added).
+    Default to the legacy reader if the settings module has no switch.
     """
     if getattr(settings, "TWO_EYES_READER_ENABLED", False):
         return READER_NEW
@@ -91,13 +63,13 @@ class NotThisReader(NotImplementedError):
     The old reader's box-only read (its box and its trace, :func:`read_box`) and the replay seam's knob
     variants (they set the old reader's settings) have no answer under the new reader; the new reader's
     record (:func:`read_record`) has none under the old. A NotImplementedError, so a caller that already
-    refused the gap keeps doing so (go-live plan, task 5)."""
+    refused the gap keeps doing so."""
 
 
 @dataclass(frozen=True)
 class NotRead:
     """A chart the new reader would not read: its frame broke the frame contract (a trading day missing from the
-    middle, the same day twice, ...), named, with the rule and the whole reason (go-live plan task 3).
+    middle, the same day twice, ...), named, with the rule and the whole reason.
 
     Never a crash and never "no setup": a halted stock's gap is real, so the chart is not repaired, and the night
     lists it apart from the crashes, which alert. Only the scan's worker (:func:`scan_read`) answers with it; every
@@ -121,7 +93,7 @@ def _only_given(**lanes) -> dict:
     change for the real chain — the default is ``None`` — but it is a change to
     the call, and this codebase's tests and instruments substitute the chain
     with narrower doubles on purpose (one of them exists to pin the production
-    argument order). Three of them broke on the first version of this door.
+    argument order).
     """
     return {name: value for name, value in lanes.items() if value is not None}
 
@@ -133,15 +105,9 @@ def evaluate_ticker(ticker: str, df: pd.DataFrame,
                     stamp: Optional[dict] = None):
     """One ticker, the whole chain, under the standard skip guard.
 
-    Returns the result dict, ``None`` (filtered out) or ``EVAL_ERROR`` — the
-    same three answers ``evaluation._evaluate_ticker`` has always given, because
-    today it IS that function.
-
-    There is no near-miss argument here: the lane is not a sink on this call,
-    it is a different return shape, and the scan gets it from
-    :func:`scan_worker`. A first draft of this door had a ``near_miss=``
-    branch that could never have run — the twin it forwarded to has no such
-    parameter.
+    Returns a result dict, ``None`` (filtered out) or ``EVAL_ERROR`` under the
+    selected reader. The scan obtains the near-miss lane's different return
+    shape through :func:`scan_worker`.
     """
     from engine_alpha import evaluation  # local: the chain is pandas/scipy-heavy
 
@@ -157,7 +123,7 @@ def evaluate_ticker(ticker: str, df: pd.DataFrame,
 def scan_read(ticker: str, df: pd.DataFrame,
               spy_6m_return: float = 0.0,
               breadth_pct: Optional[float] = None):
-    """The new reader's worker for the nightly scan's pool (go-live plan task 3).
+    """The two-eyes reader's worker for the nightly scan's pool.
 
     :func:`evaluate_ticker`'s three answers, and a fourth only the scan takes: a chart whose frame the reader would
     not read comes back as :class:`NotRead`, by name and reason, so the night lists it apart from the crashes
@@ -180,10 +146,10 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
     hard things in his method, and a fire that ignored it would not be a fire
     the scan could ever show. The frame contract comes before the door: a
     frame that is not a chart is a failed read, never "not scanned" — and
-    it is a refusal, not a crash: the result is then a :class:`NotRead`
-    (go-live plan task 3), which :func:`evaluate_ticker` answers as the
-    counted failure and the scan lists apart. A fire carries the stock's
-    trend template, read on the frame the door admitted
+    it is a refusal, not a crash: the result is then a :class:`NotRead`,
+    which :func:`evaluate_ticker` answers as the counted failure and the scan
+    lists apart. A fire carries the stock's trend template, read on the frame
+    the door admitted
     (``two_eyes_adapter.to_result``'s ``frame``).
     Returns ``(read, result)``; both None when the door refused.
     """
@@ -204,7 +170,9 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
         if watch is not None:
             watch.update(two_eyes=True, state="not scanned", why=reason[0])
         return None, None
-    read = two_eyes.read(ticker, df)
+    from engine_alpha.two_eyes_adapter import graded_read
+
+    read = graded_read(two_eyes.read(ticker, df))
     two_eyes_adapter.fill_watch(read, watch)
     if refused is not None and read.failed:
         return read, NotRead(ticker, refused.rule or str(refused), read.refusal or str(refused))
@@ -240,7 +208,7 @@ class LaneRefused(RuntimeError):
     """A scan lane that reads the OLD engine was asked for under the new reader.
 
     Raised at the start of the scan, by name, never answered by a silent
-    old-engine read beside a night stamped "new" (go-live plan, task 2)."""
+    old-engine read beside a night stamped "new"."""
 
 
 #: Why each of the scan's lanes cannot ride the new reader, in plain words.
@@ -292,12 +260,12 @@ def scan_worker(*, near_miss_lane: bool, watch_lane: bool, rescue_lane: bool = F
     ``partial`` of one), which the ``ProcessPoolExecutor`` requires.
 
     Under the new reader the worker is this door's own :func:`scan_read`
-    and no lane rides (go-live plan, task 2): every lane is an old-engine
+    and no lane rides: every lane is an old-engine
     twin, so a lane asked for is refused by name
     (:func:`refuse_old_engine_lanes`). The scan turns the live near-miss lane
     off itself and says so; the dark watch and rescue lanes refuse the scan.
     ``scan_read`` is :func:`evaluate_ticker` but for a chart the reader would
-    not read, which it names (:class:`NotRead`, task 3) instead of counting
+    not read, which it names (:class:`NotRead`) instead of counting
     it a crash.
     """
     from functools import partial
@@ -349,7 +317,7 @@ def read_record(ticker: str, df: pd.DataFrame, *, watch: Optional[dict] = None,
                 stamp: Optional[dict] = None):
     """The NEW reader's own record of a chart: its boxes and its trail, for a
     caller that wants the reasons, not a fire (the workbench's "why did this
-    mark miss", go-live plan task 5).
+    mark miss").
 
     The read goes through the same path as the scan's (the frame contract,
     then the universe door, then the reader). Returns the ``Read`` — a failed

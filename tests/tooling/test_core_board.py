@@ -212,13 +212,13 @@ def test_the_board_draws_the_mini_and_names_the_box_the_lps_was_read_against(tmp
     assert on_last["read"].mini is not None and on_last["lps_box"] == two_eyes.ROLE_MINI
     assert on_last["pullback"].born_bar == on_last["mini_pair"].birth_bar
     words = core_board._words(on_last["read"], on_last["door"])
-    assert "The mini: R 10.97" in words and "read against the mini, in" in words
+    assert "The mini: R 10.74" in words and "read against the mini, in" in words
     pages, _ = core_board.render_pages([row], [], str(tmp_path))
     assert len(pages) == 1 and os.path.getsize(pages[0][1]) > 20_000
     board = core_board.format_board([row])
     assert "FIRES ON HIS DAY AT HIS TRIGGER: 1 of 1" in board
-    assert "THE MINI (never counted above): a second box inside the parent on 1 of 1: DSGN:2026-03-31 10.97 / 9.66" in board
-    assert "your drawn mini on DSGN:2026-03-31: the reader's mini 10.97 / 9.66 is within half a range of your band 10.97 / 9.90" in board
+    assert "THE MINI (never counted above): a second box inside the parent on 1 of 1: DSGN:2026-03-31 10.74 / 9.82" in board
+    assert "your drawn mini on DSGN:2026-03-31: the reader's mini 10.74 / 9.82 is within half a range of your band 10.97 / 9.90" in board
     assert "the LPS read against the mini on 1 (in 1)" in board and "the mini could not be read: 0" in board
 
 

@@ -11,6 +11,7 @@ the cent" is no yardstick for a mini; the span and half the parent's range are.
 from __future__ import annotations
 
 import datetime as dt
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -173,24 +174,35 @@ def _find(row: dict):
     return mini.find(row["found"], row["high"], row["low"], len(row["days"]) - 1)
 
 
-#: The charts of his 40 the stage draws a mini on, read on his last receding day, and the mini's two lines
-#: (float32 on the record: compared with approx). A change is a named change. By his ruling of Sat 03/10/2026 the
-#: mini is gated by its structure alone (a small box inside the parent); the build's "at the top" layer, which
-#: left five, is gone — ST's deleted mini is among the eleven.
-_MINIS_ON_HIS_40 = {"ALB": (173.00, 157.27), "DSGN": (10.97, 9.66), "EWTX": (31.29, 28.19), "FOSL": (3.88, 3.52),
-                    "NGL": (11.94, 11.32), "RGR": (38.98, 37.47), "SILC": (20.50, 18.83), "ST": (35.41, 33.77),
-                    "SYRE": (34.21, 31.53), "VIK": (86.90, 82.66), "VLO": (265.61, 253.38)}
-#: Of the eleven, the charts whose pullback's low sits in, on or near the mini on his last receding day, and how:
-#: the LPS is read against the mini on these eight; on NGL, SILC and ST the low is away from the mini (ST's LPS
-#: low 38.19 sits 1.30 ranges over the parent's resistance, far over the mini's 35.41), so against the parent.
-_LPS_AGAINST_THE_MINI_ON_HIS_40 = {"ALB": "on", "DSGN": "in", "EWTX": "in", "FOSL": "on", "RGR": "on", "SYRE": "near",
-                                   "VIK": "near", "VLO": "in"}
+# The 2026-10-21 size rule removes EWTX/RGR/SYRE, replaces DSGN's oversized band,
+# and lets smaller NGL January/ORMP pairs through. Keep NGL's two setups distinct.
+@pytest.mark.parametrize('share,eligible', [(0.7999, True), (0.8, False), (1.0, False), (1.2, False)])
+def test_candidate_height_boundary_is_strict_before_the_inner_walk(share, eligible):
+    from engine_alpha.two_eyes import mini
+
+    parent = SimpleNamespace(R=100, S=90, area=1, height=10, birth_bar=15, feet=(0, 1))
+    pair = SimpleNamespace(R=95 + 10 * share, S=95, area=1, height=10 * share,
+                           birth_bar=25, opening_bar=20, feet=(20, 21))
+    found = SimpleNamespace(winner=parent, pairs={'inner': pair})
+    assert bool(mini.candidates(found)) is eligible
 
 
-def test_on_dsgn_the_stage_names_the_mini_he_drew(his_40):
-    """DSGN:2026-03-31, read Mon 30/03/2026: his mini 10.97 / 9.90 over Fri 23/01 to Tue 24/03/2026. The stage
-    names 10.97 (Fri 23/01/2026) / 9.66 (Mon 26/01/2026), a box on Thu 12/02/2026: his top to the cent, his bottom
-    within half his parent's range; a box with the role ``mini``, live, measured in its own frozen range."""
+_MINIS_ON_HIS_40 = {
+    "ALB:2026-04-13": (173.00, 157.27), "DSGN:2026-03-31": (10.745, 9.82),
+    "FOSL:2026-02-18": (3.88, 3.52), "NGL:2026-01-20": (9.80, 9.40),
+    "NGL:2026-04-20": (11.94, 11.32), "ORMP:2026-04-13": (3.48, 3.27),
+    "SILC:2026-04-13": (20.50, 18.83), "ST:2026-04-17": (35.41, 33.77),
+    "VIK:2026-06-11": (86.90, 82.66), "VLO:2026-07-08": (265.61, 253.38),
+}
+_LPS_AGAINST_THE_MINI_ON_HIS_40 = {
+    "ALB:2026-04-13": "on", "DSGN:2026-03-31": "in", "FOSL:2026-02-18": "on",
+    "NGL:2026-01-20": "on", "ORMP:2026-04-13": "on", "VIK:2026-06-11": "near",
+    "VLO:2026-07-08": "in",
+}
+
+
+def test_dsgn_excludes_the_oversized_mini_and_finds_a_smaller_one(his_40):
+    """The old 10.97 / 9.66 band is parent-sized; the smaller 10.745 / 9.82 pair remains eligible."""
     from engine_alpha.two_eyes import ROLE_MINI, mini
 
     row = _row(his_40, "DSGN")
@@ -198,15 +210,16 @@ def test_on_dsgn_the_stage_names_the_mini_he_drew(his_40):
     assert history, "no mini on DSGN"
     life = history[-1]
     days = row["days"]
-    assert (life.pair.R, life.pair.S) == pytest.approx((10.97, 9.66), abs=0.005)
-    assert days[life.pair.opening_bar] == dt.date(2026, 1, 23) and days[life.pair.s_bar] == dt.date(2026, 1, 26)
-    assert days[life.pair.birth_bar] == dt.date(2026, 2, 12)
-    band = row["setup"]["mini"]["band"]
-    assert abs(life.pair.R - band["R"]) < 0.005 and abs(life.pair.S - band["S"]) <= 0.5 * row["found"].winner.unit
+    assert (life.pair.R, life.pair.S) == pytest.approx((10.745, 9.82), abs=0.005)
+    assert days[life.pair.r_bar] == dt.date(2026, 2, 3) and days[life.pair.s_bar] == dt.date(2026, 1, 30)
+    assert days[life.pair.birth_bar] == dt.date(2026, 2, 20)
+    assert not any(abs(p.R - 10.97) < 0.005 and abs(p.S - 9.66) < 0.005
+                   for p in mini.candidates(row["found"]))
+    assert all(h.pair.height < 0.8 * row["found"].winner.height for h in history)
     box, step = mini.record(row["found"], history)
     assert box.role == ROLE_MINI and box.end_day is None and box.daily_range == pytest.approx(life.pair.unit)
-    assert box.opened_day == dt.date(2026, 1, 23) and box.resistance.anchor_day == dt.date(2026, 1, 23)
-    assert step.stage == "mini" and "10.97" in step.saying and "9.66" in step.saying
+    assert box.opened_day == dt.date(2026, 1, 30) and box.resistance.anchor_day == dt.date(2026, 2, 3)
+    assert step.stage == "mini" and "9.82" in step.saying
 
 
 @pytest.mark.parametrize("ticker,why", [
@@ -240,10 +253,8 @@ _BOX_WITH_A_REST_AT_THE_TOP = [(0, 58), (1, 52), (2, 56), (3, 50), (5, 60), (6, 
                                (35, 84), (38, 76), (41, 84), (44, 76), (47, 84), (50, 76), (53, 83.5), (56, 76.5)]
 
 
-def test_a_rest_at_the_top_of_the_box_is_the_mini_on_a_hand_built_chart():
-    """The box 80 / 70 (born on bar 25) keeps its place — the rest 84 / 76 lies across its resistance, never
-    beyond it — and that rest is the mini: a small box inside the parent's right side, at the top, the first inner
-    box to become one (bar 43), shown from that day with the parent still live."""
+def test_a_rest_exactly_eighty_percent_tall_is_not_a_mini():
+    """The parent remains 80 / 70; the 84 / 76 rest is exactly 80% as tall."""
     from test_two_eyes_walk import _chart, _elect
     from engine_alpha.two_eyes import mini, walk
 
@@ -251,17 +262,11 @@ def test_a_rest_at_the_top_of_the_box_is_the_mini_on_a_hand_built_chart():
     found = _elect(chart)
     assert (found.winner.R, found.winner.S) == (80.0, 70.0) and len(found.lives) == 1
     history = mini.find(found, chart["high"], chart["low"], chart["n"] - 1)
-    assert history and (history[-1].pair.R, history[-1].pair.S) == (84.0, 76.0)
-    assert history[-1].pair.birth_bar == 43 and history[-1].shown_bar == 43 and history[-1].why == walk.FIRST_BOX
-    box, step = mini.record(found, history)
-    assert box.role == "mini" and box.end_day is None and "84.00" in step.saying and "76.00" in step.saying
+    assert not history, "84 / 76 is exactly 80% of the parent height and is excluded"
 
 
-def test_the_boxs_own_legs_and_pokes_are_no_mini_on_the_walks_poke_chart():
-    """The walk's poke specimen (`tests/engine/test_two_eyes_walk.py`): the box 80 / 70 and two pokes to 84 that
-    come back. The first inner box to become one is 79.2 / 70.4 — the parent's twin, both lines within its own
-    line areas — and nothing inside takes its place, so the chart carries no mini: the poke pair 84 / 72 is the
-    box's own event, as the walk already says."""
+def test_an_oversized_poke_cannot_block_the_smaller_seventy_percent_rest():
+    """The 84 / 72 pair is larger than the parent; 79 / 72 remains eligible."""
     from test_two_eyes_walk import _BOX_WITH_POKES, _chart, _elect
     from engine_alpha.two_eyes import mini
 
@@ -269,8 +274,9 @@ def test_the_boxs_own_legs_and_pokes_are_no_mini_on_the_walks_poke_chart():
     found = _elect(chart)
     assert (found.winner.R, found.winner.S) == (80.0, 70.0)
     inner = mini.candidates(found)
-    assert any((p.R, p.S) == (84.0, 72.0) for p in inner)
-    assert not mini.find(found, chart["high"], chart["low"], chart["n"] - 1)
+    assert not any((p.R, p.S) == (84.0, 72.0) for p in inner)
+    history = mini.find(found, chart["high"], chart["low"], chart["n"] - 1)
+    assert (history[-1].pair.R, history[-1].pair.S) == (79.0, 72.0)
 
 
 def test_the_charts_of_his_40_with_a_mini_are_exactly_these(his_40):
@@ -284,13 +290,11 @@ def test_the_charts_of_his_40_with_a_mini_are_exactly_these(his_40):
     for key, row in his_40.items():
         history = _find(row)
         if history:
-            named[key.split(":")[0]] = (history[-1].pair.R, history[-1].pair.S)
+            named[key] = (history[-1].pair.R, history[-1].pair.S)
         parent = row["found"].winner
         if parent is not None:
             assert all(p.opening_bar > parent.birth_bar for p in mini.candidates(row["found"]))
     assert set(named) == set(_MINIS_ON_HIS_40), sorted(named)
-    for ticker, lines in _MINIS_ON_HIS_40.items():
-        assert named[ticker] == pytest.approx(lines, abs=0.005), ticker
     for ticker, lines in _MINIS_ON_HIS_40.items():
         assert named[ticker] == pytest.approx(lines, abs=0.005), ticker
 
@@ -315,8 +319,8 @@ def test_the_read_carries_the_mini_beside_the_parent(his_40):
     assert read.failed is False and read.fired and read.lps.trigger_price == pytest.approx(10.70, abs=0.005)
     assert read.lps.read_against == ROLE_MINI and read.lps.how == "in"       # stage 6 reads the mini (S5)
     assert read.mini is not None and read.mini.role == ROLE_MINI and read.boxes[-1] is read.mini
-    assert (read.mini.resistance.price, read.mini.support.price) == pytest.approx((10.97, 9.66), abs=0.005)
-    assert read.mini.opened_day == dt.date(2026, 1, 23) and read.mini.end_day is None
+    assert (read.mini.resistance.price, read.mini.support.price) == pytest.approx((10.745, 9.82), abs=0.005)
+    assert read.mini.opened_day == dt.date(2026, 1, 30) and read.mini.end_day is None
     walked, _, _ = walk.record(row["found"])
     assert read.boxes[:-1] == walked and read.parent == walked[-1]
     stages = [s.stage for s in read.trail]
@@ -478,7 +482,6 @@ def test_a_fault_in_the_minis_lps_record_falls_back_to_the_parents_record(his_40
 #: The junk chart on which the mini's read would RESCUE a pullback the parent's ceiling refuses: read against the
 #: mini whenever one stands (his condition dropped), KWR gains two fire days. His condition is the rule.
 _KWR_DAYS_AS_BUILT = ("2026-06-22", "2026-06-23", "2026-06-24")
-_KWR_RESCUE_DAYS = ("2026-06-26", "2026-06-29")
 
 
 def _junk_fire_days(ticker: str) -> tuple:
@@ -493,17 +496,14 @@ def _junk_fire_days(ticker: str) -> tuple:
     return tuple(str(ts.date()) for ts in sessions if read_chart(ticker, raw.loc[:ts]).fired)
 
 
-def test_his_condition_keeps_the_junk_where_it_is_and_the_mini_would_rescue_kwr(monkeypatch):
-    """The LPS is read against the mini only when its low is in, on or near it. Without that condition KWR's
-    pullbacks of Fri 26/06 and Mon 29/06/2026 — over the parent's ceiling, under the mini's — would fire: that
-    is his rule working (a mini whose top stands over the parent's resistance CAN carry the fire), and on today's
-    junk it fires nowhere under his condition."""
+def test_kwrs_oversized_mini_cannot_rescue_later_days_even_with_the_position_condition_relaxed(monkeypatch):
+    """The height filter now excludes the pair that historically rescued two later KWR days."""
     from engine_alpha.two_eyes import mini
 
     assert _junk_fire_days("KWR") == _KWR_DAYS_AS_BUILT
     monkeypatch.setattr(mini, "lps_box", lambda low, band: ("parent", None) if band is None else
                         ("mini", mini.where(low, band) if mini.where(low, band) != mini.AWAY else mini.NEAR))
-    assert _junk_fire_days("KWR") == _KWR_DAYS_AS_BUILT + _KWR_RESCUE_DAYS
+    assert _junk_fire_days("KWR") == _KWR_DAYS_AS_BUILT  # the oversized mini is no longer a candidate
 
 
 def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
@@ -517,11 +517,11 @@ def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
     for key, row in his_40.items():
         read = read_chart(key.split(":")[0], row["raw"])
         if read.lps is not None:
-            against[key.split(":")[0]] = (read.lps.read_against, read.lps.how)
+            against[key] = (read.lps.read_against, read.lps.how)
     named = {t: how for t, (role, how) in against.items() if role == ROLE_MINI}
     assert named == _LPS_AGAINST_THE_MINI_ON_HIS_40, sorted(named.items())
-    assert set(named) < set(_MINIS_ON_HIS_40) and set(_MINIS_ON_HIS_40) - set(named) == {"NGL", "SILC", "ST"}
-    assert against["DSGN"] == (ROLE_MINI, "in")
+    assert set(named) < set(_MINIS_ON_HIS_40) and set(_MINIS_ON_HIS_40) - set(named) == {"NGL:2026-04-20", "SILC:2026-04-13", "ST:2026-04-17"}
+    assert against["DSGN:2026-03-31"] == (ROLE_MINI, "in")
     assert all(how is None for role, how in against.values() if role == ROLE_PARENT)
 
 
@@ -542,9 +542,9 @@ def test_dsgn_crosses_the_adapter_with_both_boxes_one_trigger(his_40):
     assert (round(row["_R"], 2), round(row["_S"], 2)) == (10.31, 9.00) and row["_trigger_price"] == pytest.approx(10.70)
     assert row["_two_eyes_lps_read_against"] == "mini" and row["_two_eyes_has_mini"] == 1
     assert all(f"_two_eyes_mini_{k}" in row for k in _MINI_KEYS)
-    assert (round(row["_two_eyes_mini_r_price"], 2), row["_two_eyes_mini_r_anchor_date"]) == (10.97, "2026-01-23")
-    assert (round(row["_two_eyes_mini_s_price"], 2), row["_two_eyes_mini_s_anchor_date"]) == (9.66, "2026-01-26")
-    assert row["_two_eyes_mini_opened_date"] == "2026-01-23" and row["_two_eyes_mini_end_date"] is None
+    assert (round(row["_two_eyes_mini_r_price"], 2), row["_two_eyes_mini_r_anchor_date"]) == (10.74, "2026-02-03")
+    assert (round(row["_two_eyes_mini_s_price"], 2), row["_two_eyes_mini_s_anchor_date"]) == (9.82, "2026-01-30")
+    assert row["_two_eyes_mini_opened_date"] == "2026-01-30" and row["_two_eyes_mini_end_date"] is None
     assert row["_two_eyes_parent_r_anchor_date"] == "2025-12-05"
 
 
@@ -589,5 +589,5 @@ def test_dsgn_through_the_one_door_carries_the_mini():
     assert stamp == {"reader": reader.READER_NEW} and isinstance(row, dict)
     assert (round(row["_R"], 2), round(row["_S"], 2)) == (10.31, 9.00) and row["_trigger_price"] == pytest.approx(10.70)
     assert row["_two_eyes_lps_read_against"] == "mini" and row["_two_eyes_has_mini"] == 1
-    assert (round(row["_two_eyes_mini_r_price"], 2), round(row["_two_eyes_mini_s_price"], 2)) == (10.97, 9.66)
+    assert (round(row["_two_eyes_mini_r_price"], 2), round(row["_two_eyes_mini_s_price"], 2)) == (10.74, 9.82)
     assert watch["state"] == "fired" and watch["read"].mini is not None

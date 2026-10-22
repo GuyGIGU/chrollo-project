@@ -874,11 +874,16 @@ default as ours.
    the pair: among the pairs that became boxes after the parent did and sit inside or across
    it (not beyond it — beyond is a new box's business, the line above), the first to become a
    box is the inner box, and it gives way inside the parent exactly as the parent would. That
-   inner box is THE mini when it is a small box inside the parent: its bottom over the
+   Only pairs whose price height (resistance minus support) is **strictly less than 80%**
+   of the parent's height enter this inner walk (operator ruling, 2026-10-21). Exactly
+   80%, a near-copy of the parent, and a taller box are not mini candidates; an oversized
+   pair must not block a later smaller one. Duration and chart zoom do not enter this
+   comparison. The parent remains the base. That inner box is THE mini when it is a small box inside the parent: its bottom over the
    parent's support area, not the parent's own two lines again. Where it sits in the parent
    is not a rule — his ruling of Sat 03/10/2026, on the build's "at the top" question: *"we
    should gate mini consolidation by their structure its just a semi smaller base inside/in
-   the vicinity of a bigger one"*. The parent's half-range area is the only width. The record carries the live mini only. The
+   the vicinity of a bigger one"*. The parent's half-range area still defines rail proximity;
+   the separate 80% limit defines relative price size. The record carries the live mini only. The
    state word reads the parent; the story reads the parent's lines and the LPS as the record
    carries it, against whichever box the LPS named, so its LPS days are the fire's own.
 5. **The story**, left to right on the box's own swings. Turns at a line are respect. A dip
@@ -988,7 +993,11 @@ default as ours.
    mini that became a box only after the pullback ended, or a fault on the mini's side: the
    parent's read (ours). The window and the trigger are the bars' and never move; the two
    position sentences read the lines of the box named.
-7. **The grade, the state word, the screen.** *"grade is built from a few important traits:
+7. **The grade, the state word, the screen.** **Experimental clarity, authorized for activation on 22 October 2026.** His working definition is a clear, easy-to-read zigzag between resistance and support with understandable events. The technical grade now awards equal budgets for two measured traits: the share of price travel retained by the existing main swing line relative to its finer line, and the average distance of the main peaks/valleys from their expected rails, in box heights. Both travel sums use exactly the same endpoints; the base ends before the strength push, so the right-side advance and LPS do not have to traverse the parent range. A known spring's own below-support valley and a known upthrust's own above-resistance peak keep their event context. Other optional event names earn no automatic points.
+
+   The initial full-credit reference anchors are a main-travel share of 45% (the current 48 references' lower quartile, rounded) and a rail error at or below one quarter of a box height (their median, rounded); rail credit falls to zero at one box height. These are experimental training scales, not established predictive thresholds. Rail definition needs opposing major peaks and valleys; a lone endpoint is insufficient. Unmeasured traits remain unknown and the available point budget is normalized; with no measured trait, the integrity grade stands. The old empty-space/hold grade remains the ceiling, so a failed base cannot become good through clarity. The S/A/B/C cuts remain 75/50/25. Geometry, event detection, readiness and which setups fire are unchanged by this scoring experiment. Raw measurements, awarded points, reference method and the prior integrity score accompany the grade and are archived from the first new scan; historical grades are not rewritten.
+
+   **The integrity reading retained below:** *"grade is built from a few important traits:
    Consolidation tightness (Consolidation width + Spread Profile), Event Map, base age
    dosen't matter to me"* (Sat 12/09/2026). Height is counted in daily ranges, never in
    percent of price: *"a box is a box because of its consolidating Zig zag behavior not
@@ -1009,7 +1018,7 @@ default as ours.
    thing"* (Fri 09/10/2026), so its days are the box at work. And the base must hold:
    after the push tops, a fall beyond the support's
    area to a lower level than the base ever made is a base that failed, *"base dosen't hold
-   and dosen't answer for an LPS anywhere"* (COLM, Thu 08/10/2026). The grade is read on the
+   and dosen't answer for an LPS anywhere"* (COLM, Thu 08/10/2026). The integrity grade is read on the
    setup's box, S by default, falling as the base turns empty to nothing at half of it (his
    "mostly"), and nothing at all for a base that did not hold; every one of his calibrated
    setups is S (Mon 05/10/2026); the ends and the cuts are his to approve. A box the price

@@ -44,7 +44,7 @@ export function phaseBoard(data, regions = []) {
   // consolidation itself and call it Box, which will highlight the entire Box and will list quality details about
   // the structure itself"). Every line lights the whole box. The facts are the ones the wire carries: its lines,
   // its height in its own daily ranges, the base days and how many had a bar in the box (the grade's own count),
-  // whether the base held. Tightness, spread and the swings' cleanness are not measured by the reader yet.
+  // whether the base held, and the engine's resolved experimental clarity contributions.
   const boxLines = [];
   if (parent) {
     const whole = ids.has('b') ? 'b' : null;
@@ -59,6 +59,12 @@ export function phaseBoard(data, regions = []) {
     }
     if (block.grade?.holds != null) {
       boxLines.push(eventLine('box:holds', 'Hold', null, block.grade.holds ? 'no low fell through the support area after the SOS' : 'a low fell through the support area after the SOS', { region: whole, hero: block.grade.holds ? 'held' : 'broke', title: block.grade.holds ? 'The base held.' : 'The base did not hold: a low fell beyond the support area after the SOS top.' }));
+    }
+    for (const component of block.grade?.clarity?.components ?? []) {
+      boxLines.push(eventLine(`box:clarity:${component.key}`, component.label, null,
+        component.explanation ?? 'not measured',
+        { region: whole, hero: component.points == null ? '—' : `${fx(component.points, 1)} / ${fx(component.max_points, 0)}`,
+          title: component.explanation ?? block.grade.clarity.summary }));
     }
   }
 
@@ -115,7 +121,7 @@ export function phaseBoard(data, regions = []) {
   const facts = block.grade?.empty_days != null && block.grade?.base_days != null;
   return {
     score: score == null || !Number.isFinite(Number(score)) ? null : Number(score),
-    note: facts ? `${block.grade.empty_days} of ${block.grade.base_days} base days empty · the base ${block.grade.holds ? 'held' : 'did not hold'}` : null,
+    note: block.grade?.clarity?.summary ?? (facts ? `${block.grade.empty_days} of ${block.grade.base_days} base days empty · the base ${block.grade.holds ? 'held' : 'did not hold'}` : null),
     phases: [
       { key: 'a', token: 'A', name: 'Phase A', meaning: 'the root swing the box stands on', lines: a },
       { key: 'box', token: 'BOX', name: 'Box', meaning: 'the consolidation itself, resistance to support', lines: boxLines.length ? boxLines : [eventLine('box:none', 'Box', null, 'no box on this row')] },

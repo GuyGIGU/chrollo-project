@@ -1,26 +1,14 @@
-"""The new reader's record, spoken in the old engine's shape.
+"""Adapt the two-eyes ``Read`` to the scan, archive and screen result contract.
 
-Task 5 of the two-eyes-reader build. The new reader answers a ``Read``; the
-archive row, the wire, the board and the screen all speak the old result dict.
-This is the ONE place those two vocabularies meet, so that when stages 1 to 7
-fill the record in, nothing downstream changes shape again.
-
-It deliberately sits OUTSIDE ``engine_alpha/two_eyes/``: that package is a leaf
-and a test proves it imports nothing from the old chart reader. This file is
-allowed to know both, and it is the only one.
-
-**Three answers, exactly as the old reader has always given them**, because the
-scan, the seed and the gates all branch on which of the three they got:
-
-* a ``dict`` — a fire, whole in every key anybody indexes by hand;
-* ``None`` — read, understood, not a setup (the skeleton's answer for every
-  chart in the world today);
-* ``EVAL_ERROR`` — the read fell over. This is the counted failure, and it is
-  why a crash may never come back as "no lines": that sentence belongs to a
-  chart that genuinely has none, and the night has to be able to tell a quiet
-  refusal from a broken read.
+This adapter stays outside the reader's leaf package so that it can know the
+legacy result shape. A fire returns a complete result dict, a chart without
+a setup returns ``None``, and a failed read returns ``EVAL_ERROR``. A failure
+must never appear as a chart with no lines.
 """
 from __future__ import annotations
+
+import json
+from dataclasses import replace
 
 from typing import Optional
 
@@ -87,7 +75,7 @@ def to_state(read: Read) -> str:
 
 
 def stock_trend(frame) -> dict:
-    """The stock's trend template, the leadership read's half the old chain measures (go-live plan task 3).
+    """The stock's trend template, measured by the shared legacy functions.
 
     Not the setup's: it reads the stock, not the box, so a fire carries it whichever reader fired. Read by the old
     chain's OWN functions on the old chain's OWN frame (EC-3): ``frame`` is what the universe door admitted, cut to
@@ -121,8 +109,22 @@ def stock_adr(frame) -> dict:
 
 def _spring_day(read: Read) -> Optional[str]:
     """The day of the new reader's own spring (its tip), or None: the screen reads the volume at that key point on
-    it (go-live plan task 3). Its story names one spring at most."""
+    it. Its story names one spring at most."""
     return next((event.day.isoformat() for event in read.events if event.kind == SPRING), None)
+
+
+def graded_read(read: Read) -> Read:
+    """Compose the measured clarity once, outside the chart-reading leaf."""
+    grade = read.grade
+    if grade is None or not grade.clarity or grade.clarity.get("method"):
+        return read
+    from engine_alpha.scoring.clarity import compose_grade
+
+    composed = compose_grade(grade, grade.clarity["facts"])
+    trail = tuple(replace(step, saying=(
+        f"the technical grade: {composed.letter} ({composed.score:.0f}); {composed.clarity['summary']}"
+    )) if step.stage == "grade" else step for step in read.trail)
+    return replace(read, grade=composed, trail=trail)
 
 
 def to_result(read: Read, frame=None):
@@ -139,12 +141,12 @@ def to_result(read: Read, frame=None):
     if not read.fired:
         return None
 
+    read = graded_read(read)
     box, lps, grade = read.parent, read.lps, read.grade
     # The grade's number, rounded ONCE to the wire's grade precision (one
     # decimal): the score, `_ta_grade` and the block all carry this one
     # number, so the list's chip, the story panel and the archive cannot
-    # disagree (the task-15 blind check: an unrounded block beside its rounded
-    # twin showed the night's NVEC as 46 on the card and 45 in the panel).
+    # disagree.
     score = round(float(grade.score), 1) if grade is not None else None
     base_end = box.end_day or read.as_of
     result = {
@@ -154,15 +156,10 @@ def to_result(read: Read, frame=None):
         # every old-reader row this reader does not share. A number stored in
         # either shape is indistinguishable from a measured one forever after.
         #
-        # The tier and the score are the grade's (stage 7, task 14; build
-        # task 15): its letter, and its 0-100 score. The old engine's tier
-        # ladder — its 15%-of-price S ceiling among it — never runs here, so
-        # nothing but the grade decides the letter. One placeholder survives:
-        # a read whose grade fell over (a grade never costs a fire) keeps the
-        # empty tier and the score 0.0, because the score column cannot be
-        # empty. That IS a made-up number, recognisable by its empty tier;
-        # the screen charts lettered tiers only. Recorded in docs/decisions.md
-        # (2026-09-21, and the task-15 row) as the builder's default.
+        # Only this reader's grade decides the tier and 0-100 score; the
+        # legacy tier caps do not run here. If grading fails, the fire stays:
+        # an empty tier identifies the 0.0 placeholder required by the score
+        # column. The screen charts lettered tiers only.
         "Tier": grade.letter if grade is not None else "",
         # The SETUP TYPE — LPS / REBOUND on every old-reader row — not the
         # screen's state word, which is a different vocabulary and rides the
@@ -173,9 +170,8 @@ def to_result(read: Read, frame=None):
         # The read day's real close. The resistance line stood in here once,
         # and the forward-returns backfill scales every trigger by this price.
         "Current Price": round(float(read.close), 2) if read.close is not None else None,
-        # Trading bars on every old-reader row; this reader has not ruled how
-        # a box's life is counted yet (stage 5), and calendar days would be a
-        # second meaning in the same column.
+        # This column counts trading bars on legacy rows. Leave it empty
+        # rather than substitute a calendar-day duration.
         "Base Len": None,
         # The box's height as a fraction of its support — the column's own
         # definition on every old-reader row — so this one IS measured.
@@ -214,9 +210,8 @@ def to_result(read: Read, frame=None):
         "_vol_contraction": None,
         "_tightness_ratio": None,
         # The 0-100 grade the screen shows beside the letter and the scan
-        # sorts by: the new grade's score (the grade session's note for task
-        # 15), on the same 0-100 scale; the engine version tells the two
-        # readers' rows apart. None when the grade fell over — "not
+        # sorts by: the new grade's score on the same 0-100 scale; the engine
+        # version tells the two readers' rows apart. None when the grade fell over — "not
         # measured", stored empty — but the KEY must exist, because the scan
         # sorts its results by this column. The old grade's raw sum and its
         # chapters are not this reader's: empty, never the score again.
@@ -233,7 +228,8 @@ def to_result(read: Read, frame=None):
         # The new reader LOOKED, so this is 1 or 0 and never empty: empty is
         # kept for rows written by a reader that never looked.
         "_two_eyes_has_mini": read.mini is not None,
-        # The screen's volume at key points (go-live plan task 3) reads the
+        "_two_eyes_clarity_json": json.dumps(grade.clarity, allow_nan=False) if grade and grade.clarity else None,
+        # The screen's volume at key points reads the
         # LPS pullback on the block's own days and the spring on this one;
         # never the old reader's spring (`_bin_c_event_date`). No archive
         # column reads it: the archive family stores no event.
@@ -256,7 +252,7 @@ def to_result(read: Read, frame=None):
 
 
 def _wire_block(read: Read, result: dict) -> dict:
-    """The screen's block for a two-eyes fire (build task 15): days and resolved prices, nothing for the browser to
+    """The screen's block for a two-eyes fire: days and resolved prices, nothing for the browser to
     work out. The boxes are the archive family's own, through its one shaper, so the scan's card and the archive's
     chart of the same row draw the same lines; the LPS, the state word, the grade and the story are the record's."""
     lps, grade = read.lps, read.grade
@@ -270,6 +266,7 @@ def _wire_block(read: Read, result: dict) -> dict:
         "state_days": read.state_days,
         "grade": None if grade is None else {
             "score": result["_ta_grade"], "letter": grade.letter,
+            **({"clarity": grade.clarity} if grade.clarity is not None else {}),
             "empty_days": int(grade.empty_days), "base_days": int(grade.base_days), "holds": bool(grade.holds)},
         # The story the grade panel tells left to right (Tue 13/10/2026, his "the Grade section ... is completely
         # broken"): every word the reader named on the box shown, oldest first. Scan-only: the archive keeps no

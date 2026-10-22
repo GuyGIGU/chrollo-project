@@ -814,9 +814,9 @@ def test_a_fire_crosses_the_door_as_a_whole_row_with_the_box_the_lps_and_the_tri
     assert isinstance(row, dict) and not [k for k in two_eyes_adapter.REQUIRED_KEYS if k not in row]
     assert (round(row["_R"], 2), round(row["_S"], 2)) == (35.31, 32.26)
     assert row["_trigger_price"] == pytest.approx(37.22) and row["_lps_zone_end_date"] == "2026-02-17"
-    # By his ruling of Sat 03/10/2026 (the mini gated by its structure) SYRE's inner box 34.21 / 31.53 is a mini
-    # and the pullback's low sits near it, so the LPS says "mini"; the box, the trigger and the fire are the same.
-    assert row["_two_eyes_lps_read_against"] == "mini" and row["_two_eyes_has_mini"] == 1
+    # SYRE's old inner box 34.21 / 31.53 is 88% of its parent: the 21/10 size ruling excludes it.
+    # The parent, trigger and fire stand; this pullback is now read against the parent.
+    assert row["_two_eyes_lps_read_against"] == "parent" and row["_two_eyes_has_mini"] == 0
     assert watch["state"] == "fired" and watch["read"].fired
 
 

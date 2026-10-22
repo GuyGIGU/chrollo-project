@@ -80,6 +80,7 @@ TWO_EYES_COLUMN_SQL: dict[str, str] = {
     # archive can keep measuring it after the flip (his word Mon 12/10/2026,
     # option A). A fact: never a gate, never a point.
     "two_eyes_lps_volume_ratio": "FLOAT",
+    "two_eyes_clarity_json": "TEXT",
 }
 
 _DATE_COLUMNS = frozenset(

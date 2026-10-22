@@ -7,6 +7,16 @@ and existing monkeypatches continue to share one settings namespace.
 # ============================================================
 # 6. SCORING & TIERS
 # ============================================================
+# Experimental clarity grade, authorized 2026-10-22. Equal starting budgets;
+# set both to zero to retain the prior integrity grade. Letter cuts are unchanged.
+SCORE_CLARITY_SWINGS = 50.0
+SCORE_CLARITY_RAILS = 50.0
+# Initial reference scales: main share .45 is the current 48's lower quartile;
+# rail error .25 is their median, rounded. Training anchors, not validated edge.
+CLARITY_SWING_FULL_SHARE = 0.45
+CLARITY_RAIL_FULL_ERROR = 0.25
+CLARITY_RAIL_ZERO_ERROR = 1.0
+
 # Tier thresholds — calibrated against the live archive distribution
 # (avg ~95, max ~126 under prior weights). With the 52w-high proximity
 # bonus added, S sits at roughly the top quartile rather than catching

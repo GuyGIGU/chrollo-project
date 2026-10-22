@@ -33,6 +33,12 @@ _MANIFEST = os.path.join(_ROOT, "tests", "baselines", "old_engine_freeze.json")
 _FROZEN_TREES = ("engine_alpha/structure", "engine_alpha/scoring")
 _FROZEN_FILES = ("engine_alpha/evaluation.py", "engine_alpha/stability.py", "engine_alpha/frames.py",
                  "engine_alpha/election_identity.py")
+# The new reader's judge belongs in scoring; none of the frozen legacy files imports it.
+_NEW_READER_SCORING = {"engine_alpha/scoring/clarity.py"}
+_NEW_READER_SETTINGS = {
+    "SCORE_CLARITY_SWINGS", "SCORE_CLARITY_RAILS", "CLARITY_SWING_FULL_SHARE",
+    "CLARITY_RAIL_FULL_ERROR", "CLARITY_RAIL_ZERO_ERROR",
+}
 
 
 def _fingerprint(path: str) -> str:
@@ -45,7 +51,7 @@ def _frozen_paths_now() -> list[str]:
     for tree in _FROZEN_TREES:
         for p in glob.glob(os.path.join(_ROOT, tree, "**", "*.py"), recursive=True):
             paths.add(os.path.relpath(p, _ROOT).replace(os.sep, "/"))
-    return sorted(paths)
+    return sorted(paths - _NEW_READER_SCORING)
 
 
 def test_the_old_chart_reader_has_not_moved_since_the_freeze():
@@ -80,7 +86,8 @@ def _old_reader_settings_digest() -> str:
 
     # FUND_* (2026-10-12): the fundamentals sheet and grade, read after the chart by the scan's post-pass; neither
     # reader reads them, so they are no old-reader knob (the FUNDAMENTALS_* switches predate the seal and stay in).
-    old = {key: value for key, value in collect_manifest().items() if not key.startswith(("TWO_EYES", "FUND_"))}
+    old = {key: value for key, value in collect_manifest().items()
+           if not key.startswith(("TWO_EYES", "FUND_")) and key not in _NEW_READER_SETTINGS}
     return hashlib.sha256(json.dumps(old, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
@@ -104,7 +111,18 @@ def test_the_knob_guard_sees_a_moved_knob(monkeypatch):
 
     before = _old_reader_settings_digest()
     knob = next(k for k in ENGINE_SETTINGS_KEYS
-                if not k.startswith("TWO_EYES") and isinstance(getattr(settings, k), (int, float))
+                if not k.startswith("TWO_EYES") and k not in _NEW_READER_SETTINGS
+                and isinstance(getattr(settings, k), (int, float))
                 and not isinstance(getattr(settings, k), bool))
     monkeypatch.setattr(settings, knob, getattr(settings, knob) + 1)
     assert _old_reader_settings_digest() != before, f"moving {knob} did not move the digest"
+
+
+def test_the_new_readers_clarity_settings_do_not_move_the_old_readers_identity(monkeypatch):
+    from config import settings
+
+    before = _old_reader_settings_digest()
+    for name in _NEW_READER_SETTINGS:
+        with monkeypatch.context() as patch:
+            patch.setattr(settings, name, getattr(settings, name) + .01)
+            assert _old_reader_settings_digest() == before, name

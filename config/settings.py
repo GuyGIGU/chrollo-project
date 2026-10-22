@@ -187,6 +187,11 @@ from .engine import (
 )
 
 from .scoring import (
+    SCORE_CLARITY_SWINGS,
+    SCORE_CLARITY_RAILS,
+    CLARITY_SWING_FULL_SHARE,
+    CLARITY_RAIL_FULL_ERROR,
+    CLARITY_RAIL_ZERO_ERROR,
     TIER_S_STRUCT,
     TIER_A_STRUCT,
     TIER_B_STRUCT,

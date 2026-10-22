@@ -102,10 +102,10 @@ export function gradeCell(data) {
       value: score,
       scale: '/100',
       label: 'Grade',
-      note: facts
+      note: grade.clarity?.summary ?? (facts
         ? `${grade.empty_days} of ${grade.base_days} base days empty · the base ${grade.holds ? 'held' : 'did not hold'}`
-        : 'dead space and the hold',
-      title: TWO_EYES_GRADE_TITLE,
+        : 'dead space and the hold'),
+      title: grade.clarity?.summary ?? TWO_EYES_GRADE_TITLE,
     };
   }
   if (data?.ta_grade != null) {
