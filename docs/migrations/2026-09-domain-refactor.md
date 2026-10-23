@@ -4,14 +4,14 @@ The refactor on `claude/domain-refactor` grouped the code by what it does. It ru
 
 The machine-readable map is [2026-09-domain-refactor.json](2026-09-domain-refactor.json). [apply_move_map.py](../../tools/maintenance/apply_move_map.py) reads it to port a branch, and [test_apply_move_map.py](../../tests/tooling/test_apply_move_map.py) checks that the rewrite is idempotent, that every import it writes resolves, and that every file move in the JSON has a row on this page. The tables below are generated from the JSON; if you edit one, edit the other.
 
-The JSON records 573 file moves, 134 Python module moves, 10 whole-folder moves and 18 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; thirteen of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
+The JSON records 571 file moves, 134 Python module moves, 10 whole-folder moves and 20 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; thirteen of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
 
 | Area | Files moved |
 |---|---|
 | Engine | 28 |
 | Pipeline | 21 |
 | Backend | 47 |
-| Frontend | 218 |
+| Frontend | 216 |
 | Tests | 150 |
 | Tools | 42 |
 | Research evidence | 67 |
@@ -181,6 +181,8 @@ On 2026-09-24 the replay layer and the agreement taxonomy moved a second time, f
 
 Also on 2026-09-24, the Windows event-log resolver left `webapp/backend/services/scan_diagnosis.py` for `services/interruption_cause.py`: `resolve_pending`, `classify_interrupted`, `evidence_window_end`, `boot_time`, `collect_machine_down_events`, `parse_events`, `_pending_rows`, `_stamp_kind`, `DETECTION_GRACE_SECONDS`, `EVIDENCE_HORIZON_DAYS` and `WEVTUTIL_TIMEOUT_SECONDS` (and `_parse_iso` became `scan_diagnosis.parse_iso`). The failure verdicts and their words stay in `scan_diagnosis`. A branch that calls one of those names gets an `AttributeError` at service start, not at merge time, so grep for them after merging.
 
+On Fri 23/10/2026 `webapp/frontend/src/features/screener/hooks/useScreenerData.js` moved again, to `webapp/frontend/src/shared/hooks/useScreenerData.js`, beside the shared scan store it subscribes to: Home and the Screener both use it, and Home no longer imports from the Screener feature (codex/engineering-quality). The row for `webapp/frontend/src/hooks/useScreenerData.js` below composes both moves and names the final home.
+
 ## Deleted after the refactor
 
 On 2026-09-25 the final-method branch (`claude/method-steps-7-12`) was merged onto this layout, and with it the operator's ruling of Sat 19/09/2026 (build step 12, point 25) that deletes the Power Play species lane. Eleven files the refactor had moved went with it: the engine module `engine_alpha/structure/context/power_play.py`, three tools (`tools/research/power_play_census.py`, `tools/regression/power_play_fixture.py`, `tools/research/power_play_sheets.py`) and seven test files. Their moves are no longer in the JSON's `file_moves` and `module_moves`, because the porter must never write a path that does not exist; each old path is in `deleted` instead, with the home it had, and the four modules (`engine_alpha.structure.power_play`, `tools.power_play_census`, `tools.power_play_fixture`, `tools.power_play_sheets`) are reported notes, so a branch that still imports one is told the module is gone rather than pointed at a file that is not there. Nothing replaces them: `POWER_PLAY_STORY_FORM_ENABLED` stays in `config/engine.py` for the contraction rescue, and the `pp_*` archive columns stay on the model.
@@ -188,6 +190,8 @@ On 2026-09-25 the final-method branch (`claude/method-steps-7-12`) was merged on
 On Sat 03/10/2026 the operator's UX round (his suggestion 8: one pager for the whole app) deleted a twelfth: `webapp/frontend/src/features/screener/components/ScreenerPager.jsx`, whose job `webapp/frontend/src/shared/components/Pager.jsx` now does for the screener, the archive table, the journal and the calibration list. Its move left `file_moves` the same way, and its old path is in `deleted`; the porter no longer rewrites an import of it to a file that is not there, so a branch that still imports it is ported to the new pager by hand (its props differ: `page`, `pageCount`, `onPage`, `label`).
 
 On Fri 17/10/2026 the lens became the operator's TradingView three-pane grid (the monthly over the weekly in a side column beside the big daily, every pane a real chart), which deleted a thirteenth: `webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx`, the two preview cubes the side column replaced. Its move left `file_moves` the same way, and its old path is in `deleted`; a branch that still mounts it is ported to `TimeframeMainChart` in a `LensChartPane` by hand.
+
+On Fri 23/10/2026 the operator's Watchlist redesign (the Watchlist tab became a ticker ledger, and its filter and manager left the Screener) deleted a fourteenth and a fifteenth: `webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx`, the Screener's watchlist panel, and `webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx`, the tab's card wall, which `InstrumentTable` rows and a chart dialog replaced. Their moves left `file_moves` the same way, and their old paths are in `deleted`; a branch that still mounts either is ported to `WatchlistTable` and `WatchlistChartDialog` by hand.
 
 ## What was deleted, and why
 
@@ -211,6 +215,8 @@ On Fri 17/10/2026 the lens became the operator's TradingView three-pane grid (th
 | `tools/power_play_sheets.py` | The refactor moved it to tools/research/power_play_sheets.py; it was then DELETED with the Power Play species lane (final method build step 12, point 25, operator ruling of Sat 19/09/2026; claude/method-steps-7-12, merged onto this layout 2026-09-25). |
 | `webapp/frontend/src/components/ScreenerPager.jsx` | The refactor moved it to webapp/frontend/src/features/screener/components/ScreenerPager.jsx; it was then DELETED when the shared webapp/frontend/src/shared/components/Pager.jsx replaced the app's four pagers (the operator's UX round, his suggestion 8, Sat 03/10/2026; claude/leadership-read). |
 | `webapp/frontend/src/components/TimeframeMiniRow.jsx` | The refactor moved it to webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx; it was then DELETED when the lens became the operator's TradingView three-pane grid (the weekly and the monthly are real charts in the side column, so the preview cubes had no job; Fri 17/10/2026; claude/gfr-read-and-lens-three-panes). |
+| `webapp/frontend/src/components/ScreenerWatchlistPanel.jsx` | The refactor moved it to webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx; it was then DELETED when the Watchlist filter and manager left the Screener (the operator's Watchlist redesign: the Watchlist tab is the one place to manage saved names, Fri 23/10/2026; codex/engineering-quality). |
+| `webapp/frontend/src/components/watchlist/WatchlistCardGrid.jsx` | The refactor moved it to webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx; it was then DELETED when the Watchlist tab became a ticker ledger (InstrumentTable rows, with the D/W/M charts in a dialog; the operator's Watchlist redesign, Fri 23/10/2026; codex/engineering-quality). |
 
 Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webapp/backend/ibkr/`, which the first commit had left behind as aliases. Across the whole refactor git pairs each of them with its new home, so they appear as moves in the tables below, not here.
 
@@ -554,7 +560,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/ScreenerScanProgress.jsx` | `webapp/frontend/src/features/screener/components/ScreenerScanProgress.jsx` |
 | `webapp/frontend/src/components/ScreenerStockLens.jsx` | `webapp/frontend/src/shared/setup/ScreenerStockLens.jsx` |
 | `webapp/frontend/src/components/ScreenerToolbar.jsx` | `webapp/frontend/src/features/screener/components/ScreenerToolbar.jsx` |
-| `webapp/frontend/src/components/ScreenerWatchlistPanel.jsx` | `webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx` |
 | `webapp/frontend/src/components/SetupStoryPanel.jsx` | `webapp/frontend/src/shared/setup/SetupStoryPanel.jsx` |
 | `webapp/frontend/src/components/SetupTags.jsx` | `webapp/frontend/src/shared/setup/SetupTags.jsx` |
 | `webapp/frontend/src/components/TimeframeMainChart.jsx` | `webapp/frontend/src/shared/charts/TimeframeMainChart.jsx` |
@@ -632,7 +637,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/ui/Popover.jsx` | `webapp/frontend/src/features/screener/components/Popover.jsx` |
 | `webapp/frontend/src/components/ui/feedback.js` | `webapp/frontend/src/shared/components/feedback.js` |
 | `webapp/frontend/src/components/universeSwitcherData.js` | `webapp/frontend/src/shared/presentation/universeSwitcherData.js` |
-| `webapp/frontend/src/components/watchlist/WatchlistCardGrid.jsx` | `webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx` |
 | `webapp/frontend/src/components/watchlist/WatchlistChartCluster.jsx` | `webapp/frontend/src/features/watchlist/components/WatchlistChartCluster.jsx` |
 | `webapp/frontend/src/components/watchlist/WatchlistPage.jsx` | `webapp/frontend/src/features/watchlist/components/WatchlistPage.jsx` |
 | `webapp/frontend/src/components/wireVocabulary.js` | `webapp/frontend/src/shared/presentation/wireVocabulary.js` |
@@ -667,7 +671,7 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/hooks/useSSE.js` | `webapp/frontend/src/features/portfolio/hooks/useSSE.js` |
 | `webapp/frontend/src/hooks/useScanHistory.js` | `webapp/frontend/src/features/screener/hooks/useScanHistory.js` |
 | `webapp/frontend/src/hooks/useScanRunner.js` | `webapp/frontend/src/features/screener/hooks/useScanRunner.js` |
-| `webapp/frontend/src/hooks/useScreenerData.js` | `webapp/frontend/src/features/screener/hooks/useScreenerData.js` |
+| `webapp/frontend/src/hooks/useScreenerData.js` | `webapp/frontend/src/shared/hooks/useScreenerData.js` |
 | `webapp/frontend/src/hooks/useScreenerFilters.js` | `webapp/frontend/src/features/screener/hooks/useScreenerFilters.js` |
 | `webapp/frontend/src/hooks/useTradeCellEditing.js` | `webapp/frontend/src/features/journal/hooks/useTradeCellEditing.js` |
 | `webapp/frontend/src/hooks/useTradeFills.js` | `webapp/frontend/src/features/journal/hooks/useTradeFills.js` |

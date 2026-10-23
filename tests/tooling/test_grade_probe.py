@@ -560,7 +560,9 @@ def test_the_readers_own_grade_is_the_probes_fifth_reading(colm_fires, frph_fire
 
     for row in (*colm_fires, *frph_fires, *unf_and_frph):
         m, g = measures(row), row["read"].grade
-        assert (g.score, g.holds, g.empty_days, g.base_days) == \
+        # The board reads the screen's grade, clarity composed under the reader's own: that one is its integrity score.
+        integrity = (g.clarity or {}).get("integrity_score", g.score)
+        assert (integrity, g.holds, g.empty_days, g.base_days) == \
             (whole_points(fifth_grade(m)), m["holds4"], len(m["Dw_empty"]), m["Dh_days"]), row["day"]
 
 

@@ -316,6 +316,7 @@ def test_the_switch_is_read_in_exactly_one_place():
     # plan's tasks 4 and 5 flip it to make the tools, the audits and the workbench
     # meet a new-reader night (refused charts, the notice, the miss's reason).
     # The morning check (task 9) flips it to read the night twice, new and old: it measures.
+    # The live-reader audit's test flips it to see the audit refuse an old-reader night: it measures.
     # Since the flip, tests/conftest.py's `old_reader` fixture sets it off for the tests
     # written for the old reader (the switch back is the first undo).
     files -= {"tests/conftest.py", "tests/tooling/test_old_reader_tools.py", "tests/backend/test_workbench_new_reader.py",
@@ -325,7 +326,7 @@ def test_the_switch_is_read_in_exactly_one_place():
               "tests/engine/test_reader_door.py", "tests/engine/test_two_eyes_adapter.py",
               "tests/engine/test_two_eyes_skeleton.py", "tests/engine/test_two_eyes_lps.py",
               "tests/engine/test_two_eyes_mini.py",
-              "tests/tooling/test_core_board.py",
+              "tests/tooling/test_core_board.py", "tests/tooling/test_live_reader_audit.py",
               "tests/tooling/test_yardstick.py", "tools/calibration/yardstick.py",
               "tools/calibration/parallel_night.py",
                   "tools/ops/morning_check.py"}

@@ -835,13 +835,6 @@
    "source": "git"
   },
   {
-   "old": "webapp/frontend/src/components/ScreenerWatchlistPanel.jsx",
-   "new": "webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx",
-   "area": "frontend",
-   "similarity": 91,
-   "source": "git"
-  },
-  {
    "old": "webapp/frontend/src/components/SetupStoryPanel.jsx",
    "new": "webapp/frontend/src/shared/setup/SetupStoryPanel.jsx",
    "area": "frontend",
@@ -1381,13 +1374,6 @@
    "source": "git"
   },
   {
-   "old": "webapp/frontend/src/components/watchlist/WatchlistCardGrid.jsx",
-   "new": "webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx",
-   "area": "frontend",
-   "similarity": 93,
-   "source": "git"
-  },
-  {
    "old": "webapp/frontend/src/components/watchlist/WatchlistChartCluster.jsx",
    "new": "webapp/frontend/src/features/watchlist/components/WatchlistChartCluster.jsx",
    "area": "frontend",
@@ -1627,10 +1613,10 @@
   },
   {
    "old": "webapp/frontend/src/hooks/useScreenerData.js",
-   "new": "webapp/frontend/src/features/screener/hooks/useScreenerData.js",
+   "new": "webapp/frontend/src/shared/hooks/useScreenerData.js",
    "area": "frontend",
    "similarity": 100,
-   "source": "git"
+   "source": "git, then moved again on 2026-10-23 (Home and the Screener both use it, so it sits beside the shared scan store it subscribes to); similarity scored against the first home"
   },
   {
    "old": "webapp/frontend/src/hooks/useScreenerFilters.js",
@@ -4984,6 +4970,14 @@
   {
    "path": "webapp/frontend/src/components/TimeframeMiniRow.jsx",
    "why": "The refactor moved it to webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx; it was then DELETED when the lens became the operator's TradingView three-pane grid (the weekly and the monthly are real charts in the side column, so the preview cubes had no job; Fri 17/10/2026; claude/gfr-read-and-lens-three-panes)."
+  },
+  {
+   "path": "webapp/frontend/src/components/ScreenerWatchlistPanel.jsx",
+   "why": "The refactor moved it to webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx; it was then DELETED when the Watchlist filter and manager left the Screener (the operator's Watchlist redesign: the Watchlist tab is the one place to manage saved names, Fri 23/10/2026; codex/engineering-quality)."
+  },
+  {
+   "path": "webapp/frontend/src/components/watchlist/WatchlistCardGrid.jsx",
+   "why": "The refactor moved it to webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx; it was then DELETED when the Watchlist tab became a ticker ledger (InstrumentTable rows, with the D/W/M charts in a dialog; the operator's Watchlist redesign, Fri 23/10/2026; codex/engineering-quality)."
   }
  ]
 }

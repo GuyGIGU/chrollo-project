@@ -81,7 +81,7 @@ Verification: 605 JavaScript tests, production build and lint; the expanded
 browser suite covers the shortlist, retry paths, persistence, concurrent clicks,
 top paging and narrow layouts. All browser API writes use controlled mocks.
 Real-data visual inspection used only navigation/filtering against the existing
-backend. Merged into main on 23 October; the live bundle changes only with the operator's update.
+backend. Merged into main on 24 October; the live bundle changes only with the operator's update.
 
 ### Product priorities after integration
 

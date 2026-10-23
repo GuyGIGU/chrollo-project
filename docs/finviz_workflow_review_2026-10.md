@@ -1,7 +1,7 @@
 # Finviz workflow review and Chrollo structure pass
 
 Reviewed 2026-10-23. Source changes are in `codex/engineering-quality`, alongside
-the earlier quality and shortlisting work, merged into main on 23 October; deployment
+the earlier quality and shortlisting work, merged into main on 24 October; deployment
 remains the operator's `update_dashboard.bat`.
 
 ## Finding
