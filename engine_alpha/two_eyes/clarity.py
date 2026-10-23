@@ -33,13 +33,14 @@ def measure(line, events, days, *, R: float, S: float, opening_bar: int, read_ba
         fine_legs += len(legs)
     errors = []
     explained = 0
+    turn_days = [t.day for t in line.committed]
+    spans = {kind: own_swings([e for e in known if e.kind == kind], turn_days, days[0], days[read_bar])
+             for kind in (UPTHRUST, SPRING)}
     for turn in far:
         rail = R if turn.kind == "peak" else S
         kind = UPTHRUST if turn.kind == "peak" else SPRING
         outside = turn.price > R if turn.kind == "peak" else turn.price < S
-        spans = own_swings([e for e in known if e.kind == kind],
-                           [t.day for t in line.committed], days[0], days[read_bar])
-        named = outside and any(a <= turn.day <= b for a, b in spans)
+        named = outside and any(a <= turn.day <= b for a, b in spans[kind])
         explained += int(named)
         if not named:
             errors.append(abs(turn.price - rail) / (R - S))

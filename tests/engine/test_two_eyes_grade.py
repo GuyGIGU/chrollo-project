@@ -247,6 +247,26 @@ def test_a_grade_that_falls_over_leaves_the_read_firing_and_says_why(monkeypatch
         "the grade could not be read (RuntimeError: a grade rule fell over); the read stands without it"]
 
 
+def test_clarity_that_falls_over_leaves_the_integrity_grade_standing(monkeypatch):
+    from engine_alpha.two_eyes import clarity
+
+    grade = _stage()
+    before = _his("UNF:2026-07-10")
+    assert before.fired and before.grade is not None and before.grade.clarity
+    frames, _ = load_sealed_fixture()
+    raw = fixture_frame(frames, "UNF:2026-07-10", "UNF").loc[:pd.Timestamp(before.as_of)]
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("a clarity rule fell over")
+
+    monkeypatch.setattr(clarity, "measure", broken)
+    after = two_eyes.read("UNF", raw)
+    assert after.fired and after.grade is not None and after.grade.clarity is None
+    assert (after.grade.score, after.grade.letter) == (before.grade.score, before.grade.letter)
+    assert [s.saying for s in after.trail if s.stage == grade.STAGE][-1] == (
+        "the clarity facts could not be measured (RuntimeError: a clarity rule fell over); the integrity grade stands")
+
+
 def test_a_chart_with_no_lines_carries_no_grade():
     days = pd.bdate_range("2026-01-05", periods=5)
     frame = pd.DataFrame({"Open": 10.0, "High": 10.5, "Low": 9.5, "Close": 10.0, "Volume": 1e6}, index=days)

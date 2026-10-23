@@ -87,11 +87,31 @@ def test_the_adapter_composes_once_and_archives_the_same_breakdown_without_movin
     assert graded_read(scored) is scored
     assert scored.fired == read.fired and scored.boxes == read.boxes and scored.lps == read.lps
     assert f'{scored.grade.letter} ({scored.grade.score:.0f})' in scored.trail[0].saying
+    assert scored.trail[0].saying.endswith('; under it, the grade: S (100)')
     row = to_result(read)
     assert row['Score'] == row['_ta_grade'] == row[SCREEN_KEY]['grade']['score']
     assert row['Tier'] == scored.grade.letter == row[SCREEN_KEY]['grade']['letter']
     archived = two_eyes_archive_values(row.get, prefixed=True)
     assert json.loads(archived['two_eyes_clarity_json']) == scored.grade.clarity
+
+
+def test_a_clarity_score_that_falls_over_keeps_the_integrity_grade_and_the_fire(monkeypatch):
+    from config import settings
+    from engine_alpha.evaluation import EVAL_ERROR
+    from engine_alpha.two_eyes.record import Box, Line, Lps, Read, Step
+    from engine_alpha.two_eyes_adapter import graded_read, to_result
+
+    day = dt.date(2026, 1, 30)
+    old = Grade(100, 'S', 0, 30, True,
+                clarity={'facts': {'main_swing_share': .2, 'rail_alignment_error': .5}})
+    read = Read('TEST', day, boxes=(Box(Line(100, day), Line(90, day), day),), lps=Lps(day, day, 'parent', 99),
+                state='fired', close=98, grade=old, trail=(Step('grade', 'the grade: S (100)'),))
+    monkeypatch.setattr(settings, 'CLARITY_SWING_FULL_SHARE', 0)
+    kept = graded_read(read)
+    assert (kept.grade.score, kept.grade.letter, kept.grade.clarity) == (100, 'S', None)
+    assert 'could not be composed (ZeroDivisionError' in kept.trail[-1].saying
+    row = to_result(read)
+    assert row is not EVAL_ERROR and row['Tier'] == 'S' and row['_two_eyes_clarity_json'] is None
 
 
 def test_each_scoring_control_rotates_the_engine_identity(monkeypatch):

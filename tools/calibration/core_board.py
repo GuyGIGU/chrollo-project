@@ -40,6 +40,7 @@ _ROOT = configure_path(backend=True)
 from engine_alpha import two_eyes  # noqa: E402
 from engine_alpha.evaluation import apply_baseline_filters_with_reason  # noqa: E402
 from engine_alpha.two_eyes import lps, mini, walk  # noqa: E402
+from engine_alpha.two_eyes_adapter import graded_read  # noqa: E402
 from engine_alpha import two_eyes_numbers as M  # noqa: E402
 from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
@@ -69,7 +70,7 @@ def read_day(ticker: str, raw, day) -> dict:
     """One day's read as the scan would make it, with the pullback the reader measured (fired or refused)."""
     cut = raw.loc[:pd.Timestamp(day)]
     started = time.perf_counter()
-    read = two_eyes.read(ticker, cut)
+    read = graded_read(two_eyes.read(ticker, cut))
     seconds = time.perf_counter() - started
     admitted, reason = apply_baseline_filters_with_reason(cut)
     out = {"day": _date(day), "read": read, "seconds": seconds, "door": None if admitted is not None else reason[0],
@@ -326,7 +327,7 @@ def grade_moves(setups: list, frames: dict, back: int = 10) -> dict:
         end = raw.index.get_loc(pd.Timestamp(his_last_lps_day(setup)))
         before, letters = None, []
         for i in range(max(0, end - back), len(raw)):
-            read = two_eyes.read(setup["ticker"], raw.iloc[:i + 1])
+            read = graded_read(two_eyes.read(setup["ticker"], raw.iloc[:i + 1]))
             out["nights"] += 1
             sos = next((e for e in read.events if e.kind == two_eyes.record.SOS), None)
             out["provisional_sos_nights"] += sos is not None and not sos.committed

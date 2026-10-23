@@ -14,7 +14,7 @@ from typing import Optional
 
 from config import settings
 from engine_alpha.evaluation import EVAL_ERROR, WATCH_WIRE_STATES
-from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, SPRING, Read
+from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, SPRING, Read, Step
 from engine_alpha.two_eyes_archive import SCREEN_KEY, two_eyes_archive_values, two_eyes_screen_boxes, volume_vs_50d
 
 #: Keys downstream reads with square brackets — a missing one is a KeyError in
@@ -114,15 +114,24 @@ def _spring_day(read: Read) -> Optional[str]:
 
 
 def graded_read(read: Read) -> Read:
-    """Compose the measured clarity once, outside the chart-reading leaf."""
+    """Compose the measured clarity once, outside the chart-reading leaf.
+
+    A grade never costs a fire: if composing fails, the integrity grade stands and the trail says why.
+    """
     grade = read.grade
     if grade is None or not grade.clarity or grade.clarity.get("method"):
         return read
     from engine_alpha.scoring.clarity import compose_grade
 
-    composed = compose_grade(grade, grade.clarity["facts"])
+    try:
+        composed = compose_grade(grade, grade.clarity["facts"])
+    except Exception as exc:
+        step = Step("grade", f"the clarity grade could not be composed ({type(exc).__name__}: {exc}); "
+                             "the integrity grade stands")
+        return replace(read, grade=replace(grade, clarity=None), trail=read.trail + (step,))
     trail = tuple(replace(step, saying=(
-        f"the technical grade: {composed.letter} ({composed.score:.0f}); {composed.clarity['summary']}"
+        f"the technical grade: {composed.letter} ({composed.score:.0f}); {composed.clarity['summary']}; "
+        f"under it, {step.saying}"
     )) if step.stage == "grade" else step for step in read.trail)
     return replace(read, grade=composed, trail=trail)
 

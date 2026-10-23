@@ -181,14 +181,20 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                 the_grade = grade_stage.read(high, low, days, line.committed, events, R=found.winner.R,
                                              S=found.winner.S, unit=found.winner.unit,
                                              opening_bar=found.winner.opening_bar, read_bar=len(prepared) - 1)
+                trail = trail + grade_stage.record(the_grade)
+            except Exception as exc:                  # the read stands; the grade is missing; the trail says why
+                the_grade, trail = None, trail + grade_stage.could_not_be_read(exc)
+        # The clarity facts, in their own guard: a fault here leaves the integrity grade standing.
+        if the_grade is not None:
+            try:
                 from engine_alpha.two_eyes.clarity import measure
 
                 facts = measure(line, events, days, R=found.winner.R, S=found.winner.S,
                                 opening_bar=found.winner.opening_bar, read_bar=len(prepared) - 1)
                 the_grade = replace(the_grade, clarity={"facts": facts})
-                trail = trail + grade_stage.record(the_grade)
-            except Exception as exc:                  # the read stands; the grade is missing; the trail says why
-                the_grade, trail = None, trail + grade_stage.could_not_be_read(exc)
+            except Exception as exc:
+                trail = trail + (Step(grade_stage.STAGE, f"the clarity facts could not be measured "
+                                                         f"({type(exc).__name__}: {exc}); the integrity grade stands"),)
         # The state word, decided LAST and in its own guard: `fired` and `crossed` are final; with no
         # fire and no cross the right edge is read (bars wholly past a line's area), and with no box a young pair
         # the bars came back to is `forming N of 15`. A decision that falls over leaves the word above standing.
