@@ -46,8 +46,8 @@ His sentences, and where each lives:
 9. *Once a box, it stays a box through dips and pokes that come back* — a later pair inside or across the shown
    box never takes its place (``left_for_good`` asks that it lie beyond). And a dip that comes back LATE: the
    reader reads day by day, so when the price left the box downward for fifteen days it followed it to the lower
-   pair; the day the bars are back at both rails of the box it gave up, that box takes its place back
-   (``came_back_to``). His ROIV picture (Thu 01/10/2026: a red dash on each bar that meets one of his two lines,
+   pair; the day the bars are back at both rails of the box it gave up and no longer come back to the lower
+   pair's support, that box takes its place back (``came_back_to``; his STGW, Fri 23/10/2026). His ROIV picture (Thu 01/10/2026: a red dash on each bar that meets one of his two lines,
    none on the days under the support nor on the two days over the resistance) and his word on the boxes the
    reader never went back to: *"go ahead with the five earlier boxes I think as long as the engine understand
    that there is a setup there I'm happy"*.
@@ -515,16 +515,21 @@ def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) 
     return int(days[gone[0]]) if len(gone) else None
 
 
-def came_back_to(old: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
+def came_back_to(old: Pair, shown: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
     """His sentence 9 for a dip that comes back late — *"Once a box, it stays a box through dips under support
     ... that come back"*: the first day after ``since`` (the day the box was given up) on which the bars since
-    that day, and of the last fifteen trading days, have come back to both its rails. None when there is none by
-    the read day. A bar at a rail on or before ``since`` is not the price coming back."""
+    that day, and of the last fifteen trading days, have come back to both its rails AND no longer come back to
+    the shown pair's far rail (``far_rail``: its support, the box given up lying above it). The way back is a
+    hand-over, judged as every hand-over is, by both halves of his sentence 10 (his STGW, Fri 23/10/2026: the
+    breakout of Tue 13/10 ran through the pair of early August above his box, and that one run gave the old pair
+    the box's place back while the bars rested on the box's top). None when there is none by the read day. A bar
+    at a rail on or before ``since`` is not the price coming back."""
     first = int(since) + 1
     if first > read_bar:
         return None
     days = np.arange(first, read_bar + 1)
-    back = np.flatnonzero(_back_at_both(old, high, low, first, days))
+    left = ~_back_at_rail(shown, far_rail(old, shown), high, low, first, days)
+    back = np.flatnonzero(left & _back_at_both(old, high, low, first, days))
     return int(days[back[0]]) if len(back) else None
 
 
@@ -540,7 +545,8 @@ def lives(pairs, trends, high, low, read_bar: int) -> tuple:
     judged once that trend end is known) or on the first day the price has left it for good (``left_for_good``).
     Each of those goes to a pair that opened later. One hand-over goes back: when the price had left a box
     DOWNWARD and a lower pair took its place, the box takes its place back on the first day the bars are back at
-    both its rails (``came_back_to``) — a dip that came back. And one goes to a SIBLING: a pair off the shown
+    both its rails and no longer come back to the lower pair's support (``came_back_to``) — a dip that came
+    back. And one goes to a SIBLING: a pair off the shown
     pair's own opening anchor with an earlier second anchor — the climax and its reaction, before the pair one
     swing to its right — was tried first (sentence 5), and takes the place on the day it becomes a box
     (``TRIED_FIRST``; his GFR, Thu 16/10/2026: *"the AR ended where I marked it ... the entire wave going down
@@ -555,7 +561,7 @@ def lives(pairs, trends, high, low, read_bar: int) -> tuple:
         best = None
         if why == LEFT_FOR_GOOD and before is not None and shown.S < before.R - before.area:
             # The shown pair lies under the box it took over from: the price had left that box downward.
-            back = came_back_to(before, high, low, day, read_bar)
+            back = came_back_to(before, shown, high, low, day, read_bar)
             if back is not None:
                 best = ((back, ()), before, CAME_BACK, None)    # the empty key: it comes before a pair of that day
         for pair in born:

@@ -759,8 +759,14 @@ default as ours.
    leg, or a mini, and never takes its place. And a dip that comes back LATE: the reader
    reads day by day, so when the price has been under the box for fifteen days it follows
    it to the lower pair (sentence 10); on the first day the bars since then, and of the
-   last fifteen days, are back at both rails of the box it gave up, that box takes its
-   place back. His ROIV picture is this (Thu 01/10/2026: a red dash on each bar that meets
+   last fifteen days, are back at both rails of the box it gave up and no longer come back
+   to the lower pair's support, that box takes its place back: the way back is a hand-over,
+   judged as every hand-over is, by both halves of sentence 10 (his STGW, Fri 23/10/2026:
+   the box 8.96 / 8.47 from the selling climax to the automatic rally; the breakout of Tue
+   13/10 ran to 9.64 through the pair of early August above it, and off that one run the
+   reader gave the old pair the box's place back while the bars rested on the box's top, so
+   his six-day LPS on the resistance read as no LPS against rails 9.40 / 8.93). His ROIV
+   picture is this (Thu 01/10/2026: a red dash on each bar that meets
    one of his two lines, none on the days under the support at the end of March), and his
    word on the boxes the reader never went back to: *"go ahead with the five earlier boxes
    I think as long as the engine understand that there is a setup there I'm happy"*. The
