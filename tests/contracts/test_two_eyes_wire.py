@@ -190,6 +190,7 @@ def _payload(monkeypatch, row: dict, frame=None) -> dict:
 TWO_EYES_WIRE_KEYS = (
     "R", "S",
     "adr_pct",
+    "base_len",
     "candles",
     "days_to_earnings",
     "dollar_volume_50d",
@@ -242,6 +243,30 @@ def test_every_surface_shows_one_grade_number(monkeypatch):
     chart = _payload(monkeypatch, result)
     assert chart["ta_grade"] == chart["score"] == chart["two_eyes"]["grade"]["score"] == 45.5
     assert result["Score"] == result["_ta_grade"] == 45.5
+
+
+def test_parent_length_counts_real_sessions_even_when_the_grade_window_ends_earlier(monkeypatch):
+    from core.pipeline.screening.dashboard import _two_eyes_base_length
+    from engine_alpha.two_eyes_adapter import to_result
+
+    frame = _frame()
+    read = _read()
+    block = to_result(read)['_wire_two_eyes']
+    block['boxes'][0]['opened'] = '2026-01-05'
+    block['boxes'][0]['end'] = '2026-02-10'
+    expected = len(frame.loc['2026-01-05':'2026-02-10'])
+    assert _two_eyes_base_length(block, frame) == expected
+    assert expected != read.grade.base_days
+    block['boxes'][0]['opened'] = '2025-12-01'
+    assert _two_eyes_base_length(block, frame) is None, 'partial history is not a measured length'
+
+
+def test_the_new_reader_chart_carries_its_parent_session_count(monkeypatch):
+    from engine_alpha.two_eyes_adapter import to_result
+
+    row = to_result(_read())
+    chart = _payload(monkeypatch, row)
+    assert chart['base_len'] == len(_frame().loc['2026-01-05':])
 
 
 def test_the_old_families_are_not_carried_on_a_two_eyes_row(monkeypatch):

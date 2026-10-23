@@ -1974,7 +1974,7 @@ def test_read_verdict_agree_lands_and_get_serves_it(tmp_path):
         # grade_verdict serves alongside — the GET's old two-key shape WAS
         # review finding 6 (a stored grade verdict was unreadable).
         assert got == {"verdict": "agree", "grade_verdict": None,
-                       "note": "rails"}
+                       "note": "rails", "engine_config_version": None}
     finally:
         db.close()
 
@@ -2088,7 +2088,8 @@ def test_read_verdict_get_serves_nulls_when_absent(tmp_path):
     try:
         got = get_read_verdict(ticker="AAA", scan_date="2026-08-05",
                                universe_type=None, db=db)
-        assert got == {"verdict": None, "grade_verdict": None, "note": None}
+        assert got == {"verdict": None, "grade_verdict": None, "note": None,
+                       "engine_config_version": None}
     finally:
         db.close()
 
@@ -2136,6 +2137,9 @@ def test_read_verdict_stamps_and_refreshes_engine_config_version(tmp_path):
         row = db.query(ReadVerdict).one()
         assert row.verdict == "disagree"
         assert row.engine_config_version == "deadbeef"
+        from domains.archive.reviews import get_read_verdict
+        got = get_read_verdict(ticker="AAA", scan_date="2026-08-05", universe_type=None, db=db)
+        assert got['engine_config_version'] == 'deadbeef'
     finally:
         db.close()
 

@@ -270,7 +270,8 @@ def get_read_verdict(
     )
     return {"verdict": row.verdict if row else None,
             "grade_verdict": row.grade_verdict if row else None,
-            "note": row.note if row else None}
+            "note": row.note if row else None,
+            "engine_config_version": row.engine_config_version if row else None}
 
 
 @router.post("/reviews/like")

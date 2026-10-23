@@ -170,6 +170,9 @@ def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df)
         'monthly_box': monthly_box,
         'R': round(float(row['_R']), 2),
         'S': round(float(row['_S']), 2),
+        # Trading sessions in the parent box through this read, not the
+        # grade's shorter, pre-SOS base_days window.
+        'base_len': _two_eyes_base_length(block, df),
         'tier': row['Tier'],
         'score': row['Score'],
         'setup': row['Setup'],
@@ -186,6 +189,17 @@ def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df)
         'ta_grade': _round_opt(row.get('_ta_grade'), 1),
         'two_eyes': block,
     }
+
+
+def _two_eyes_base_length(block, df):
+    parent = next((box for box in block['boxes'] if box['role'] == 'parent'), None)
+    if parent is None or df.empty:
+        return None
+    start = pd.Timestamp(parent['opened'])
+    end = pd.Timestamp(parent['end']) if parent['end'] else df.index[-1]
+    if start not in df.index or end not in df.index:
+        return None
+    return int(((df.index >= start) & (df.index <= end)).sum())
 
 
 def _dollar_volume_50d(df):

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import SetupStoryPanel from './SetupStoryPanel';
 import { buildPhaseRegions } from '../charts/chartPhaseOverlay';
@@ -10,7 +10,7 @@ import {
   shapeTrace,
   tapeGlyphs,
 } from './narrativeRead';
-import { toast } from '../components/feedback';
+import ReadVerdictControl from './ReadVerdictControl';
 import {
   ROOT_OUTCOME_LABELS,
   TRACE_STAGE_LABELS,
@@ -257,163 +257,6 @@ function ElectionTraceReadout({ trace }) {
   );
 }
 
-// The read-reason vocabulary: about the READ (rails, story, posture), never
-// recycled setup-skip reasons. Free choice, always skippable.
-const READ_REASONS = ['rails', 'story', 'posture', 'phases', 'other'];
-
-// One-tap concordance verdict on the ENGINE'S READ — a third axis (it judges
-// the read, not the setup), bound verbatim to the payload's scan_identity
-// triple and recorded through the reviews router's read-verdict path.
-// Optimistic and never blocking. Council review 2026-08-05, findings 5+11:
-// every async settle (the mount GET and the POST rollback) is guarded by the
-// identity it was issued for — a stale resolution must never paint one
-// ticker's verdict onto another, and a late GET must never stomp an
-// optimistic write; failures surface through the shared toast channel and
-// keep the composed reason; the disagree reason is an inline skippable chip
-// row (window.prompt froze the chart the operator needs to look at).
-function ReadVerdictControl({ ticker, scanIdentity }) {
-  const scanDate = scanIdentity?.scan_date ?? null;
-  const universeType = scanIdentity?.universe_type ?? null;
-  const engineVersion = scanIdentity?.engine_config_version ?? null;
-  const [verdict, setVerdict] = useState(null);
-  const [note, setNote] = useState(null);
-  const [reasonOpen, setReasonOpen] = useState(false);
-  const [otherText, setOtherText] = useState('');
-  const identityRef = useRef(null);
-  const writeIssuedRef = useRef(false);
-
-  useEffect(() => {
-    const identity = `${ticker}|${scanDate}`;
-    identityRef.current = identity;
-    writeIssuedRef.current = false;
-    setVerdict(null);
-    setNote(null);
-    setReasonOpen(false);
-    setOtherText('');
-    if (!ticker || !scanDate) return;
-    const params = new URLSearchParams({ ticker, scan_date: scanDate });
-    if (universeType) params.set('universe_type', universeType);
-    fetch(`${API_BASE}/archive/reviews/read-verdict?${params.toString()}`)
-      .then((response) => {
-        if (!response.ok) throw new Error(`read-verdict GET ${response.status}`);
-        return response.json();
-      })
-      .then((body) => {
-        // Bail if the control moved on, or the operator already clicked —
-        // the server's pre-write state must not repaint over a live write.
-        if (identityRef.current !== identity || writeIssuedRef.current) return;
-        setVerdict(body.verdict ?? null);
-        setNote(body.note ?? null);
-      })
-      .catch((error) => {
-        console.error(`Read-verdict fetch failed for ${ticker}`, error);
-      });
-  }, [ticker, scanDate, universeType]);
-
-  const record = (next, nextNote) => {
-    const identity = identityRef.current;
-    const previous = verdict;
-    const previousNote = note;
-    writeIssuedRef.current = true;
-    setVerdict(next);
-    setNote(nextNote ?? null);
-    fetch(`${API_BASE}/archive/reviews/read-verdict`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ticker,
-        scan_date: scanDate,
-        universe_type: universeType,
-        engine_config_version: engineVersion,
-        verdict: next,
-        note: nextNote ?? null,
-      }),
-    })
-      .then((response) => { if (!response.ok) throw new Error(`read-verdict POST ${response.status}`); })
-      .catch((error) => {
-        console.error(`Read verdict failed for ${ticker}, reverting`, error);
-        toast(`Read verdict for ${ticker} didn't save — reverted`, { tone: 'danger' });
-        if (identityRef.current !== identity) return;   // paged away: never paint the old ticker's state here
-        setVerdict(previous);
-        setNote(previousNote);
-      });
-  };
-
-  const disabled = !ticker || !scanDate;
-
-  return (
-    <div style={{ marginTop: 10 }}>
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-        title={disabled
-          ? 'No scan identity for this view — the verdict must bind to an exact archived scan'
-          : 'Judge the READ, not the setup: does the engine tell this chart the way you would?'}
-      >
-        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>The read:</span>
-        <button
-          type="button" disabled={disabled}
-          className={`narrative-verdict-btn${verdict === 'agree' ? ' is-active' : ''}`}
-          onClick={() => { setReasonOpen(false); record(verdict === 'agree' ? null : 'agree'); }}
-        >
-          tells it right
-        </button>
-        <button
-          type="button" disabled={disabled}
-          className={`narrative-verdict-btn${verdict === 'disagree' ? ' is-active' : ''}`}
-          onClick={() => {
-            if (verdict === 'disagree') { setReasonOpen(false); record(null); return; }
-            // Record immediately — the reason is optional refinement, never a
-            // gate; the chart stays live under the chip row.
-            record('disagree', note);
-            setReasonOpen(true);
-          }}
-        >
-          reads it wrong
-        </button>
-      </div>
-      {reasonOpen && verdict === 'disagree' && (
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>what&apos;s off?</span>
-          {READ_REASONS.map((reason) => (
-            <button
-              key={reason} type="button"
-              className={`narrative-reason-chip${note === reason ? ' is-active' : ''}`}
-              onClick={() => {
-                if (reason === 'other') { setNote('other'); return; }
-                record('disagree', reason);
-                setReasonOpen(false);
-              }}
-            >
-              {reason}
-            </button>
-          ))}
-          {note === 'other' && (
-            <input
-              type="text" value={otherText} autoFocus
-              className="narrative-reason-input" placeholder="what's off? (Enter)"
-              onChange={(event) => setOtherText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  record('disagree', otherText.trim() || null);
-                  setReasonOpen(false);
-                }
-                if (event.key === 'Escape') setReasonOpen(false);
-              }}
-            />
-          )}
-          <button
-            type="button" className="narrative-reason-chip"
-            title="Keep the verdict without a reason"
-            onClick={() => setReasonOpen(false)}
-          >
-            skip
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function NarrativePanel({ activeRegion, data, onRegionChange, scanIdentity, ticker }) {
   const [traceOpen, setTraceOpen] = useState(false);
   // Deliberate reset-on-cycle: the trace is diagnostic, consulted per chart —
@@ -570,6 +413,11 @@ export default function ScreenerStockLens({
         />
       ) : null}
       {ticker ? <FiredCrossedLine ticker={ticker} /> : null}
+      {showDailyStructure && data?.two_eyes ? (
+        <section className="stock-lens-section">
+          <ReadVerdictControl ticker={ticker} scanIdentity={scanIdentity} />
+        </section>
+      ) : null}
       {narrative ? (
         <div className="stock-lens-bottom">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
