@@ -13,7 +13,9 @@ The key-set snapshot is deliberately exact: adding or removing a wire key
 must be a conscious edit here, never silent drift — the boundary contract the
 frontend consumes.
 """
+import os
 import sys
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -70,6 +72,11 @@ def _payload(monkeypatch, *, v2_overlay=None):
     results = pd.DataFrame([row])
     monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker",
                         lambda *_args: None)
+    # the group facts (2026-10-23): no archive, a throwaway cache
+    from core.fundamentals import industry
+    monkeypatch.setattr(dashboard_module, "_industry_cache_path",
+                        lambda: os.path.join(tempfile.mkdtemp(), "industry_cache.json"))
+    monkeypatch.setattr(industry, "recent_fires", lambda *_a, **_k: {})
     return dashboard_module._extract_chart_data(data, results, ["AAA"])["AAA"]
 
 
@@ -142,6 +149,9 @@ BASE_WIRE_KEYS = (
     # + the fundamentals sheet and the fundamental grade 2026-10-12 (deliberate
     # edit, operator go-ahead: "yes go ahead with the fundamentals sheet")
     "fund_grade", "fund_grade_score", "fund_sheet",
+    # + group 2026-10-23 (the industry and "N of M in the group fired tonight /
+    # in the last 10 days", display only, resolved here - his yes)
+    "group",
     "higher_low_frac",
     "htf_m_box_r", "htf_m_box_s", "htf_m_box_width", "htf_m_daily_nested",
     "htf_m_in_consol", "htf_m_phase", "htf_m_reaccum", "htf_m_stage2",
@@ -207,6 +217,15 @@ def test_wire_carries_the_leadership_read(monkeypatch):
     assert chart["stage2_trend_pass_count"] == 7
     assert chart["stage2_52w_low_pct"] == 0.8412
     assert chart["stage2_ma200_slope_1m_pct"] == -1.25
+
+
+def test_wire_carries_the_group_facts(monkeypatch):
+    """The industry and the group counts ride every fired row, resolved here (EC-28); a row whose sheet
+    names no industry carries None, never a count."""
+    sheet = {"snapshot": {"industry": "Steel", "sector": "Basic Materials"}}
+    chart = _payload(monkeypatch, v2_overlay={"_fund_sheet": sheet})
+    assert chart["group"] == {"industry": "Steel", "fired_tonight": 1, "fired_10d": 1, "members": 1}
+    assert _payload(monkeypatch)["group"] is None
 
 
 def test_wire_carries_the_fundamentals_and_market_cap(monkeypatch):

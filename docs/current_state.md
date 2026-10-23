@@ -56,6 +56,14 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   trend template) and fundamental. Not on the card, not in the board order yet. The SEC fill of
   year-ago quarters is ON (his email as the SEC contact, 2026-10-12). The card's chart well flips to a
   fundamentals page (F), with a descriptive label, a strict Code 33 badge and quality flags. Engine stamp `ece8546e`.
+- **The group read** (2026-10-23, his yes, display only): every fired name shows the industry its
+  sheet names and "N of M in the group fired tonight, K in the last 10 days" on the card and the
+  lens, resolved engine-side (`group` on the wire); no sort, no gate. Measured first on 5,949
+  archived episodes: the counts pay nothing in the tail, and "the group already at its highs" is
+  mostly the stock's daily range ([`decisions.md`](decisions.md), Nulls, 2026-10-23). The group's
+  size counts the scanned universe through `output/industry_cache.json`; the operator runs
+  `python -m tools.maintenance.industry_backfill` once to fill it (the nightly scan keeps it fresh
+  from the sheets; until then a group reads as the names seen firing).
 - **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
   panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
   display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated

@@ -1544,6 +1544,25 @@ post-pass). Until that day it ranked only the firing set and sat behind
 `FUNDAMENTALS_ENABLED` (the 2026-07-26 note here named the wrong flags); no archived
 row ever carried the old meaning.
 
+**The group read (live 2026-10-23, display only, his yes).** The industry each fired name's
+fundamentals sheet names (`sheet.snapshot.industry`, the vendor's word; it had been on the wire since the
+sheet, unread) and the group's counts ride every chart row as `group` =
+`{industry, fired_tonight, fired_10d, members}` (None when the sheet names no industry), resolved in
+`dashboard._group_facts` so the browser only prints them (EC-28). `core/fundamentals/industry.group_counts`
+counts NAMES, not rows (a name that fired several nights counts once): `fired_tonight` is tonight's fires of
+that industry; `fired_10d` the names the archive's own fires carry over the frame's last 10 trading days
+(`industry.recent_fires`: the screener's rows of the same universe, read-only, a missing archive reads as
+nothing) plus tonight; `members` the industry's size in the scanned universe through the industry cache
+(`output/industry_cache.json`, ticker -> sector / industry / as_of, filled from tonight's and the archived
+sheets night by night and once by `python -m tools.maintenance.industry_backfill` for the rest of the
+universe, with a throttle probe), never less than the names seen firing. The card shows the industry muted
+after the sector chip and "N of M" at the end of the leadership row; the lens adds two Leadership cells
+(`shared/setup/groupRead.js`: labels and the null guard only). No sort, no gate, no grade, no archive
+column: the industry is already in `fund_sheet_json`, and the counts are recomputed from the archive at
+any time (the measure of 2026-10-23 did exactly that; decisions.md, Nulls). Pins:
+`tests/contracts/test_dashboard_wire.py` and `test_two_eyes_wire.py` (`group`), the counting rules in
+`tests/pipeline/test_industry_group.py`, the backfill in `tests/tooling/test_industry_backfill.py`.
+
 **Volume at key points (live 2026-10-04, operator: display only).** The payload writer
 (`core/pipeline/screening/dashboard.py`) carries two ratios against the 50-day average
 volume: `lps_volume_ratio`, the LPS pullback's average volume (1 minus the LPS read's

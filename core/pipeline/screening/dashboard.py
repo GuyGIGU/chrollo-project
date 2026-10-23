@@ -38,6 +38,7 @@ import pandas as pd
 
 from config import settings
 from core.archive.writer import load_sector_etf_cache, save_sector_etf_cache
+from core.fundamentals import industry as _industry
 from core.pipeline.market_data.candles import chart_candles, clean_daily_frame, daily_candles
 from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe.descriptor import resolve_universe
@@ -98,6 +99,44 @@ def _sector_etf_for_ticker(ticker, sector_etf_cache):
     return sector_etf_cache.get(normalized) or None
 
 
+def _industry_cache_path():
+    return _industry.cache_path()
+
+
+def _group_facts(results_df, tickers, data, universe_type):
+    """ticker -> the group facts for every fired row (his yes, Fri 23/10/2026):
+    the industry its fundamentals sheet names, how many of that industry fired
+    tonight, how many in the last 10 trading days (the archive's own nights plus
+    tonight, each name once), and the group's size in the scanned universe
+    through the industry cache. None for a row that names no industry. Display
+    only, resolved here so the browser only prints it (EC-28): no sort, no gate.
+    Tonight's sheets and the archived ones are remembered in the cache, so the
+    group's size grows toward the universe night by night."""
+    path = _industry_cache_path()
+    cache = _industry.load_cache(path)
+    sessions = getattr(data, "index", None)
+    if sessions is None or len(sessions) == 0:
+        last = pd.Timestamp.today().normalize()
+        first = last - pd.Timedelta(days=14)
+    else:
+        last = pd.Timestamp(sessions[-1])
+        first = pd.Timestamp(sessions[max(len(sessions) - 10, 0)])
+    tonight_day, since = str(last.date()), str(first.date())
+    tonight = {}
+    for _, row in results_df.iterrows():
+        ticker, sheet = row['Ticker'], row.get('_fund_sheet')
+        _industry.remember(cache, ticker, sheet, tonight_day)
+        tonight[ticker] = _industry.industry_of_sheet(sheet) or _industry.industry_of(cache, ticker)
+    recent = _industry.recent_fires(since, tonight_day,
+                                    universe_type or resolve_universe(None).universe_type)
+    for ticker, name in recent.items():
+        _industry.remember_name(cache, ticker, name, since)
+    recent = {ticker: name or _industry.industry_of(cache, ticker) for ticker, name in recent.items()}
+    counts = _industry.group_counts(tonight, recent, _industry.members_of(tickers, cache))
+    _industry.save_cache(cache, path)
+    return {ticker: ({'industry': name, **counts[name]} if name else None) for ticker, name in tonight.items()}
+
+
 def _round_opt(value, digits):
     """Display-round a nullable scalar: None passes through (NULL = not
     measured — never coerced to a number at the wire)."""
@@ -141,7 +180,7 @@ def _leadership_read(row, df):
     }
 
 
-def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df):
+def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df, group=None):
     """A two-eyes fire's chart (build task 15 of the two-eyes reader).
 
     The frame's own candles, the verdicts every row carries (the lines, the
@@ -178,6 +217,8 @@ def _two_eyes_chart(row, block, tf_set, weekly_box, monthly_box, sector_etf, df)
         'setup': row['Setup'],
         'sector_etf': sector_etf,
         'sector_name': SECTOR_ETF_NAMES.get(sector_etf) if sector_etf else None,
+        # the group facts (2026-10-23): the industry and "N of M fired tonight / in 10 days", shown only
+        'group': group,
         'price': round(float(row['Current Price']), 2),
         'trigger': round(float(row['_trigger_price']), 2),
         **_leadership_read(row, df),
@@ -231,7 +272,7 @@ def _json_safe(obj):
     """
     return to_json_safe(obj)
 
-def _extract_chart_data(data, results_df, tickers):
+def _extract_chart_data(data, results_df, tickers, universe_type=None):
     """Extract OHLCV data as JSON-serializable dicts for each chartable ticker."""
     # Lazy: keeps output/ off core.pipeline.market_data.downloads at module load. Used to
     # reproduce the DAILY_STRUCTURE_PERIOD eval-frame length so inner-box bar
@@ -240,7 +281,8 @@ def _extract_chart_data(data, results_df, tickers):
     chart_data = {}
     chart_candidates = results_df[results_df['Tier'].isin(settings.DASHBOARD_CHART_TIERS)]
     sector_etf_cache = _load_sector_etf_cache()
-    
+    groups = _group_facts(results_df, tickers, data, universe_type)
+
     for _, row in chart_candidates.iterrows():
         ticker = row['Ticker']
         try:
@@ -273,7 +315,7 @@ def _extract_chart_data(data, results_df, tickers):
             if isinstance(block, dict):
                 chart_data[ticker] = _two_eyes_chart(
                     row, block, tf_set, weekly_box, monthly_box,
-                    _sector_etf_for_ticker(ticker, sector_etf_cache), df)
+                    _sector_etf_for_ticker(ticker, sector_etf_cache), df, groups.get(ticker))
                 continue
             # Inner-box bar indices (_inner_start_bar, _inner_climax_bar, ...) are
             # positional in the 2y DAILY_STRUCTURE_PERIOD eval frame the daily
@@ -359,6 +401,7 @@ def _extract_chart_data(data, results_df, tickers):
                 'setup': row['Setup'],
                 'sector_etf': sector_etf,
                 'sector_name': SECTOR_ETF_NAMES.get(sector_etf) if sector_etf else None,
+                'group': groups.get(ticker),
                 # Price vs. breakout trigger — lets the frontend show / sort by
                 # "% to trigger" (how much room is left before the entry fires).
                 'price': round(float(row['Current Price']), 2),
@@ -605,7 +648,8 @@ def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
     # "scanned, matched nothing" rather than "never scanned".
     chart_data = {}
     if data is not None and tickers is not None and not results_df.empty:
-        chart_data = _extract_chart_data(data, results_df, tickers)
+        chart_data = _extract_chart_data(data, results_df, tickers,
+                                         resolve_universe(universe).universe_type)
         print(f"\nExtracted {len(chart_data)} interactive chart models for React dashboard...", flush=True)
 
     ordered_tickers = []

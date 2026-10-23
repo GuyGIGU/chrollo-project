@@ -7,6 +7,7 @@ import { tierColor, signColor } from '../presentation/theme';
 import { fx, fmtSignedPctFrac } from '../formatting/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from './screenerCardData';
 import { hasLeadershipRead, leadershipCells } from './leadershipRead';
+import { groupCardText, groupTitle, hasGroupRead } from './groupRead';
 import { dialogOpenOutside, hasCommandModifier } from '../navigation/keyboardGuard';
 import FundamentalsCardPage from './FundamentalsCardPage';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
@@ -165,6 +166,8 @@ function LeadershipRead({ data }) {
       {leadershipCells(data).map((cell) => (
         <span key={cell.k} title={cell.title}>{cell.card}</span>
       ))}
+      {/* The group (2026-10-23): "N of M" of the industry fired tonight; the sentence on hover. */}
+      {hasGroupRead(data) ? <span title={groupTitle(data.group)}>{groupCardText(data.group)}</span> : null}
     </span>
   );
 }
@@ -204,6 +207,12 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onTog
         {data.sector_etf ? (
           <span style={{ alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, height: 15, lineHeight: 1, padding: '0 4px' }}>
             {data.sector_etf}
+          </span>
+        ) : null}
+        {/* The industry the sheet names (2026-10-23), muted; it gives way before the date and the price. */}
+        {hasGroupRead(data) ? (
+          <span style={{ ...monoFaint, flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }} title={groupTitle(data.group)}>
+            {data.group.industry}
           </span>
         ) : null}
 

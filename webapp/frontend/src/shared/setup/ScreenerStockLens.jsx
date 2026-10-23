@@ -21,6 +21,7 @@ import { API_BASE } from '../../api/base';
 import { EMPTY, fx, fmtDateShort, fmtDay, fmtPct } from '../formatting/format';
 import { triggerDistanceFrac } from './triggerProximity.js';
 import { leadershipCells, stageCells } from './leadershipRead';
+import { groupCells, hasGroupRead } from './groupRead';
 import { fundamentalsCells, fundamentalsNote, hasFundamentalsRead } from './fundamentalsRead';
 import FundamentalsSheet from './FundamentalsSheet';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
@@ -122,6 +123,8 @@ function LeadershipGrid({ data }) {
     ...stageCells(data),
     { k: 'ADR', v: fmtPct(data.adr_pct) },
     { k: 'Sector', v: sectorLabel(data), tone: 'var(--accent-blue)', title: data?.sector_name || undefined },
+    // The group (2026-10-23): the industry and "N of M tonight · K in 10d", shown only.
+    ...(hasGroupRead(data) ? groupCells(data) : []),
   ];
   return <LensGridSection title="Leadership" note="the stock, not the setup" cells={cells} />;
 }

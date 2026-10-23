@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import sys
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -176,6 +178,10 @@ def _payload(monkeypatch, row: dict, frame=None) -> dict:
     from core.pipeline.screening import dashboard
 
     monkeypatch.setattr(dashboard, "_sector_etf_for_ticker", lambda *_a: None)
+    from core.fundamentals import industry
+    monkeypatch.setattr(dashboard, "_industry_cache_path",
+                        lambda: os.path.join(tempfile.mkdtemp(), "industry_cache.json"))
+    monkeypatch.setattr(industry, "recent_fires", lambda *_a, **_k: {})
     chart_data = dashboard._extract_chart_data(_frame() if frame is None else frame, pd.DataFrame([row]),
                                                [row["Ticker"]])
     assert row["Ticker"] in chart_data, "the chart was dropped"
@@ -196,6 +202,7 @@ TWO_EYES_WIRE_KEYS = (
     "dollar_volume_50d",
     "fund_earnings_surprise", "fund_eps_growth_accel", "fund_eps_growth_yoy", "fund_grade", "fund_grade_score",
     "fund_quarter_end", "fund_sales_growth_yoy", "fund_sheet",
+    "group",
     "lps_volume_ratio",
     "market_cap",
     "monthly_box", "monthly_candles", "monthly_volumes",
