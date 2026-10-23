@@ -281,7 +281,12 @@ def _extract_chart_data(data, results_df, tickers, universe_type=None):
     chart_data = {}
     chart_candidates = results_df[results_df['Tier'].isin(settings.DASHBOARD_CHART_TIERS)]
     sector_etf_cache = _load_sector_etf_cache()
-    groups = _group_facts(results_df, tickers, data, universe_type)
+    # The group facts are display only: a fault there blanks the group, never the night's charts.
+    try:
+        groups = _group_facts(results_df, tickers, data, universe_type)
+    except Exception as e:
+        print(f"  Group facts error: {type(e).__name__}: {e}")
+        groups = {}
 
     for _, row in chart_candidates.iterrows():
         ticker = row['Ticker']

@@ -1559,7 +1559,9 @@ universe, with a throttle probe), never less than the names seen firing. The car
 after the sector chip and "N of M" at the end of the leadership row; the lens adds two Leadership cells
 (`shared/setup/groupRead.js`: labels and the null guard only). No sort, no gate, no grade, no archive
 column: the industry is already in `fund_sheet_json`, and the counts are recomputed from the archive at
-any time (the measure of 2026-10-23 did exactly that; decisions.md, Nulls). Pins:
+any time (the measure of 2026-10-23 did exactly that; decisions.md, Nulls). `_extract_chart_data` calls
+`_group_facts` inside its own guard (review fix, 2026-10-23): a fault there prints a line and leaves every
+`group` None, never costing the night's charts. Pins:
 `tests/contracts/test_dashboard_wire.py` and `test_two_eyes_wire.py` (`group`), the counting rules in
 `tests/pipeline/test_industry_group.py`, the backfill in `tests/tooling/test_industry_backfill.py`.
 

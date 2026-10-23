@@ -234,6 +234,17 @@ def test_wire_carries_the_group_facts(monkeypatch):
     assert _payload(monkeypatch)["group"] is None
 
 
+def test_a_group_facts_fault_blanks_the_group_and_keeps_the_chart(monkeypatch):
+    """The group read is display only: a fault in it costs the group cell, never the night's charts."""
+    def broken(*args, **kwargs):
+        raise RuntimeError("the industry cache fell over")
+
+    monkeypatch.setattr(dashboard_module._industry, "group_counts", broken)
+    sheet = {"snapshot": {"industry": "Steel", "sector": "Basic Materials"}}
+    chart = _payload(monkeypatch, v2_overlay={"_fund_sheet": sheet})
+    assert chart["group"] is None and chart["tier"] == "A"
+
+
 def test_wire_carries_the_fundamentals_and_market_cap(monkeypatch):
     chart = _payload(monkeypatch, v2_overlay={
         "_fund_eps_growth_yoy": 0.45, "_fund_quarter_end": "2026-06-30",
