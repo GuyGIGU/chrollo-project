@@ -12,6 +12,36 @@ const scan = {
   },
 };
 
+test('dated rows keep the saved basis and off-scan metadata without inventing quotes', () => {
+  const records = [{ ticker: 'OLD', save_date: '2026-10-22', saved_setup: 'VCP', saved_price: 10,
+    saved_market_cap: 500e6, saved_sector: 'Technology', saved_industry: 'Software' }];
+  const [row] = buildWatchlistRows(new Set(['OLD']), scan, { records, prices: { OLD: 12 } });
+  assert.equal(row.in_scan, false);
+  assert.equal(row.saved_price, 10);
+  assert.equal(row.vs_saved, 0.2);
+  assert.equal(row.industry, 'Software');
+  assert.equal(row.added, '2026-10-22');
+  const [unpriced] = buildWatchlistRows(new Set(['OLD']), scan, { records });
+  assert.equal(unpriced.price, null);
+  assert.equal(unpriced.vs_saved, null);
+  const [unbound] = buildWatchlistRows(new Set(['GEV']), scan, { prices: { GEV: 99 } });
+  assert.equal(unbound.saved_price, null);
+  assert.equal(unbound.vs_saved, null);
+});
+
+test('Added sort compares every saved ticker and keeps undated optimistic rows last', () => {
+  const records = [{ ticker: 'OLD', save_date: '2026-10-22' }, { ticker: 'GEV', save_date: '2026-10-21' }];
+  const rows = buildWatchlistRows(new Set(['GEV', 'OLD', 'NEW']), scan, { records });
+  assert.deepEqual(sortWatchlistRows(rows, 'added', 'desc').map((row) => row.ticker), ['OLD', 'GEV', 'NEW']);
+  assert.deepEqual(sortWatchlistRows(rows, 'added', 'asc').map((row) => row.ticker), ['GEV', 'OLD', 'NEW']);
+});
+
+test('setup sorting follows the saved setup displayed in the ledger', () => {
+  const records = [{ ticker: 'CRNX', saved_setup: 'Z' }, { ticker: 'GEV', saved_setup: 'A' }];
+  const rows = buildWatchlistRows(new Set(['CRNX', 'GEV']), scan, { records });
+  assert.deepEqual(sortWatchlistRows(rows, 'setup', 'asc').map((row) => row.ticker), ['GEV', 'CRNX']);
+});
+
 test('buildWatchlistRows joins the scan and flags in-scan vs off-scan', () => {
   const rows = buildWatchlistRows(new Set(['CRNX', 'ZZZZ']), scan);
   const crnx = rows.find((r) => r.ticker === 'CRNX');

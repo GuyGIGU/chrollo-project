@@ -4,11 +4,10 @@ from __future__ import annotations
 import os
 import re
 from datetime import datetime, timezone
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 from core.pipeline.universe import (
     DEFAULT_UNIVERSE_KEY,
@@ -20,6 +19,7 @@ from core.pipeline.universe import (
 from services import scan_diagnosis, scan_runner, scan_status
 from domains.market_data.earnings import days_until, get_next_earnings_batch
 from domains.screener.data import read_screener_data
+from domains.screener.schemas import HealthBoard, HealthMember, HealthStateName, ScanIdentity, ScreenerResponse
 
 router = APIRouter(prefix="", tags=["screener"])
 
@@ -28,55 +28,6 @@ _screener_json_path = ""
 
 class EarningsBatchIn(BaseModel):
     tickers: list[str]
-
-
-# The closed-set health-board contract, enforced at the serve boundary. Its states
-# are the SAME seven names as core.pipeline.context.health_board.HealthState /
-# HEALTH_STATE_ORDER (a drift test pins them equal). ``extra='forbid'`` is the "no
-# buy language" AC AT THE TYPE LAYER: a member carrying a score / tier / trigger /
-# setup field would be rejected here, not silently served. R/S are nullable (a
-# member with no readable box). candles/volumes stay opaque lists (no per-bar
-# recursion — the validation is a cheap contract tripwire, not a re-serializer).
-HealthStateName = Literal[
-    "near_resistance", "post_breakout_markup", "near_support",
-    "consolidating", "trending", "deep_correction", "no_structure",
-]
-
-
-class HealthMember(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    ticker: str
-    name: str | None = None
-    state: HealthStateName
-    box_pos: float | None = None
-    breakout_extension: float | None = None
-    distance_to_high_pct: float | None = None
-    R: float | None = None
-    S: float | None = None
-    base_len: int
-    candles: list
-    volumes: list
-
-
-class HealthBoard(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    members: list[HealthMember]
-    unreadable: list[dict]
-    member_count: int
-
-
-class ScanIdentity(BaseModel):
-    """The payload's provenance block (Surface the Read): the scan-level half
-    of the archive identity key + the engine version. Closed contract — a
-    review verdict binds to (ticker, scan_date, universe_type) verbatim, so a
-    malformed identity must SURFACE here, never serve as plausible garbage."""
-    model_config = ConfigDict(extra="forbid")
-
-    scan_date: str | None
-    universe_type: str
-    engine_config_version: str
 
 
 def configure_screener_routes(screener_json_path: str) -> None:
@@ -113,7 +64,7 @@ def _artifact_state(universe: str):
     return uni, path, status, scanned_at
 
 
-@router.get("/screener-data/")
+@router.get("/screener-data/", responses={200: {"model": ScreenerResponse}})
 def get_screener_data(
     universe: str = Query(
         DEFAULT_UNIVERSE_KEY,
@@ -122,30 +73,19 @@ def get_screener_data(
 ):
     uni, path, status, scanned_at = _artifact_state(universe)
     payload = read_screener_data(path)
-    # The health-board section (non-equities universes, flag on) rides the same
-    # artifact and passes straight through. When present, validate it against the
-    # closed HealthMember contract at the boundary — a malformed / buy-language block
-    # SURFACES here (raises) rather than silently blanking the board. Absent (flag
-    # off / us_equities / an older file) → nothing to validate, unchanged behavior.
-    health = payload.get("health_board")
-    if health is not None:
-        HealthBoard.model_validate(health)
-    # Same treatment for the scan-identity block (absent on pre-feature
-    # artifacts → nothing to validate; the frontend reads absent as "no
-    # identity", never a fabricated one).
-    identity = payload.get("scan_identity")
-    if identity is not None:
-        ScanIdentity.model_validate(identity)
     # stale_after: when this scan stops being the latest (the next New York slot
     # plus the hang allowance) — the verdict behind the screener's scan-date stamp
     # and Home's "· stale"; the frontend only compares it with the clock (EC-28).
-    return {
+    result = {
         **payload,
         "universe": uni.key,
         "status": status,
         "scanned_at": scanned_at,
         "stale_after": scan_diagnosis.current_scan_stale_after(scanned_at),
     }
+    # Validate without re-serializing or dropping additive fields from the artifact.
+    ScreenerResponse.model_validate(result)
+    return result
 
 
 _TICKER_RE = re.compile(r"^[A-Z0-9.\-]{1,12}$")

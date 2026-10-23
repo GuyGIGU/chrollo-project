@@ -13,7 +13,7 @@ export const DEFAULT_UNIVERSE = 'us_stocks';
 // useScreenerData (useSyncExternalStore).
 const store = {
   byUniverse: {}, // universe -> latest full payload
-  failed: {}, // universe -> last fetch errored (only meaningful with no payload)
+  failed: {}, // universe -> latest data fetch or freshness check failed
   inflight: {}, // universe -> in-flight full-fetch promise (dedup)
   earnings: {}, // ticker -> { date, days_until }
   requestedEarnings: new Set(), // negative cache: tickers already asked about
@@ -29,6 +29,7 @@ export const subscribeScreenerStore = (listener) => {
   return () => store.listeners.delete(listener);
 };
 
+/** @returns {import('../../api/contracts.js').ScreenerResponse|null} */
 export const getScreenerPayload = (universe) => store.byUniverse[universe] || null;
 
 // The whole universe->payload map (replaced immutably on every write, so the
@@ -37,6 +38,9 @@ export const getScreenerPayload = (universe) => store.byUniverse[universe] || nu
 export const getScreenerPayloads = () => store.byUniverse;
 
 export const getScreenerEarnings = () => store.earnings;
+
+export const getScreenerRefreshFailed = (universe) => Boolean(store.failed[universe]);
+export const getScreenerRefreshing = (universe) => Boolean(store.inflight[universe]);
 
 // Map a payload to one explicit status the grid switches on. 'never_scanned'
 // (valid universe, no artifact) is distinct from 'empty' (a real scan that
@@ -103,26 +107,32 @@ export function fetchScreenerUniverse(universe = DEFAULT_UNIVERSE, { fresh = fal
     }
   })();
   store.inflight[u] = run;
+  emit();
   return run;
 }
 
 // Cheap freshness check for pollers (Home's 5-minute tick): pull the slim
 // /screener-summary and only re-download the full artifact when a new scan
-// actually landed (scanned_at moved). A summary failure keeps the cached data
-// and lets the next tick retry.
+// actually landed (scanned_at moved). A failure keeps the cached data and
+// exposes the refresh failure separately so "still readable" cannot imply current.
 export async function revalidateScreenerUniverse(universe = DEFAULT_UNIVERSE) {
   const u = universe || DEFAULT_UNIVERSE;
   const cached = store.byUniverse[u];
   if (!cached) return fetchScreenerUniverse(u);
   try {
     const response = await fetch(`${API_BASE}/screener-summary/?universe=${encodeURIComponent(u)}`);
-    if (!response.ok) return;
+    if (!response.ok) throw new Error(`screener-summary ${response.status}`);
     const summary = await response.json();
     if ((summary.scanned_at || null) !== (cached.scanned_at || null)) {
       await fetchScreenerUniverse(u);
+    } else {
+      store.failed = { ...store.failed, [u]: false };
+      emit();
     }
   } catch (error) {
     console.error('screener-summary revalidate failed', error);
+    store.failed = { ...store.failed, [u]: true };
+    emit();
   }
 }
 

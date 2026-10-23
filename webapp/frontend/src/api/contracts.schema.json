@@ -1,0 +1,3101 @@
+{
+  "ReadVerdictOut": {
+    "properties": {
+      "engine_config_version": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Engine Config Version"
+      },
+      "grade_verdict": {
+        "anyOf": [
+          {
+            "enum": [
+              "agree",
+              "too_high",
+              "too_low"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Grade Verdict"
+      },
+      "note": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Note"
+      },
+      "verdict": {
+        "anyOf": [
+          {
+            "enum": [
+              "agree",
+              "disagree"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Verdict"
+      }
+    },
+    "required": [
+      "verdict",
+      "grade_verdict",
+      "note",
+      "engine_config_version"
+    ],
+    "title": "ReadVerdictOut",
+    "type": "object"
+  },
+  "ScreenerResponse": {
+    "$defs": {
+      "HealthBoard": {
+        "additionalProperties": false,
+        "properties": {
+          "member_count": {
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/$defs/HealthMember"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "unreadable": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Unreadable",
+            "type": "array"
+          }
+        },
+        "required": [
+          "members",
+          "unreadable",
+          "member_count"
+        ],
+        "title": "HealthBoard",
+        "type": "object"
+      },
+      "HealthMember": {
+        "additionalProperties": false,
+        "properties": {
+          "R": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "R"
+          },
+          "S": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "S"
+          },
+          "base_len": {
+            "title": "Base Len",
+            "type": "integer"
+          },
+          "box_pos": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Box Pos"
+          },
+          "breakout_extension": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Breakout Extension"
+          },
+          "candles": {
+            "items": {},
+            "title": "Candles",
+            "type": "array"
+          },
+          "distance_to_high_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Distance To High Pct"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "state": {
+            "enum": [
+              "near_resistance",
+              "post_breakout_markup",
+              "near_support",
+              "consolidating",
+              "trending",
+              "deep_correction",
+              "no_structure"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "volumes": {
+            "items": {},
+            "title": "Volumes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ticker",
+          "state",
+          "base_len",
+          "candles",
+          "volumes"
+        ],
+        "title": "HealthMember",
+        "type": "object"
+      },
+      "ScanIdentity": {
+        "additionalProperties": false,
+        "description": "Provenance for feedback bound to a scan and its engine version.\n\nAbsent on old artifacts; when present it must be complete and closed.",
+        "properties": {
+          "engine_config_version": {
+            "title": "Engine Config Version",
+            "type": "string"
+          },
+          "scan_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Date"
+          },
+          "universe_type": {
+            "title": "Universe Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scan_date",
+          "universe_type",
+          "engine_config_version"
+        ],
+        "title": "ScanIdentity",
+        "type": "object"
+      },
+      "ScreenerChart": {
+        "additionalProperties": true,
+        "description": "Core fields every drawable chart carries; additive facts stay allowed.\n\nBar arrays remain opaque: parsing every bar again on each GET would make\nvalidation proportional to the full price history. Existing candle and\nreader wire tests own their detailed contract.",
+        "properties": {
+          "R": {
+            "title": "R",
+            "type": "number"
+          },
+          "S": {
+            "title": "S",
+            "type": "number"
+          },
+          "base_len": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Base Len"
+          },
+          "candles": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Candles",
+            "type": "array"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "setup": {
+            "title": "Setup",
+            "type": "string"
+          },
+          "ta_grade": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ta Grade"
+          },
+          "tier": {
+            "enum": [
+              "S",
+              "A",
+              "B",
+              "C",
+              "D"
+            ],
+            "title": "Tier",
+            "type": "string"
+          },
+          "trigger": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger"
+          }
+        },
+        "required": [
+          "candles",
+          "R",
+          "S",
+          "score",
+          "tier",
+          "setup",
+          "price",
+          "trigger"
+        ],
+        "title": "ScreenerChart",
+        "type": "object"
+      }
+    },
+    "additionalProperties": true,
+    "properties": {
+      "chart_data": {
+        "additionalProperties": {
+          "$ref": "#/$defs/ScreenerChart"
+        },
+        "title": "Chart Data",
+        "type": "object"
+      },
+      "health_board": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/HealthBoard"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "ordered_tickers": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Ordered Tickers",
+        "type": "array"
+      },
+      "scan_identity": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ScanIdentity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "scanned_at": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Scanned At"
+      },
+      "stale_after": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Stale After"
+      },
+      "status": {
+        "enum": [
+          "ready",
+          "never_scanned"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "universe": {
+        "title": "Universe",
+        "type": "string"
+      }
+    },
+    "required": [
+      "ordered_tickers",
+      "chart_data",
+      "universe",
+      "status",
+      "scanned_at",
+      "stale_after"
+    ],
+    "title": "ScreenerResponse",
+    "type": "object"
+  },
+  "SetupOut": {
+    "properties": {
+      "abnormal_ret_to_date": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Abnormal Ret To Date"
+      },
+      "adr_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Adr Pct"
+      },
+      "ascending_support_quality": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ascending Support Quality"
+      },
+      "atr_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Atr Ratio"
+      },
+      "barrier_label": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Barrier Label"
+      },
+      "bars_to_date": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bars To Date"
+      },
+      "base_length": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Base Length"
+      },
+      "base_median_spread_atr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Base Median Spread Atr"
+      },
+      "base_median_spread_pct_box": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Base Median Spread Pct Box"
+      },
+      "base_p80_spread_atr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Base P80 Spread Atr"
+      },
+      "base_tight_bar_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Base Tight Bar Pct"
+      },
+      "bin_a_bars": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin A Bars"
+      },
+      "bin_a_range_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin A Range Pct"
+      },
+      "bin_a_volume_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin A Volume Ratio"
+      },
+      "bin_b_bars": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin B Bars"
+      },
+      "bin_b_cog_corr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin B Cog Corr"
+      },
+      "bin_b_cog_crossings": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin B Cog Crossings"
+      },
+      "bin_b_cog_end": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin B Cog End"
+      },
+      "bin_b_cog_rng": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin B Cog Rng"
+      },
+      "bin_b_range_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin B Range Pct"
+      },
+      "bin_b_volume_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin B Volume Ratio"
+      },
+      "bin_c_event_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Event Bar"
+      },
+      "bin_c_event_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Event Date"
+      },
+      "bin_c_present": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Present"
+      },
+      "bin_c_recovery_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Recovery Bar"
+      },
+      "bin_c_recovery_bars": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Recovery Bars"
+      },
+      "bin_c_spring_vol_z": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Spring Vol Z"
+      },
+      "bin_c_time_loc": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Time Loc"
+      },
+      "bin_c_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Type"
+      },
+      "bin_c_undercut_atr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin C Undercut Atr"
+      },
+      "bin_d_ascending_support_quality": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Ascending Support Quality"
+      },
+      "bin_d_bars": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Bars"
+      },
+      "bin_d_boundary_source": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Boundary Source"
+      },
+      "bin_d_higher_low_frac": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Higher Low Frac"
+      },
+      "bin_d_range_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Range Pct"
+      },
+      "bin_d_start_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Start Bar"
+      },
+      "bin_d_support_slope_atr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Support Slope Atr"
+      },
+      "bin_d_volume_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Volume Ratio"
+      },
+      "bin_d_vs_b_range_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Vs B Range Ratio"
+      },
+      "bin_d_vs_b_support_quality_delta": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Vs B Support Quality Delta"
+      },
+      "bin_d_vs_b_volume_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin D Vs B Volume Ratio"
+      },
+      "bin_lps_bars": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Bin Lps Bars"
+      },
+      "box_width": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Box Width"
+      },
+      "breach_days": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Breach Days"
+      },
+      "contraction_count": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Contraction Count"
+      },
+      "contraction_quality": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Contraction Quality"
+      },
+      "contraction_vol_trend": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Contraction Vol Trend"
+      },
+      "current_price": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Current Price"
+      },
+      "days_to_15pct": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Days To 15Pct"
+      },
+      "days_to_2_5r": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Days To 2 5R"
+      },
+      "days_to_stop": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Days To Stop"
+      },
+      "days_to_trigger": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Days To Trigger"
+      },
+      "dist_52w_high_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Dist 52W High Pct"
+      },
+      "elected_pool": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Elected Pool"
+      },
+      "election_trace": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Election Trace"
+      },
+      "engine_config_version": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Engine Config Version"
+      },
+      "eq_coverage": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq Coverage"
+      },
+      "eq_lower_dwell": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq Lower Dwell"
+      },
+      "eq_mid_dwell": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq Mid Dwell"
+      },
+      "eq_r_touch_thirds": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq R Touch Thirds"
+      },
+      "eq_r_touches": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq R Touches"
+      },
+      "eq_s_touch_thirds": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq S Touch Thirds"
+      },
+      "eq_s_touches": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq S Touches"
+      },
+      "eq_upper_dwell": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Eq Upper Dwell"
+      },
+      "event_map_alternations": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Alternations"
+      },
+      "event_map_completed_r": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Completed R"
+      },
+      "event_map_completed_s": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Completed S"
+      },
+      "event_map_episode_nan_bars": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Episode Nan Bars"
+      },
+      "event_map_episode_profile": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Episode Profile"
+      },
+      "event_map_episodes": {
+        "anyOf": [
+          {
+            "items": {},
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Episodes"
+      },
+      "event_map_n_committed": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map N Committed"
+      },
+      "event_map_n_labels": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map N Labels"
+      },
+      "event_map_n_swings": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map N Swings"
+      },
+      "event_map_pre_box_trend": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Pre Box Trend"
+      },
+      "event_map_story_admitted": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Story Admitted"
+      },
+      "event_map_terminal_drift": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Terminal Drift"
+      },
+      "event_map_terminal_posture": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Terminal Posture"
+      },
+      "event_map_zone_coverage": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Event Map Zone Coverage"
+      },
+      "final_contraction_depth": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Final Contraction Depth"
+      },
+      "fired_tags": {
+        "anyOf": [
+          {
+            "items": {},
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Fired Tags"
+      },
+      "fwd_return_10d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Fwd Return 10D"
+      },
+      "fwd_return_1d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Fwd Return 1D"
+      },
+      "fwd_return_20d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Fwd Return 20D"
+      },
+      "fwd_return_5d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Fwd Return 5D"
+      },
+      "fwd_return_60d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Fwd Return 60D"
+      },
+      "htf_m_box_r": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Box R"
+      },
+      "htf_m_box_s": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Box S"
+      },
+      "htf_m_box_width": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Box Width"
+      },
+      "htf_m_daily_nested": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Daily Nested"
+      },
+      "htf_m_in_consol": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M In Consol"
+      },
+      "htf_m_phase": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Phase"
+      },
+      "htf_m_reaccum": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Reaccum"
+      },
+      "htf_m_stage2": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Stage2"
+      },
+      "htf_m_trend_state": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf M Trend State"
+      },
+      "htf_w_box_r": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Box R"
+      },
+      "htf_w_box_s": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Box S"
+      },
+      "htf_w_box_width": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Box Width"
+      },
+      "htf_w_daily_nested": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Daily Nested"
+      },
+      "htf_w_in_consol": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W In Consol"
+      },
+      "htf_w_phase": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Phase"
+      },
+      "htf_w_reaccum": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Reaccum"
+      },
+      "htf_w_stage2": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Stage2"
+      },
+      "htf_w_trend_state": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Htf W Trend State"
+      },
+      "id": {
+        "title": "Id",
+        "type": "integer"
+      },
+      "inner_climax_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Inner Climax Bar"
+      },
+      "inner_reaction_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Inner Reaction Bar"
+      },
+      "inner_reaction_bars": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Inner Reaction Bars"
+      },
+      "inner_reaction_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Inner Reaction Pct"
+      },
+      "inner_search_start_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Inner Search Start Bar"
+      },
+      "inner_source": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Inner Source"
+      },
+      "inter_base_width_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Inter Base Width Ratio"
+      },
+      "last_supper_pullback_from_extension_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Last Supper Pullback From Extension Pct"
+      },
+      "last_supper_reclaim_quality": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Last Supper Reclaim Quality"
+      },
+      "last_supper_source_box_age": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Last Supper Source Box Age"
+      },
+      "lps_anchor_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Anchor Bar"
+      },
+      "lps_anchor_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Anchor Date"
+      },
+      "lps_descent_frac": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Descent Frac"
+      },
+      "lps_in_inner": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps In Inner"
+      },
+      "lps_length": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Length"
+      },
+      "lps_low_bar": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Low Bar"
+      },
+      "lps_low_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Low Date"
+      },
+      "lps_position_in_box": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Position In Box"
+      },
+      "lps_shrink_frac": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Shrink Frac"
+      },
+      "lps_stretch_atr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Stretch Atr"
+      },
+      "lps_stretch_box": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Stretch Box"
+      },
+      "lps_swing_depth_atr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Swing Depth Atr"
+      },
+      "lps_swing_depth_box": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Swing Depth Box"
+      },
+      "lps_swing_depth_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Swing Depth Pct"
+      },
+      "lps_swing_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Swing Type"
+      },
+      "lps_window_classification": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Window Classification"
+      },
+      "lps_zone_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Lps Zone Type"
+      },
+      "mae_20d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mae 20D"
+      },
+      "mae_20d_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mae 20D Date"
+      },
+      "mae_60d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mae 60D"
+      },
+      "mae_to_date": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mae To Date"
+      },
+      "mfe_20d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mfe 20D"
+      },
+      "mfe_20d_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mfe 20D Date"
+      },
+      "mfe_60d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mfe 60D"
+      },
+      "mfe_to_date": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Mfe To Date"
+      },
+      "notes": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Notes"
+      },
+      "phase_d_evidence_json": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Phase D Evidence Json"
+      },
+      "phase_d_inner": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Phase D Inner"
+      },
+      "quality_label": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Quality Label"
+      },
+      "r_anchor": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "R Anchor"
+      },
+      "r_level": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "R Level"
+      },
+      "r_multiple_20d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "R Multiple 20D"
+      },
+      "r_multiple_60d": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "R Multiple 60D"
+      },
+      "r_touch_vol_z": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "R Touch Vol Z"
+      },
+      "r_touches": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "R Touches"
+      },
+      "regime_breadth_200_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Breadth 200 Pct"
+      },
+      "regime_breadth_50_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Breadth 50 Pct"
+      },
+      "regime_distribution_days": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Distribution Days"
+      },
+      "regime_qqq_50d_slope_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Qqq 50D Slope Pct"
+      },
+      "regime_qqq_above_200": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Qqq Above 200"
+      },
+      "regime_qqq_above_50": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Qqq Above 50"
+      },
+      "regime_spy_50d_slope_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Spy 50D Slope Pct"
+      },
+      "regime_spy_above_200": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Spy Above 200"
+      },
+      "regime_spy_above_50": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime Spy Above 50"
+      },
+      "regime_state": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Regime State"
+      },
+      "ret_to_date": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ret To Date"
+      },
+      "rs_vs_sector_pct": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Rs Vs Sector Pct"
+      },
+      "s_anchor": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "S Anchor"
+      },
+      "s_level": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "S Level"
+      },
+      "s_touch_vol_z": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "S Touch Vol Z"
+      },
+      "s_touches": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "S Touches"
+      },
+      "scan_date": {
+        "title": "Scan Date",
+        "type": "string"
+      },
+      "score": {
+        "title": "Score",
+        "type": "number"
+      },
+      "score_adr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Adr"
+      },
+      "score_ascending_support": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Ascending Support"
+      },
+      "score_atr_squeeze": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Atr Squeeze"
+      },
+      "score_base_age": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Base Age"
+      },
+      "score_box_tightness": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Box Tightness"
+      },
+      "score_breadth_bonus": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Breadth Bonus"
+      },
+      "score_contraction": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Contraction"
+      },
+      "score_high_proximity": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score High Proximity"
+      },
+      "score_lps_tightness": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Lps Tightness"
+      },
+      "score_rs_bonus": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Rs Bonus"
+      },
+      "score_setup_quality": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Setup Quality"
+      },
+      "score_spring": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Spring"
+      },
+      "score_story_alternations": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Story Alternations"
+      },
+      "score_story_r_rejections": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Story R Rejections"
+      },
+      "score_story_s_tests": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Story S Tests"
+      },
+      "score_story_terminal_posture": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Story Terminal Posture"
+      },
+      "score_touch_density": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Touch Density"
+      },
+      "score_traversal_quality": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Traversal Quality"
+      },
+      "score_uptrend_bonus": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Uptrend Bonus"
+      },
+      "score_vol_contraction": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Score Vol Contraction"
+      },
+      "sector_etf": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Sector Etf"
+      },
+      "sector_trend": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Sector Trend"
+      },
+      "setup_chronology": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Setup Chronology"
+      },
+      "setup_completeness": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Setup Completeness"
+      },
+      "setup_type": {
+        "title": "Setup Type",
+        "type": "string"
+      },
+      "setup_upthrust_terminal": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Setup Upthrust Terminal"
+      },
+      "source": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Source"
+      },
+      "spy_trend": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Spy Trend"
+      },
+      "story_admission_profile": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Story Admission Profile"
+      },
+      "story_richness_rate": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Story Richness Rate"
+      },
+      "support_slope_atr": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Support Slope Atr"
+      },
+      "ta_grade": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ta Grade"
+      },
+      "ta_grade_raw": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ta Grade Raw"
+      },
+      "ticker": {
+        "title": "Ticker",
+        "type": "string"
+      },
+      "tier": {
+        "title": "Tier",
+        "type": "string"
+      },
+      "tightness_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tightness Ratio"
+      },
+      "touches": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Touches"
+      },
+      "trend_base_count": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Trend Base Count"
+      },
+      "trigger_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Trigger Date"
+      },
+      "trigger_price": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Trigger Price"
+      },
+      "trigger_volume_ratio": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Trigger Volume Ratio"
+      },
+      "triggered": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Triggered"
+      },
+      "universe_type": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Universe Type"
+      },
+      "vix_level": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Vix Level"
+      },
+      "vol_contraction": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Vol Contraction"
+      },
+      "win_barrier": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Win Barrier"
+      }
+    },
+    "required": [
+      "id",
+      "ticker",
+      "scan_date",
+      "setup_type",
+      "tier",
+      "score"
+    ],
+    "title": "SetupOut",
+    "type": "object"
+  },
+  "WatchlistItem": {
+    "description": "The toggle contract: ``ticker`` + ``created_at`` (now the save's audit\nstamp) survive from the pre-ledger shape; the pin fields are additive.\n\n``id`` is the ACTIVE save event's row id. The active row is by construction\nthe ticker's most recent save (``save_watch`` returns the active row before\ncreating anything, and a partial unique index allows only one), so a surface\nthat wants that save's stored chart can hop straight to\n``/watchlist/{id}/replay`` instead of paging the weekly review to find it.\nNullable because an optimistic row has not been assigned one yet.",
+    "properties": {
+      "created_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Created At"
+      },
+      "id": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Id"
+      },
+      "pin_scan_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Pin Scan Date"
+      },
+      "pin_universe_key": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Pin Universe Key"
+      },
+      "pinned": {
+        "default": false,
+        "title": "Pinned",
+        "type": "boolean"
+      },
+      "save_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Save Date"
+      },
+      "saved_industry": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Industry"
+      },
+      "saved_market_cap": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Market Cap"
+      },
+      "saved_price": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Price"
+      },
+      "saved_sector": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Sector"
+      },
+      "saved_setup": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Setup"
+      },
+      "ticker": {
+        "title": "Ticker",
+        "type": "string"
+      }
+    },
+    "required": [
+      "ticker"
+    ],
+    "title": "WatchlistItem",
+    "type": "object"
+  }
+}

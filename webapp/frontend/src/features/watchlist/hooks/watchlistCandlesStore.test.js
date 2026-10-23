@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  fetchBatchCandles, fetchTickerCandles, getBatchCells, getCandleEnvelopes,
-  revalidateBatchCandles,
+  fetchTickerCandles, getCandleEnvelopes,
 } from './watchlistCandlesStore.js';
 
 // The candle store's transport state machine, with an injected global fetch —
-// the review's finding 3 battery: terminal cells for unechoed names (the
-// infinite-loop guard), error retry-ability, serve-stale-then-revalidate
+// error retry-ability, serve-stale-then-revalidate
 // reference keeping, and failure isolation. The store is a module singleton,
 // so every test uses its OWN tickers.
 
@@ -71,48 +69,4 @@ test('envelope: a pin change replaces a ready entry fetched under another univer
   await fetchTickerCandles('EDD', 'us_sectors');
   assert.notEqual(getCandleEnvelopes().EDD, unpinned);
   assert.equal(getCandleEnvelopes().EDD.universeKey, 'us_sectors');
-});
-
-test('batch: an unechoed name gets a TERMINAL cell, never a refetch invitation', async () => {
-  // The server drops grammar-failing names from the response; the asked-for
-  // name must land as a recorded outcome so the plan cannot loop on it.
-  fetchImpl = () => jsonResponse({ tickers: {
-    BAA: { status: 'ok', candles: [{ time: 't', close: 1 }], volumes: [] },
-  } });
-  await fetchBatchCandles(['BAA', 'BDROP']);
-  assert.equal(getBatchCells().BAA.status, 'ok');
-  assert.deepEqual(getBatchCells().BDROP,
-    { status: 'error', candles: [], volumes: [] });
-  // And fetchBatchCandles never re-asks a celled name (loop guard).
-  fetchCalls = [];
-  await fetchBatchCandles(['BAA', 'BDROP']);
-  assert.deepEqual(fetchCalls, []);
-});
-
-test('batch: a failed batch marks only the asked names, and revalidate retries them', async () => {
-  fetchImpl = () => jsonResponse({ tickers: {
-    BPRE: { status: 'ok', candles: [{ time: 't', close: 2 }], volumes: [] },
-  } });
-  await fetchBatchCandles(['BPRE']);
-  fetchImpl = () => Promise.reject(new Error('down'));
-  await fetchBatchCandles(['BERR']);
-  assert.equal(getBatchCells().BERR.status, 'error');
-  assert.equal(getBatchCells().BPRE.status, 'ok'); // untouched by the failure
-  // The retry path: revalidate re-asks errored cells and heals them.
-  fetchImpl = () => jsonResponse({ tickers: {
-    BERR: { status: 'ok', candles: [{ time: 't', close: 3 }], volumes: [] },
-  } });
-  await revalidateBatchCandles(['BERR']);
-  assert.equal(getBatchCells().BERR.status, 'ok');
-});
-
-test('batch: a no-change revalidate keeps cell references; pins ride the wire', async () => {
-  const cell = { status: 'ok', candles: [{ time: 't9', close: 9 }], volumes: [] };
-  fetchImpl = () => jsonResponse({ tickers: { BREF: cell } });
-  await fetchBatchCandles(['BREF']);
-  const first = getBatchCells().BREF;
-  fetchCalls = [];
-  await revalidateBatchCandles(['BREF'], { BREF: 'us_sectors' });
-  assert.equal(getBatchCells().BREF, first); // identical generation
-  assert.match(fetchCalls[0], /pins=BREF%3Aus_sectors/);
 });

@@ -1,7 +1,6 @@
 // Features depend on each other one way only (docs/architecture.md section 7):
-// when features/<a> imports features/<b> and <b> imports <a>, one of them owns
-// a piece that belongs to the other or in shared/. This scans every relative
-// import specifier under src/features and fails on any such pair.
+// Cycles of any length reveal ownership that needs fixing. Shared code must
+// also stay independent of features; otherwise a move can hide the same cycle.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -34,14 +33,55 @@ const crossFeatureImports = () => {
   return edges;
 };
 
-test('no two features import each other', () => {
+function findCycle(keys) {
+  const graph = new Map();
+  for (const key of keys) {
+    const [from, to] = key.split('->');
+    if (!graph.has(from)) graph.set(from, []);
+    graph.get(from).push(to);
+  }
+  const done = new Set();
+  const active = [];
+  const visit = (node) => {
+    const index = active.indexOf(node);
+    if (index >= 0) return [...active.slice(index), node];
+    if (done.has(node)) return null;
+    active.push(node);
+    for (const next of graph.get(node) || []) {
+      const cycle = visit(next);
+      if (cycle) return cycle;
+    }
+    active.pop();
+    done.add(node);
+    return null;
+  };
+  for (const node of graph.keys()) {
+    const cycle = visit(node);
+    if (cycle) return cycle;
+  }
+  return null;
+}
+
+test('the ownership guard detects indirect cycles and permits a dependency diamond', () => {
+  assert.deepEqual(findCycle(['home->screener', 'screener->watchlist', 'watchlist->home']), ['home', 'screener', 'watchlist', 'home']);
+  assert.equal(findCycle(['home->screener', 'home->watchlist', 'screener->watchlist']), null);
+});
+
+test('features have no direct or indirect import cycle', () => {
   const edges = crossFeatureImports();
   assert.ok(edges.size > 0, 'the scan found no cross-feature import: the specifier pattern went vacuous');
-  const cycles = [];
-  for (const [key, file] of edges) {
-    const [from, to] = key.split('->');
-    const back = edges.get(`${to}->${from}`);
-    if (back && from < to) cycles.push(`${from} <-> ${to}: features/${file} and features/${back}`);
+  const cycle = findCycle(edges.keys());
+  assert.equal(cycle, null, cycle?.map((from, i) => i ? edges.get(`${cycle[i - 1]}->${from}`) : from).join(' -> '));
+});
+
+test('shared production code never reaches back into a feature', () => {
+  const sharedDir = path.join(featuresDir, '..', 'shared');
+  const violations = [];
+  for (const rel of fs.readdirSync(sharedDir, { recursive: true }).filter((f) => /\.jsx?$/.test(f) && !f.includes('.test.'))) {
+    const file = path.join(sharedDir, rel);
+    for (const [, spec] of fs.readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
+      if (featureOf(path.resolve(path.dirname(file), spec))) violations.push(`${rel}: ${spec}`);
+    }
   }
-  assert.deepEqual(cycles, []);
+  assert.deepEqual(violations, []);
 });

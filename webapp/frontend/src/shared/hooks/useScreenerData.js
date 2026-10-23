@@ -7,8 +7,10 @@ import {
   getScreenerEarnings,
   getScreenerPayload,
   getScreenerStatus,
+  getScreenerRefreshFailed,
+  getScreenerRefreshing,
   subscribeScreenerStore,
-} from '../../../shared/hooks/screenerStore';
+} from './screenerStore.js';
 
 export { DEFAULT_UNIVERSE };
 
@@ -20,6 +22,8 @@ export { DEFAULT_UNIVERSE };
 function useScreenerData(universe = DEFAULT_UNIVERSE) {
   const screenerData = useSyncExternalStore(subscribeScreenerStore, () => getScreenerPayload(universe));
   const status = useSyncExternalStore(subscribeScreenerStore, () => getScreenerStatus(universe));
+  const refreshFailed = useSyncExternalStore(subscribeScreenerStore, () => getScreenerRefreshFailed(universe));
+  const refreshing = useSyncExternalStore(subscribeScreenerStore, () => getScreenerRefreshing(universe));
   const earningsByTicker = useSyncExternalStore(subscribeScreenerStore, getScreenerEarnings);
 
   // Revalidate whenever the selected universe changes (also the initial fetch).
@@ -34,7 +38,7 @@ function useScreenerData(universe = DEFAULT_UNIVERSE) {
   const fetchScreener = useCallback((target) => fetchScreenerUniverse(target || DEFAULT_UNIVERSE, { fresh: true }), []);
   const fetchEarnings = useCallback((visibleTickers) => fetchScreenerEarnings(visibleTickers), []);
 
-  return { screenerData, status, universe, earningsByTicker, fetchScreener, fetchEarnings };
+  return { screenerData, status, refreshFailed, refreshing, universe, earningsByTicker, fetchScreener, fetchEarnings };
 }
 
 export default useScreenerData;

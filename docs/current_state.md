@@ -1,5 +1,29 @@
 # Current state
 
+**2026-10-23 engineering-quality increment (merged into main; deployment pending):**
+`codex/engineering-quality` adds Python correctness checks, strict types at the
+screener response boundary, generated API schema/JSDoc drift checks and twenty
+browser checks against the production frontend build. Its review's three UI
+fixes landed with it: Undo during a removal still saving, Alt+arrow left to the
+browser in the Watchlist dialog and the lens, and the Watchlist chart dialog
+fitting the screen at 130% UI scale. The shortlisting pass
+adds a Liked view, visible sort/query controls, top paging,
+refresh/save recovery and responsive header fixes. A Finviz workflow review adds
+a Table/Charts switch over the same query and a focused module-ownership cleanup:
+[review and next adaptations](finviz_workflow_review_2026-10.md). The new fast CI job runs
+beside the existing regression jobs. Scope and commands:
+[engineering_quality.md](engineering_quality.md). Startup and archive storage
+refactors remain later work; no service was restarted.
+
+**2026-10-23 Watchlist redesign (same branch, merged into main; deployment pending):**
+the screener's dedicated Watchlist filter/manager is removed; saving stars remain.
+The Watchlist tab is now a compact, sortable ticker ledger with search, dated
+saves, saved-price comparisons, company facts, likes, removal/undo and history.
+Daily/weekly/monthly charts open from a row. Active-save responses expose five
+nullable facts from their existing stored snapshots; no database migration or
+new scan is needed. The top navigation is slightly larger. Details and measured
+scope: [workflow review](finviz_workflow_review_2026-10.md#operator-watchlist-redesign).
+
 **2026-10-23 dependable-daily source integrated into main (deployment pending):** the first implementation
 adds new-reader base-length sorting data, chart read/grade feedback and an
 offline saved-fire replay audit through the active reader. The audit exposed a

@@ -7,7 +7,7 @@ import OpenBookZone from './OpenBookZone';
 import JournalPulseZone from './JournalPulseZone';
 import EdgePulse from './EdgePulse';
 import usePollingInterval from '../../../shared/hooks/usePollingInterval';
-import useScreenerData from '../../screener/hooks/useScreenerData';
+import useScreenerData from '../../../shared/hooks/useScreenerData';
 import useLivePrices from '../../watchlist/hooks/useLivePrices';
 import { revalidateScreenerUniverse } from '../../../shared/hooks/screenerStore';
 

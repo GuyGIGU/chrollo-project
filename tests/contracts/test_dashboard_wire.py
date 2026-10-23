@@ -80,6 +80,12 @@ def _payload(monkeypatch, *, v2_overlay=None):
     return dashboard_module._extract_chart_data(data, results, ["AAA"])["AAA"]
 
 
+def test_old_reader_producer_matches_core_chart_contract(monkeypatch):
+    from domains.screener.schemas import ScreenerChart
+
+    ScreenerChart.model_validate(_payload(monkeypatch))
+
+
 def test_wire_ungraded_row_carries_no_v2_keys(monkeypatch):
     """No reserved v2 key may reach the wire — top level or sub_scores — for
     a row without grade content. Derives from the ONE settled vocabulary."""

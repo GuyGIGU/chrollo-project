@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  CANDLE_REASON_COPY, cardPlan, resolvePaneData, resolveRenderedSelection,
+  CANDLE_REASON_COPY, resolvePaneData, resolveRenderedSelection,
 } from './watchlistChartData.js';
 
 const scanEntry = {
@@ -139,37 +139,6 @@ test('null scan fields never crash the resolver', () => {
 });
 
 // ── the card plan ──────────────────────────────────────────────────────────
-
-test('cards: a scanned ticker carries the scan row WHOLESALE', () => {
-  const { cards, toFetch } = cardPlan(['AAA'], { AAA: scanEntry }, {});
-  assert.equal(cards.AAA.kind, 'scan');
-  // Same reference — the card renders the full screener card from the exact
-  // artifact row, no slicing, no field-level copy.
-  assert.equal(cards.AAA.data, scanEntry);
-  assert.deepEqual(toFetch, []);
-});
-
-test('cards: an off-scan ticker becomes a clean card wearing the CELL itself', () => {
-  const cell = { status: 'ok', candles: [{ time: 'x' }], volumes: [{ time: 'x' }] };
-  const { cards } = cardPlan(['CACHED'], {}, { CACHED: cell });
-  assert.equal(cards.CACHED.kind, 'clean');
-  // Same reference — the store cell's identity IS the chart's rebuild key;
-  // a fresh wrapper per plan run would tear the chart down on every pass.
-  assert.equal(cards.CACHED.data, cell);
-});
-
-test('cards: batch verdicts and unfetched names are voids with named reasons', () => {
-  const { cards, toFetch } = cardPlan(
-    ['DEAD', 'MISSING'], {}, { DEAD: { status: 'no_cache', candles: [], volumes: [] } });
-  assert.deepEqual(cards.DEAD, { kind: 'void', reason: 'no_cache' });
-  assert.deepEqual(cards.MISSING, { kind: 'void', reason: 'loading' });
-  assert.deepEqual(toFetch, ['MISSING']);
-});
-
-test('cards: an empty-candles scan entry falls through to the endpoint', () => {
-  const { toFetch } = cardPlan(['AAA'], { AAA: { candles: [] } }, {});
-  assert.deepEqual(toFetch, ['AAA']);
-});
 
 test('every no-candles reason has plain words', () => {
   // The endpoint's closed verdicts + the store's transport states — a verdict

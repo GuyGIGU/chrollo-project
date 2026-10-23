@@ -227,6 +227,13 @@ LEADERSHIP_KEYS = ("rs_rating", "stage2_trend_pass_count", "stage2_52w_low_pct",
                    "dollar_volume_50d")
 
 
+def test_new_reader_producer_matches_core_chart_contract(monkeypatch):
+    from domains.screener.schemas import ScreenerChart
+    from engine_alpha.two_eyes_adapter import to_result
+
+    ScreenerChart.model_validate(_payload(monkeypatch, to_result(_read())))
+
+
 def test_a_two_eyes_fire_keeps_its_chart_and_carries_the_one_block(monkeypatch):
     """The old payload cast the old engine's bar counts with int(), which a two-eyes row leaves empty: the chart was
     dropped by its own try, silently, the moment the row had a tier (the build log's note of task 6)."""

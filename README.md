@@ -14,6 +14,7 @@ New here? Read this file top-to-bottom, then:
 - [`docs/architecture.md`](docs/architecture.md) — where every part of the repo lives, which way
   imports run, and where new code belongs.
 - [`docs/current_state.md`](docs/current_state.md) — what is live, what is dark, and what comes next.
+- [`docs/finviz_workflow_review_2026-10.md`](docs/finviz_workflow_review_2026-10.md) — public Finviz workflow findings, the comparison table and module-ownership cleanup (merged 2026-10-23).
 - [`core/MAP.md`](core/MAP.md) — plain-English tour of how the engine is organized.
 - The engine docs are split by lifecycle, and each has one job:
   [`docs/strategy_alpha.md`](docs/strategy_alpha.md) = the **theory** (what a good setup IS;
@@ -226,6 +227,10 @@ Full runbook: [`docs/deploy.md`](docs/deploy.md).
 ```
 
 ### Verification guard stack
+
+Engineering gates and local commands: [`docs/engineering_quality.md`](docs/engineering_quality.md).
+CI checks Python correctness, the core API contracts and the built frontend's daily browser flows
+alongside the existing regression jobs.
 
 Use the smallest guard that proves the change, then widen only when the touched surface warrants it:
 

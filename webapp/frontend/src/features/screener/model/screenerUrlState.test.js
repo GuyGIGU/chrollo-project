@@ -19,12 +19,22 @@ import {
   pageForIndex,
   pushedEntry,
   readFilterParams,
+  readResultView,
 } from './screenerUrlState.js';
 
 test('an empty address is the default view', () => {
   assert.deepEqual(readFilterParams(new URLSearchParams('')), {
     tierFilter: 'ALL', setupFilter: 'ALL', tagIds: [], sortBy: 'score', searchTerm: '', page: 1,
   });
+});
+
+test('the result presentation survives a bookmark without changing the query or page', () => {
+  assert.equal(readResultView(new URLSearchParams()), 'charts');
+  assert.equal(readResultView(new URLSearchParams('view=unknown')), 'charts');
+  const query = new URLSearchParams('tier=LIKED&sort=base&p=2');
+  const table = applyParamPatch(query, { view: 'table' });
+  assert.equal(readResultView(table), 'table');
+  assert.deepEqual(readFilterParams(table), readFilterParams(query));
 });
 
 test('every filter reads back from the address', () => {
@@ -40,7 +50,7 @@ test('every filter reads back from the address', () => {
 // A hand-typed ?tier=a matched nothing and faked 'No setups match' with no pill pressed;
 // ?sort=valueOf (or __proto__, hasOwnProperty) handed Array.sort an Object.prototype member.
 test('a tier or sort the command band does not offer reads as the default', () => {
-  for (const search of ['tier=a', 'tier=Z', 'tier=valueOf', 'tier=__proto__']) {
+  for (const search of ['tier=WATCHLIST', 'tier=a', 'tier=Z', 'tier=valueOf', 'tier=__proto__']) {
     assert.equal(readFilterParams(new URLSearchParams(search)).tierFilter, 'ALL', search);
   }
   for (const search of ['sort=valueOf', 'sort=__proto__', 'sort=hasOwnProperty', 'sort=RS']) {
@@ -50,12 +60,12 @@ test('a tier or sort the command band does not offer reads as the default', () =
   for (const sort of SORT_KEYS) assert.equal(readFilterParams(new URLSearchParams({ sort })).sortBy, sort);
 });
 
-// The band draws its own copies; a pill or sort added there alone would be dropped on reload.
+// The band shares the URL's choices; a new view cannot vanish on reload.
 test("the reader's tiers and sorts are the command band's", () => {
   const srcDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
   const band = readFileSync(join(srcDir, 'features/screener/components/ScreenerToolbar.jsx'), 'utf8');
-  assert.match(band, /\['ALL', \.\.\.TIER_LETTERS, 'WATCHLIST'\]\.map\(/);
-  assert.deepEqual(TIER_FILTERS, ['ALL', ...TIER_LETTERS, 'WATCHLIST']);
+  assert.match(band, /TIER_FILTERS\.map\(/);
+  assert.deepEqual(TIER_FILTERS, ['ALL', ...TIER_LETTERS, 'LIKED']);
   const sortRow = band.slice(band.indexOf('label="Sort by:"'));
   const options = sortRow.slice(0, sortRow.indexOf(']}'));
   assert.deepEqual([...options.matchAll(/^\s*\['(\w+)', '/gm)].map((m) => m[1]), SORT_KEYS);
@@ -76,7 +86,7 @@ test('patches keep unrelated params and delete defaults', () => {
 
 test('what is written reads back identically', () => {
   const view = {
-    tierFilter: 'WATCHLIST', setupFilter: 'VCP', tagIds: ['a_tag', 'b_tag'], sortBy: 'trigger', searchTerm: 'brk.b', page: 4,
+    tierFilter: 'LIKED', setupFilter: 'VCP', tagIds: ['a_tag', 'b_tag'], sortBy: 'trigger', searchTerm: 'brk.b', page: 4,
   };
   assert.deepEqual(readFilterParams(applyParamPatch('?u=etf', filterParamPatch(view))), view);
 });

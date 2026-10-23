@@ -3,7 +3,7 @@ import { TAG_CATALOG } from '../../../shared/setup/tagCatalog';
 import UniverseSwitcher from './UniverseSwitcher';
 import Popover from './Popover';
 import ScanDateStamp from './ScanDateStamp';
-import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary';
+import { TIER_FILTERS } from '../model/screenerUrlState.js';
 
 // The screener command band: the three control rows the toolbar used to stack
 // (universe / count + data-ops / filter panel) folded into ONE horizontal
@@ -19,8 +19,7 @@ function ScreenerToolbar({
   isEvaluating,
   isDownloading,
   marketDataStatus,
-  matchedCount,
-  watchlistSize,
+  likedSize,
   filters,
   onEvaluateCached,
   onDownloadData,
@@ -58,30 +57,26 @@ function ScreenerToolbar({
       {showFilters && (
         <>
           <span className="screener-command-seam" />
-          {['ALL', ...TIER_LETTERS, 'WATCHLIST'].map(tier => (
+          {TIER_FILTERS.map(tier => (
             <button
               key={tier}
-              onClick={() => {
-                filters.setTierFilter(tier);
-                filters.setCurrentPage(1);
-              }}
+              onClick={() => filters.setTierFilter(tier)}
               aria-pressed={filters.tierFilter === tier}
               style={tierButtonStyle(filters.tierFilter === tier)}
             >
-              {tierLabel(tier, watchlistSize)}
+              {tierLabel(tier, likedSize)}
             </button>
           ))}
           <input
             type="text"
             placeholder="Search ticker..."
+            aria-label="Search tickers"
             data-page-search
             value={filters.searchTerm}
-            onChange={(event) => {
-              filters.setSearchTerm(event.target.value);
-              filters.setCurrentPage(1);
-            }}
+            onChange={(event) => filters.setSearchTerm(event.target.value)}
             style={searchStyle}
           />
+          <SortControl filters={filters} />
           <Popover align="left" panelWidth={360} panelLabel="Setup, sort and tag filters"
             renderTrigger={({ open, toggle, triggerRef }) => (
               <button
@@ -99,9 +94,6 @@ function ScreenerToolbar({
               <SortRow filters={filters} />
               <TagFilterRow filters={filters} />
               <TagLegend style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }} />
-              {advancedCount > 0 && (
-                <button onClick={filters.resetFilters} style={resetStyle}>Reset filters</button>
-              )}
             </div>
           </Popover>
         </>
@@ -110,10 +102,6 @@ function ScreenerToolbar({
       <span className="screener-command-spacer" />
 
       <ScanDateStamp screenerData={screenerData} />
-
-      {showFilters && (
-        <span style={matchedStyle}>{matchedCount} matched</span>
-      )}
 
       <button
         onClick={onEvaluateCached}
@@ -206,19 +194,19 @@ function SortRow({ filters }) {
       <SelectControl
         label="Setup:"
         value={filters.setupFilter}
-        onChange={(value) => {
-          filters.setSetupFilter(value);
-          filters.setCurrentPage(1);
-        }}
+        onChange={filters.setSetupFilter}
         options={[['ALL', 'All setups'], ...filters.availableSetups.map(setup => [setup, setup])]}
       />
+    </div>
+  );
+}
+
+function SortControl({ filters }) {
+  return (
       <SelectControl
         label="Sort by:"
         value={filters.sortBy}
-        onChange={(value) => {
-          filters.setSortBy(value);
-          filters.setCurrentPage(1);
-        }}
+        onChange={filters.setSortBy}
         options={[
           // The wire order IS the engine's ranking (the grade since the
           // 2026-08-22 retirement); the passthrough keeps its 'score' key so
@@ -229,7 +217,6 @@ function SortRow({ filters }) {
           ['rs', 'RS rating (high to low)'],
         ]}
       />
-    </div>
   );
 }
 
@@ -286,9 +273,9 @@ function TagFilterRow({ filters }) {
   );
 }
 
-const tierLabel = (tier, watchlistSize) => {
+const tierLabel = (tier, likedSize) => {
   if (tier === 'ALL') return 'All Tiers';
-  if (tier === 'WATCHLIST') return `Watchlist (${watchlistSize})`;
+  if (tier === 'LIKED') return likedSize == null ? 'Liked' : `Liked (${likedSize})`;
   return `${tier} Tier`;
 };
 
@@ -376,14 +363,6 @@ const statusColor = (status, severity) => {
   return 'var(--text-muted)';
 };
 
-const matchedStyle = {
-  fontSize: '12.5px',
-  color: 'var(--text-muted)',
-  whiteSpace: 'nowrap',
-  fontVariantNumeric: 'tabular-nums',
-  flex: '0 0 auto',
-};
-
 const filterLabelStyle = { fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '6px' };
 const tierButtonStyle = (active) => ({
   padding: '5px 14px', borderRadius: 'var(--radius-lg)', border: '1px solid',
@@ -406,12 +385,6 @@ const selectStyle = {
   background: 'var(--bg-main)',
   color: 'var(--text-main)',
   fontSize: '12px', outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
-};
-const resetStyle = {
-  fontSize: '11px', color: 'var(--text-muted)', background: 'transparent',
-  border: '1px solid var(--border-color)',
-  borderRadius: 'var(--radius-lg)', padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit',
-  alignSelf: 'flex-start',
 };
 // Disclosure trigger for the secondary filters. Goes mythril (active) only when
 // hidden filters are applied, so a collapsed band still announces "filters active".

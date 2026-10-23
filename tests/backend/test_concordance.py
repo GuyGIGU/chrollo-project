@@ -130,7 +130,7 @@ def test_grade_verdict_round_trips_and_the_clear_coupling_refuses():
     served = get_read_verdict(ticker="BBB", scan_date="2026-08-07",
                               universe_type=None, db=session)
     assert served == {"verdict": "disagree", "grade_verdict": "too_low",
-                      "note": "graded thin"}
+                      "note": "graded thin", "engine_config_version": None}
     # Grade-without-read is unrepresentable — refused, and the stored row
     # is untouched (no silent discard reporting success).
     with pytest.raises(HTTPException) as err:
@@ -146,7 +146,8 @@ def test_grade_verdict_round_trips_and_the_clear_coupling_refuses():
     assert out["verdict"] is None and out["grade_verdict"] is None
     empty = get_read_verdict(ticker="BBB", scan_date="2026-08-07",
                              universe_type=None, db=session)
-    assert empty == {"verdict": None, "grade_verdict": None, "note": None}
+    assert empty == {"verdict": None, "grade_verdict": None, "note": None,
+                     "engine_config_version": None}
 
 
 def test_read_verdicts_is_registered_with_the_auto_migrator():

@@ -16,10 +16,15 @@ const tierRank = (tier) => (tier in TIER_RANK ? TIER_RANK[tier] : 99);
 // One normalized row per watchlisted ticker. `data` is the raw chart_data entry
 // (or null off-scan); the flat fields exist so the sort + simple cells never
 // dereference undefined.
-export function buildWatchlistRows(watchlist, screenerData) {
+export function buildWatchlistRows(watchlist, screenerData, { records = [], prices = {} } = {}) {
   const chartData = screenerData?.chart_data || {};
+  const byTicker = new Map(records.map((record) => [record.ticker, record]));
   return Array.from(watchlist || []).map((ticker) => {
     const data = chartData[ticker] || null;
+    const record = byTicker.get(ticker) || null;
+    const savedPrice = finiteOrNull(record?.saved_price);
+    const price = finiteOrNull(prices[ticker]);
+    const facts = data?.fund_sheet?.snapshot;
     return {
       ticker,
       in_scan: data != null,
@@ -29,20 +34,35 @@ export function buildWatchlistRows(watchlist, screenerData) {
       // is null here and renders as the dash.
       grade: finiteOrNull(data?.ta_grade),
       setup: data?.setup ?? null,
+      record,
+      added: record?.save_date || record?.created_at?.slice(0, 10) || null,
+      saved_setup: record?.saved_setup ?? null,
+      saved_price: savedPrice,
+      price,
+      // Price comparison only: never substitute a current scan price for the saved basis.
+      vs_saved: savedPrice > 0 && price != null ? (price - savedPrice) / savedPrice : null,
+      rs_rating: finiteOrNull(data?.rs_rating),
+      market_cap: finiteOrNull(data?.market_cap ?? record?.saved_market_cap),
+      sector: facts?.sector || record?.saved_sector || null,
+      industry: facts?.industry || record?.saved_industry || null,
       data,
     };
   });
 }
 
-// A deterministic total order. Off-scan rows ALWAYS sink to the bottom whatever
-// the direction (they have no tier/score to rank), so the live setups the trader
-// opened the panel for stay on top; scanned rows order by the active column; the
+// A deterministic total order. Scan-specific sorts keep off-scan names last;
+// date, quote and company-data sorts compare the whole saved list. The
 // tier default breaks ties on score (desc) so the best setups float up, and
-// every path ends on the ticker so nothing wobbles under the watchlist poll.
+// final ticker tie-break keeps the list steady under the watchlist poll.
 export function sortWatchlistRows(rows, sortBy = 'tier', sortDir = 'asc') {
   const dir = sortDir === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {
-    if (a.in_scan !== b.in_scan) return a.in_scan ? -1 : 1;
+    // Scan-specific sorts retain their established off-scan-last behavior.
+    // Added date and quote/fundamental sorts compare the whole saved list.
+    if (['tier', 'grade', 'setup', 'ticker'].includes(sortBy) && a.in_scan !== b.in_scan) return a.in_scan ? -1 : 1;
+    if (['added', 'price', 'saved_price', 'vs_saved', 'rs_rating', 'market_cap'].includes(sortBy)) {
+      if ((a[sortBy] == null) !== (b[sortBy] == null)) return a[sortBy] == null ? 1 : -1;
+    }
     const primary = keyCompare(a, b, sortBy) * dir;
     if (primary !== 0) return primary;
     if (sortBy === 'tier') {
@@ -57,8 +77,16 @@ function keyCompare(a, b, key) {
   switch (key) {
     case 'tier': return tierRank(a.tier) - tierRank(b.tier);
     case 'grade': return numAsc(a.grade, b.grade);
-    case 'setup': return String(a.setup ?? '').localeCompare(String(b.setup ?? ''));
+    case 'setup': return String(a.saved_setup || a.setup || '').localeCompare(String(b.saved_setup || b.setup || ''));
     case 'ticker': return a.ticker.localeCompare(b.ticker);
+    case 'added':
+    case 'sector':
+    case 'industry': return String(a[key] ?? '').localeCompare(String(b[key] ?? ''));
+    case 'price':
+    case 'saved_price':
+    case 'vs_saved':
+    case 'rs_rating':
+    case 'market_cap': return numAsc(a[key], b[key]);
     default: return 0;
   }
 }

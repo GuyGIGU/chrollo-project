@@ -98,6 +98,10 @@ webapp/frontend/dist/
 webapp/frontend/dist_previous/
 webapp/frontend/.next/
 webapp/frontend/build/
+webapp/frontend/playwright-report/
+webapp/frontend/test-results/
+.mypy_cache/
+.ruff_cache/
 
 # Secrets / local config
 .env

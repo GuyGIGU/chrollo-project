@@ -56,11 +56,12 @@ export default function Popover({
   }, [open, close]);
 
   return (
-    <div ref={anchorRef} style={{ position: 'relative', display: 'inline-flex' }}>
+    <div className="screener-popover" ref={anchorRef} style={{ position: 'relative', display: 'inline-flex' }}>
       {renderTrigger({ open, toggle: () => setOpen((value) => !value), triggerRef })}
       {open && (
         <div
           ref={panelRef}
+          className="screener-popover-panel"
           role="dialog"
           aria-label={panelLabel}
           tabIndex={-1}

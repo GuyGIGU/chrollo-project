@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { API_BASE } from '../../../api/base';
 import usePollingInterval from '../../../shared/hooks/usePollingInterval';
 import useWatchlist from './useWatchlist';
@@ -30,21 +30,29 @@ export default function useLivePrices() {
   const [prices, setPrices] = useState({});
   const [priceErr, setPriceErr] = useState(false);
   const [fetchStatus, setFetchStatus] = useState('loading');
+  const requestId = useRef(0);
 
   const tickers = useMemo(() => [...watchlist].sort(), [watchlist]);
   const tickersKey = tickers.join(',');
 
   const fetchPrices = useCallback(() => {
     if (!tickersKey) return;
+    const id = ++requestId.current;
     // fetch does not reject on 4xx/5xx — guard response.ok before json().
     fetch(`${API_BASE}/live-prices/?tickers=${encodeURIComponent(tickersKey)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('prices'))))
-      .then((d) => { setPrices(d || {}); setPriceErr(false); setFetchStatus('ready'); })
-      .catch(() => { setPriceErr(true); setFetchStatus('error'); });
+      .then((d) => { if (id === requestId.current) { setPrices(d || {}); setPriceErr(false); setFetchStatus('ready'); } })
+      .catch(() => { if (id === requestId.current) { setPriceErr(true); setFetchStatus('error'); } });
   }, [tickersKey]);
 
+  // The list usually arrives after mount: price new membership immediately,
+  // instead of waiting up to a minute for the ref-based interval's first tick.
+  useEffect(() => {
+    if (!document.hidden) fetchPrices();
+    return () => { requestId.current += 1; };
+  }, [fetchPrices]);
   // Visibility-gated poll (pauses on a hidden tab); cadence unchanged at 60s.
-  usePollingInterval(fetchPrices, 60000);
+  usePollingInterval(fetchPrices, 60000, { immediate: false });
 
   const priceStatus = livePriceStatus(watchlistStatus, tickersKey, fetchStatus);
 

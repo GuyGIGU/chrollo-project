@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
-from domains.archive.schemas import ReadVerdictIn, ReviewMarkIn, ReviewToggleIn
+from domains.archive.schemas import ReadVerdictIn, ReadVerdictOut, ReviewMarkIn, ReviewToggleIn
 from domains.archive.queries import _episode_context, _latest_episode_first_seen
 
 router = APIRouter(tags=["archive"])
@@ -247,7 +247,7 @@ def set_read_verdict(payload: ReadVerdictIn, db: Session = Depends(get_db)) -> D
             "grade_verdict": grade_verdict, "note": note}
 
 
-@router.get("/reviews/read-verdict")
+@router.get("/reviews/read-verdict", response_model=ReadVerdictOut)
 def get_read_verdict(
     ticker: str = Query(..., min_length=1, max_length=12),
     scan_date: str = Query(..., min_length=8, max_length=10),

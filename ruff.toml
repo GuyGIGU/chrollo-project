@@ -1,0 +1,12 @@
+# First gate: correctness errors across Python production code and tooling.
+# Formatting and import cleanup are separate changes, especially in frozen readers.
+target-version = "py312"
+include = ["config/**/*.py", "core/**/*.py", "engine_alpha/**/*.py", "webapp/backend/**/*.py", "tools/**/*.py", "run_screener.py"]
+
+[lint]
+select = ["E9", "F63", "F7", "F82"]
+
+[lint.per-file-ignores]
+# Existing string annotation references pd in this byte-frozen legacy file.
+# Its content hash is separately guarded by test_old_engine_frozen.py.
+"engine_alpha/structure/box/box_primitives.py" = ["F821"]

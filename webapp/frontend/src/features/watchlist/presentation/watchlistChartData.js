@@ -123,33 +123,3 @@ export function resolvePaneData({ scanEntry, scanDate, endpointEntry, overlayOn 
     },
   };
 }
-
-// The card grid's per-ticker sourcing. A card renders ONE source wholesale:
-// a scan-backed name carries the scan row itself ('scan' — the full screener
-// card, rails and all), an off-scan name carries the endpoint batch's bare
-// daily candles ('clean'), and anything undrawable is a 'void' with its named
-// reason. Only names in neither source join the ONE batched endpoint fetch.
-export function cardPlan(tickers, scanChartData, batchCells) {
-  const cards = {};
-  const toFetch = [];
-  for (const ticker of tickers || []) {
-    const entry = (scanChartData || {})[ticker];
-    if (entry && (entry.candles || []).length) {
-      cards[ticker] = { kind: 'scan', data: entry };
-      continue;
-    }
-    const fetched = (batchCells || {})[ticker];
-    if (fetched) {
-      // The clean card's data IS the store cell (stable identity): the mini
-      // chart's rebuild check keys on the data reference, so re-wrapping
-      // here would tear down every clean card's chart on each plan run.
-      cards[ticker] = fetched.status === 'ok'
-        ? { kind: 'clean', data: fetched }
-        : { kind: 'void', reason: fetched.status };
-      continue;
-    }
-    cards[ticker] = { kind: 'void', reason: 'loading' };
-    toFetch.push(ticker);
-  }
-  return { cards, toFetch };
-}

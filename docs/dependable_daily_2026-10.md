@@ -52,6 +52,59 @@ saved scan against that code correctly refuses until a matching scan exists.
 
 ## Next release: freshness and replay evidence
 
+### Shortlisting pass — built in the isolated quality branch
+
+On 23 October the operator named **finding and shortlisting setups** as the
+most frustrating part. Inspection of the running UI found that hearts had no
+matching screener view, sorting sat inside a popover, search-only/tier-only
+filters had no reset control, paging required reaching the bottom of the chart
+wall, and the global header overlapped in a narrow window.
+
+The source on `codex/engineering-quality` now includes:
+
+- A URL-restored **Liked** view of hearted setups in the selected scan. Its
+  count refers to drawable charts in this scan, rather than all historical
+  hearts. The inspected 22 October scan showed six hearted setups among 269
+  charts; historical hearts outside that scan are not deleted or reclassified.
+- Visible sorting, removable active-filter chips, a clear-filters control and
+  a compact pager above the chart wall. The filter hook owns page resets;
+  duplicate page-reset writes and the toolbar's duplicate view choices are gone.
+- Retry actions for failed screener and likes loads. A failed likes read does
+  not become a false empty shortlist. A failed refresh keeps the loaded charts
+  visible with a warning and a retry action.
+- Visible failure feedback for heart/star writes. One pending write per ticker
+  prevents opposite toggles racing. Watchlist saves for different tickers
+  reconcile independently, and a GET issued during a save cannot replace its pin.
+- A wrapping header and viewport-contained filter panels for narrow windows.
+
+Verification: 605 JavaScript tests, production build and lint; the expanded
+browser suite covers the shortlist, retry paths, persistence, concurrent clicks,
+top paging and narrow layouts. All browser API writes use controlled mocks.
+Real-data visual inspection used only navigation/filtering against the existing
+backend. Merged into main on 23 October; the live bundle changes only with the operator's update.
+
+### Product priorities after integration
+
+The daily loop is **find → inspect → shortlist → revisit → learn**. Each release
+should remove a named obstacle in that loop and carry a regression check for it.
+
+| Order | Change | Evidence of completion |
+|---|---|---|
+| 1 | Make freshness and partial failures explicit. Distinguish service health, scan completeness and the individual chart's last bar. The current UI can say "Healthy" while the run detail names unread charts. | A stale symbol or an incomplete scan is named in the relevant view, with its actual session and recovery action. Server verdicts drive the presentation. |
+| 2 | Preserve exact replay inputs and publication identity; then show what changed since the last review. | Reopening a saved setup explains whether its bars, reading or engine changed, and reproduces the evidence originally shown. |
+| 3 | Make favorite examples and explicit negatives a maintained evaluation set for the active reader. | A proposed ranking change is checked on examples excluded from tuning; reading agreement, preferred first-page results and later outcomes remain separate questions. No automatic weight changes from hearts. |
+| 4 | Simplify the next high-risk ownership boundaries: import-time database initialization, archive record preparation/transaction ownership, and chart/mark/fix logic still held in the calibration router. | Imports are side-effect free, storage retains the same atomic behavior, and domain routers delegate logic with producing tests. Refactor one boundary per change. |
+| 5 | Refine workspace hierarchy: put secondary account tools in a disclosure, preserve meaningful connection/mode visibility, and add saved views if repeated daily filters justify them. | Common shortlist/review actions remain visible; secondary tools stay reachable by keyboard; existing bookmarks and manual broker gates continue to work. |
+
+The archive writer is about 900 lines and the calibration router about 890 in
+this snapshot. Those are responsibility reviews, not split-at-N-lines targets.
+The existing frozen reader and sealed evidence need their compatibility guards;
+removing them for a smaller tree is a separate migration decision. Prefer a
+clear owner and fewer competing state paths over a generic store/repository
+framework or a broad cosmetic rewrite.
+
+### Freshness and replay work remaining
+
 1. Investigate per-symbol freshness on the normal archive path, including a
    mostly current panel containing a stale firing symbol. Show the individual
    chart's data session and keep it distinct from the scan run's session.

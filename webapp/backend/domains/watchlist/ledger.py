@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -259,6 +260,37 @@ def _snapshot_display_fields(snapshot_json: str | None) -> dict:
     fields["score"] = _coerce_number(entry.get("score"))
     fields["ta_grade"] = _coerce_number(entry.get("ta_grade"))
     fields["price"] = _coerce_number(entry.get("price"))
+    return fields
+
+
+def saved_display_fields(snapshot_json: str | None) -> dict:
+    """Small saved-scan facts for the ticker ledger; never fetch or re-pin.
+
+    Missing/unsupported snapshots keep explicit nulls. These are historical
+    facts, separate from the current scan and the live quote.
+    """
+    fields = dict.fromkeys(("saved_setup", "saved_price", "saved_market_cap",
+                            "saved_sector", "saved_industry"))
+    if not snapshot_json:
+        return fields
+    try:
+        snapshot = json.loads(snapshot_json)
+    except (TypeError, ValueError):
+        return fields
+    if not isinstance(snapshot, dict) or snapshot.get("snapshot_version") != SNAPSHOT_VERSION:
+        return fields
+    entry = snapshot.get("entry")
+    if not isinstance(entry, dict):
+        return fields
+    fields["saved_setup"] = _coerce_str(entry.get("setup"))
+    for target, key in (("saved_price", "price"), ("saved_market_cap", "market_cap")):
+        value = _coerce_number(entry.get(key))
+        fields[target] = value if value is not None and math.isfinite(value) else None
+    sheet = entry.get("fund_sheet")
+    facts = sheet.get("snapshot") if isinstance(sheet, dict) else None
+    if isinstance(facts, dict):
+        fields["saved_sector"] = _coerce_str(facts.get("sector"))
+        fields["saved_industry"] = _coerce_str(facts.get("industry"))
     return fields
 
 

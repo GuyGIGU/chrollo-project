@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../../../api/base';
+import { toast } from '../../../shared/components/feedback.js';
 
 // The operator's two verdicts on a setup, both rows in `setup_reviews`:
 //   LIKED  — "this is the kind of setup I want more of" (the screener card's
@@ -17,6 +18,23 @@ import { API_BASE } from '../../../api/base';
 function useReviews() {
   const [passed, setPassed] = useState(() => new Set());
   const [liked, setLiked] = useState(() => new Set());
+  const [likesStatus, setLikesStatus] = useState('loading');
+  const pendingLikes = useRef(new Set());
+
+  const reloadLiked = useCallback(async () => {
+    setLikesStatus('loading');
+    try {
+      const response = await fetch(`${API_BASE}/archive/reviews/liked`);
+      if (!response.ok) throw new Error(`liked setups ${response.status}`);
+      const body = await response.json();
+      if (!Array.isArray(body?.tickers)) throw new Error('Unreadable liked setups');
+      setLiked(new Set(body.tickers));
+      setLikesStatus('ready');
+    } catch (error) {
+      console.error('Could not load liked setups', error);
+      setLikesStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
     // `response.ok` is NOT proof the API answered: the backend serves the SPA
@@ -30,8 +48,8 @@ function useReviews() {
       .then(data => apply(new Set(Array.isArray(data?.tickers) ? data.tickers : [])))
       .catch(() => {});
     load('passed', setPassed);
-    load('liked', setLiked);
-  }, []);
+    reloadLiked();
+  }, [reloadLiked]);
 
   // The POST fires OUTSIDE the updater — React updaters must stay pure (a
   // strict-mode double invocation would double-toggle the server state).
@@ -62,6 +80,12 @@ function useReviews() {
   // the server keeps ONE row per setup: liking a setup you had passed replaces
   // the verdict, and a stale local `passed` would leave both marks lit.
   const toggleLiked = useCallback((ticker) => {
+    if (pendingLikes.current.has(ticker)) return;
+    if (likesStatus !== 'ready') {
+      toast('Likes have not loaded. Open the Liked view to retry before editing.', { tone: 'warning' });
+      return;
+    }
+    pendingLikes.current.add(ticker);
     const wasOn = liked.has(ticker);
     setLiked(previous => {
       const next = new Set(previous);
@@ -92,10 +116,12 @@ function useReviews() {
       .catch(error => {
         console.error('Like toggle failed, reverting', error);
         setLiked(current => rollback(current, ticker, wasOn));
-      });
-  }, [liked]);
+        toast(`${ticker}: your like change did not save. The previous heart was restored.`, { tone: 'danger' });
+      })
+      .finally(() => pendingLikes.current.delete(ticker));
+  }, [liked, likesStatus]);
 
-  return { passed, togglePassed, liked, toggleLiked };
+  return { passed, togglePassed, liked, toggleLiked, likesStatus, reloadLiked };
 }
 
 function rollback(current, ticker, wasOn) {

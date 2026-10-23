@@ -1,4 +1,4 @@
-import { DEFAULT_UNIVERSE } from '../hooks/useScreenerData';
+import { DEFAULT_UNIVERSE } from '../../../shared/hooks/useScreenerData';
 import { UNIVERSES } from '../../../shared/presentation/universeSwitcherData';
 
 // The three screeners are one instrument viewed through three universes — the

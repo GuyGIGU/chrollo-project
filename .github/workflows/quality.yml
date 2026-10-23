@@ -16,6 +16,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            constraints.txt
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt -c constraints.txt
+      - name: Check Python correctness
+        run: python -m ruff check .
+      - name: Type-check core screener contracts
+        run: python -m mypy
+      - name: Check generated API contracts
+        run: python -m tools.audits.api_contracts --check
+      - name: Test response contracts, scan producers and shared browser fixture
+        run: python -m pytest tests/contracts/test_api_responses.py tests/contracts/test_dashboard_wire.py tests/contracts/test_two_eyes_wire.py -q
+
   verify:
     runs-on: ubuntu-latest
     # A normal run is ~60 min since the final method landed (2026-09-26: pytest ~30 min,
@@ -177,6 +203,25 @@ jobs:
       - name: Build frontend
         working-directory: webapp/frontend
         run: npm run build
+
+      - name: Install browser for UI checks
+        working-directory: webapp/frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Test built frontend in the browser
+        working-directory: webapp/frontend
+        run: npm run test:e2e
+
+      - name: Save browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-evidence
+          path: |
+            webapp/frontend/playwright-report/
+            webapp/frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
 
   # Prod is the Windows / Python 3.14 NSSM service; an ubuntu-only gate proved
   # blind to Windows-only classes (the cp1252 stdio-encoding crash under the

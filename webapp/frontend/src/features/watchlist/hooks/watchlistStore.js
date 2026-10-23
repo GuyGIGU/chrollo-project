@@ -5,7 +5,8 @@
 // derived from it (memoized per change so snapshot getters return stable
 // references; never maintained as parallel state). A star toggled on the
 // Screener is instantly visible on Home because every mount shares this store.
-import { API_BASE } from '../../../api/base';
+import { API_BASE } from '../../../api/base.js';
+import { toast } from '../../../shared/components/feedback.js';
 
 const CLIENT_HEADER = { 'X-Chrollo-Client': 'chrollo-dashboard' };
 
@@ -24,6 +25,7 @@ const store = {
 // Bumped by every toggle; a GET response issued before the bump is stale and
 // must not clobber the optimistic state (review finding 2026-08-12).
 let mutationEpoch = 0;
+const pendingToggles = new Map(); // ticker -> its write in flight
 
 function emit() {
   for (const listener of store.listeners) listener();
@@ -64,6 +66,7 @@ function setStatus(status) {
 export function fetchWatchlist() {
   if (store.inflight) return store.inflight;
   const epochAtIssue = mutationEpoch;
+  const hadPendingToggle = pendingToggles.size > 0;
   if (store.status !== 'ready') setStatus('loading');
   const request = fetch(`${API_BASE}/watchlist/`)
     .then((response) => {
@@ -73,7 +76,7 @@ export function fetchWatchlist() {
     .then((items) => {
       // A toggle happened while this GET was in flight: its read-time
       // snapshot predates the write — drop it, the toggle path reconciles.
-      if (epochAtIssue === mutationEpoch) setRecords(items);
+      if (epochAtIssue === mutationEpoch && !hadPendingToggle) setRecords(items);
       setStatus('ready');
     })
     .catch((error) => {
@@ -95,11 +98,28 @@ export function fetchWatchlist() {
 // page (EC-26: the server still resolves pin + snapshot from its own
 // artifact; this is what-the-operator-clicked, never chart content).
 export function toggleWatchlist(ticker, saveContext = null) {
+  // A second click while this ticker is saving must not send an opposite
+  // request that can reach the server before the first one finishes.
+  if (pendingToggles.has(ticker)) return;
+  const write = sendToggle(ticker, saveContext)
+    .finally(() => { if (pendingToggles.get(ticker) === write) pendingToggles.delete(ticker); });
+  pendingToggles.set(ticker, write);
+  return write;
+}
+
+// Undo of a removal: an explicit save, never a dropped click. It waits for the
+// removal still in flight, then saves again unless a failed removal already
+// restored the star.
+export function restoreWatchlist(ticker, saveContext = null) {
+  return Promise.resolve(pendingToggles.get(ticker)).then(() => {
+    if (!store.activeSet.has(ticker)) return toggleWatchlist(ticker, saveContext);
+  });
+}
+
+function sendToggle(ticker, saveContext) {
   mutationEpoch += 1;
-  // A newer toggle supersedes this one's SUCCESS reconcile (it would clobber
-  // the newer optimistic state); rollbacks always run — they only undo our
-  // own optimistic row.
-  const epochAtIssue = mutationEpoch;
+  // Writes serialize per ticker. Different tickers reconcile independently;
+  // starring B must not leave A's successful save as an unpinned placeholder.
   const wasOn = store.activeSet.has(ticker);
   if (wasOn) {
     const removed = store.records.find((r) => r.ticker === ticker);
@@ -115,7 +135,6 @@ export function toggleWatchlist(ticker, saveContext = null) {
         if (!response.ok) throw new Error(`watchlist delete ${response.status}`);
         // Reconcile from our own outcome, never assume the optimistic
         // removal survived intermediate writes.
-        if (epochAtIssue !== mutationEpoch) return;
         setRecords(store.records.filter((r) => r.ticker !== ticker));
       })
       .catch((error) => {
@@ -123,6 +142,7 @@ export function toggleWatchlist(ticker, saveContext = null) {
         if (!store.activeSet.has(ticker) && removed) {
           setRecords([removed, ...store.records]);
         }
+        toast(`${ticker} could not be removed from the watchlist. The previous star was restored.`, { tone: 'danger' });
       });
   }
 
@@ -151,7 +171,6 @@ export function toggleWatchlist(ticker, saveContext = null) {
       return response.json();
     })
     .then((item) => {
-      if (epochAtIssue !== mutationEpoch) return;
       // Upsert: replace the optimistic row, or prepend if it was clobbered.
       const rest = store.records.filter((r) => r.ticker !== ticker);
       setRecords([item, ...rest]);
@@ -160,5 +179,6 @@ export function toggleWatchlist(ticker, saveContext = null) {
       console.error('Watchlist toggle failed, reverting', error);
       setRecords(store.records.filter(
         (r) => !(r.ticker === ticker && r.save_date == null)));
+      toast(`${ticker} was not saved to the watchlist. Try the star again.`, { tone: 'danger' });
     });
 }

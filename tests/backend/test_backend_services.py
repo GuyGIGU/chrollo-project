@@ -698,7 +698,10 @@ def test_screener_data_endpoint_status_ready(monkeypatch):
     from domains.screener import router as screener_router
 
     monkeypatch.setattr(screener_router, "read_screener_data",
-                        lambda path: {"ordered_tickers": ["AAA"], "chart_data": {"AAA": {}}})
+                        lambda path: {"ordered_tickers": ["AAA"], "chart_data": {"AAA": {
+                            "candles": [], "R": 100, "S": 90, "score": 80, "tier": "S",
+                            "setup": "LPS", "price": 98, "trigger": 99,
+                        }}})
     monkeypatch.setattr(screener_router.os.path, "exists", lambda path: True)
     monkeypatch.setattr(screener_router.os.path, "getmtime", lambda path: 1_700_000_000.0)
     out = screener_router.get_screener_data(universe="us_stocks")

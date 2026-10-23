@@ -1,0 +1,41 @@
+{
+  "universe": "us_stocks",
+  "status": "ready",
+  "scanned_at": "2026-10-22T22:00:00Z",
+  "stale_after": "2099-01-01T00:00:00Z",
+  "scan_identity": {
+    "scan_date": "2026-10-22",
+    "universe_type": "us_equities",
+    "engine_config_version": "synthetic-browser-fixture-v1"
+  },
+  "ordered_tickers": ["DEMOA", "DEMOB", "DEMOC"],
+  "chart_data": {
+    "DEMOA": {
+      "candles": [
+        {"time": "2026-10-19", "open": 94, "high": 97, "low": 93, "close": 96},
+        {"time": "2026-10-20", "open": 96, "high": 98, "low": 94, "close": 95},
+        {"time": "2026-10-21", "open": 95, "high": 99, "low": 94, "close": 98},
+        {"time": "2026-10-22", "open": 98, "high": 99, "low": 97, "close": 98}
+      ],
+      "R": 100, "S": 90, "price": 98, "trigger": 100,
+      "score": 85, "tier": "S", "ta_grade": 85, "setup": "LPS", "base_len": 45,
+      "volumes": [], "tags": [], "two_eyes": {"boxes": [], "events": []}
+    },
+    "DEMOB": {
+      "candles": [
+        {"time": "2026-10-19", "open": 94, "high": 97, "low": 93, "close": 96},
+        {"time": "2026-10-20", "open": 96, "high": 98, "low": 94, "close": 95},
+        {"time": "2026-10-21", "open": 95, "high": 99, "low": 94, "close": 98},
+        {"time": "2026-10-22", "open": 98, "high": 99, "low": 97, "close": 98}
+      ],
+      "R": 100, "S": 90, "price": 98, "trigger": 100,
+      "score": 60, "tier": "A", "ta_grade": 60, "setup": "LPS", "base_len": 90,
+      "volumes": [], "tags": [], "two_eyes": {"boxes": [], "events": []}
+    },
+    "DEMOC": {
+      "candles": [], "R": 100, "S": 90, "price": null, "trigger": null,
+      "score": 45, "tier": "B", "ta_grade": 45, "setup": "LPS", "base_len": null,
+      "volumes": [], "tags": [], "two_eyes": {"boxes": [], "events": []}
+    }
+  }
+}

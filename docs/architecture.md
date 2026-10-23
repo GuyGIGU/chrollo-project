@@ -166,7 +166,7 @@ Outside the domains:
 |---|---|
 | `app/` | `App.jsx` (the route table), the shell (`components/`), appearance and UI scale, the top nav's last-place memory (`navigation/lastPlace.js`), and the keyboard key list (`keyboard/keyMap.js`, what the "?" sheet shows). |
 | `features/<name>/` | One screen each: `home`, `screener`, `watchlist`, `journal` (the `/dashboard` route), `options`, `portfolio`, `archive`, `calibration`, plus `ibkr` (status and controls used by the shell). Each has a `<Name>Route.jsx` where it is a page, and `components/`, `hooks/`, `model/` (pure logic) and `presentation/` (labels and formatting) as needed. |
-| `shared/` | Only code used by unrelated features: `charts/`, `components/`, `formatting/` (the one null guard `fx` is in `shared/formatting/format.js`; `portfolioFormat.js`, the portfolio money format the journal also uses), `hooks/` (`screenerStore.js`, the scan data cache the screener, home and watchlist read), `navigation/`, `presentation/`, `setup/` (the setup card, lens and chip catalog `tagCatalog.js`). |
+| `shared/` | Only code used by unrelated features: `charts/`, `components/`, `formatting/` (the one null guard `fx` is in `shared/formatting/format.js`; `portfolioFormat.js`, the portfolio money format the journal also uses), `hooks/` (`screenerStore.js`, the scan data cache the screener, home and watchlist read; `useScreenerData.js`, Home and Screener's React subscription), `navigation/`, `presentation/`, `setup/` (the setup card, lens and chip catalog `tagCatalog.js`). |
 | `api/base.js` | `API_BASE`, the one backend URL. |
 
 Rules that go with this layout:
@@ -177,9 +177,12 @@ Rules that go with this layout:
   frontend code (`conventions.md` EC-28).
 - The test list is in `package.json` and `src/testManifest.test.js` fails if a test file is
   missing from it.
-- Features import each other one way only (today: home to journal, screener and watchlist; options and
+- Features import each other one way only (today: home to journal and watchlist; options and
   portfolio to journal; screener to watchlist). `src/featureImportCycles.test.js` fails when two features
-  import each other.
+  participate in a direct or indirect import cycle. It also rejects shared production code
+  importing a feature. Home now reads scan data through the shared hook, without importing the Screener feature.
+- Screener result selection and display sorting live in `features/screener/model/screenerResults.js`;
+  the hook owns React/URL state and Charts/Table consume the same selected page.
 
 ## 8. Archive and research
 

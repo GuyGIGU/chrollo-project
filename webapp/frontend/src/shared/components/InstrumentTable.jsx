@@ -100,6 +100,7 @@ export default function InstrumentTable({
                 onClick={canClick ? () => onRowClick(row) : undefined}
                 tabIndex={canClick ? 0 : undefined}
                 onKeyDown={canClick ? (event) => {
+                  if (event.target !== event.currentTarget) return;
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     onRowClick(row);

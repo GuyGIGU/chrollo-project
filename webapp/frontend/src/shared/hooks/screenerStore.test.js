@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   fetchScreenerEarnings, fetchScreenerUniverse, getScreenerEarnings, getScreenerPayload,
+  getScreenerRefreshFailed, getScreenerRefreshing, getScreenerStatus, revalidateScreenerUniverse,
 } from './screenerStore.js';
 
 // The screener store's EC-41 arrival contract, with an injected global fetch:
@@ -53,4 +54,46 @@ test('earnings: a non-ok answer leaves the batch re-askable', async () => {
   await flush();
   assert.equal(fetchCalls.length, 1);
   assert.equal(getScreenerEarnings().EARN_A.days_until, 12);
+});
+
+test('a failed refresh retains the exact charts and exposes the failure until recovery', async () => {
+  fetchImpl = () => jsonResponse(payload());
+  await fetchScreenerUniverse('refresh_recovery');
+  const original = getScreenerPayload('refresh_recovery');
+  fetchImpl = () => jsonResponse({}, false, 503);
+  await fetchScreenerUniverse('refresh_recovery');
+  assert.equal(getScreenerStatus('refresh_recovery'), 'ready');
+  assert.equal(getScreenerPayload('refresh_recovery'), original);
+  assert.equal(getScreenerRefreshFailed('refresh_recovery'), true);
+  fetchImpl = () => jsonResponse(payload());
+  await fetchScreenerUniverse('refresh_recovery');
+  assert.equal(getScreenerRefreshFailed('refresh_recovery'), false);
+  assert.equal(getScreenerPayload('refresh_recovery'), original);
+});
+
+test('summary failure is visible, a successful same-scan check clears it, and universes stay separate', async () => {
+  fetchImpl = () => jsonResponse(payload());
+  await fetchScreenerUniverse('summary_recovery');
+  fetchImpl = () => jsonResponse({}, false, 503);
+  await revalidateScreenerUniverse('summary_recovery');
+  assert.equal(getScreenerRefreshFailed('summary_recovery'), true);
+  assert.equal(getScreenerRefreshFailed('different_universe'), false);
+  fetchImpl = () => jsonResponse(payload());
+  await revalidateScreenerUniverse('summary_recovery');
+  assert.equal(getScreenerRefreshFailed('summary_recovery'), false);
+});
+
+test('initial failure remains distinct from a cached scan and retry publishes in-flight state', async () => {
+  fetchImpl = () => jsonResponse({}, false, 503);
+  await fetchScreenerUniverse('first_failure');
+  assert.equal(getScreenerStatus('first_failure'), 'error');
+  let finish;
+  fetchImpl = () => new Promise((resolve) => { finish = resolve; });
+  const request = fetchScreenerUniverse('first_failure');
+  assert.equal(getScreenerRefreshing('first_failure'), true);
+  assert.equal(getScreenerStatus('first_failure'), 'loading');
+  finish(await jsonResponse(payload()));
+  await request;
+  assert.equal(getScreenerRefreshing('first_failure'), false);
+  assert.equal(getScreenerStatus('first_failure'), 'ready');
 });

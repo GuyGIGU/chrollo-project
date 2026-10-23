@@ -1,7 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { resolveTags } from '../../../shared/setup/tagResolver';
-import { triggerDistanceFrac } from '../../../shared/setup/triggerProximity';
-import { finiteOrNull, numAsc } from '../../../shared/formatting/format';
+import { buildTagMap, setupTypes, presentTags, filterTickers } from '../model/screenerResults.js';
 import {
   FILTER_DEFAULTS,
   dropUnshownFilters,
@@ -9,13 +7,14 @@ import {
   filterParamPatch,
   pageForIndex,
   readFilterParams,
+  readResultView,
 } from '../model/screenerUrlState.js';
 
 const ITEMS_PER_PAGE = 24;
 
 // The filters and the page live in the URL (model/screenerUrlState.js); the grid
 // owns the address bar and hands in its params plus the one writer.
-function useScreenerFilters(screenerData, watchlist, { searchParams, patchParams }) {
+function useScreenerFilters(screenerData, { searchParams, patchParams, liked }) {
   const url = useMemo(() => readFilterParams(searchParams), [searchParams]);
   // BrowserRouter applies URL changes in a transition, and a text box fed from a
   // transition drops keystrokes. So the box shows what was typed while the LIVE
@@ -33,6 +32,7 @@ function useScreenerFilters(screenerData, watchlist, { searchParams, patchParams
     [url, availableSetups, availableTagIds],
   );
   const { tierFilter, sortBy } = url;
+  const viewMode = readResultView(searchParams);
   const filteredTickers = useMemo(() => {
     return filterTickers({
       screenerData,
@@ -41,10 +41,10 @@ function useScreenerFilters(screenerData, watchlist, { searchParams, patchParams
       setupFilter,
       tagFilter,
       sortBy,
-      watchlist,
+      liked,
       tagIdsByTicker,
     });
-  }, [screenerData, searchTerm, tierFilter, setupFilter, tagFilter, sortBy, watchlist, tagIdsByTicker]);
+  }, [screenerData, searchTerm, tierFilter, setupFilter, tagFilter, sortBy, liked, tagIdsByTicker]);
 
   const totalPages = Math.max(1, Math.ceil(filteredTickers.length / ITEMS_PER_PAGE));
   // Clamped at render, never written back: a restored ?p= must survive the renders before the scan loads.
@@ -64,6 +64,9 @@ function useScreenerFilters(screenerData, watchlist, { searchParams, patchParams
   const setTierFilter = useCallback((value) => write({ tierFilter: value }), [write]);
   const setSetupFilter = useCallback((value) => write({ setupFilter: value }), [write]);
   const setSortBy = useCallback((value) => write({ sortBy: value }), [write]);
+  const setViewMode = useCallback((value) => {
+    patchParams({ view: value === 'table' ? 'table' : null }, { replace: true });
+  }, [patchParams]);
   const setCurrentPage = useCallback(
     (page) => patchParams(filterParamPatch({ page }), { replace: true }),
     [patchParams],
@@ -97,6 +100,8 @@ function useScreenerFilters(screenerData, watchlist, { searchParams, patchParams
     tagFilter,
     sortBy,
     setSortBy,
+    viewMode,
+    setViewMode,
     currentPage,
     setCurrentPage,
     availableSetups,
@@ -109,76 +114,5 @@ function useScreenerFilters(screenerData, watchlist, { searchParams, patchParams
     pageOf,
   };
 }
-
-function buildTagMap(screenerData) {
-  const map = {};
-  if (!screenerData?.chart_data) return map;
-  for (const [ticker, data] of Object.entries(screenerData.chart_data)) {
-    // The SAME resolver the cards render from (task 11) — the filter bar is
-    // structurally incapable of disagreeing with the chips the grid shows.
-    const tags = resolveTags(data);
-    map[ticker] = new Set(tags.map(tag => tag.id));
-  }
-  return map;
-}
-
-function setupTypes(screenerData) {
-  if (!screenerData?.chart_data) return [];
-  return Array.from(new Set(
-    Object.values(screenerData.chart_data)
-      .map(data => data.setup)
-      .filter(Boolean),
-  )).sort();
-}
-
-function presentTags(tagIdsByTicker) {
-  const seen = new Set();
-  for (const ids of Object.values(tagIdsByTicker)) {
-    ids.forEach(id => seen.add(id));
-  }
-  return seen;
-}
-
-function filterTickers(options) {
-  const { screenerData, tierFilter, tagFilter, watchlist, tagIdsByTicker } = options;
-  if (!screenerData?.ordered_tickers) return [];
-
-  const matched = screenerData.ordered_tickers.filter(ticker => {
-    const data = screenerData.chart_data[ticker];
-    if (!data) return false;
-    return tickerMatches(ticker, data, options)
-      && tagsMatch(tagFilter, tagIdsByTicker[ticker] || new Set())
-      && (tierFilter !== 'WATCHLIST' || watchlist.has(ticker));
-  });
-  return sortTickers(matched, options.sortBy, screenerData.chart_data);
-}
-
-function tickerMatches(ticker, data, { searchTerm, tierFilter, setupFilter }) {
-  const matchesSearch = ticker.toLowerCase().includes(searchTerm.toLowerCase());
-  const matchesTier = tierFilter === 'ALL' || tierFilter === 'WATCHLIST' || data.tier === tierFilter;
-  const matchesSetup = setupFilter === 'ALL' || data.setup === setupFilter;
-  return matchesSearch && matchesTier && matchesSetup;
-}
-
-function tagsMatch(tagFilter, tagIds) {
-  return tagFilter.size === 0 || Array.from(tagFilter).every(id => tagIds.has(id));
-}
-
-function sortTickers(tickers, sortBy, chartData) {
-  if (sortBy === 'score') return tickers;
-  const sorted = [...tickers];
-  const sorters = {
-    base: (a, b) => (chartData[b].base_len || 0) - (chartData[a].base_len || 0),
-    trigger: (a, b) => distanceToTrigger(chartData[a]) - distanceToTrigger(chartData[b]),
-    // Strongest first; an unrated stock sinks, and ties keep the grade order.
-    rs: (a, b) => numAsc(finiteOrNull(chartData[b].rs_rating), finiteOrNull(chartData[a].rs_rating)),
-  };
-  return sorted.sort(sorters[sortBy] || (() => 0));
-}
-
-const distanceToTrigger = data => {
-  const frac = triggerDistanceFrac(data, data?.price);
-  return frac == null ? Infinity : frac;
-};
 
 export default useScreenerFilters;

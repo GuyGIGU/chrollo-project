@@ -275,6 +275,40 @@ def test_get_carries_the_active_save_id_for_a_one_hop_replay(db, artifact):
     assert replay.watch.ticker == "AAA"
 
 
+def test_active_list_quotes_original_snapshot_facts_after_scan_moves(db, artifact):
+    payload = _artifact()
+    payload["chart_data"]["NVDA"].update({
+        "price": 120.5, "market_cap": 3_500_000_000,
+        "fund_sheet": {"snapshot": {"sector": "Technology", "industry": "Semiconductors"}},
+    })
+    artifact(payload)
+    item = watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(
+        universe="us_stocks", scan_date="2026-08-11"), db)
+    artifact(_artifact(scan_date="2026-08-12", tickers=()))
+    (saved,) = watchlist.list_watchlist(db)
+    assert saved.id == item.id
+    assert saved.saved_price == 120.5
+    assert saved.saved_setup == FIXTURE["entry"]["setup"]
+    assert saved.saved_market_cap == 3_500_000_000
+    assert saved.saved_sector == "Technology"
+    assert saved.saved_industry == "Semiconductors"
+
+
+@pytest.mark.parametrize("snapshot", [None, "broken", "[]", '{"snapshot_version": 2, "entry": {"price": 99}}',
+                                        '{"snapshot_version": 1, "entry": []}'])
+def test_saved_display_facts_refuse_missing_or_unsupported_snapshots(snapshot):
+    assert all(value is None for value in watchlist_ledger.saved_display_fields(snapshot).values())
+
+
+def test_saved_display_facts_degrade_each_bad_number_without_losing_text():
+    fields = watchlist_ledger.saved_display_fields(json.dumps({
+        "snapshot_version": 1, "entry": {"price": float("inf"), "market_cap": "bad", "setup": "LPS",
+        "fund_sheet": {"snapshot": {"sector": ["bad"], "industry": "Software"}}},
+    }))
+    assert fields == {"saved_price": None, "saved_market_cap": None, "saved_setup": "LPS",
+                      "saved_sector": None, "saved_industry": "Software"}
+
+
 def test_bad_ticker_refused_with_named_class(db, artifact):
     for bad in ("", "  ", "BAD!!", "TOO-LONG-TICKER-NAME"):
         with pytest.raises(HTTPException) as err:

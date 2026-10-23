@@ -172,7 +172,7 @@ test('index.html pre-paint auto-fit reproduces computeAutoFitScale across widths
 const frontendDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const readRepo = (rel) => readFileSync(join(frontendDir, rel), 'utf8');
 
-test('the card minimum is identical at all five sites', () => {
+test('the card minimum is identical across the card-rendering sites', () => {
   // Each regex is anchored to its OWN rule: a bare minmax() match on index.css
   // finds an unrelated 150px grid first and the test would be red on arrival.
   const sites = [
@@ -181,7 +181,6 @@ test('the card minimum is identical at all five sites', () => {
     // 2026-10-02 `max(480px, calc(.../ 3 ...))`) no longer matches, and fails here.
     ['ScreenerGrid gridStyle', readRepo('src/features/screener/components/ScreenerGrid.jsx'), /gridStyle\s*=\s*\{[^}]*?gridTemplateColumns: 'repeat\(auto-fill, minmax\((\d+)px, 1fr\)\)'/],
     ['HealthBoard gridStyle', readRepo('src/features/screener/components/HealthBoard.jsx'), /gridStyle\s*=\s*\{[^}]*?gridTemplateColumns: 'repeat\(auto-fill, minmax\((\d+)px, 1fr\)\)'/],
-    ['index.css .wl-card-grid', readRepo('src/index.css'), /\.wl-card-grid\s*\{[^}]*grid-template-columns: repeat\(auto-fill, minmax\((\d+)px, 1fr\)\);/],
   ];
   for (const [label, text, pattern] of sites) {
     const match = text.match(pattern);
@@ -189,7 +188,7 @@ test('the card minimum is identical at all five sites', () => {
     assert.equal(
       Number(match[1]),
       CARD_MIN_PX,
-      `${label} says ${match[1]}px but uiScale.CARD_MIN_PX is ${CARD_MIN_PX}. All five must move together: uiScale.js, index.html, ScreenerGrid, HealthBoard, .wl-card-grid — HealthBoard renders inside ScreenerGrid's own wrapper, so a split makes one ScreenerMiniChart frame the same window at two densities in one pane.`,
+      `${label} says ${match[1]}px but uiScale.CARD_MIN_PX is ${CARD_MIN_PX}. All card sites must move together: uiScale.js, index.html, ScreenerGrid, HealthBoard — HealthBoard renders inside ScreenerGrid's own wrapper, so a split makes one ScreenerMiniChart frame the same window at two densities in one pane.`,
     );
   }
 });
@@ -228,10 +227,11 @@ test('the lens is two blocks on a page that scrolls, and the big charts hold one
   assert.ok(panel, 'index.css: .stock-lens not found');
   assert.match(panel[1], /flex: 0 0 auto;/, 'the stats block is squeezed into what the chart block leaves again');
   assert.doesNotMatch(panel[1], /max-height|overflow-y/, 'the stats block scrolls inside itself again instead of the page');
-  const band = css.match(/\.wl-top\s*\{([^}]*)\}/);
-  assert.ok(band, 'index.css: .wl-top not found');
+  const band = css.match(/\.wl-chart-dialog\s*\{([^}]*)\}/);
+  assert.ok(band, 'index.css: .wl-chart-dialog not found');
   assert.match(band[1], /max-height: 805px;/, 'the Watchlist chart band is no longer held at its 1920 height');
-  assert.match(band[1], /height: calc\(100% - 40px\);/, 'the Watchlist chart band lost its height — it no longer reaches its 805px cap');
+  assert.match(band[1], /height: calc\(82dvh \/ var\(--ui-scale\)\);/, 'the Watchlist chart band lost its height, or its viewport height is no longer divided by the UI scale (it clips at 130%)');
+  assert.match(band[1], /width: calc\(96vw \/ var\(--ui-scale\)\);/, 'the Watchlist chart band\'s viewport width is no longer divided by the UI scale (it clips at 130%)');
   assert.match(band[1], /max-width: 1850px;/, 'the Watchlist chart band is no longer held at its 1920 width');
 });
 

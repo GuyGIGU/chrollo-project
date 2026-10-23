@@ -6,19 +6,20 @@ import ScreenerModal from '../../../shared/setup/ScreenerModal';
 import Pager from '../../../shared/components/Pager';
 import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
-import ScreenerWatchlistPanel from '../../watchlist/components/ScreenerWatchlistPanel';
+import ScreenerViewSummary from './ScreenerViewSummary';
+import ScreenerResultsTable from './ScreenerResultsTable';
 import WatchLanePanel from './WatchLanePanel';
 import { universeLabel, isEtfUniverse } from '../../../shared/presentation/universeSwitcherData';
 import useScanRunner from '../hooks/useScanRunner';
 import useReviews from '../../watchlist/hooks/useReviews';
 import useFixedBoxes from '../../../shared/setup/useFixedBoxes';
-import useScreenerData, { DEFAULT_UNIVERSE } from '../hooks/useScreenerData';
+import useScreenerData, { DEFAULT_UNIVERSE } from '../../../shared/hooks/useScreenerData';
 import useScreenerFilters from '../hooks/useScreenerFilters';
 import useWatchlist from '../../watchlist/hooks/useWatchlist';
 import useDrilldown from '../hooks/useDrilldown';
 import useCardKeyboard from '../hooks/useCardKeyboard';
 import useDocumentTitle from '../../../shared/hooks/useDocumentTitle';
-import { isTypingTarget } from '../../../shared/navigation/keyboardGuard';
+import { hasCommandModifier, isTypingTarget } from '../../../shared/navigation/keyboardGuard';
 import {
   PUSHED_BY_DRILLDOWN,
   PUSHED_BY_LENS,
@@ -39,10 +40,10 @@ const ScreenerGrid = () => {
   const drilldownEtf = searchParams.get('dd');
   const etfUniverse = isEtfUniverse(universe);
   const { watchlist, toggleWatchlist } = useWatchlist();
-  const { liked, toggleLiked } = useReviews();
+  const { liked, toggleLiked, likesStatus, reloadLiked } = useReviews();
   // The charts he fixed on the lens, for the card's glyph; re-read when the lens closes (a fix may have been saved).
   const { fixed: fixedBoxes, refresh: refreshFixedBoxes } = useFixedBoxes();
-  const { screenerData, status, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData(universe);
+  const { screenerData, status, refreshFailed, refreshing, earningsByTicker, fetchScreener, fetchEarnings } = useScreenerData(universe);
 
   const navigate = useNavigate();
   // Opens PUSH a tagged entry (model/screenerUrlState.js); closing pops it; cycling and
@@ -57,7 +58,9 @@ const ScreenerGrid = () => {
     const entryState = state !== undefined ? state : (replace ? window.history.state?.usr : undefined);
     navigate({ search: next ? `?${next}` : '' }, { replace, state: entryState });
   }, [navigate]);
-  const filters = useScreenerFilters(screenerData, watchlist, { searchParams, patchParams });
+  const filters = useScreenerFilters(screenerData, { searchParams, patchParams, liked });
+  const likedView = filters.tierFilter === 'LIKED';
+  const showResults = status === 'ready' && (!likedView || likesStatus === 'ready');
   const scan = useScanRunner(fetchScreener, universe);
   const { drilldown, openDrilldown, closeDrilldown } = useDrilldown();
 
@@ -162,8 +165,8 @@ const ScreenerGrid = () => {
     if (activeModalTicker) fetchEarnings([activeModalTicker]);
   }, [activeModalTicker, fetchEarnings]);
 
-  // The last place the lens ticker had in the list: un-starring it with W on the
-  // Watchlist tier drops it from the list while the lens stays open, and Next
+  // The last place the lens ticker had in the list: un-liking it with L in the
+  // Liked view drops it from the list while the lens stays open, and Next
   // then lands on the setup that slid into that place (model/lensStepping.js).
   const lensIndexRef = useRef(null);
   useEffect(() => {
@@ -189,8 +192,8 @@ const ScreenerGrid = () => {
       // on screen (it would hijack keys inside the weekly-review replay).
       if (!activeModalTicker || !modalChart[activeModalTicker]) return;
       // Keys typed into the lens's own "what's off?" box move its caret, never the
-      // setup.
-      if (isTypingTarget(event.target)) return;
+      // setup; Alt+Left / Alt+Right stay the browser's Back / Forward.
+      if (isTypingTarget(event.target) || hasCommandModifier(event)) return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         event.preventDefault();
         handleNextModal();
@@ -230,7 +233,8 @@ const ScreenerGrid = () => {
       return;
     }
     lensTickerRef.current = null;
-    const card = rootRef.current?.querySelector(`.screener-card[data-ticker="${CSS.escape(ticker)}"]`);
+    const escaped = CSS.escape(ticker);
+    const card = rootRef.current?.querySelector(`.screener-card[data-ticker="${escaped}"], .screener-result-open[data-ticker="${escaped}"]`);
     if (!card) return;
     card.scrollIntoView({ block: 'nearest' });
     card.focus({ preventScroll: true });
@@ -252,8 +256,9 @@ const ScreenerGrid = () => {
         isEvaluating={scan.isEvaluating}
         isDownloading={scan.isDownloading}
         marketDataStatus={scan.marketDataStatus}
-        matchedCount={filters.filteredTickers.length}
-        watchlistSize={watchlist.size}
+        likedSize={likesStatus === 'ready'
+          ? (screenerData?.ordered_tickers || []).filter((ticker) => screenerData.chart_data[ticker] && liked.has(ticker)).length
+          : null}
         filters={filters}
         onEvaluateCached={scan.handleEvaluateCached}
         onDownloadData={scan.handleDownloadData}
@@ -262,19 +267,20 @@ const ScreenerGrid = () => {
         onUniverseChange={handleUniverseChange}
         hideFilters={showHealthBoard}
       />
+      {screenerData && refreshFailed && (
+        <div className="screener-refresh-warning" role="alert">
+          <span>Refresh failed. Showing the last loaded scan for {universeLabel(universe)}.</span>
+          <button type="button" className="btn btn-sm" disabled={refreshing}
+            onClick={() => fetchScreener(universe)}>{refreshing ? 'Retrying…' : 'Retry refresh'}</button>
+        </div>
+      )}
+      {showResults && !showHealthBoard && !drilldown && (
+        <ScreenerViewSummary filters={filters} matchedCount={filters.filteredTickers.length}
+          totalCount={Object.keys(screenerData.chart_data || {}).length} />
+      )}
       {isEtfUniverse(universe) && (
         <div style={etfNoteStyle}>
           Breadth is anchored to the broad market — not the ETFs on screen — and breadth-based score components are neutralized for this universe.
-        </div>
-      )}
-
-      {!showHealthBoard && filters.tierFilter === 'WATCHLIST' && (
-        <div className={scan.resultsStale ? 'screener-stale' : undefined} inert={scan.resultsStale}>
-          <ScreenerWatchlistPanel
-            watchlist={watchlist}
-            screenerData={screenerData}
-            onToggleWatchlist={handleToggleWatchlist}
-          />
         </div>
       )}
 
@@ -317,7 +323,13 @@ const ScreenerGrid = () => {
             <GridSkeleton hint={etfUniverse ? null : 'If this takes more than a moment, evaluate the cached data above.'} />
           )}
           {status === 'error' && (
-            <EmptyState message="Couldn't load this screener. Check the backend is running and try again." />
+            <EmptyState message="Couldn't load this screener. Check the backend is running and try again."
+              onRetry={() => fetchScreener(universe)} />
+          )}
+          {status === 'ready' && likedView && likesStatus === 'loading' && <GridSkeleton />}
+          {status === 'ready' && likedView && likesStatus === 'error' && (
+            <EmptyState message="Couldn't load your liked setups. Your saved hearts may still be there."
+              onRetry={reloadLiked} />
           )}
           {status === 'never_scanned' && (
             <EmptyState message={etfUniverse
@@ -327,12 +339,18 @@ const ScreenerGrid = () => {
           {status === 'empty' && (
             <EmptyState message="This scan matched no setups." />
           )}
-          {status === 'ready' && filters.paginatedTickers.length === 0 && (
-            <EmptyState message="No setups match the current filters." />
+          {showResults && filters.paginatedTickers.length === 0 && (
+            <EmptyState message={likedView && liked.size === 0
+              ? 'No liked setups yet. Heart a setup to find it here.'
+              : 'No setups match the current filters.'} />
           )}
-          {status === 'ready' && filters.paginatedTickers.length > 0 && (
+          {showResults && filters.paginatedTickers.length > 0 && (
             <>
-              <div className="screener-grid" style={gridStyle}>
+              {filters.viewMode === 'table' ? (
+                <ScreenerResultsTable tickers={filters.paginatedTickers} chartData={screenerData.chart_data}
+                  watchlist={watchlist} liked={liked} onOpen={openModal}
+                  onToggleWatchlist={handleToggleWatchlist} onToggleLike={toggleLiked} />
+              ) : <div className="screener-grid" style={gridStyle}>
                 {filters.paginatedTickers.map(ticker => (
                   <ScreenerCard
                     key={ticker}
@@ -347,7 +365,7 @@ const ScreenerGrid = () => {
                     onDrilldown={etfUniverse ? handleDrilldown : undefined}
                   />
                 ))}
-              </div>
+              </div>}
               <Pager page={filters.currentPage} pageCount={filters.totalPages} onPage={filters.setCurrentPage} label="Setup pages" />
             </>
           )}
@@ -385,10 +403,11 @@ const ScreenerGrid = () => {
   );
 };
 
-function EmptyState({ message }) {
+function EmptyState({ message, onRetry, actionLabel = 'Retry' }) {
   return (
     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
       {message}
+      {onRetry && <div style={{ marginTop: 12 }}><button type="button" className="btn" onClick={onRetry}>{actionLabel}</button></div>}
     </div>
   );
 }

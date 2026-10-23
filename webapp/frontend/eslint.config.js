@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['dist', 'dist_previous'] },  // dist_previous = the deploy script's build backup
+  { ignores: ['dist', 'dist_previous', 'playwright-report', 'test-results'] },  // dist_previous = the deploy script's build backup
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
@@ -32,5 +32,9 @@ export default [
         { allowConstantExport: true },
       ],
     },
+  },
+  {
+    files: ['playwright.config.js', 'e2e/**/*.js'],
+    languageOptions: { globals: globals.node },
   },
 ]

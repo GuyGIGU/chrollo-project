@@ -46,6 +46,12 @@ class WatchlistItem(BaseModel):
     # parameter wants, so a pinned name always draws from the panel its saved
     # setup came from. None on unpinned rows.
     pin_universe_key: str | None = None
+    # Historical display facts from the stored snapshot, never a fresh quote.
+    saved_setup: str | None = None
+    saved_price: float | None = None
+    saved_market_cap: float | None = None
+    saved_sector: str | None = None
+    saved_industry: str | None = None
 
 
 class SaveIn(BaseModel):
@@ -111,6 +117,7 @@ def _item(row: models.Watchlist) -> WatchlistItem:
         pin_scan_date=row.pin_scan_date,
         pin_universe_key=watchlist_ledger.universe_key_for_type(
             row.pin_universe_type),
+        **watchlist_ledger.saved_display_fields(row.snapshot_json),
     )
 
 

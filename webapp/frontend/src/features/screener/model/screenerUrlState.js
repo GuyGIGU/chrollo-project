@@ -12,9 +12,13 @@ export const FILTER_DEFAULTS = { tierFilter: 'ALL', setupFilter: 'ALL', sortBy: 
 // The command band's tier pills and Sort-by keys (ScreenerToolbar; the test pins the two
 // copies together). Any other ?tier= or ?sort= reads as the default: ?tier=a faked
 // 'No setups match' with no pill pressed, and ?sort=valueOf crashed the sort.
-export const TIER_FILTERS = ['ALL', ...TIER_LETTERS, 'WATCHLIST'];
+export const TIER_FILTERS = ['ALL', ...TIER_LETTERS, 'LIKED'];
 export const SORT_KEYS = ['score', 'base', 'trigger', 'rs'];
+export const RESULT_VIEWS = ['charts', 'table'];
 const shownOr = (value, shown, fallback) => (shown.includes(value) ? value : fallback);
+
+// Presentation only: switching views keeps the same filters, rank and page.
+export const readResultView = (params) => shownOr(params.get('view'), RESULT_VIEWS, 'charts');
 
 export function readFilterParams(params) {
   const page = parseInt(params.get('p'), 10);

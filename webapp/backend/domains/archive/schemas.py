@@ -3,11 +3,18 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 _serve_log = logging.getLogger("chrollo.archive_serve")
+
+
+class ReadVerdictOut(BaseModel):
+    verdict: Literal["agree", "disagree"] | None
+    grade_verdict: Literal["agree", "too_high", "too_low"] | None
+    note: str | None
+    engine_config_version: str | None
 
 
 class SetupOut(BaseModel):

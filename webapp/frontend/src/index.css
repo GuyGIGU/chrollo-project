@@ -190,9 +190,10 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 52px;
+  min-height: 60px;
+  flex-wrap: wrap;
   flex-shrink: 0;
-  padding: 0 14px;
+  padding: 10px 16px;
   background-color: var(--bg-sidebar);
   border-bottom: 1px solid var(--border-color);
 }
@@ -204,8 +205,8 @@ body {
   flex-shrink: 0;
 }
 .topnav-brand img {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 7px;
   object-fit: cover;
 }
@@ -215,6 +216,7 @@ body {
   align-items: center;
   gap: 2px;
   min-width: 0;
+  overflow-x: auto;
 }
 
 /* Thin seam between nav groups (Home | trade | research) — the horizontal
@@ -242,11 +244,13 @@ body {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
   text-decoration: none;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.topnav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.topnav-link { font-size: 13px; padding: 9px 13px; }
+.topnav-icon { width: 19px; height: 19px; flex-shrink: 0; }
 
 .topnav-link:hover,
 .topnav-action:hover {
@@ -266,7 +270,9 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: 100%;
+  justify-content: flex-end;
 }
 
 .topnav-status {
@@ -275,7 +281,9 @@ body {
   gap: 5px;
   font-size: 12px;
   font-weight: 600;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: left;
+  max-width: 340px;
   cursor: default;
 }
 
@@ -2892,7 +2900,7 @@ td {
    new ones are fetched. The same element carries `inert`, so a dimmed card
    cannot be opened, starred or liked. Opacity, not a grayscale filter: a filter
    would make the wrapper the containing block for the position:fixed HoverGlass
-   / Weekly Review inside the watchlist panel. No transition: the dim lands on
+   / Weekly Review. No transition: the dim lands on
    the click. */
 .screener-stale { opacity: 0.45; }
 
@@ -2909,6 +2917,7 @@ td {
 /* Bezel comes from the composed .instrument-tile class (DESIGN.md: "compose it,
    don't paint with it"); this rule owns only the band's own layout + surface. */
 .screener-command-band {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2917,6 +2926,61 @@ td {
   background: var(--bg-sidebar);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
+}
+
+.screener-view-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.screener-result-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.screener-filter-chip { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.screener-page-controls { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.screener-result-views { display: flex; gap: 4px; }
+.screener-result-views [aria-pressed="true"] {
+  border-color: var(--myth);
+  color: var(--myth-bright);
+}
+.screener-results-table-wrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
+.screener-results-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.screener-results-table caption { text-align: left; padding: 8px 12px; color: var(--text-muted); font-size: 11px; }
+.screener-results-table thead { background: var(--bg-sidebar); color: var(--text-muted); }
+.screener-results-table th, .screener-results-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); text-align: right; }
+.screener-results-table th:first-child, .screener-results-table .screener-result-setup { text-align: left; }
+.screener-results-table tbody tr:hover, .screener-results-table tbody tr:focus-within { background: var(--bg-hover); }
+.screener-results-table tbody tr:last-child > * { border-bottom: 0; }
+.screener-results-table [aria-pressed="true"] { color: var(--accent-yellow); }
+.screener-result-open { border: 0; background: none; color: var(--text-main); font: inherit; font-weight: 700; cursor: pointer; padding: 4px 0; }
+.screener-refresh-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .topnav-nav { flex: 1; }
+  .topnav-right { flex-basis: 100%; }
+}
+
+@media (max-width: 760px) {
+  .screener-command-band .screener-popover { position: static !important; }
+  .screener-command-band .screener-popover-panel {
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
 }
 .screener-command-seam {
   flex: 0 0 auto;
@@ -4423,65 +4487,37 @@ td.cell-editable { overflow: hidden; }
   overflow-y: auto;
 }
 
-/* Sized against the page's definite height (NOT vh — vh lies under the
-   --ui-scale zoom): one viewport minus ~the grid head, so on a screen up to
-   the 1920 one the card grid's top edge peeks above the fold as the scroll
-   affordance.
-   HELD AT ITS 1920 SIZE (operator 2026-10-03, "same goes for the big charts"):
-   1850x805 is this band on his 1920x1080 screen (a 945px Chrome viewport less
-   the 52px nav, the 48px of page padding and the 40px peek; 1920 less 64px of
-   padding and the 6px scrollbar), so on the 2560 screen the D/W/M charts draw
-   every setup at the same size and the card grid rises into view below them —
-   the first row of four, just whole at a 1305px viewport — instead of the
-   charts swelling to 2490x1165. It sits on the left edge the cards share. */
-.wl-top {
-  display: grid;
-  flex-shrink: 0;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr) 132px;
-  height: calc(100% - 40px);
-  max-height: 805px;
-  max-width: 1850px;
-  min-height: 480px;
-}
-
-.watchlist-page-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wl-empty-hint {
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.wl-empty-retry {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
-  color: var(--text-main);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12px;
-  margin-left: 6px;
-  padding: 3px 10px;
-}
-
-.wl-empty-retry:hover {
-  border-color: var(--myth-dim);
-  color: var(--myth);
-}
-
-.wl-chart-zone {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-}
+.wl-list-page { gap: 12px; }
+.wl-list-header { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.wl-list-header h1 { margin: 0 0 4px; color: var(--text-main); font-size: 20px; }
+.wl-list-count, .wl-list-note { color: var(--text-muted); font-size: 12px; }
+.wl-list-note { margin: 0; line-height: 1.5; }
+.wl-list-search { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
+.wl-list-search input { width: 180px; padding: 7px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-panel); color: var(--text-main); font: inherit; }
+.wl-list-search input:focus-visible { outline: 2px solid var(--myth); outline-offset: 2px; }
+.wl-list-warning { color: var(--warning); font-size: 12px; }
+.wl-list-empty { padding: 24px; color: var(--text-muted); font-size: 13px; }
+.wl-ledger { min-width: 0; }
+.wl-ledger .instrument-table { font-size: 12px; }
+.wl-ledger .instrument-table td, .wl-ledger .instrument-table th { padding: 6px 9px; }
+.wl-ledger .instrument-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.025); }
+.wl-ledger .instrument-table tbody tr.wl-row-selected { background: var(--myth-soft); box-shadow: inset 3px 0 var(--myth); }
+.wl-ledger-ticker { font-weight: 750; }
+.wl-setup-label { border-radius: 4px; padding: 2px 6px; background: var(--bg-elevated); font-size: 11px; }
+.wl-ledger-text { display: inline-block; max-width: 125px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.wl-ledger-text.wl-industry { max-width: 195px; }
+.wl-return-cell { display: block; margin: -6px -9px; padding: 6px 9px; font-weight: 700; }
+.wl-return-cell.positive { background: rgba(61,211,122,0.1); }
+.wl-return-cell.negative { background: rgba(222,110,120,0.1); }
+.wl-in-scan { color: var(--success); }
+.wl-off-scan, .wl-ledger .stale { color: var(--text-faint); }
+.wl-row-action { padding: 1px 5px; color: var(--text-muted); background: none; border: 0; cursor: pointer; }
+.wl-row-action[aria-pressed="true"] { color: var(--accent-yellow); }
+.wl-row-action:focus-visible { outline: 2px solid var(--myth); }
+/* The dialog renders inside .app-layout's `zoom`, so viewport units are divided by the scale (as .app-layout's own
+   height is): at 130% a bare 96vw would be 125% of the screen and clip. */
+.wl-chart-dialog { display: flex; flex-direction: column; width: calc(96vw / var(--ui-scale)); max-width: 1850px; height: calc(82dvh / var(--ui-scale)); max-height: 805px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; }
+.wl-chart-dialog .wl-chart-header { flex-wrap: wrap; }
 
 .wl-chart-header {
   align-items: center;
@@ -4499,41 +4535,6 @@ td.cell-editable { overflow: hidden; }
   font-size: 17px;
   font-weight: 850;
   letter-spacing: 0.02em;
-}
-
-.wl-overlay-toggle {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 11px;
-  padding: 3px 8px;
-}
-
-/* Branded focus for the page's keyboard controls — every custom control in
-   this app answers focus with the accent ring, never the UA default. */
-.wl-overlay-toggle:focus-visible,
-.wl-rail-row:focus-visible,
-.wl-empty-retry:focus-visible {
-  outline: 2px solid var(--accent-active);
-  outline-offset: -2px;
-}
-
-.wl-overlay-toggle[aria-pressed="true"] {
-  background: var(--myth-soft);
-  border-color: var(--myth-dim);
-  color: var(--myth);
-}
-
-/* The toggle's third honest state: ON but this name has no engine read —
-   visible, muted, never disappearing or silently inert (the words beside it
-   carry the reason). */
-.wl-overlay-toggle.inert {
-  background: transparent;
-  border-color: var(--border-color);
-  border-style: dashed;
-  color: var(--text-faint);
 }
 
 .wl-toggle-note {
@@ -4607,119 +4608,6 @@ td.cell-editable { overflow: hidden; }
   flex: 1;
   min-height: 0;
   min-width: 0;
-}
-
-.wl-rail {
-  background: var(--bg-panel);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  min-height: 0;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-/* ONE selection language, ONE mythril step: the rail row's full-strength
-   myth edge and the card wrapper's ring below use the SAME token; tier hues
-   stay identity-only on the ticker text — a tier-colored highlight would
-   misread as rank. */
-.wl-rail-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 6px 10px;
-  border-left: 2px solid transparent;
-  cursor: pointer;
-}
-
-.wl-rail-row:hover {
-  background: var(--bg-hover);
-}
-
-.wl-rail-row.selected {
-  background: var(--myth-soft);
-  border-left-color: var(--myth);
-}
-
-.wl-rail-ticker {
-  color: var(--text-main);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.wl-rail-price {
-  color: var(--text-faint);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-}
-
-/* Staleness must stay READABLE: the last-known prices are still good data,
-   so mark the state without fading the digits below legibility. */
-.wl-rail-price.stale {
-  opacity: 0.7;
-}
-
-/* The card-grid zone below the chart band: a quiet mono head line (on the
-   1920 screen its peek above the fold is the scroll affordance) over the SAME
-   responsive grid the screener uses — as many cards of at least 590px per row
-   as fit, stretched (three at 1920, four at 2560). */
-.wl-grid-zone {
-  flex-shrink: 0;
-}
-
-.wl-grid-head {
-  align-items: baseline;
-  color: var(--text-faint);
-  display: flex;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 700;
-  gap: 8px;
-  letter-spacing: 0.08em;
-  padding: 10px 2px 8px;
-}
-
-.wl-grid-count {
-  color: var(--text-muted);
-}
-
-.wl-card-grid {
-  display: grid;
-  gap: 14px;
-  /* Same card size as ScreenerGrid's gridStyle (uiScale.test.js pins it). */
-  grid-template-columns: repeat(auto-fill, minmax(590px, 1fr));
-  padding-bottom: 8px;
-}
-
-/* Selection ring — the SAME full-strength mythril step as the rail row's
-   edge (one token, one meaning), worn by a wrapper so the screener card
-   itself stays untouched. The wrapper is a flex parent stretching its card,
-   so mixed scan/clean rows stay equal-height. */
-.wl-card {
-  border-radius: var(--radius-sm);
-  display: flex;
-  min-width: 0;
-}
-
-.wl-card > * {
-  flex: 1;
-  min-width: 0;
-}
-
-.wl-card.selected {
-  box-shadow: 0 0 0 2px var(--myth);
-}
-
-/* Reason copy is a MESSAGE, not chrome: the muted ink both voids use (the
-   cluster void sizes up with its context; the tone never changes). */
-.wl-card-void {
-  align-items: center;
-  color: var(--text-muted);
-  display: flex;
-  flex: 1;
-  font-size: 12px;
-  justify-content: center;
 }
 
 /* KEYBOARD KEYS — the "?" sheet (app/components/KeyCheatSheet.jsx). Above every

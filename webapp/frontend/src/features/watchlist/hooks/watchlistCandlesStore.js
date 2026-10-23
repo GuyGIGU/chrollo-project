@@ -17,12 +17,6 @@
 //   charts) never rebuild on a no-change revalidate.
 // - Each entry records the universe key it was fetched with (EC-37): a pin
 //   change makes the cached entry a mismatch and the revalidate replaces it.
-// - Batch cells: error cells are re-askable through revalidateBatchCandles
-//   (route mount / selecting the errored name); fetchBatchCandles itself
-//   only asks for cell-less names, and every asked-for name ABSENT from the
-//   response is stamped with a terminal error cell in the same merge — "the
-//   server declined to answer" is a recorded outcome, never an invitation
-//   to refetch (the infinite-loop finding).
 // Explicit .js so bare node (the node --test store suite) can resolve this
 // module; Vite resolves it identically.
 import { API_BASE } from '../../../api/base.js';
@@ -31,9 +25,7 @@ const CLIENT_HEADER = { 'X-Chrollo-Client': 'chrollo-dashboard' };
 
 const store = {
   byTicker: {},   // ticker -> { status: 'loading'|'ready'|'error', universeKey, envelope? }
-  batch: {},      // ticker -> { status, candles, volumes } (card-grid cells)
   inflight: {},   // ticker -> in-flight envelope promise (dedup)
-  batchInflight: new Set(), // tickers inside a running batch
   listeners: new Set(),
 };
 
@@ -49,7 +41,6 @@ export const subscribeCandlesStore = (listener) => {
 // Whole-map getters with stable references (replaced immutably on change) so
 // useSyncExternalStore consumers can select their slice during render.
 export const getCandleEnvelopes = () => store.byTicker;
-export const getBatchCells = () => store.batch;
 
 const setEntry = (ticker, entry) => {
   store.byTicker = { ...store.byTicker, [ticker]: entry };
@@ -106,82 +97,4 @@ export function fetchTickerCandles(ticker, universeKey = null) {
     });
   store.inflight[ticker] = request;
   return request;
-}
-
-const pinsParam = (tickers, pins) => {
-  const pairs = tickers
-    .filter((t) => pins && pins[t])
-    .map((t) => `${t}:${pins[t]}`);
-  return pairs.length ? `&pins=${encodeURIComponent(pairs.join(','))}` : '';
-};
-
-// Same-generation test for a batch cell: verdict + window length + final
-// bar's time and close. When all agree the cell keeps its identity, so a
-// mount revalidate that changes nothing rebuilds zero card charts.
-const sameCellGeneration = (prev, cell) => {
-  if (!prev || prev.status !== cell.status) return false;
-  const a = prev.candles || [];
-  const b = cell.candles || [];
-  if (a.length !== b.length) return false;
-  if (!a.length) return true;
-  const last = a.length - 1;
-  return a[last].time === b[last].time && a[last].close === b[last].close;
-};
-
-function requestBatch(wanted, pins) {
-  for (const t of wanted) store.batchInflight.add(t);
-  return fetch(
-    `${API_BASE}/candles/?tickers=${encodeURIComponent(wanted.join(','))}${pinsParam(wanted, pins)}`,
-    { headers: CLIENT_HEADER })
-    .then((response) => {
-      if (!response.ok) throw new Error(`batch candles ${response.status}`);
-      return response.json();
-    })
-    .then((data) => {
-      const arrived = (data && data.tickers) || {};
-      const merged = { ...store.batch };
-      for (const t of wanted) {
-        // A name the server declined to echo (grammar-dropped legacy row)
-        // gets a TERMINAL error cell — a recorded outcome that renders,
-        // never a hole that re-joins the fetch plan forever.
-        const cell = arrived[t] || { status: 'error', candles: [], volumes: [] };
-        merged[t] = sameCellGeneration(store.batch[t], cell) ? store.batch[t] : cell;
-      }
-      store.batch = merged;
-      emit();
-    })
-    .catch((error) => {
-      console.error('Batch candles load failed', error);
-      const failed = {};
-      for (const t of wanted) {
-        // Never downgrade a good cached cell over a failed revalidate.
-        if (store.batch[t]?.status === 'ok') continue;
-        failed[t] = { status: 'error', candles: [], volumes: [] };
-      }
-      store.batch = { ...store.batch, ...failed };
-      emit();
-    })
-    .finally(() => {
-      for (const t of wanted) store.batchInflight.delete(t);
-    });
-}
-
-// ONE batched request for the card grid's off-scan tickers — only names with
-// no cell at all (the card plan's toFetch); errored cells are NOT re-asked
-// here (that is revalidateBatchCandles' job), so plan→fetch can never loop.
-export function fetchBatchCandles(tickers, pins = null) {
-  const wanted = (tickers || []).filter(
-    (t) => t && !store.batch[t] && !store.batchInflight.has(t));
-  if (!wanted.length) return Promise.resolve();
-  return requestBatch(wanted, pins);
-}
-
-// Re-ask EVERY named cell (serving stale meanwhile): the route-mount
-// freshness pass, and the retry path for errored cells. Identical arrivals
-// keep their references, so an unchanged panel rebuilds nothing.
-export function revalidateBatchCandles(tickers, pins = null) {
-  const wanted = (tickers || []).filter(
-    (t) => t && !store.batchInflight.has(t));
-  if (!wanted.length) return Promise.resolve();
-  return requestBatch(wanted, pins);
 }
