@@ -501,3 +501,16 @@ def batch_candles(tickers: list[str], pins: dict | None = None) -> dict:
                 "status": statuses[ticker], "candles": [], "volumes": [],
             }
     return to_json_safe({"tickers": out})
+
+
+def daily_frames(tickers: list[str], pins: dict | None = None):
+    """The cleaned daily frames behind the Watchlist's charts, one batch, for a
+    measurement over the bars themselves (the best-gain columns).
+
+    Same walk, same pins, same panels as the chart envelope, so a gain and the
+    chart beside it read the same bars. Returns ``(frames, statuses)``:
+    ``frames[ticker]`` for every served name, ``statuses[ticker]`` the named
+    verdict for every name not served.
+    """
+    served, statuses = _resolve_frames(tickers, pins)
+    return {ticker: frame for ticker, (_universe, frame) in served.items()}, statuses

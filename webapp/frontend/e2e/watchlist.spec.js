@@ -44,6 +44,27 @@ test('watchlist is a searchable, sortable ticker ledger including off-scan names
   expect(api.writes).toEqual([]);
 });
 
+test('the best-gain columns show the measured gains, sort by them and say why a cell is a dash', async ({ page, api }) => {
+  populate(api);
+  const empty = { since_add: null, d60: null, d30: null, d14: null, d7: null, d2: null };
+  api.gains = {
+    DEMOB: { status: 'ok', last_bar_date: '2026-10-23', since_add: 0.2124, d60: 0.2124, d30: 0.2124,
+      d14: 0.1034, d7: 0.0655, d2: 0.0304 },
+    OLD: { status: 'no_pin', last_bar_date: null, ...empty },
+  };
+  await page.goto('/watchlist');
+  for (const text of ['+21.24%', '+10.34%', '+6.55%', '+3.04%']) await expect(row(page, 'DEMOB')).toContainText(text);
+  const header = list(page).getByRole('columnheader', { name: 'Best since add', exact: false });
+  await expect(header.locator('span[title]').first()).toHaveAttribute('title', /since the add, against the saved scan day's high/);
+  await expect(row(page, 'OLD').locator('span[title="Saved without a scan: no day to measure from"]')).toHaveCount(6);
+  await list(page).getByRole('button', { name: 'Added', exact: false }).click();
+  await expect(list(page).locator('tbody tr').first()).toHaveAttribute('data-ticker', 'OLD');
+  await header.getByRole('button').click();      // the unmeasured name sinks, whichever way the gain sorts
+  await expect(list(page).locator('tbody tr').first()).toHaveAttribute('data-ticker', 'DEMOB');
+  expect(api.unexpected).toEqual([]);
+  expect(api.writes).toEqual([]);
+});
+
 test('row inspection retains multi-timeframe charts, pin routing and keyboard return focus', async ({ page, api }) => {
   populate(api);
   await page.goto('/watchlist');

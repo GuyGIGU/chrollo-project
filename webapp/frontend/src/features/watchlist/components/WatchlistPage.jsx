@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import useBestGains from '../hooks/useBestGains';
 import useLivePrices from '../hooks/useLivePrices';
 import useReviews from '../hooks/useReviews';
 import useWatchlist from '../hooks/useWatchlist';
@@ -30,6 +31,8 @@ export default function WatchlistPage() {
   const { watchlist, toggleWatchlist } = useWatchlist();
   const { liked, toggleLiked } = useReviews();
   const { prices, priceErr, priceStatus } = useLivePrices();
+  // A save's id changes with a re-star, so a new basis refetches too.
+  const gains = useBestGains(useMemo(() => records.map((record) => `${record.ticker}:${record.id}`).sort().join(','), [records]));
   const payloads = useSyncExternalStore(subscribeScreenerStore, getScreenerPayloads);
   const [chosen, setChosen] = useState(readSavedSelection);
   const [search, setSearch] = useState('');
@@ -57,9 +60,9 @@ export default function WatchlistPage() {
   }, [payloads, records]);
   const screenerData = useMemo(() => ({ chart_data: Object.fromEntries(Object.entries(sources).map(([ticker, value]) => [ticker, value.entry])) }), [sources]);
   const rows = useMemo(() => sortWatchlistRows(
-    buildWatchlistRows(watchlist, screenerData, { records, prices })
+    buildWatchlistRows(watchlist, screenerData, { records, prices, gains })
       .filter((row) => row.ticker.toLowerCase().includes(search.trim().toLowerCase())), sort.by, sort.dir),
-  [watchlist, screenerData, records, prices, search, sort]);
+  [watchlist, screenerData, records, prices, gains, search, sort]);
   const tickers = useMemo(() => rows.map((row) => row.ticker), [rows]);
   const selected = resolveRenderedSelection(chosen, rows);
   const selectedRecord = records.find((record) => record.ticker === selected);

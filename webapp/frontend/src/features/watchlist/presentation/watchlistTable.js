@@ -13,10 +13,18 @@ import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary.js';
 export const TIER_RANK = Object.fromEntries(TIER_LETTERS.map((t, i) => [t, i]));
 const tierRank = (tier) => (tier in TIER_RANK ? TIER_RANK[tier] : 99);
 
+// The operator's sheet's "% Best Diff" columns, measured server-side
+// (GET /watchlist/best-gains): `field` is the wire name, `days` the window after the add.
+export const BEST_GAIN_COLUMNS = [
+  { key: 'best_since_add', field: 'since_add', days: null },
+  ...[60, 30, 14, 7, 2].map((days) => ({ key: `best_${days}d`, field: `d${days}`, days })),
+];
+const BEST_GAIN_KEYS = BEST_GAIN_COLUMNS.map((column) => column.key);
+
 // One normalized row per watchlisted ticker. `data` is the raw chart_data entry
 // (or null off-scan); the flat fields exist so the sort + simple cells never
 // dereference undefined.
-export function buildWatchlistRows(watchlist, screenerData, { records = [], prices = {} } = {}) {
+export function buildWatchlistRows(watchlist, screenerData, { records = [], prices = {}, gains = {} } = {}) {
   const chartData = screenerData?.chart_data || {};
   const byTicker = new Map(records.map((record) => [record.ticker, record]));
   return Array.from(watchlist || []).map((ticker) => {
@@ -25,6 +33,7 @@ export function buildWatchlistRows(watchlist, screenerData, { records = [], pric
     const savedPrice = finiteOrNull(record?.saved_price);
     const price = finiteOrNull(prices[ticker]);
     const facts = data?.fund_sheet?.snapshot;
+    const gain = gains[ticker] || null;
     return {
       ticker,
       in_scan: data != null,
@@ -41,6 +50,8 @@ export function buildWatchlistRows(watchlist, screenerData, { records = [], pric
       price,
       // Price comparison only: never substitute a current scan price for the saved basis.
       vs_saved: savedPrice > 0 && price != null ? (price - savedPrice) / savedPrice : null,
+      ...Object.fromEntries(BEST_GAIN_COLUMNS.map(({ key, field }) => [key, finiteOrNull(gain?.[field])])),
+      gain_status: gain?.status ?? null,
       rs_rating: finiteOrNull(data?.rs_rating),
       market_cap: finiteOrNull(data?.market_cap ?? record?.saved_market_cap),
       sector: facts?.sector || record?.saved_sector || null,
@@ -60,7 +71,7 @@ export function sortWatchlistRows(rows, sortBy = 'tier', sortDir = 'asc') {
     // Scan-specific sorts retain their established off-scan-last behavior.
     // Added date and quote/fundamental sorts compare the whole saved list.
     if (['tier', 'grade', 'setup', 'ticker'].includes(sortBy) && a.in_scan !== b.in_scan) return a.in_scan ? -1 : 1;
-    if (['added', 'price', 'saved_price', 'vs_saved', 'rs_rating', 'market_cap'].includes(sortBy)) {
+    if (['added', 'price', 'saved_price', 'vs_saved', ...BEST_GAIN_KEYS, 'rs_rating', 'market_cap'].includes(sortBy)) {
       if ((a[sortBy] == null) !== (b[sortBy] == null)) return a[sortBy] == null ? 1 : -1;
     }
     const primary = keyCompare(a, b, sortBy) * dir;
@@ -87,7 +98,7 @@ function keyCompare(a, b, key) {
     case 'vs_saved':
     case 'rs_rating':
     case 'market_cap': return numAsc(a[key], b[key]);
-    default: return 0;
+    default: return BEST_GAIN_KEYS.includes(key) ? numAsc(a[key], b[key]) : 0;
   }
 }
 

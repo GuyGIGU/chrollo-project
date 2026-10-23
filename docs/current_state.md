@@ -1,5 +1,17 @@
 # Current state
 
+**2026-10-24 Watchlist best-gain columns (merged into main; deployment pending):** the
+Watchlist tab gains the operator's sheet's six "% Best Diff" columns: the best gain since
+the add, and within the first 60, 30, 14, 7 and 2 days after it. The basis is the high of
+the saved scan's day (his sheet's "day before the add", his buy-stop trigger); each window
+runs from the first trading day after it through N calendar days, end day included, so a
+young save's long windows show its best so far. Checked against his 23 October sheet on
+the 35 of its names the price cache holds: 193 of 210 values equal to the hundredth and
+every one within 0.06 points (the rest trace to his feed's highs differing by cents).
+Measured server-side on the same cached daily bars as the chart dialog
+(`GET /watchlist/best-gains`, `domains/watchlist/best_gains.py`); display only, nothing
+judges a setup. The sheet's hand-set RDY/TOP/Side/R columns are not built.
+
 **2026-10-23 engineering-quality increment (merged into main; deployment pending):**
 `codex/engineering-quality` adds Python correctness checks, strict types at the
 screener response boundary, generated API schema/JSDoc drift checks and twenty

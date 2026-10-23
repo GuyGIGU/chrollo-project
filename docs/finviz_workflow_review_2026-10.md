@@ -142,8 +142,9 @@ Five optional active-save response fields quote the original stored snapshot:
 They require no migration, vendor fetch or re-pin. Missing, malformed or unsupported
 snapshots stay null. Current quotes are compared with the stored scan price;
 this is a price comparison, not an executed trade return or the reference's
-historical maximum-return windows. Those 60/30/14/7/2-day windows and the reference's
-custom ready/top/side controls are outside this presentation change.
+historical maximum-return windows. Those 60/30/14/7/2-day windows followed on 24
+October as the best-gain columns ([current state](current_state.md)); the reference's
+custom ready/top/side controls remain outside this presentation change.
 
 Daily/weekly/monthly charts, the engine-overlay toggle and candle retry now open
 from a row in a dialog, with Prev/Next, keyboard navigation and return focus.

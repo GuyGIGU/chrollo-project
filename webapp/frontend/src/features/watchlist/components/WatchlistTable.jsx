@@ -2,6 +2,16 @@ import InstrumentTable from '../../../shared/components/InstrumentTable';
 import { fx, fmtSignedPctFrac } from '../../../shared/formatting/format.js';
 import { dayShort } from '../../../shared/setup/fundamentalsSheetRead.js';
 import { tierColor, signColor } from '../../../shared/presentation/theme';
+import { BEST_GAIN_COLUMNS } from '../presentation/watchlistTable';
+
+// Why a best-gain cell is a dash, by the wire's status word.
+const GAIN_GAPS = {
+  no_pin: 'Saved without a scan: no day to measure from',
+  no_bar_since_scan: 'Nothing has traded since the saved scan yet',
+  no_cache: 'Price history is being rewritten; try again shortly',
+  unknown_ticker: 'No price history for this ticker',
+  no_drawable_bars: 'No usable price history for this ticker',
+};
 
 // The existing sortable ledger primitive, with one compact row per saved ticker.
 export default function WatchlistTable({ rows, sort, onSort, selected, onSelect, onRemove, liked, onLike, anchorProps, priceErr }) {
@@ -23,6 +33,16 @@ export default function WatchlistTable({ rows, sort, onSort, selected, onSelect,
       <span className={`wl-return-cell${row.vs_saved > 0 ? ' positive' : row.vs_saved < 0 ? ' negative' : ''}`}
         style={{ color: signColor(row.vs_saved) }}>{fmtSignedPctFrac(row.vs_saved)}</span>
     ) },
+    ...BEST_GAIN_COLUMNS.map(({ key, days }) => ({
+      key, align: 'right',
+      label: <span title={`Best high ${days == null ? 'since the add' : `in the first ${days} days after the add`}, against the saved scan day's high`}>
+        {days == null ? 'Best since add' : `Best ${days}d`}</span>,
+      render: (row) => (
+        <span className={`wl-return-cell${row[key] > 0 ? ' positive' : row[key] < 0 ? ' negative' : ''}`}
+          style={{ color: signColor(row[key]) }} title={row[key] == null ? GAIN_GAPS[row.gain_status] : undefined}>
+          {fmtSignedPctFrac(row[key], 2)}</span>
+      ),
+    })),
     { key: 'rs_rating', label: 'RS', align: 'right', render: (row) => fx(row.rs_rating, 0) },
     { key: 'market_cap', label: 'Cap ($B)', align: 'right', render: (row) => fx(row.market_cap == null ? null : row.market_cap / 1e9, 1) },
     { key: 'sector', label: 'Sector', render: (row) => <span className="wl-ledger-text" title={row.sector || ''}>{row.sector || '—'}</span> },

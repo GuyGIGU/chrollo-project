@@ -13,7 +13,7 @@ export const test = base.extend({
       failFeedback: false, failScreener: false,
       likes: [], failLikesLoad: false, failLikeSave: false, failWatchlist: false, failSummary: false,
       likeGate: null, watchGate: null, deleteGate: null,
-      quotes: {}, failPrices: false, failWatchlistLoad: false, history: [],
+      quotes: {}, failPrices: false, failWatchlistLoad: false, history: [], gains: {},
       candleRequests: [], failCandles: false,
     };
     page.on('pageerror', (error) => api.errors.push(error.message));
@@ -52,6 +52,7 @@ export const test = base.extend({
         });
         if (path === '/watchlist/') return api.failWatchlistLoad ? reply({ detail: 'Synthetic list failure' }, 503) : reply(api.watches);
         if (path === '/live-prices/') return api.failPrices ? reply({ detail: 'Synthetic quote failure' }, 503) : reply(api.quotes);
+        if (path === '/watchlist/best-gains') return reply(api.gains);
         if (path === '/watchlist/review') return reply({ weeks: api.history.length ? [{ week_start: '2026-10-19', saves: api.history }] : [] });
         if (/^\/watchlist\/\d+\/replay$/.test(path)) {
           const watch = api.watches.find((item) => item.id === Number(path.split('/')[2])) || api.history[0];

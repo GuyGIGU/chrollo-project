@@ -143,3 +143,25 @@ test('an in-scan row with a null tier ranks below D but still above off-scan row
   // CRNX (S, rank 0) → NOTIER (in-scan, null tier → rank 99) → OFF (off-scan, gated last).
   assert.deepEqual(sortWatchlistRows(rows, 'tier', 'asc').map((r) => r.ticker), ['CRNX', 'NOTIER', 'OFF']);
 });
+
+test('rows carry the six best-gain columns from the wire, and a name without an answer stays null', () => {
+  const gains = {
+    GEV: { status: 'ok', since_add: 0.3, d60: 0.3, d30: 0.25, d14: 0.1, d7: 0.05, d2: -0.01 },
+    OFF: { status: 'no_pin', since_add: null, d60: null, d30: null, d14: null, d7: null, d2: null },
+  };
+  const [gev, off, crnx] = buildWatchlistRows(['GEV', 'OFF', 'CRNX'], scan, { gains });
+  assert.deepEqual([gev.best_since_add, gev.best_60d, gev.best_30d, gev.best_14d, gev.best_7d, gev.best_2d],
+    [0.3, 0.3, 0.25, 0.1, 0.05, -0.01]);
+  assert.equal(gev.gain_status, 'ok');
+  assert.equal(off.best_since_add, null);
+  assert.equal(off.gain_status, 'no_pin');
+  assert.equal(crnx.best_7d, null);          // not in the answer yet: a dash, never a zero
+  assert.equal(crnx.gain_status, null);
+});
+
+test('a best-gain sort orders by the gain and keeps unmeasured names last both ways', () => {
+  const gains = { GEV: { since_add: 0.3 }, CRNX: { since_add: -0.05 }, AGCO: { since_add: 0.12 } };
+  const rows = buildWatchlistRows(['GEV', 'CRNX', 'AGCO', 'OFF'], scan, { gains });
+  assert.deepEqual(sortWatchlistRows(rows, 'best_since_add', 'desc').map((r) => r.ticker), ['GEV', 'AGCO', 'CRNX', 'OFF']);
+  assert.deepEqual(sortWatchlistRows(rows, 'best_since_add', 'asc').map((r) => r.ticker), ['CRNX', 'AGCO', 'GEV', 'OFF']);
+});

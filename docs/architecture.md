@@ -146,7 +146,7 @@ in `domains/portfolio/streams.py` are the `async def` exceptions.
 | `portfolio` | `router.py` (`/portfolio/*`, `/ibkr/import-csv`), `streams.py` (`/stream/*`, SSE) | The portfolio snapshot cache and its shaping. |
 | `screener` | `router.py` | The scan payload (`/screener-data/`, `/screener-summary/`), scan status, the manual scan and download SSE streams, and one chart's state word on demand (`/screener-data/state/{ticker}`, `chart_state.py`, read off the cached frame). |
 | `trading` | `router.py` (trades, `/journal-stats`), `journal.py`, `tags.py`, `analytics.py` (`/analytics`), `risk_router.py` (`/live-risk`) | The trade journal models, IBKR execution and CSV import, statistics, open-trade risk. |
-| `watchlist` | `router.py` (`/watchlist`) | The dated watchlist event ledger. |
+| `watchlist` | `router.py` (`/watchlist`) | The dated watchlist event ledger, and each save's best gain since it (`best_gains.py`, read off the chart dialog's cached bars). |
 
 Outside the domains:
 

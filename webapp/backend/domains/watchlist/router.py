@@ -19,6 +19,7 @@ import models
 from database import get_db
 from domains.calibration.validation import TICKER_RE, parse_iso_date
 from app.dependencies import require_same_app
+from domains.watchlist import best_gains
 from domains.watchlist import ledger as watchlist_ledger
 
 router = APIRouter(prefix="/watchlist", tags=["watchlist"])
@@ -107,6 +108,20 @@ class ReplayResponse(BaseModel):
     archive: Dict | None
 
 
+class BestGainsOut(BaseModel):
+    """One active save's "% Best Diff" columns (domains/watchlist/best_gains.py):
+    fractions of the saved scan day's high, null where there is no pin or no bar since."""
+
+    status: str
+    last_bar_date: str | None
+    since_add: float | None
+    d60: float | None
+    d30: float | None
+    d14: float | None
+    d7: float | None
+    d2: float | None
+
+
 def _item(row: models.Watchlist) -> WatchlistItem:
     return WatchlistItem(
         id=row.id,
@@ -185,6 +200,11 @@ def remove_from_watchlist(ticker: str, db: Session = Depends(get_db)):
             "message": "Ticker not on watchlist",
         })
     return {"status": "removed", "ticker": sym}
+
+
+@router.get("/best-gains", response_model=Dict[str, BestGainsOut])
+def watchlist_best_gains(db: Session = Depends(get_db)):
+    return best_gains.for_watches(watchlist_ledger.active_watches(db))
 
 
 @router.get("/review", response_model=ReviewResponse)
