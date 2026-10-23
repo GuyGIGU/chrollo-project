@@ -132,7 +132,7 @@ def test_a_last_day_that_crosses_the_trigger_and_makes_a_lower_low_is_a_buy_and_
     assert state == lps.FIRED and found.trigger_price == 100.9
     assert "100.60" in steps[0].saying and "buy" in steps[0].saying
     # The day before was refused: its trigger was never a buy.
-    refused = _read(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.9, 95.8), (98.3, 95.7)], S=90.0)
+    refused = _read(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.5, 95.4), (97.9, 95.3)], S=90.0)
     assert refused.end_bar == 12 and refused.bought is None
     # The day before there was no box yet: there was no fire to buy.
     assert _read(rows, born_bar=10).bought is None and _read(rows, born_bar=9).bought == 100.6
@@ -270,19 +270,23 @@ def test_sentence_two_a_pullback_deeper_than_his_deepest_is_a_slice_of_a_bigger_
     from engine_alpha.two_eyes import lps
     from engine_alpha import two_eyes_numbers as M
 
-    assert M.LPS_DEPTH_MAX_RANGES == 2.5
+    assert M.LPS_DEPTH_MAX_RANGES == 2.75
     # From the top at 101 down to 96.2: 2.4 daily ranges, a pullback.
     shallow = _read(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (98.1, 96.2)], S=90.0)
     assert shallow.depth == pytest.approx(2.4) and lps.SLICE not in shallow.refused
-    # Down to 95.8: 2.6 daily ranges from its top.
-    deep = _read(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.9, 95.8)], S=90.0)
-    assert deep.depth == pytest.approx(2.6) and deep.refused == (lps.SLICE,)
+    # Down to 95.8: 2.6 daily ranges from its top — his STGW (Fri 23/10/2026): the rest of 19 to 21/10 on the box's
+    # top, 2.62 ranges under the spike of Tue 13/10 (9.64, a bar that closed at 9.13), drawn as his LPS. A pullback.
+    stgw = _read(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.9, 95.8)], S=90.0)
+    assert stgw.depth == pytest.approx(2.6) and lps.SLICE not in stgw.refused
+    # Down to 95.4: 2.8 daily ranges from its top, a slice of a bigger swing down.
+    deep = _read(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.5, 95.4)], S=90.0)
+    assert deep.depth == pytest.approx(2.8) and deep.refused == (lps.SLICE,)
     # The depth is from the top of the swing on the line, not from the window's own top: a bounce too small to
     # turn the line does not hide the fall before it.
-    rows = _QUIET + _RISE + [(100.0, 97.6), (98.6, 96.9), (98.9, 97.0), (98.5, 95.8)]
+    rows = _QUIET + _RISE + [(100.0, 97.6), (98.6, 96.9), (98.9, 97.0), (98.1, 95.4)]
     got = _read(rows, S=90.0)
     assert (got.top_bar, got.swing_top_bar) == (11, 8), "the window opens under the bounce; the swing under 101"
-    assert got.depth == pytest.approx(2.6) and lps.SLICE in got.refused
+    assert got.depth == pytest.approx(2.8) and lps.SLICE in got.refused
     # The swing opens at the line's last valley before the run: an older, higher high behind that valley is
     # another swing's.
     older = _read([(103.0, 101.0)] + _QUIET[1:] + _RISE + [(100.2, 98.4), (99.0, 97.2), (98.1, 96.2)], S=90.0)
@@ -372,7 +376,7 @@ def test_a_pullback_none_of_his_sentences_refuses_is_the_lps_and_the_read_fires(
 def test_a_refused_pullback_is_no_lps_and_the_trail_names_the_sentence():
     from engine_alpha.two_eyes import lps
 
-    found, steps, state = _record(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.9, 95.8)], S=90.0)
+    found, steps, state = _record(_QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.5, 95.4)], S=90.0)
     assert found is None and state == lps.LINES_NO_LPS == "lines, no LPS yet"
     assert [s.stage for s in steps] == ["LPS"] and lps.SLICE in steps[0].saying
 
@@ -391,7 +395,7 @@ def test_on_the_buy_day_the_read_says_crossed_and_nothing_fires():
 def test_a_refused_pullback_that_is_crossed_is_no_buy():
     from engine_alpha.two_eyes import lps
 
-    rows = _QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.9, 95.8), (98.4, 96.0)]
+    rows = _QUIET + _RISE + [(100.2, 98.4), (99.0, 97.2), (97.5, 95.4), (98.0, 95.6)]
     found, steps, state = _record(rows, S=90.0)
     assert found is None and state == lps.LINES_NO_LPS
 
@@ -582,10 +586,13 @@ def test_the_numbers_are_re_derived_from_his_marks_in_the_unit_the_reader_uses(h
     assert over == {"MTLS:2026-09-04": 0.63, "NGL:2026-04-20": 0.29, "SILC:2026-04-13": 0.01, "ST:2026-04-17": 1.30,
                     "UNF:2026-07-10": 0.45, "VIK:2026-06-11": 0.33, "VLO:2026-07-08": 0.27, "WTS:2026-06-12": 0.12}
     assert max(over.values()) < M.LPS_CEILING_RANGES < max(over.values()) + 0.1
-    # His deepest pullback, top to low (R8's research, Tue 08/09/2026: min 0.80, median 1.23, max 2.43).
+    # His deepest pullback in the sealed drawings, top to low (R8's research, Tue 08/09/2026: min 0.80, median
+    # 1.23, max 2.43). The ceiling sat 0.07 over it until his STGW (Fri 23/10/2026): the rest of 19 to 21/10 on the
+    # box's top, 2.62 ranges under the spike of 13/10, drawn as his LPS on a screenshot (no mark in the journal), so
+    # the ceiling moved to 2.75, over that; the sealed set's deepest stays under it by more than the old margin.
     deepest = max(p.depth for p in got)
     assert deepest == pytest.approx(2.43, abs=0.005)
-    assert deepest < M.LPS_DEPTH_MAX_RANGES < deepest + 0.1
+    assert deepest < 2.62 < M.LPS_DEPTH_MAX_RANGES < 2.62 + 0.15
     # Most of the move above the support area: his worst is JAZZ's poke.
     assert max(p.under_support for p in got) < 0.05 < M.LPS_UNDER_SUPPORT_SHARE
     # "2 - 5 bars": every window he drew, the top day and the receding days.

@@ -108,8 +108,10 @@ LPS_CEILING_RANGES = 1.35
 
 #: A fall deeper than this from the top of its swing is a slice of a bigger swing down, not a pullback (his AEF
 #: words, Mon 14/09/2026; "the correction is getting to deep", Tue 08/09/2026). The sentence is his; the number
-#: is OURS, the daily-range yardstick he ruled that day placed over his deepest drawn pullback, 2.43.
-LPS_DEPTH_MAX_RANGES = 2.5
+#: is OURS, the daily-range yardstick he ruled that day placed over his deepest drawn pullback: 2.5 over the
+#: sealed drawings' 2.43, then 2.75 over his STGW (Fri 23/10/2026: the rest of 19 to 21/10 on the box's top, 2.62
+#: under the spike of 13/10, drawn as his LPS; "Yes, raise the LPS depth ceiling to 2.75 daily ranges").
+LPS_DEPTH_MAX_RANGES = 2.75
 
 #: More than this share of the pullback's high-to-low travel under the support area refuses it: "most of the
 #: move is above it and only small parts of it poke out down" (his JAZZ answer, Sun 13/09/2026).

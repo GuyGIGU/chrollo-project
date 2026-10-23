@@ -974,9 +974,11 @@ default as ours.
    move off and it's a part of a bigger swing downwards that reaches support, we cannot
    ignore that"* (Mon 14/09/2026), *"its seems like the correction is getting to deep"*
    (Tue 08/09/2026) — the fall from the top of its swing on the line to its low is more
-   than 2.5 daily ranges (the form and the number are ours: his deepest drawn pullback is
-   2.43; reaching support is not asked, because his own pullbacks rest on it in a tight
-   box); (3) most of it sits under the support area, read on whole bars, so a poke under it
+   than 2.75 daily ranges (the form and the number are ours, placed over his deepest drawn
+   pullback: 2.5 over the sealed drawings' 2.43, then 2.75 on his word of Fri 23/10/2026
+   over his STGW, whose six-day rest on the box's top sits 2.62 ranges under the spike of
+   Tue 13/10, a bar that closed half a range under its own high; reaching support is not
+   asked, because his own pullbacks rest on it in a tight box); (3) most of it sits under the support area, read on whole bars, so a poke under it
    never refuses: *"the LPS is on the Support rather then Under it since most of the move
    is above it and only small parts of it poke out down"* (JAZZ, Sun 13/09/2026); (4) its
    low sits more than 1.35 daily ranges over resistance (*"Lets go with that ceiling 1.35

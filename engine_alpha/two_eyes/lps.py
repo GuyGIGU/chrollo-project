@@ -29,7 +29,7 @@ Ours, recorded as ours in the decisions record (task 12a, Sun 27/09/2026): the u
 trading days before the pullback's last day, the unit his numbers were placed in), the form of sentence one (the
 old reader's, re-typed: the last three bars widen day by day and fall further day by day, the last fall bigger
 than the whole range of the day before), the form of sentence two (the fall from the top of the swing on the
-line to the pullback's low, against 2.5 daily ranges), the five-bar reading of a longer run, that a pullback
+line to the pullback's low, against 2.75 daily ranges), the five-bar reading of a longer run, that a pullback
 which ended before the box was a box is not its LPS, and the day that crosses the trigger AND makes a lower low:
 the cross is a buy and the pullback goes on, its trigger now that day's high (on five of his 35 that day is his
 own last receding day, on five it is his buy day).
