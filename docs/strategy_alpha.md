@@ -748,6 +748,14 @@ default as ours.
    respected pair stands, and picking the better-fitting box among respected ones is his eye's
    work at review, as he put it on Sun 13/09/2026: *"for the engine's sake it's probably
    better to keep it that way"*.
+   Measured on his word of Sat 24/10/2026 on his 48 drawings and 12 fixes, as a hand-over in
+   the walk (a tighter later pair inside or across the box takes its place once no swing
+   turns at the rail it does not share) and as the mini shown in the parent's place: every
+   form cost his own boxes (from 29 to between 10 and 24), because inside a long base the
+   bars spend weeks away from one rail, and he draws where they come back within half a
+   range, not where they turn to the cent. On DSGX's mark of 08/10 his box is the reader's
+   mini inside the climax pair (as was his EHC fix of 17/10; he redrew EHC on 24/10 at the
+   bar of 10/09, 124.25 / 120.42, which no mini reaches).
 4. **The box's life.** A box ends only by what the bars do, and only into a new box: *"if the
    price continues to Rise/Fall with out recovering we can deduce that either that the
    consolidating structure we measured ended and the price began to trend"*, *"its tricky
