@@ -220,6 +220,13 @@ _POKE_OVER_A_BORN_BOX = _BOX + [(38, 71), (41, 82.2), (44, 70.6), (47, 79.4), (5
                                 (59, 79), (62, 70.9), (65, 79.2)]
 _POKE_FAR = {0, 1, 2, 3, 5, 6, 41, 44, 47, 50, 53, 56, 59, 62, 65}
 
+#: His HCA (fixed on the lens Fri 16/10/2026, read Sat 24/10/2026): the ALB chart with a history. Before the decline
+#: into the rise the bars turned at 80 and 70 (tops on bars 2 and 6, lows on bars 4 and 8), so the pair 80 / 70 that
+#: opens on the rise's top (bar 23) and its reaction (bar 26) is not new. The run to 86 on bar 28, two days after its
+#: second anchor and nine before it is a box, comes back into it, and the base goes on on its rails.
+_RUN_PAST_A_PAIR_THE_BARS_KNEW = [(0, 72), (2, 79.8), (4, 70.2), (6, 80.1), (8, 70.1), (10, 76)] + \
+    [(bar + 12, price) for bar, price in _RUN_PAST_THE_RAIL]
+
 #: His DSGX (drawn Sat 18/10/2026): the rise pauses at 71 / 66 on bars 8 and 9 (a pair under the box, its top a
 #: range under the box's support), then the box 80 / 70, a box on bar 25. On bar 38 a spring dips to 66, under the
 #: support, and touches that lower pair's own support; the price recovers in two days and from then consolidates
@@ -790,6 +797,75 @@ def test_a_poke_over_a_box_already_born_does_not_put_it_inside_a_live_trend():
     assert _box(down) == (89.4, 77.8) and down.lives[-1].why == walk.LIVE_TREND
 
 
+def test_a_run_past_the_top_of_a_pair_the_bars_knew_does_not_put_it_inside_a_live_trend():
+    """His HCA (the fix of Fri 16/10/2026; his words Sat 24/10/2026: *"hca simply has an earlier pair that provides
+    a tighter box leading to more context overall (not that too much was going on in the first place)"*, and of his
+    MSGS, where he drew the run's pair: *"it seems almost identical to mine"*). His box 436.14 / 423.43 opened on Fri
+    18/09; the run to 446.36 on Wed 23/09, two days after its second anchor and before it was a box, came back, and
+    the base went on on his rails to the breakout of Fri 09/10. The reader handed the box to 446.36 / 420.00 as
+    "anchored inside a live trend". What sets it apart from the charts where he drew the run's pair (MSGS, ANRO, VLO,
+    NOK) or the run's top (ORMP): the bars knew his rails before the pair opened (the August top at 436, the
+    September lows at 423), and in the fifteen days from the run's top the bars lived in his box, not over it.
+    His "tighter" is true of HCA but separates nothing: on every chart where he drew the run's pair the old box was
+    tighter too (measured Sat 24/10/2026), and asking it costs his ACCO."""
+    from engine_alpha.two_eyes import walk
+
+    chart = _chart(_RUN_PAST_A_PAIR_THE_BARS_KNEW)
+    high, low = chart["high"], chart["low"]
+    found = _elect(chart)
+    # The box stands through the run, day by day.
+    assert _box(found) == (80.0, 70.0) and len(found.lives) == 1
+    assert _shown_day_by_day(chart) == [(80.0, 70.0, 37)]
+    rise = found.ends[1]
+    box, later = _pair(found, 80.0, 70.0), _pair(found, 79.5, 70.5)
+    assert (rise["kind"], rise["climax_price"], rise["climax_bar"], rise["start_bar"]) == ("BC", 86.0, 28, 15)
+    assert (box.opening_bar, box.second_bar, box.birth_bar, later.opening_bar, later.birth_bar) == (23, 26, 37, 31, 45)
+    assert rise["start_bar"] < box.opening_bar < rise["foot_bar"] <= later.opening_bar
+    assert box.second_bar < rise["climax_bar"] < box.birth_bar
+    # The bars knew its rails: in the thirty days before it opened, a high at its resistance on two bars and a low at
+    # its support on three, each within a quarter of a daily range.
+    assert walk.knew_the_rails(box, high, low)
+    # The run came back to both rails, and the bars' middles sat in the box more often than over it: judged once, on
+    # the last of the fifteen days from the run's top (bar 28 + 14).
+    assert walk.poke_stayed_in(box, high, low, 28, 41) is None
+    assert walk.poke_stayed_in(box, high, low, 28, 42) is True
+    # By the bars' geometry alone the rise swallows it; with the bars read it does not.
+    assert walk.inside_a_live_trend(box, later, found.ends, chart["n"] - 1) is rise
+    assert walk.inside_a_live_trend(box, later, found.ends, chart["n"] - 1, high, low) is None
+    # Bars that touch both rails but LIVE over the box (his MSGS): the rise goes on, and takes the place.
+    over_high, over_low = high.copy(), low.copy()
+    over_high[29:43], over_low[29:43] = 82.0, 80.5
+    over_high[35], over_low[35] = 80.0, 70.2
+    assert walk.poke_came_back(box, over_high, over_low, 28, 42) is True
+    assert walk.poke_stayed_in(box, over_high, over_low, 28, 42) is False
+    assert walk.inside_a_live_trend(box, later, found.ends, chart["n"] - 1, over_high, over_low) is rise
+    # Bars that stay in the box but never come back to its support: not the box's own poke either.
+    shy_high, shy_low = high.copy(), low.copy()
+    shy_high[28:43], shy_low[28:43] = 79.0, 72.5
+    shy_high[28] = 86.0
+    assert walk.poke_came_back(box, shy_high, shy_low, 28, 42) is False
+    assert walk.poke_stayed_in(box, shy_high, shy_low, 28, 42) is False
+    # Judged on the fifteenth day from the run's top, so the rise takes the place no sooner: a pair that opened on
+    # the run's way up (after the rise's foot) and is a box on bar 38 takes it on bar 42, and a reader standing on
+    # bar 41 still shows the box (else a later reader would date the hand-over on a day that showed the box).
+    from dataclasses import replace
+    walked = [t for t in found.ends if t.get("foot_bar") is not None]
+    early = replace(later, opening_bar=29, birth_bar=38)
+    assert rise["foot_bar"] <= early.opening_bar
+    told = walk.lives([box, early], walked, over_high, over_low, chart["n"] - 1)
+    assert [(life.pair.R, life.shown_bar) for life in told] == [(80.0, 37), (79.5, 42)]
+    assert [life.shown_bar for life in walk.lives([box, early], walked, over_high, over_low, 41)] == [37]
+    # The mirror, a fall under a pair the bars knew that came back, is not built (his WTS): the fall swallows it.
+    mirrored = _chart([(bar, 160.0 - price) for bar, price in _RUN_PAST_A_PAIR_THE_BARS_KNEW])
+    down = _elect(mirrored)
+    assert walk.knew_the_rails(_pair(down, 90.0, 80.0), mirrored["high"], mirrored["low"])
+    assert down.lives[-1].why == walk.LIVE_TREND and down.lives[-1].trend_end["kind"] == "SC"
+    # The same run past a NEW pair (his ALB; his ORMP, where he drew the run's top): the rise takes the place.
+    alb = _chart(_RUN_PAST_THE_RAIL)
+    assert not walk.knew_the_rails(_pair(_elect(alb), 80.0, 70.0), alb["high"], alb["low"])
+    assert _shown_day_by_day(alb) == [(80.0, 70.0, 25), (79.5, 70.5, 33)]
+
+
 def test_a_box_is_left_only_through_its_far_rail_so_a_spring_that_came_back_never_leaves_it_downward():
     """His DSGX (Sat 18/10/2026), sentences 9 and 10 read together. The box 80 / 70; a spring to 66 on bar 38 touches
     the support of a pair UNDER the box (71 / 66) and comes back in two days; the price then consolidates a step
@@ -853,7 +929,7 @@ def test_a_shown_line_moves_back_only_when_a_dip_came_back_read_day_by_day_with_
                         (_PAUSE_INSIDE_A_RISE, _PAUSE_FAR - {30, 33, 36, 39}),
                         (_SPRING_UNDER_A_LATER_BOX, _SPRING_FAR), (_OUTER_PAIR_RESPECTED_LATE, None),
                         (_DIP_THAT_CAME_BACK, None), (_SPRING_INTO_THE_BOX_UNDER_IT, None),
-                        (_RUN_ABOVE_THEN_UNDER_THE_BOX, None)):
+                        (_RUN_ABOVE_THEN_UNDER_THE_BOX, None), (_RUN_PAST_A_PAIR_THE_BARS_KNEW, None)):
         chart = _chart(points)
         last = _elect(chart, far)
         told = [(life.pair.feet, life.shown_bar) for life in last.lives]
@@ -1872,10 +1948,12 @@ def test_flg_tells_the_same_boxes_the_night_after_its_window_lost_its_first_tren
     thursday, friday = _flg_on_two_nights()
     assert thursday[-1] == friday[-1] and (thursday[-1][0], thursday[-1][2]) == (14.37, 13.8)
     assert thursday[-4:-1] == friday[-4:-1]
-    # From the box of October 2024 on — 23 boxes, the shown one last — both nights tell the same history.
+    # From the box of October 2024 on — 22 boxes, the shown one last — both nights tell the same history. (23 until
+    # his HCA, Sat 24/10/2026: the box before the one of Fri 25/07/2025, 11.61 / 10.9, now stands through a run over
+    # its top that came back, and that box is no longer told.)
     since = (12.49, dt.date(2024, 10, 21), 11.5, dt.date(2024, 10, 22))
     assert thursday[thursday.index(since):] == friday[friday.index(since):]
-    assert len(thursday) - thursday.index(since) == 23
+    assert len(thursday) - thursday.index(since) == 22
     # Before it, the window's first five months: three boxes on Thursday, five other boxes on Friday.
     assert (thursday.index(since), friday.index(since)) == (3, 5)
     assert not set(thursday[:3]) & set(friday[:5])

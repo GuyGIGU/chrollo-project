@@ -275,6 +275,7 @@ SPENT_RULESETS = (
     "two-eyes-0.10.0-clarity",
     "two-eyes-0.10.1-way-back",
     "two-eyes-0.10.2-lps-depth",
+    "two-eyes-0.10.3-known-rails",
 )
 
 

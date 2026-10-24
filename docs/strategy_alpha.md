@@ -816,6 +816,23 @@ default as ours.
    his WTS the base he drew came after the fall of Mon 30/03/2026, and the hand-over to
    that fall's end is what reaches it (measured Sat 18/10/2026 on his 46 drawings: the rise
    side alone 27 / 10 / 9 to 28 / 10 / 8 with the sealed 40 unchanged; both sides lose WTS).
+   The same holds for a run past the top of a pair NOT yet a box, when the pair is not new:
+   the bars had already been at both its rails in the weeks before it opened, at least
+   twice at each, within a quarter of a daily range. Then the run is the pair's own poke
+   when, within the fifteen trading days from the run's top, the bars came back to both its
+   rails and the middles of the bars sat in the box more often than over it; the price lived
+   in the box, not above it. His HCA (the fix of Fri 16/10/2026; his words Sat 24/10/2026:
+   *"hca simply has an earlier pair that provides a tighter box leading to more context
+   overall (not that too much was going on in the first place)"*): his box 436.14 / 423.43
+   opened on Fri 18/09 on the August top and the September lows, the run to 446.36 two days
+   after its second anchor came back, and the base went on on his rails to the breakout of
+   Fri 09/10; his ACCO is the same. Where he drew the run's pair instead (MSGS, *"almost
+   identical to mine"*; ANRO, NOK, VLO) or the run's top (ORMP), the pause the run left was
+   new, or the price lived over it. His "tighter" is true of HCA but separates nothing: on
+   every one of those charts the pause was tighter too. How many bars, how far back and how
+   near are ours. Read on highs and lows: the middle of a bar, never its close. The mini's
+   own walk does not ask it: inside the parent every inner pair's rails are levels the bars
+   knew.
    But for that way back and the sibling tried first (stage 3), every hand-over goes to a
    pair that opened later. A pair that
    opened EARLIER does not take the shown box's place on the day it becomes a box (ours:

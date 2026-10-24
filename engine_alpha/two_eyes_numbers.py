@@ -87,6 +87,15 @@ BOX_DAYS = 15
 #: number is OURS, the listing gate's bound (task 9).
 BOX_MIN_HEIGHT_RANGES = 1.0
 
+#: A pair the bars KNEW before it opened: in this many trading days before its opening, at least
+#: KNOWN_RAILS_MIN_BARS highs at its resistance and as many lows at its support, each within this share of the
+#: pair's daily range. His HCA (Sat 24/10/2026): "an earlier pair that provides a tighter box leading to more
+#: context overall". The three numbers are OURS, measured on his 48 drawings + 12 fixes: every window from 25 to 80
+#: days, every share from 0.2 to 0.33 and two or three bars read the same board (HCA and ACCO his, nothing lost).
+KNOWN_RAILS_DAYS = 30
+KNOWN_RAILS_AREA_RANGES = 0.25
+KNOWN_RAILS_MIN_BARS = 2
+
 #: A mini must be strictly smaller than this share of its parent's R-S price height (operator, 2026-10-21).
 MINI_MAX_PARENT_HEIGHT_RATIO = 0.8
 
