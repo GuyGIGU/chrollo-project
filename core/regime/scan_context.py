@@ -51,15 +51,15 @@ def year_strength(df) -> Optional[float]:
 
 
 def attach_rs_ratings(results: Sequence[dict],
-                      ticker_frames: Mapping[str, object]) -> None:
-    """Write ``_rs_rating`` onto each firing result IN PLACE.
+                      ticker_frames: Mapping[str, object]) -> dict:
+    """Write ``_rs_rating`` onto each firing result IN PLACE, and return the
+    whole population's ratings (ticker -> rating), which the leadership read
+    groups by industry and sector (``core.regime.leadership``).
 
     The rank population is every frame in ``ticker_frames`` (the whole scan
     universe, not the firing set) with a year of history and a last close at or
     above ``MIN_PRICE``. A result whose ticker is not in that population gets no
     key — absent means "not rated", never a low rating."""
-    if not results:
-        return
     from core.regime.percentile import percentile_rank
 
     min_price = float(_flag("MIN_PRICE", 3.0) or 0.0)
@@ -78,6 +78,7 @@ def attach_rs_ratings(results: Sequence[dict],
         rank = ranks.get(r.get("Ticker"))
         if rank is not None:
             r["_rs_rating"] = rank
+    return ranks
 
 
 def compute_scan_sector_ranking(*, provider=None) -> dict:

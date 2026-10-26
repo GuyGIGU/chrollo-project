@@ -8,8 +8,8 @@ Thin router — the decisions live in domains/watchlist/ledger.py."""
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Annotated, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -53,6 +53,16 @@ class WatchlistItem(BaseModel):
     saved_market_cap: float | None = None
     saved_sector: str | None = None
     saved_industry: str | None = None
+    # The saved scan's trigger and next earnings, for a name tonight's scan dropped.
+    saved_trigger: float | None = None
+    saved_next_earnings: str | None = None
+    saved_earnings_confirmed: bool | None = None
+    # The weekly list: the week it is on, the scan before the add, and his marks.
+    week_start: str | None = None
+    basis_scan_date: str | None = None
+    side: str = "L"
+    ready: int = 0
+    ready_at: datetime | None = None
 
 
 class SaveIn(BaseModel):
@@ -63,6 +73,24 @@ class SaveIn(BaseModel):
     universe: str = "us_stocks"
     scan_date: Optional[str] = Field(
         None, min_length=10, max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    # None = keep the side the name had (the screener star, Undo); a new save is long.
+    side: Optional[Literal["L", "S"]] = None
+
+
+class MarkIn(BaseModel):
+    """This week's hand marks: L/S, and ready 0 (watching) / 1 ✓ / 2 ✓✓."""
+
+    side: Optional[Literal["L", "S"]] = None
+    ready: Optional[Literal[0, 1, 2]] = None
+
+
+class WeeksOut(BaseModel):
+    current: str | None
+    weeks: List[str]
+
+
+# A week is named by its Monday; absent = this week.
+WeekParam = Annotated[Optional[str], Query(pattern=r"^\d{4}-\d{2}-\d{2}$")]
 
 
 class ReviewSaveOut(BaseModel):
@@ -120,6 +148,11 @@ class BestGainsOut(BaseModel):
     d14: float | None
     d7: float | None
     d2: float | None
+    # What the live columns divide by: the scan day's high, the close before
+    # the quote's trading day, and the 52-week distance at the last close.
+    basis: float | None
+    prev_close: float | None
+    dist_52w_high: float | None
 
 
 def _item(row: models.Watchlist) -> WatchlistItem:
@@ -132,6 +165,11 @@ def _item(row: models.Watchlist) -> WatchlistItem:
         pin_scan_date=row.pin_scan_date,
         pin_universe_key=watchlist_ledger.universe_key_for_type(
             row.pin_universe_type),
+        week_start=row.week_start,
+        basis_scan_date=row.basis_scan_date,
+        side=row.side,
+        ready=row.ready,
+        ready_at=row.ready_at,
         **watchlist_ledger.saved_display_fields(row.snapshot_json),
     )
 
@@ -152,8 +190,9 @@ def valid_symbol(ticker: str) -> str:
 
 
 @router.get("/", response_model=List[WatchlistItem])
-def list_watchlist(db: Session = Depends(get_db)):
-    return [_item(row) for row in watchlist_ledger.active_watches(db)]
+def list_watchlist(db: Session = Depends(get_db), week: WeekParam = None):
+    """This week's list by default; ``week`` (its Monday) reads a past week as it ended."""
+    return [_item(row) for row in watchlist_ledger.active_watches(db, week)]
 
 
 @router.post("/{ticker}", response_model=WatchlistItem,
@@ -185,7 +224,7 @@ def add_to_watchlist(ticker: str, payload: SaveIn | None = None,
             "message": f"Unknown universe key: {body.universe!r}",
         })
     row, outcome = watchlist_ledger.save_watch(
-        db, sym, body.universe, body.scan_date)
+        db, sym, body.universe, body.scan_date, body.side)
     logger.info("watchlist save %s -> %s", sym, outcome)
     return _item(row)
 
@@ -202,9 +241,42 @@ def remove_from_watchlist(ticker: str, db: Session = Depends(get_db)):
     return {"status": "removed", "ticker": sym}
 
 
+@router.patch("/{ticker}", response_model=WatchlistItem,
+              dependencies=[Depends(require_same_app)])
+def mark_watchlist(ticker: str, payload: MarkIn, db: Session = Depends(get_db)):
+    sym = valid_symbol(ticker)
+    row = watchlist_ledger.mark_watch(db, sym, side=payload.side, ready=payload.ready)
+    if row is None:
+        raise HTTPException(status_code=404, detail={
+            "class": "not_on_watchlist",
+            "message": "Ticker not on this week's watchlist",
+        })
+    return _item(row)
+
+
+@router.get("/weeks", response_model=WeeksOut)
+def watchlist_weeks(db: Session = Depends(get_db)):
+    return watchlist_ledger.list_weeks(db)
+
+
+def _session_day(now: datetime | None = None) -> str:
+    """The trading day a live quote belongs to: today in New York from the
+    09:30 open, the day before until then (the quote is still the last close),
+    and the Friday before on a weekend (holidays are not modelled). Display only."""
+    from zoneinfo import ZoneInfo
+
+    now = now or datetime.now(ZoneInfo("America/New_York"))
+    day = now.date()
+    if (now.hour, now.minute) < (9, 30):
+        day -= timedelta(days=1)
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day.isoformat()
+
+
 @router.get("/best-gains", response_model=Dict[str, BestGainsOut])
-def watchlist_best_gains(db: Session = Depends(get_db)):
-    return best_gains.for_watches(watchlist_ledger.active_watches(db))
+def watchlist_best_gains(db: Session = Depends(get_db), week: WeekParam = None):
+    return best_gains.for_watches(watchlist_ledger.active_watches(db, week), _session_day())
 
 
 @router.get("/review", response_model=ReviewResponse)

@@ -145,6 +145,59 @@ def test_a_crashing_rs_rating_pass_costs_the_ratings_not_the_scan(monkeypatch):
     assert list(results_df["Ticker"]) == ["AAA"]
 
 
+def _one_fire_scan(monkeypatch):
+    dates = pd.date_range("2026-01-01", periods=3, freq="B")
+    panel = pd.concat(
+        {"AAA": pd.DataFrame({"Close": [1.0, 2.0, 3.0], "Volume": [1, 1, 1]}, index=dates)},
+        axis=1,
+    )
+
+    class FakeProvider:
+        def fetch(self, tickers, universe=None):
+            return panel
+
+    monkeypatch.setattr(screener_module, "get_tickers", lambda *a, **k: ["AAA"])
+    monkeypatch.setattr(screener_module, "get_provider", lambda: FakeProvider())
+    monkeypatch.setattr(
+        screener_module, "get_market_context",
+        lambda data, frames, *a, **k: {"spy_6m_return": 0.0, "breadth_pct": 1.0})
+    monkeypatch.setattr(
+        screener_module, "_evaluate_frames",
+        lambda frames, spy, breadth, near_miss_sink=None, rescue_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
+    )
+    monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
+
+
+def test_the_us_stocks_scan_carries_the_leadership_read(monkeypatch):
+    import core.fundamentals.industry as industry
+    import core.regime.scan_context as scan_context
+
+    _one_fire_scan(monkeypatch)
+    monkeypatch.setattr(scan_context, "attach_rs_ratings",
+                        lambda results, frames: {"AAA": 90.0, "BBB": 50.0, "CCC": 10.0})
+    monkeypatch.setattr(industry, "load_cache", lambda path: {
+        t: {"sector": "Technology", "industry": "Semis"} for t in ("AAA", "BBB", "CCC")})
+    _, _, _, market_context = screener_module.run_screener()
+    assert market_context["leadership"]["stocks"]["AAA"] == {"group": "Semis", "rs": 90.0, "place": 1, "of": 3}
+    assert market_context["leadership"]["groups"]["Semis"]["rank"] == 1
+
+
+def test_a_crashing_leadership_read_costs_the_read_not_the_scan(monkeypatch):
+    import core.regime.leadership as leadership
+    import core.regime.scan_context as scan_context
+
+    _one_fire_scan(monkeypatch)
+    monkeypatch.setattr(scan_context, "attach_rs_ratings", lambda results, frames: {"AAA": 90.0})
+
+    def crash(ratings, cache):
+        raise RuntimeError("leadership blew up")
+
+    monkeypatch.setattr(leadership, "read_leadership", crash)
+    results_df, _, _, market_context = screener_module.run_screener()
+    assert list(results_df["Ticker"]) == ["AAA"]
+    assert "leadership" not in market_context
+
+
 def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
     dates = pd.date_range("2026-01-01", periods=3, freq="B")
     panel = pd.concat(

@@ -131,12 +131,17 @@ def get_screener_summary(
         ticker: {k: v for k, v in (data or {}).items() if k not in heavy}
         for ticker, data in chart_data.items()
     }
+    # The leadership read places every stock the scan rated: the Watchlist reads
+    # it off the full payload, and no light poller needs it.
+    market_context = payload.get("market_context")
+    if isinstance(market_context, dict) and "leadership" in market_context:
+        market_context = {k: v for k, v in market_context.items() if k != "leadership"}
     return {
         "universe": uni.key,
         "status": status,
         "scanned_at": scanned_at,
         "ordered_tickers": payload.get("ordered_tickers", []),
-        "market_context": payload.get("market_context"),
+        "market_context": market_context,
         "setups": setups,
     }
 

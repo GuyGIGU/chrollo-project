@@ -9,7 +9,7 @@ from app.migrations.additive import (
     _apply_model_add_columns, model_add_column_migrations,
 )
 from app.migrations.archive import migrate_universe_type, migrate_near_miss_framing_identity
-from app.migrations.watchlist import migrate_watchlist_ledger
+from app.migrations.watchlist import migrate_watchlist_ledger, migrate_watchlist_weeks
 from app.migrations.calibration import migrate_calibration_event_types
 from app.reconciliation import _reconcile_orphaned_runs
 
@@ -23,6 +23,9 @@ def initialize_database() -> None:
     migrate_universe_type(engine)
     # Non-additive one-off: watchlist ticker-PK -> dated event ledger (rebuild).
     migrate_watchlist_ledger(engine)
+    # Additive + backfill: the weekly list's columns, each save's week, and the
+    # one-active-per-ticker-per-week index (after the ledger rebuild).
+    migrate_watchlist_weeks(engine)
     # Non-additive one-off: take the rail PRICES out of the near-miss episode
     # identity (rebuild + dedupe to the date-anchored framing key).
     migrate_near_miss_framing_identity(engine)

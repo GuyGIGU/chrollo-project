@@ -24,7 +24,10 @@ import { livePriceStatus } from '../model/livePriceStatus.js';
 //   'idle'    — watchlist loaded and empty: there is nothing to price, ANSWERED
 //   'ready'   — quotes landed
 //   'error'   — the watchlist or the quote poll failed
-export default function useLivePrices() {
+//
+// `extraKey` (comma-joined tickers) prices names off this week's list too: the
+// Watchlist page's past week, whose % Diff since add still reads today's quote.
+export default function useLivePrices(extraKey = '') {
   const { watchlist } = useWatchlist();
   const watchlistStatus = useSyncExternalStore(subscribeWatchlistStore, getWatchlistStatus);
   const [prices, setPrices] = useState({});
@@ -32,7 +35,8 @@ export default function useLivePrices() {
   const [fetchStatus, setFetchStatus] = useState('loading');
   const requestId = useRef(0);
 
-  const tickers = useMemo(() => [...watchlist].sort(), [watchlist]);
+  const tickers = useMemo(() => [...new Set([...watchlist, ...extraKey.split(',').filter(Boolean)])].sort(),
+    [watchlist, extraKey]);
   const tickersKey = tickers.join(',');
 
   const fetchPrices = useCallback(() => {

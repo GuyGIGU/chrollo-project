@@ -628,6 +628,24 @@ def test_screener_summary_strips_heavy_cells_and_keeps_narrative_scalars(monkeyp
     assert row["score"] == 91.0
 
 
+def test_screener_summary_leaves_the_leadership_read_off_the_light_wire(monkeypatch):
+    """The leadership read places every stock the scan rated (~0.3 MB): the
+    Watchlist reads it off the full payload, Home's 5-minute poll never needs it."""
+    from types import SimpleNamespace
+
+    from domains.screener import router as sr
+
+    payload = {"chart_data": {}, "ordered_tickers": [],
+               "market_context": {"breadth_pct": 0.3, "leadership": {"stocks": {"AAA": {}}}}}
+    monkeypatch.setattr(
+        sr, "_artifact_state",
+        lambda universe: (SimpleNamespace(key="us-stocks"), "unused.json", "ready", "t"))
+    monkeypatch.setattr(sr, "read_screener_data", lambda path: payload)
+
+    assert sr.get_screener_summary()["market_context"] == {"breadth_pct": 0.3}
+    assert payload["market_context"]["leadership"]  # the cached payload itself is untouched
+
+
 def test_screener_data_serves_last_good_payload_on_bad_json(tmp_path):
     path = tmp_path / "screener_data.json"
     screener_data.invalidate_screener_cache()

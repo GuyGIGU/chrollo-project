@@ -26,6 +26,7 @@ const store = {
 // must not clobber the optimistic state (review finding 2026-08-12).
 let mutationEpoch = 0;
 const pendingToggles = new Map(); // ticker -> its write in flight
+const pendingMarks = new Map(); // ticker -> its last mark write
 
 function emit() {
   for (const listener of store.listeners) listener();
@@ -66,7 +67,7 @@ function setStatus(status) {
 export function fetchWatchlist() {
   if (store.inflight) return store.inflight;
   const epochAtIssue = mutationEpoch;
-  const hadPendingToggle = pendingToggles.size > 0;
+  const hadPendingWrite = pendingToggles.size > 0 || pendingMarks.size > 0;
   if (store.status !== 'ready') setStatus('loading');
   const request = fetch(`${API_BASE}/watchlist/`)
     .then((response) => {
@@ -74,9 +75,9 @@ export function fetchWatchlist() {
       return response.json();
     })
     .then((items) => {
-      // A toggle happened while this GET was in flight: its read-time
-      // snapshot predates the write — drop it, the toggle path reconciles.
-      if (epochAtIssue === mutationEpoch && !hadPendingToggle) setRecords(items);
+      // A toggle or mark happened while this GET was in flight: its read-time
+      // snapshot predates the write — drop it, the write's own answer reconciles.
+      if (epochAtIssue === mutationEpoch && !hadPendingWrite) setRecords(items);
       setStatus('ready');
     })
     .catch((error) => {
@@ -150,7 +151,7 @@ function sendToggle(ticker, saveContext) {
     // No id until the server answers — the row's shape must still match a real
     // one, so surfaces keying off `id` see "not yet" instead of undefined.
     id: null, ticker, created_at: null, save_date: null, pinned: false, pin_scan_date: null,
-    pin_universe_key: null,
+    pin_universe_key: null, side: saveContext?.side || 'L', ready: 0,
   };
   setRecords([optimistic, ...store.records]);
   const hasContext = Boolean(saveContext && saveContext.universe);
@@ -163,6 +164,7 @@ function sendToggle(ticker, saveContext) {
       ? JSON.stringify({
           universe: saveContext.universe,
           scan_date: saveContext.scanDate ?? null,
+          ...(saveContext.side ? { side: saveContext.side } : {}),
         })
       : undefined,
   })
@@ -181,4 +183,35 @@ function sendToggle(ticker, saveContext) {
         (r) => !(r.ticker === ticker && r.save_date == null)));
       toast(`${ticker} was not saved to the watchlist. Try the star again.`, { tone: 'danger' });
     });
+}
+
+// This week's hand marks: `patch` = { side: 'L'|'S' } and/or { ready: 0|1|2 }.
+// Optimistic like the star; a failed write puts the previous marks back.
+// Writes serialize per ticker, so quick clicks (✓ then ✓✓) land in order, and
+// a mark on a name whose star is still saving waits for the row to exist.
+export function markWatch(ticker, patch) {
+  const before = store.records.find((r) => r.ticker === ticker);
+  if (!before) return Promise.resolve();
+  mutationEpoch += 1;
+  const swap = (next) => setRecords(store.records.map((r) => (r.ticker === ticker ? next : r)));
+  swap({ ...before, ...patch });
+  const send = () => fetch(`${API_BASE}/watchlist/${encodeURIComponent(ticker)}`, {
+    method: 'PATCH',
+    headers: { ...CLIENT_HEADER, 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+    .then((response) => {
+      if (!response.ok) throw new Error(`watchlist mark ${response.status}`);
+      return response.json();
+    })
+    .then((item) => { if (pendingMarks.get(ticker) === write) swap(item); })
+    .catch((error) => {
+      console.error('Watchlist mark failed, reverting', error);
+      if (store.records.some((r) => r.ticker === ticker)) swap(before);
+      toast(`${ticker}'s mark was not saved. Try again.`, { tone: 'danger' });
+    });
+  const write = Promise.all([pendingMarks.get(ticker), pendingToggles.get(ticker)]).then(send)
+    .finally(() => { if (pendingMarks.get(ticker) === write) pendingMarks.delete(ticker); });
+  pendingMarks.set(ticker, write);
+  return write;
 }

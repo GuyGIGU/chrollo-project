@@ -286,5 +286,13 @@
  * @property {(number|null)} [saved_market_cap]
  * @property {(string|null)} [saved_sector]
  * @property {(string|null)} [saved_industry]
+ * @property {(number|null)} [saved_trigger]
+ * @property {(string|null)} [saved_next_earnings]
+ * @property {(boolean|null)} [saved_earnings_confirmed]
+ * @property {(string|null)} [week_start]
+ * @property {(string|null)} [basis_scan_date]
+ * @property {string} [side]
+ * @property {number} [ready]
+ * @property {(string|null)} [ready_at]
  */
 export {};

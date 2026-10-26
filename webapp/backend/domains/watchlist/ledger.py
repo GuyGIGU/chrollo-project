@@ -19,6 +19,7 @@ import logging
 import math
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -109,28 +110,97 @@ def resolve_pin_and_snapshot(
     return pin, encoded, "pinned"
 
 
+def _artifact_scan_date(universe_key: str) -> str | None:
+    """The scan on screen now: the artifact's own identity, never a clock (EC-37)."""
+    from core.pipeline.universe import resolve_universe
+
+    payload = screener_data.read_screener_data(
+        resolve_universe(universe_key).artifact_path())
+    return (payload.get("scan_identity") or {}).get("scan_date") or None
+
+
+def _week_of_add_day(day) -> str:
+    """The Monday of the week an add on ``day`` trades in: a weekend add
+    belongs to the coming week."""
+    while day.weekday() >= 5:
+        day += timedelta(days=1)
+    return (day - timedelta(days=day.weekday())).isoformat()
+
+
+def trading_week(scan_date: str) -> str:
+    """The week a save made on ``scan_date``'s scan is traded in (the weekly
+    list, operator 24/10/2026). The add day is the first weekday after the
+    scan: a Tuesday scan's saves are Wednesday's adds, and a Friday scan's
+    saves (Friday evening, the weekend) are Monday's, the next week's list.
+    Calendar arithmetic on the scan date only (EC-37). Market holidays are not
+    modelled: only a Friday holiday leaves its weekend's saves in the old week.
+    """
+    from domains.calibration.validation import parse_iso_date
+
+    parsed = parse_iso_date(scan_date)
+    if parsed is None:
+        raise ValueError(f"not a YYYY-MM-DD date: {scan_date!r}")
+    return _week_of_add_day(parsed.date() + timedelta(days=1))
+
+
+def save_week(basis_scan_date: str | None, save_date: str) -> str:
+    """A save's week: from its scan when it has one. A save with no scan
+    identity falls back to its own date as the add day (legacy rows only)."""
+    from domains.calibration.validation import parse_iso_date
+
+    if basis_scan_date:
+        return trading_week(basis_scan_date)
+    return _week_of_add_day(parse_iso_date(save_date).date())
+
+
+def current_week(db: Session, universe_key: str = "us_stocks") -> str | None:
+    """This week's list: the week the latest scan's saves trade in. Without a
+    readable scan, the newest week anything was saved into."""
+    scan_date = _artifact_scan_date(universe_key)
+    if scan_date:
+        return trading_week(scan_date)
+    return db.query(func.max(models.Watchlist.week_start)).scalar()
+
+
+def _active_in_week(db: Session, ticker: str, week: str | None):
+    return (
+        db.query(models.Watchlist)
+        .filter(models.Watchlist.ticker == ticker,
+                models.Watchlist.week_start == week,
+                models.Watchlist.unstarred_at.is_(None))
+        .first()
+    )
+
+
 def save_watch(
-    db: Session, ticker: str, universe_key: str, displayed_scan_date: str | None
+    db: Session, ticker: str, universe_key: str, displayed_scan_date: str | None,
+    side: str | None = None,
 ) -> tuple[models.Watchlist, str]:
     """The dated save event. Returns ``(row, outcome)`` with outcome in
     'already_active' | 'reactivated' | 'created'.
 
-    Idempotency ladder: an ACTIVE row anywhere wins untouched (starring a
-    starred name is a no-op); a same-day unstarred row reactivates in place
-    (its original pin stays — the ledger records what the FIRST save of the
-    day saw); otherwise a new event row is written with the server-resolved
-    pin + snapshot. A concurrent double-POST converges via the IntegrityError
-    catch instead of surfacing a 500 (threadpool routers).
+    The week is the list on screen (``current_week``: the US-stocks scan's),
+    whatever universe the name came from, so a save always lands on the list
+    it was added to; the basis is the scan of the name's own universe.
+    ``side`` None keeps the side a reactivated row had (a new row is long).
+
+    Idempotency ladder, within the save's week: an ACTIVE row of this week
+    wins untouched (starring a starred name is a no-op); a same-day row
+    reactivates in place (its original pin stays — the ledger records what the
+    FIRST save of the day saw; a side sent with the save applies) unless it
+    belongs to another week, which happens
+    when a Friday daytime save is saved again after Friday's scan: that day's
+    one row then moves to this week's list with this save's pin. Otherwise a
+    new event row is written with the server-resolved pin + snapshot. A
+    concurrent double-POST converges via the IntegrityError catch instead of
+    surfacing a 500 (threadpool routers).
     """
     now = _utc_now()
     save_date = now.date().isoformat()
+    basis = _artifact_scan_date(universe_key)
+    week = current_week(db) or save_week(basis, save_date)
 
-    active = (
-        db.query(models.Watchlist)
-        .filter(models.Watchlist.ticker == ticker,
-                models.Watchlist.unstarred_at.is_(None))
-        .first()
-    )
+    active = _active_in_week(db, ticker, week)
     if active is not None:
         return active, "already_active"
 
@@ -140,8 +210,10 @@ def save_watch(
                 models.Watchlist.save_date == save_date)
         .first()
     )
-    if same_day is not None:
+    if same_day is not None and same_day.week_start == week:
         same_day.unstarred_at = None
+        if side is not None:
+            same_day.side = side
         db.commit()
         db.refresh(same_day)
         log.info("watchlist re-star %s reactivated the %s save", ticker, save_date)
@@ -149,30 +221,32 @@ def save_watch(
 
     pin, snapshot_json, reason = resolve_pin_and_snapshot(
         ticker, universe_key, displayed_scan_date)
-    row = models.Watchlist(
-        ticker=ticker,
-        save_date=save_date,
-        saved_at=now,
-        unstarred_at=None,
-        origin="user",
-        snapshot_json=snapshot_json,
+    fields = {
+        "saved_at": now, "unstarred_at": None, "snapshot_json": snapshot_json,
+        "basis_scan_date": basis, "week_start": week, "side": side or "L",
+        "ready": 0, "ready_at": None,
         **(pin or {
             "pin_scan_date": None, "pin_universe_type": None,
             "pin_setup_type": None, "pin_engine_config_version": None,
         }),
-    )
+    }
+    if same_day is not None:
+        for name, value in fields.items():
+            setattr(same_day, name, value)
+        db.commit()
+        db.refresh(same_day)
+        log.info("watchlist save %s moved its %s save to the week of %s",
+                 ticker, save_date, week)
+        return same_day, "reactivated"
+
+    row = models.Watchlist(ticker=ticker, save_date=save_date, origin="user", **fields)
     db.add(row)
     try:
         db.commit()
     except IntegrityError:
         # Concurrent double-POST of the same key: converge on the winner.
         db.rollback()
-        existing = (
-            db.query(models.Watchlist)
-            .filter(models.Watchlist.ticker == ticker,
-                    models.Watchlist.unstarred_at.is_(None))
-            .first()
-        ) or (
+        existing = _active_in_week(db, ticker, week) or (
             db.query(models.Watchlist)
             .filter(models.Watchlist.ticker == ticker,
                     models.Watchlist.save_date == save_date)
@@ -188,13 +262,8 @@ def save_watch(
 
 
 def unstar_watch(db: Session, ticker: str) -> models.Watchlist | None:
-    """Deactivate the active row, keeping history. None when nothing is active."""
-    active = (
-        db.query(models.Watchlist)
-        .filter(models.Watchlist.ticker == ticker,
-                models.Watchlist.unstarred_at.is_(None))
-        .first()
-    )
+    """Take the name off this week's list, keeping history. None when it is not on it."""
+    active = _active_in_week(db, ticker, current_week(db))
     if active is None:
         return None
     active.unstarred_at = _utc_now()
@@ -202,13 +271,47 @@ def unstar_watch(db: Session, ticker: str) -> models.Watchlist | None:
     return active
 
 
-def active_watches(db: Session) -> list[models.Watchlist]:
+def mark_watch(db: Session, ticker: str, side: str | None = None,
+               ready: int | None = None) -> models.Watchlist | None:
+    """Set this week's L/S side and its ✓/✓✓ mark. None when the name is not
+    on this week's list. ``ready_at`` stamps each mark change, for display and
+    the later read of whether ✓✓ names pay more than ✓ names."""
+    row = _active_in_week(db, ticker, current_week(db))
+    if row is None:
+        return None
+    if side is not None:
+        row.side = side
+    if ready is not None and ready != row.ready:
+        row.ready = ready
+        row.ready_at = _utc_now()
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def active_watches(db: Session, week: str | None = None) -> list[models.Watchlist]:
+    """One week's list, newest save first: this week's by default. A past
+    week's active rows are that week's list as it ended."""
+    week = week or current_week(db)
+    if week is None:
+        return []
     return (
         db.query(models.Watchlist)
-        .filter(models.Watchlist.unstarred_at.is_(None))
+        .filter(models.Watchlist.unstarred_at.is_(None),
+                models.Watchlist.week_start == week)
         .order_by(models.Watchlist.saved_at.desc())
         .all()
     )
+
+
+def list_weeks(db: Session) -> dict:
+    """This week and every week with a name on its list, newest first."""
+    current = current_week(db)
+    saved = {week for (week,) in db.query(models.Watchlist.week_start)
+             .filter(models.Watchlist.unstarred_at.is_(None),
+                     models.Watchlist.week_start.isnot(None)).distinct()}
+    return {"current": current,
+            "weeks": sorted(saved | ({current} if current else set()), reverse=True)}
 
 
 def iso_week_monday(date_str: str) -> str:
@@ -270,7 +373,8 @@ def saved_display_fields(snapshot_json: str | None) -> dict:
     facts, separate from the current scan and the live quote.
     """
     fields = dict.fromkeys(("saved_setup", "saved_price", "saved_market_cap",
-                            "saved_sector", "saved_industry"))
+                            "saved_sector", "saved_industry", "saved_trigger",
+                            "saved_next_earnings", "saved_earnings_confirmed"))
     if not snapshot_json:
         return fields
     try:
@@ -283,7 +387,8 @@ def saved_display_fields(snapshot_json: str | None) -> dict:
     if not isinstance(entry, dict):
         return fields
     fields["saved_setup"] = _coerce_str(entry.get("setup"))
-    for target, key in (("saved_price", "price"), ("saved_market_cap", "market_cap")):
+    for target, key in (("saved_price", "price"), ("saved_market_cap", "market_cap"),
+                        ("saved_trigger", "trigger")):
         value = _coerce_number(entry.get(key))
         fields[target] = value if value is not None and math.isfinite(value) else None
     sheet = entry.get("fund_sheet")
@@ -291,6 +396,11 @@ def saved_display_fields(snapshot_json: str | None) -> dict:
     if isinstance(facts, dict):
         fields["saved_sector"] = _coerce_str(facts.get("sector"))
         fields["saved_industry"] = _coerce_str(facts.get("industry"))
+    earnings = sheet.get("next_earnings") if isinstance(sheet, dict) else None
+    if isinstance(earnings, dict):
+        fields["saved_next_earnings"] = _coerce_str(earnings.get("day"))
+        confirmed = earnings.get("confirmed")
+        fields["saved_earnings_confirmed"] = confirmed if isinstance(confirmed, bool) else None
     return fields
 
 

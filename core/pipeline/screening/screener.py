@@ -44,7 +44,7 @@ from core.pipeline.market_data.market_data_health import (
 )
 from core.pipeline.telemetry.scan_metrics import ScanTimer, format_scan_metrics, persist_scan_metrics
 from core.pipeline.universe.tickers import get_cached_tickers
-from core.pipeline.universe.descriptor import resolve_universe
+from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE, resolve_universe
 
 __all__ = ["CachedMarketDataError", "run_screener", "_evaluate_ticker", "apply_baseline_filters"]
 
@@ -439,10 +439,26 @@ def run_screener(mode: str = "download",
     # changes a fire, Score or Tier. Like the fundamentals post-pass above, the
     # passenger never owns the scan night: a crash costs the ratings, not the scan.
     from core.regime.scan_context import attach_rs_ratings
+    ratings = {}
     try:
-        attach_rs_ratings(results, ticker_frames)
+        ratings = attach_rs_ratings(results, ticker_frames) or {}
     except Exception as e:  # noqa: BLE001 — the passenger never owns the job
         print(f"  [rs-rating pass errored] {type(e).__name__}: {e}", file=sys.stderr)
+
+    # The same ratings grouped by industry and sector: which groups and sectors
+    # lead, and each stock's place in its group (his ask, 26/10/2026). US stocks
+    # only (the industry cache is theirs); display only, and a crash costs the
+    # read, never the scan.
+    if ratings and uni.universe_type == DEFAULT_UNIVERSE_TYPE:
+        from core.fundamentals import industry
+        from core.regime.leadership import read_leadership
+        try:
+            leadership = read_leadership(ratings, industry.load_cache(industry.cache_path()))
+        except Exception as e:  # noqa: BLE001 — the passenger never owns the job
+            print(f"  [leadership read errored] {type(e).__name__}: {e}", file=sys.stderr)
+            leadership = {}
+        if leadership:
+            market_context["leadership"] = leadership
 
     print()
 

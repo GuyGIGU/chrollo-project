@@ -1,5 +1,40 @@
 # Current state
 
+**2026-10-24 The weekly Watchlist (branch `claude/weekly-watchlist`, not merged; deployment
+pending):** the Watchlist tab shows one week's list, in the operator's weekly sheet's
+column order: Type (L/S), Ticker, Ready, Tier (the 0-100 chart score on hover), Change %,
+% Diff since add, % Best 30d, Cap $B, 52W distance, Sector, Industry, Added. A save
+belongs to the week of its add day, the first weekday after the scan on screen, so
+saves made after Friday's scan (Friday evening, the weekend) open next week's list.
+The week comes from the scan date, never a clock (EC-37). Nothing is deleted at the
+roll: a past week's list stays as it ended, one click back (‹ ›), with all six
+best-gain windows and a Carry over button (a fresh save into this week). Any ticker
+can be typed in as L or S; one that is not in the scan still measures from the scan on
+screen (`basis_scan_date`). His V/VV marks are the Ready column: ✓ = a valid LPS to
+take on the trigger, ✓✓ = a top candidate this week. Click to cycle; the default sort
+puts ✓✓ first, then ✓, longs before shorts. Marks belong to the week's save; a carried-over
+name starts blank, and `ready_at` stamps each change so we can later check whether ✓✓
+pays more than ✓. The ♥ Liked column left the Watchlist (it stays on the screener).
+Change % divides the live quote by the close before the quote's trading day, and %
+Diff since add by the high of the day before the add (the best gains' basis). The
+52-week distance is the engine's own, taken at the last close. Schema: `side`, `ready`,
+`ready_at`, `basis_scan_date`, `week_start` on `watchlist`, plus one active save per
+ticker per week (`migrate_watchlist_weeks`, which backfills every row's week). GET
+`/watchlist/` is this week's list (`?week=` for a past one), plus `GET /watchlist/weeks` and
+`PATCH /watchlist/{ticker}`. Home's watchlist surfaces follow this week's list too. Not
+built: the sheet's R column, Source and Opt.
+
+**2026-10-26 additions on the same branch:** To trigger (the move the quote still needs,
+Triggered once over it; tonight's trigger, else the one the save quoted), Earnings (the
+next report, amber when it falls in the shown week, `?` when estimated), a Finviz link
+button (the shown tickers' Finviz charts, copied to share), and leadership: the Sector
+and Group columns carry their rank by the median RS rating of their stocks (the top
+quarter reads as leading) and RS · in group gives the stock's RS and its place in its
+group (#1 = the group's leader). The scan writes the read as `market_context.leadership`
+(US stocks; `core/regime/leadership.py`), so the leadership columns stay empty until the
+first scan after deploy. A save's week is always the US-stocks scan's, whatever universe
+it came from.
+
 **2026-10-24 Watchlist best-gain columns (merged into main; deployment pending):** the
 Watchlist tab gains the operator's sheet's six "% Best Diff" columns: the best gain since
 the add, and within the first 60, 30, 14, 7 and 2 days after it. The basis is the high of

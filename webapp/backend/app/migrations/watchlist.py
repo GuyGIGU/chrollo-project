@@ -115,3 +115,54 @@ def migrate_watchlist_ledger(bind) -> bool:
         raw.close()
 
 
+# The weekly list (operator, 24/10/2026). Column CHECKs ride on ADD COLUMN, so
+# the live DB gets the side/ready vocabularies without a rebuild.
+_WEEK_COLUMNS = (
+    ("basis_scan_date", "ALTER TABLE watchlist ADD COLUMN basis_scan_date VARCHAR"),
+    ("week_start", "ALTER TABLE watchlist ADD COLUMN week_start VARCHAR"),
+    ("side", "ALTER TABLE watchlist ADD COLUMN side VARCHAR NOT NULL DEFAULT 'L' "
+             "CHECK (side IN ('L', 'S'))"),
+    ("ready", "ALTER TABLE watchlist ADD COLUMN ready INTEGER NOT NULL DEFAULT 0 "
+              "CHECK (ready IN (0, 1, 2))"),
+    ("ready_at", "ALTER TABLE watchlist ADD COLUMN ready_at DATETIME"),
+)
+
+
+def migrate_watchlist_weeks(bind) -> int:
+    """Give every save its week: add the weekly-list columns, backfill each
+    row's week from its pinned scan (its own date when unpinned), and swap the
+    one-active-per-ticker index for one-active-per-ticker-per-week, so last
+    week's list keeps a name that is saved again this week.
+
+    Idempotent: adds only missing columns, fills only rows with no week, and
+    the index swap is IF EXISTS / IF NOT EXISTS. One transaction. Returns the
+    number of rows given a week.
+    """
+    from domains.watchlist.ledger import save_week
+
+    inspector = inspect(bind)
+    if "watchlist" not in inspector.get_table_names():
+        return 0
+    existing = {col["name"] for col in inspector.get_columns("watchlist")}
+    with bind.begin() as conn:
+        for name, statement in _WEEK_COLUMNS:
+            if name not in existing:
+                conn.execute(text(statement))
+        rows = conn.execute(text(
+            "SELECT id, pin_scan_date, save_date FROM watchlist "
+            "WHERE week_start IS NULL")).fetchall()
+        for row_id, pin_scan_date, save_date in rows:
+            conn.execute(text(
+                "UPDATE watchlist SET week_start = :week, "
+                "basis_scan_date = COALESCE(basis_scan_date, :basis) WHERE id = :id"),
+                {"week": save_week(pin_scan_date, save_date),
+                 "basis": pin_scan_date, "id": row_id})
+        conn.execute(text("DROP INDEX IF EXISTS ux_watchlist_active_ticker"))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_watchlist_active_ticker_week "
+            "ON watchlist (ticker, week_start) WHERE unstarred_at IS NULL"))
+    if rows:
+        _log.info("watchlist weeks: gave %d saves their week", len(rows))
+    return len(rows)
+
+

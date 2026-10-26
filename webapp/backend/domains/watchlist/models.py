@@ -21,8 +21,9 @@ class Watchlist(Base):
     """Dated watchlist save events — one row per star; un-star keeps history.
 
     Event-ledger grain (Finviz plan Task 5): the ACTIVE set is the subset with
-    ``unstarred_at IS NULL``, held to at most one row per ticker by a partial
-    unique index; un-starring stamps ``unstarred_at`` instead of deleting, so
+    ``unstarred_at IS NULL``, held to at most one row per ticker per week by a
+    partial unique index (the weekly list, 24/10/2026: a past week's active
+    rows are that week's list as it ended); un-starring stamps ``unstarred_at`` instead of deleting, so
     history survives as a database fact. The pin quadruple is copied VERBATIM
     from the screener artifact at save time — all four or none (a half-pin
     cannot exist; the all-NULL pin is the honest "starred without a setup"
@@ -45,9 +46,19 @@ class Watchlist(Base):
     pin_setup_type = Column(String, nullable=True)
     pin_engine_config_version = Column(String, nullable=True)
     snapshot_json = Column(Text, nullable=True)
+    # The weekly list (operator, 24/10/2026). basis_scan_date = the scan on
+    # screen at the save (the day before the add, pinned or not); week_start =
+    # the Monday of the add day's week. Both come from scan identity (EC-37).
+    basis_scan_date = Column(String, nullable=True)
+    week_start = Column(String, nullable=True)
+    side = Column(String, nullable=False, default="L", server_default="L")  # 'L' | 'S'
+    ready = Column(Integer, nullable=False, default=0, server_default="0")  # 0 | 1 ✓ | 2 ✓✓
+    ready_at = Column(DateTime, nullable=True)     # audit stamp of the last mark
 
     __table_args__ = (
         UniqueConstraint("ticker", "save_date", name="uq_watchlist_save_event"),
+        CheckConstraint("side IN ('L', 'S')", name="ck_watchlist_side"),
+        CheckConstraint("ready IN (0, 1, 2)", name="ck_watchlist_ready"),
         # EC-19: the closed origin vocabulary is enforced, not just documented.
         CheckConstraint("origin IN ('user', 'legacy')",
                         name="ck_watchlist_origin"),
@@ -67,9 +78,11 @@ class Watchlist(Base):
             "AND length(snapshot_json) <= 262144)",
             name="ck_watchlist_snapshot",
         ),
+        # One active save per ticker per WEEK: last week's list stays as it
+        # ended while the same name is saved again into this week's.
         Index(
-            "ux_watchlist_active_ticker",
-            "ticker",
+            "ux_watchlist_active_ticker_week",
+            "ticker", "week_start",
             unique=True,
             sqlite_where=text("unstarred_at IS NULL"),
         ),

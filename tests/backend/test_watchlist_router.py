@@ -79,9 +79,13 @@ def artifact(monkeypatch):
 
 
 def _watch(db, ticker="NVDA", save_date="2026-08-12", saved_at=None,
-           unstarred_at=None, pin=None, snapshot_json=None, origin="user"):
+           unstarred_at=None, pin=None, snapshot_json=None, origin="user",
+           week_start=None, side="L", ready=0):
     pin = pin or {}
     row = models.Watchlist(
+        # The week the migration's backfill gives a row like this one.
+        week_start=week_start or watchlist_ledger.save_week(pin.get("scan_date"), save_date),
+        basis_scan_date=pin.get("scan_date"), side=side, ready=ready,
         ticker=ticker, save_date=save_date,
         saved_at=saved_at or datetime(2026, 8, 12, 6, 0, 0),
         unstarred_at=unstarred_at, origin=origin,
@@ -278,8 +282,9 @@ def test_get_carries_the_active_save_id_for_a_one_hop_replay(db, artifact):
 def test_active_list_quotes_original_snapshot_facts_after_scan_moves(db, artifact):
     payload = _artifact()
     payload["chart_data"]["NVDA"].update({
-        "price": 120.5, "market_cap": 3_500_000_000,
-        "fund_sheet": {"snapshot": {"sector": "Technology", "industry": "Semiconductors"}},
+        "price": 120.5, "market_cap": 3_500_000_000, "trigger": 124.2,
+        "fund_sheet": {"snapshot": {"sector": "Technology", "industry": "Semiconductors"},
+                       "next_earnings": {"day": "2026-08-27", "confirmed": True}},
     })
     artifact(payload)
     item = watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(
@@ -292,6 +297,9 @@ def test_active_list_quotes_original_snapshot_facts_after_scan_moves(db, artifac
     assert saved.saved_market_cap == 3_500_000_000
     assert saved.saved_sector == "Technology"
     assert saved.saved_industry == "Semiconductors"
+    # The plan as saved: tonight's scan dropped the name, its trigger and earnings stay.
+    assert (saved.saved_trigger, saved.saved_next_earnings, saved.saved_earnings_confirmed) == (
+        124.2, "2026-08-27", True)
 
 
 @pytest.mark.parametrize("snapshot", [None, "broken", "[]", '{"snapshot_version": 2, "entry": {"price": 99}}',
@@ -303,10 +311,12 @@ def test_saved_display_facts_refuse_missing_or_unsupported_snapshots(snapshot):
 def test_saved_display_facts_degrade_each_bad_number_without_losing_text():
     fields = watchlist_ledger.saved_display_fields(json.dumps({
         "snapshot_version": 1, "entry": {"price": float("inf"), "market_cap": "bad", "setup": "LPS",
-        "fund_sheet": {"snapshot": {"sector": ["bad"], "industry": "Software"}}},
+        "trigger": "bad", "fund_sheet": {"snapshot": {"sector": ["bad"], "industry": "Software"},
+                                         "next_earnings": {"day": "2026-11-05", "confirmed": "yes"}}},
     }))
     assert fields == {"saved_price": None, "saved_market_cap": None, "saved_setup": "LPS",
-                      "saved_sector": None, "saved_industry": "Software"}
+                      "saved_sector": None, "saved_industry": "Software", "saved_trigger": None,
+                      "saved_next_earnings": "2026-11-05", "saved_earnings_confirmed": None}
 
 
 def test_bad_ticker_refused_with_named_class(db, artifact):
@@ -362,6 +372,115 @@ def test_write_routes_declare_the_cross_app_guard():
         if route.methods & {"POST", "PUT", "DELETE", "PATCH"}:
             deps = [d.call for d in route.dependant.dependencies]
             assert require_same_app in deps, route.path
+
+
+# ── The weekly list (operator, 24/10/2026) ───────────────────────────────────
+
+
+def test_a_save_trades_in_the_week_after_its_scan():
+    assert watchlist_ledger.trading_week("2026-10-20") == "2026-10-19"  # Tue scan: Wed add
+    assert watchlist_ledger.trading_week("2026-10-22") == "2026-10-19"  # Thu scan: Fri add
+    assert watchlist_ledger.trading_week("2026-10-23") == "2026-10-26"  # Fri scan: Mon add
+    assert watchlist_ledger.save_week(None, "2026-10-24") == "2026-10-26"  # a weekend add
+    assert watchlist_ledger.save_week(None, "2026-10-21") == "2026-10-19"
+    with pytest.raises(ValueError):
+        watchlist_ledger.trading_week("2026-8-11")
+
+
+def test_fridays_scan_opens_next_weeks_list_and_last_week_stays_one_click_back(db, artifact):
+    watchlist.add_to_watchlist("AAA", watchlist.SaveIn(universe="us_stocks", scan_date="2026-08-11"), db)
+    artifact(_artifact(scan_date="2026-08-14", tickers=("NVDA",)))  # Friday's scan lands
+    assert watchlist.list_watchlist(db) == []  # the list reset
+    item = watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(
+        universe="us_stocks", scan_date="2026-08-14", side="S"), db)
+    assert (item.week_start, item.basis_scan_date, item.side, item.ready) == ("2026-08-17", "2026-08-14", "S", 0)
+    assert [i.ticker for i in watchlist.list_watchlist(db)] == ["NVDA"]
+    assert [i.ticker for i in watchlist.list_watchlist(db, week="2026-08-10")] == ["AAA"]
+    assert watchlist.watchlist_weeks(db) == {"current": "2026-08-17", "weeks": ["2026-08-17", "2026-08-10"]}
+
+
+def test_saving_last_weeks_name_again_keeps_last_weeks_list_whole(db, artifact):
+    old = _watch(db, ticker="NVDA", save_date="2026-08-05", pin=dict(FULL_PIN, scan_date="2026-08-04"),
+                 side="S", ready=2)
+    item = watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(universe="us_stocks", scan_date="2026-08-11"), db)
+    assert item.id != old.id
+    assert (item.week_start, item.side, item.ready) == ("2026-08-10", "L", 0)  # judged again
+    db.refresh(old)
+    assert (old.unstarred_at, old.week_start, old.ready) == (None, "2026-08-03", 2)
+    assert [i.id for i in watchlist.list_watchlist(db, week="2026-08-03")] == [old.id]
+
+
+def test_a_same_day_save_into_a_new_week_moves_that_days_row(db, artifact):
+    """Saved Friday daytime on Thursday's scan, saved again after Friday's scan the
+    same day: UNIQUE(ticker, save_date) allows one row, so it moves to next week."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    row = _watch(db, ticker="NVDA", save_date=today, week_start="2026-08-10",
+                 pin=dict(FULL_PIN, scan_date="2026-08-13"))
+    artifact(_artifact(scan_date="2026-08-14"))
+    item = watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(universe="us_stocks", scan_date="2026-08-14"), db)
+    assert item.id == row.id
+    assert (item.week_start, item.pin_scan_date, item.basis_scan_date) == ("2026-08-17", "2026-08-14", "2026-08-14")
+    assert db.query(models.Watchlist).count() == 1
+
+
+def test_a_typed_in_ticker_keeps_the_scan_on_screen_as_its_basis(db, artifact):
+    item = watchlist.add_to_watchlist("PLTR", watchlist.SaveIn(
+        universe="us_stocks", scan_date="2026-08-11", side="S"), db)
+    assert (item.pinned, item.basis_scan_date, item.week_start, item.side) == (False, "2026-08-11", "2026-08-10", "S")
+
+
+def test_a_name_added_back_the_same_day_takes_the_side_chosen(db, artifact):
+    """Removed, then typed back in as a short: the side he picked, not the old row's.
+    A save that names no side (the screener star, Undo) keeps the side it had."""
+    watchlist.add_to_watchlist("NVDA", None, db)
+    watchlist.remove_from_watchlist("NVDA", db)
+    item = watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(universe="us_stocks", side="S"), db)
+    assert item.side == "S"
+    watchlist.remove_from_watchlist("NVDA", db)
+    item = watchlist.add_to_watchlist("NVDA", watchlist.SaveIn(universe="us_stocks"), db)
+    assert item.side == "S"
+    assert db.query(models.Watchlist).count() == 1
+
+
+def test_a_save_from_another_universe_lands_on_the_list_on_screen(db, monkeypatch):
+    """The list's week is the US-stocks scan's: an ETF artifact a day behind
+    (its scan failed Friday) must not drop the save into last week's list."""
+    stocks = _artifact(scan_date="2026-08-14", tickers=("NVDA",))
+    sectors = _artifact(scan_date="2026-08-13", tickers=("XLE",))
+    monkeypatch.setattr(watchlist_ledger.screener_data, "read_screener_data",
+                        lambda path: sectors if "us_sectors" in str(path) else stocks)
+    item = watchlist.add_to_watchlist("XLE", watchlist.SaveIn(universe="us_sectors"), db)
+    assert (item.week_start, item.basis_scan_date) == ("2026-08-17", "2026-08-13")
+    assert [i.ticker for i in watchlist.list_watchlist(db)] == ["XLE"]
+    watchlist.remove_from_watchlist("XLE", db)
+    assert watchlist.list_watchlist(db) == []
+
+
+def test_marks_set_this_weeks_side_and_ready_and_stamp_the_mark(db, artifact):
+    watchlist.add_to_watchlist("NVDA", None, db)
+    item = watchlist.mark_watchlist("NVDA", watchlist.MarkIn(ready=2), db)
+    assert (item.ready, item.side) == (2, "L")
+    stamped = item.ready_at
+    assert stamped is not None
+    item = watchlist.mark_watchlist("NVDA", watchlist.MarkIn(side="S", ready=2), db)
+    assert (item.ready, item.side, item.ready_at) == (2, "S", stamped)  # same mark: same stamp
+    item = watchlist.mark_watchlist("NVDA", watchlist.MarkIn(ready=0), db)
+    assert item.ready == 0 and item.ready_at is not None
+    with pytest.raises(ValueError):
+        watchlist.MarkIn(ready=3)
+    with pytest.raises(ValueError):
+        watchlist.SaveIn(side="X")
+
+
+def test_marks_and_removal_reach_only_this_weeks_list(db, artifact):
+    _watch(db, ticker="OLD", save_date="2026-08-05", pin=dict(FULL_PIN, scan_date="2026-08-04"))
+    for call in (lambda: watchlist.mark_watchlist("OLD", watchlist.MarkIn(ready=1), db),
+                 lambda: watchlist.remove_from_watchlist("OLD", db)):
+        with pytest.raises(HTTPException) as err:
+            call()
+        assert err.value.status_code == 404
+        assert err.value.detail["class"] == "not_on_watchlist"
+    assert db.query(models.Watchlist).one().unstarred_at is None  # last week's list as it ended
 
 
 # ── Weekly review (Task 7) ───────────────────────────────────────────────────

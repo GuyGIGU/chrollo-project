@@ -25,7 +25,7 @@ import models  # noqa: E402
 from core.pipeline.universe import descriptor as universe_mod  # noqa: E402
 from domains.market_data import watchlist_candles as wc  # noqa: E402
 from domains.watchlist import router as watchlist  # noqa: E402
-from domains.watchlist.best_gains import FIELDS, best_gains  # noqa: E402
+from domains.watchlist.best_gains import FIELDS, best_gains, price_facts  # noqa: E402
 
 # Business days to Fri 23/10/2026, every high 100 and every close 99.5 except
 # the named highs. Saved on the scan of Wed 01/07: the basis is that day's
@@ -115,32 +115,81 @@ def panel(monkeypatch, tmp_path):
     return asked
 
 
-def _watch(db, ticker, scan_date=None):
+WEEK = "2026-06-29"
+NO_FACTS = {"basis": None, "prev_close": None, "dist_52w_high": None}
+
+
+def _watch(db, ticker, scan_date=None, basis_scan_date=None):
     pinned = scan_date is not None
     db.add(models.Watchlist(ticker=ticker, save_date="2026-07-02", saved_at=datetime(2026, 7, 2, 6),
-                            origin="user", pin_scan_date=scan_date,
+                            origin="user", pin_scan_date=scan_date, week_start=WEEK,
+                            basis_scan_date=basis_scan_date,
                             pin_universe_type="us_equities" if pinned else None,
                             pin_setup_type="LPS" if pinned else None,
                             pin_engine_config_version="manifest-abc" if pinned else None))
     db.commit()
 
 
-def test_the_route_measures_each_active_save_and_names_every_gap(db, panel):
+@pytest.fixture()
+def friday(monkeypatch):
+    """The live quote belongs to Fri 23/10: Change % divides by Thursday's close."""
+    monkeypatch.setattr(watchlist, "_session_day", lambda: "2026-10-23")
+
+
+def test_the_route_measures_each_save_of_the_week_and_names_every_gap(db, panel, friday):
     _watch(db, "NVDA", "2026-07-01")
     _watch(db, "MSFT", "2026-10-23")    # saved on the panel's last bar
     _watch(db, "ZZZZ", "2026-07-01")    # not in any panel
-    _watch(db, "AAPL")                  # starred without a scan
-    out = {t: watchlist.BestGainsOut(**v).model_dump() for t, v in watchlist.watchlist_best_gains(db).items()}
+    _watch(db, "AAPL")                  # saved with no scan at all, and no price history
+    out = {t: watchlist.BestGainsOut(**v).model_dump()
+           for t, v in watchlist.watchlist_best_gains(db, week=WEEK).items()}
+    facts = {"prev_close": 99.5, "dist_52w_high": round((99.5 - 500.0) / 500.0, 12)}
+    out["NVDA"]["dist_52w_high"] = round(out["NVDA"]["dist_52w_high"], 12)
+    out["MSFT"]["dist_52w_high"] = round(out["MSFT"]["dist_52w_high"], 12)
     assert out["NVDA"] == {"status": "ok", "last_bar_date": "2026-10-23", "since_add": 1.0,
-                           "d60": 0.5, "d30": 0.4, "d14": 0.3, "d7": 0.2, "d2": 0.1}
-    assert out["MSFT"] == {"status": "no_bar_since_scan", "last_bar_date": "2026-10-23", **dict.fromkeys(FIELDS)}
-    assert out["ZZZZ"] == {"status": "unknown_ticker", "last_bar_date": None, **dict.fromkeys(FIELDS)}
-    assert out["AAPL"] == {"status": "no_pin", "last_bar_date": None, **dict.fromkeys(FIELDS)}
-    # One batched read, for the pinned saves only, each from its own pinned panel.
-    assert panel == [(["MSFT", "NVDA", "ZZZZ"], {"NVDA": "us_stocks", "MSFT": "us_stocks", "ZZZZ": "us_stocks"})]
+                           "d60": 0.5, "d30": 0.4, "d14": 0.3, "d7": 0.2, "d2": 0.1,
+                           "basis": 100.0, **facts}
+    assert out["MSFT"] == {"status": "no_bar_since_scan", "last_bar_date": "2026-10-23",
+                           **dict.fromkeys(FIELDS), "basis": 103.0, **facts}
+    assert out["ZZZZ"] == {"status": "unknown_ticker", "last_bar_date": None, **dict.fromkeys(FIELDS), **NO_FACTS}
+    assert out["AAPL"] == {"status": "unknown_ticker", "last_bar_date": None, **dict.fromkeys(FIELDS), **NO_FACTS}
+    # One batched read for every save of the week, each from its own pinned panel.
+    assert panel == [(["AAPL", "MSFT", "NVDA", "ZZZZ"],
+                      {"NVDA": "us_stocks", "MSFT": "us_stocks", "ZZZZ": "us_stocks", "AAPL": None})]
 
 
-def test_an_unpinned_watchlist_reads_no_panel(db, panel):
-    _watch(db, "AAPL")
-    assert watchlist.watchlist_best_gains(db)["AAPL"]["status"] == "no_pin"
-    assert panel == []
+def test_a_typed_in_ticker_measures_from_the_scan_on_screen_when_it_was_saved(db, panel, friday):
+    """Not in the scan, so no pin: the basis is still the day before the add."""
+    _watch(db, "NVDA", basis_scan_date="2026-07-01")
+    _watch(db, "MSFT")                  # a legacy save with no scan: price facts only
+    out = watchlist.watchlist_best_gains(db, week=WEEK)
+    assert out["NVDA"]["status"] == "ok"
+    assert (out["NVDA"]["since_add"], out["NVDA"]["basis"]) == (1.0, 100.0)
+    assert out["MSFT"]["status"] == "no_pin"
+    assert (out["MSFT"]["since_add"], out["MSFT"]["basis"], out["MSFT"]["prev_close"]) == (None, None, 99.5)
+
+
+def test_change_divides_by_the_close_before_the_quotes_trading_day():
+    frame = _frame()
+    frame.loc[pd.Timestamp("2026-10-22"), "Close"] = 101.0
+    frame.loc[pd.Timestamp("2026-10-23"), "Close"] = 103.0
+    assert price_facts(frame, "2026-07-01", "2026-10-23")["prev_close"] == 101.0  # Friday's quote
+    assert price_facts(frame, "2026-07-01", "2026-10-26")["prev_close"] == 103.0  # Monday's quote
+    # The 52-week distance is the engine's own, at the last close.
+    assert price_facts(frame, None, "2026-10-26")["dist_52w_high"] == (103.0 - 500.0) / 500.0
+    assert price_facts(frame, None, "2026-10-26")["basis"] is None
+
+
+def test_a_weekend_quote_belongs_to_friday():
+    from datetime import datetime as dt
+    assert watchlist._session_day(dt(2026, 10, 24, 12)) == "2026-10-23"  # Saturday
+    assert watchlist._session_day(dt(2026, 10, 25, 12)) == "2026-10-23"  # Sunday
+    assert watchlist._session_day(dt(2026, 10, 27, 12)) == "2026-10-27"  # Tuesday
+
+
+def test_before_the_open_the_quote_still_belongs_to_the_last_session():
+    """Pre-market the quote is the last close: Change % is that session's move, never 0.00%."""
+    from datetime import datetime as dt
+    assert watchlist._session_day(dt(2026, 10, 27, 9, 29)) == "2026-10-26"  # Tuesday pre-open
+    assert watchlist._session_day(dt(2026, 10, 27, 9, 30)) == "2026-10-27"  # the open
+    assert watchlist._session_day(dt(2026, 10, 26, 8, 0)) == "2026-10-23"  # Monday pre-open: Friday

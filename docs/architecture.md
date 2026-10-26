@@ -75,7 +75,7 @@ lives in `core/calibration/` and `webapp/backend/domains/calibration/grading.py`
 | `core/archive/` | The SQLite archive: writing rows, maturing outcomes, analysis, seeding, purging. | Production |
 | `core/backtest/` | The edge report and backtest statistics. The backend's edge tile and `core/archive/analyze_stats.py` import it. | Production |
 | `core/calibration/` | Replaying the engine on frozen calibration frames (`replay.py`) and the mark-agreement taxonomy (`agreement.py`), shared by the backend's workbench chips and the calibration tools. | Production |
-| `core/regime/`, `core/fundamentals/` | Relative strength, sector ranking and fundamentals. The RS rating is live (display and archive, no flag, since 2026-10-02) and so are the fundamentals (display and archive, `FUNDAMENTALS_ENABLED`, since 2026-10-03; since 2026-10-12 the fundamentals sheet, `sheet.py`, and the fundamental grade, `grade.py`, with the SEC fill, `sec.py`, on since the same day); the RS line and sector ranking are dark behind flags (see [`flag_ledger.md`](flag_ledger.md)). | Production (RS rating and fundamentals live; the rest dark) |
+| `core/regime/`, `core/fundamentals/` | Relative strength, sector ranking and fundamentals. The RS rating is live (display and archive, no flag, since 2026-10-02) and so are the fundamentals (display and archive, `FUNDAMENTALS_ENABLED`, since 2026-10-03; since 2026-10-12 the fundamentals sheet, `sheet.py`, and the fundamental grade, `grade.py`, with the SEC fill, `sec.py`, on since the same day); the leadership read (`leadership.py`: groups and sectors ranked by the median RS of their stocks, each stock's place in its group) is live, display only, since 2026-10-26; the RS line and the SPDR sector ranking are dark behind flags (see [`flag_ledger.md`](flag_ledger.md)). | Production (RS rating and fundamentals live; the rest dark) |
 | `config/` | Every default setting, split by domain; `settings.py` is the one namespace. | Production |
 | `webapp/backend/` | The HTTP API, the database, the scheduler, the IBKR link. | Production |
 | `webapp/frontend/` | The React app. | Production |
@@ -146,7 +146,7 @@ in `domains/portfolio/streams.py` are the `async def` exceptions.
 | `portfolio` | `router.py` (`/portfolio/*`, `/ibkr/import-csv`), `streams.py` (`/stream/*`, SSE) | The portfolio snapshot cache and its shaping. |
 | `screener` | `router.py` | The scan payload (`/screener-data/`, `/screener-summary/`), scan status, the manual scan and download SSE streams, and one chart's state word on demand (`/screener-data/state/{ticker}`, `chart_state.py`, read off the cached frame). |
 | `trading` | `router.py` (trades, `/journal-stats`), `journal.py`, `tags.py`, `analytics.py` (`/analytics`), `risk_router.py` (`/live-risk`) | The trade journal models, IBKR execution and CSV import, statistics, open-trade risk. |
-| `watchlist` | `router.py` (`/watchlist`) | The dated watchlist event ledger, and each save's best gain since it (`best_gains.py`, read off the chart dialog's cached bars). |
+| `watchlist` | `router.py` (`/watchlist`) | The dated watchlist event ledger, kept as one list per trading week (`ledger.trading_week`) with the operator's L/S and ✓/✓✓ marks, and each save's best gain since it plus the live columns' bases (`best_gains.py`, read off the chart dialog's cached bars). |
 
 Outside the domains:
 

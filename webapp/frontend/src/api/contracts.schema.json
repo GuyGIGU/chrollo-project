@@ -2961,6 +2961,18 @@
   "WatchlistItem": {
     "description": "The toggle contract: ``ticker`` + ``created_at`` (now the save's audit\nstamp) survive from the pre-ledger shape; the pin fields are additive.\n\n``id`` is the ACTIVE save event's row id. The active row is by construction\nthe ticker's most recent save (``save_watch`` returns the active row before\ncreating anything, and a partial unique index allows only one), so a surface\nthat wants that save's stored chart can hop straight to\n``/watchlist/{id}/replay`` instead of paging the weekly review to find it.\nNullable because an optimistic row has not been assigned one yet.",
     "properties": {
+      "basis_scan_date": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Basis Scan Date"
+      },
       "created_at": {
         "anyOf": [
           {
@@ -3015,6 +3027,24 @@
         "title": "Pinned",
         "type": "boolean"
       },
+      "ready": {
+        "default": 0,
+        "title": "Ready",
+        "type": "integer"
+      },
+      "ready_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ready At"
+      },
       "save_date": {
         "anyOf": [
           {
@@ -3026,6 +3056,18 @@
         ],
         "default": null,
         "title": "Save Date"
+      },
+      "saved_earnings_confirmed": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Earnings Confirmed"
       },
       "saved_industry": {
         "anyOf": [
@@ -3050,6 +3092,18 @@
         ],
         "default": null,
         "title": "Saved Market Cap"
+      },
+      "saved_next_earnings": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Next Earnings"
       },
       "saved_price": {
         "anyOf": [
@@ -3087,9 +3141,38 @@
         "default": null,
         "title": "Saved Setup"
       },
+      "saved_trigger": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Saved Trigger"
+      },
+      "side": {
+        "default": "L",
+        "title": "Side",
+        "type": "string"
+      },
       "ticker": {
         "title": "Ticker",
         "type": "string"
+      },
+      "week_start": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Week Start"
       }
     },
     "required": [
