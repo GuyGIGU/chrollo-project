@@ -7,13 +7,6 @@
 // bare undefined.
 
 import { finiteOrNull, numAsc } from '../../../shared/formatting/format.js';
-import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary.js';
-import { nearTriggerFrac, triggerDistanceFrac, triggerFired } from '../../../shared/setup/triggerProximity.js';
-
-// Tier rank for sorting: S is best (0). DERIVED from the one ladder tuple
-// (EC-33) - a hand-typed copy here would sink a newly first-class letter to 99.
-export const TIER_RANK = Object.fromEntries(TIER_LETTERS.map((t, i) => [t, i]));
-const tierRank = (tier) => (tier in TIER_RANK ? TIER_RANK[tier] : 99);
 
 // The operator's sheet's "% Best Diff" columns, measured server-side
 // (GET /watchlist/best-gains): `field` is the wire name, `days` the window after the add.
@@ -24,10 +17,13 @@ export const BEST_GAIN_COLUMNS = [
 ];
 const BEST_GAIN_KEYS = BEST_GAIN_COLUMNS.map((column) => column.key);
 
-// The ready mark's ladder: 0 watching, 1 ✓ (a valid LPS, take it on the
-// trigger), 2 ✓✓ (top candidate this week). A click steps to the next.
-export const READY_MARKS = ['', '✓', '✓✓'];
-export const nextReady = (ready) => ((ready ?? 0) + 1) % READY_MARKS.length;
+// His sheet names a sector by its SPDR fund. The scan sends the fund for the
+// names it read; a name off the scan only has its saved sector, labelled here.
+const SECTOR_ETFS = {
+  Technology: 'XLK', Healthcare: 'XLV', 'Financial Services': 'XLF', 'Consumer Cyclical': 'XLY',
+  'Consumer Defensive': 'XLP', 'Communication Services': 'XLC', Industrials: 'XLI', Energy: 'XLE',
+  Utilities: 'XLU', 'Real Estate': 'XLRE', 'Basic Materials': 'XLB',
+};
 
 const ratio = (price, base) => (price != null && base > 0 ? price / base - 1 : null);
 
@@ -54,30 +50,13 @@ function nextEarnings(data, record, weekStart, today) {
     earnings_this_week: monday != null && dayNumber(day) >= monday && dayNumber(day) <= monday + 4 };
 }
 
-// His "leaders and top competitors": the sector's and the group's rank and the
-// stock's place in its group, resolved by the scan (market_context.leadership).
-function leadershipFacts(ticker, leadership, sectorName, industryName) {
-  const stock = leadership?.stocks?.[ticker] || null;
-  const industry = stock?.group || industryName || null;
-  const group = industry ? leadership?.groups?.[industry] || null : null;
-  const sector = group?.sector || sectorName || null;
-  const sectorFacts = sector ? leadership?.sectors?.[sector] || null : null;
-  return {
-    sector, sector_rank: sectorFacts?.rank ?? null, sector_of: sectorFacts?.of ?? null,
-    sector_leading: Boolean(sectorFacts?.leading),
-    industry, group_rank: group?.rank ?? null, group_of: group?.of ?? null, group_leading: Boolean(group?.leading),
-    rs: finiteOrNull(stock?.rs), place: stock?.place ?? null, place_of: stock?.of ?? null,
-  };
-}
-
 // One normalized row per saved ticker. `data` is the raw chart_data entry
 // (or null off-scan); the flat fields exist so the sort + simple cells never
 // dereference undefined. Live columns divide the latest quote by the wire's
 // bases: Change % by the close before the quote's day, % Diff since add by
 // the high of the day before the add (his buy-stop basis, as the best gains).
-// The trigger is tonight's scan's, else the one the save quoted (his plan).
 export function buildWatchlistRows(tickers, screenerData, {
-  records = [], prices = {}, gains = {}, leadership = null, weekStart = null, today = newYorkToday(),
+  records = [], prices = {}, gains = {}, weekStart = null, today = newYorkToday(),
 } = {}) {
   const chartData = screenerData?.chart_data || {};
   const byTicker = new Map(records.map((record) => [record.ticker, record]));
@@ -88,25 +67,15 @@ export function buildWatchlistRows(tickers, screenerData, {
     const facts = data?.fund_sheet?.snapshot;
     const gain = gains[ticker] || null;
     const dist52 = finiteOrNull(gain?.dist_52w_high);
-    const scanTrigger = finiteOrNull(data?.trigger);
-    const plan = { trigger: scanTrigger ?? finiteOrNull(record?.saved_trigger) };
+    const sector = facts?.sector || record?.saved_sector || null;
     return {
       ticker,
       in_scan: data != null,
       side: record?.side || 'L',
-      ready: record?.ready ?? 0,
-      tier: data?.tier ?? null,
-      // The 0-100 grade the tier letter is cut from: shown on the tier's hover.
-      grade: finiteOrNull(data?.ta_grade),
       record,
       // The save's audit stamp (UTC), for display only: the week comes from the scan.
       added: record?.created_at || null,
       price,
-      trigger: plan.trigger,
-      trigger_saved: scanTrigger == null && plan.trigger != null,
-      to_trigger: triggerDistanceFrac(plan, price),
-      triggered: triggerFired(plan, price),
-      near_trigger: nearTriggerFrac(plan, price) != null,
       change: ratio(price, finiteOrNull(gain?.prev_close)),
       diff_since_add: ratio(price, finiteOrNull(gain?.basis)),
       ...Object.fromEntries(BEST_GAIN_COLUMNS.map(({ key, field }) => [key, finiteOrNull(gain?.[field])])),
@@ -115,8 +84,9 @@ export function buildWatchlistRows(tickers, screenerData, {
       off_52w_high: dist52 == null ? null : -dist52,
       market_cap: finiteOrNull(data?.market_cap ?? record?.saved_market_cap),
       ...nextEarnings(data, record, weekStart, today),
-      ...leadershipFacts(ticker, leadership, facts?.sector || record?.saved_sector,
-        facts?.industry || record?.saved_industry),
+      sector,
+      sector_etf: data?.sector_etf || SECTOR_ETFS[sector] || null,
+      industry: facts?.industry || record?.saved_industry || null,
       data,
     };
   });
@@ -127,51 +97,29 @@ export const finvizLink = (tickers) => (tickers.length
   ? `https://finviz.com/screener.ashx?v=211&t=${tickers.map((t) => t.replace('.', '-')).join(',')}`
   : null);
 
-const NUMERIC_KEYS = ['to_trigger', 'change', 'diff_since_add', ...BEST_GAIN_KEYS, 'off_52w_high', 'market_cap', 'rs'];
-// Columns that sort on another field: the date, and the leadership ranks.
-const SORT_FIELD = { earnings: 'earnings', sector: 'sector_rank', industry: 'group_rank' };
-const sortValue = (row, key) => row[SORT_FIELD[key] || key];
+const NUMERIC_KEYS = ['change', 'diff_since_add', ...BEST_GAIN_KEYS, 'off_52w_high', 'market_cap'];
+// Text columns; the sector sorts by its fund, as shown.
+const TEXT_FIELD = { added: 'added', earnings: 'earnings', sector: 'sector_etf', industry: 'industry' };
 
-// A deterministic total order. The default is his priority order: ✓✓ first,
-// then ✓, then the rest; longs before shorts within a mark; newest add first.
-// Scan-only sorts keep off-scan names last; a number sort keeps unmeasured
-// names last both ways; a final ticker tie-break keeps the list steady under
-// the watchlist poll.
-export function sortWatchlistRows(rows, sortBy = 'ready', sortDir = 'desc') {
+// A deterministic total order. The default is the newest add first. A number
+// or text sort keeps the names without a value last both ways; a final ticker
+// tie-break keeps the list steady under the watchlist poll.
+export function sortWatchlistRows(rows, sortBy = 'added', sortDir = 'desc') {
   const dir = sortDir === 'asc' ? 1 : -1;
+  const field = TEXT_FIELD[sortBy] || sortBy;
   return [...rows].sort((a, b) => {
-    if (['tier', 'grade'].includes(sortBy) && a.in_scan !== b.in_scan) return a.in_scan ? -1 : 1;
-    if ([...NUMERIC_KEYS, 'added', ...Object.keys(SORT_FIELD)].includes(sortBy)) {
-      const [va, vb] = [sortValue(a, sortBy), sortValue(b, sortBy)];
+    if (NUMERIC_KEYS.includes(sortBy) || sortBy in TEXT_FIELD) {
+      const [va, vb] = [a[field], b[field]];
       if ((va == null) !== (vb == null)) return va == null ? 1 : -1;
     }
-    const primary = keyCompare(a, b, sortBy) * dir;
+    const primary = keyCompare(a, b, sortBy, field) * dir;
     if (primary !== 0) return primary;
-    if (sortBy === 'tier') {
-      const byGrade = -numAsc(a.grade, b.grade);
-      if (byGrade !== 0) return byGrade;
-    }
-    if (sortBy === 'ready') {
-      const bySide = a.side.localeCompare(b.side);
-      if (bySide !== 0) return bySide;
-      const byAdded = String(b.added ?? '').localeCompare(String(a.added ?? ''));
-      if (byAdded !== 0) return byAdded;
-    }
     return a.ticker.localeCompare(b.ticker);
   });
 }
 
-function keyCompare(a, b, key) {
-  switch (key) {
-    case 'ready': return a.ready - b.ready;
-    case 'tier': return tierRank(a.tier) - tierRank(b.tier);
-    case 'grade': return numAsc(a.grade, b.grade);
-    case 'ticker': return a.ticker.localeCompare(b.ticker);
-    case 'side':
-    case 'added':
-    case 'earnings': return String(a[key] ?? '').localeCompare(String(b[key] ?? ''));
-    case 'sector':
-    case 'industry': return numAsc(sortValue(a, key), sortValue(b, key));
-    default: return NUMERIC_KEYS.includes(key) ? numAsc(a[key], b[key]) : 0;
-  }
+function keyCompare(a, b, key, field) {
+  if (NUMERIC_KEYS.includes(key)) return numAsc(a[key], b[key]);
+  if (key === 'ticker' || key === 'side' || key in TEXT_FIELD) return String(a[field] ?? '').localeCompare(String(b[field] ?? ''));
+  return 0;
 }

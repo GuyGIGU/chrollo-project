@@ -4498,15 +4498,15 @@ td.cell-editable { overflow: hidden; }
 .wl-list-warning { color: var(--warning); font-size: 12px; }
 .wl-list-empty { padding: 24px; color: var(--text-muted); font-size: 13px; }
 .wl-ledger { min-width: 0; }
-.wl-ledger .instrument-table { font-size: 12px; }
-.wl-ledger .instrument-table td, .wl-ledger .instrument-table th { padding: 6px 9px; }
+.wl-ledger .instrument-table { font-size: 14px; }
+.wl-ledger .instrument-table td, .wl-ledger .instrument-table th { padding: 11px 12px; }
 .wl-ledger .instrument-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.025); }
 .wl-ledger .instrument-table tbody tr.wl-row-selected { background: var(--myth-soft); box-shadow: inset 3px 0 var(--myth); }
 .wl-ledger-ticker { font-weight: 750; }
 .wl-setup-label { border-radius: 4px; padding: 2px 6px; background: var(--bg-elevated); font-size: 11px; }
-.wl-ledger-text { display: inline-block; max-width: 125px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.wl-ledger-text { display: inline-block; max-width: 240px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 .wl-ledger-text.wl-industry { max-width: 195px; }
-.wl-return-cell { display: block; margin: -6px -9px; padding: 6px 9px; font-weight: 700; }
+.wl-return-cell { display: block; margin: -11px -12px; padding: 11px 12px; font-weight: 700; }
 .wl-return-cell.positive { background: rgba(61,211,122,0.1); }
 .wl-return-cell.negative { background: rgba(222,110,120,0.1); }
 .wl-in-scan { color: var(--success); }
@@ -4528,21 +4528,16 @@ span.wl-side { cursor: default; }
 .wl-add-side .wl-side { color: var(--text-muted); border-color: var(--border-color); }
 .wl-add-side .wl-side-L[aria-pressed="true"] { color: var(--success); background: rgba(61,211,122,0.12); border-color: var(--success); }
 .wl-add-side .wl-side-S[aria-pressed="true"] { color: var(--danger); background: rgba(222,110,120,0.12); border-color: var(--danger); }
-.wl-side:focus-visible, .wl-ready:focus-visible { outline: 2px solid var(--myth); }
-.wl-ready { min-width: 30px; padding: 1px 6px; border: 0; background: none; color: var(--success); font: inherit; font-weight: 800; letter-spacing: -1px; cursor: pointer; }
-span.wl-ready { cursor: default; }
-.wl-ready-empty { color: var(--text-faint); font-weight: 400; }
-.wl-ledger .instrument-table tbody tr.wl-row-top { box-shadow: inset 3px 0 var(--success); }
-.wl-trig { font-variant-numeric: tabular-nums; }
-.wl-trig-near { color: var(--warning); font-weight: 700; }
-.wl-trig-saved { color: var(--text-muted); }
-.wl-trig-fired { padding: 1px 6px; border-radius: 4px; background: var(--success-bg); color: var(--success); font-weight: 750; }
+.wl-side:focus-visible { outline: 2px solid var(--myth); }
+/* His sheet's Side cell: a green L or red S tile with a dropdown. */
+select.wl-side { min-width: 46px; padding: 4px 6px; border-color: var(--border-color); color-scheme: dark; }
+select.wl-side-L { background: rgba(61,211,122,0.14); border-color: rgba(61,211,122,0.4); }
+select.wl-side-S { background: rgba(222,110,120,0.14); border-color: rgba(222,110,120,0.4); }
+.wl-cap { color: var(--text-muted); font-style: italic; }
+.wl-added { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The sector's SPDR fund on a tile, one hue per fund. */
+.wl-etf { display: inline-block; min-width: 46px; padding: 3px 7px; border-radius: 4px; background: hsl(var(--etf-hue) 55% 55% / 0.2); color: hsl(var(--etf-hue) 70% 78%); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
 .wl-earn-week { padding: 1px 6px; border-radius: 4px; background: var(--warning-bg); color: var(--warning); font-weight: 700; white-space: nowrap; }
-.wl-ranked { display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; }
-.wl-rank { flex: none; color: var(--text-muted); font-size: 0.92em; font-variant-numeric: tabular-nums; }
-.wl-rank-lead { padding: 0 5px; border-radius: 4px; background: var(--success-bg); color: var(--success); font-weight: 700; }
-.wl-place { color: var(--text-muted); font-size: 0.92em; }
-.wl-leader, .wl-leader .wl-place { color: var(--success); font-weight: 700; }
 /* The dialog renders inside .app-layout's `zoom`, so viewport units are divided by the scale (as .app-layout's own
    height is): at 130% a bare 96vw would be 125% of the screen and clip. */
 .wl-chart-dialog { display: flex; flex-direction: column; width: calc(96vw / var(--ui-scale)); max-width: 1850px; height: calc(82dvh / var(--ui-scale)); max-height: 805px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; }

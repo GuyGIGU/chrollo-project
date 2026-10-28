@@ -26,8 +26,8 @@ const readSavedSelection = () => {
   try { return sessionStorage.getItem(SELECTED_KEY); } catch { return null; }
 };
 // Number columns open high-first; 52W distance opens nearest-the-high first.
-const DESC_FIRST = ['ready', 'added', 'change', 'diff_since_add', 'best_since_add', 'best_60d', 'best_30d',
-  'best_14d', 'best_7d', 'best_2d', 'market_cap', 'rs'];
+const DESC_FIRST = ['added', 'change', 'diff_since_add', 'best_since_add', 'best_60d', 'best_30d',
+  'best_14d', 'best_7d', 'best_2d', 'market_cap'];
 const recordsKey = (records) => records.map((record) => `${record.ticker}:${record.id}`).sort().join(',');
 
 // The weekly list: this week's names with his marks, last weeks one click back.
@@ -49,7 +49,7 @@ export default function WatchlistPage() {
   const payloads = useSyncExternalStore(subscribeScreenerStore, getScreenerPayloads);
   const [chosen, setChosen] = useState(readSavedSelection);
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState({ by: 'ready', dir: 'desc' });
+  const [sort, setSort] = useState({ by: 'added', dir: 'desc' });
   const [inspectOpen, setInspectOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const pageRef = useRef(null);
@@ -72,14 +72,12 @@ export default function WatchlistPage() {
     return result;
   }, [payloads, shown]);
   const screenerData = useMemo(() => ({ chart_data: Object.fromEntries(Object.entries(sources).map(([ticker, value]) => [ticker, value.entry])) }), [sources]);
-  // Which sectors and groups lead, read by the US-stocks scan for every stock it read.
-  const leadership = payloads.us_stocks?.market_context?.leadership || null;
   const shownWeek = pastWeek || weeks.current;
   const rows = useMemo(() => sortWatchlistRows(
     buildWatchlistRows(shown.map((record) => record.ticker), screenerData,
-      { records: shown, prices, gains, leadership, weekStart: shownWeek })
+      { records: shown, prices, gains, weekStart: shownWeek })
       .filter((row) => row.ticker.toLowerCase().includes(search.trim().toLowerCase())), sort.by, sort.dir),
-  [shown, screenerData, prices, gains, leadership, shownWeek, search, sort]);
+  [shown, screenerData, prices, gains, shownWeek, search, sort]);
   const tickers = useMemo(() => rows.map((row) => row.ticker), [rows]);
   const selected = resolveRenderedSelection(chosen, rows);
   const selectedRecord = shown.find((record) => record.ticker === selected);
@@ -168,7 +166,7 @@ export default function WatchlistPage() {
   return (
     <div className="watchlist-page wl-list-page" ref={pageRef}>
       <header className="wl-list-header">
-        <div><h1>Watchlist</h1><span className="wl-list-count">{rows.length} of {shown.length} tickers · {rows.filter((row) => row.ready === 2).length} ✓✓ · {rows.filter((row) => row.ready === 1).length} ✓</span></div>
+        <div><h1>Watchlist</h1><span className="wl-list-count">{rows.length} of {shown.length} tickers</span></div>
         <nav className="wl-week" aria-label="Week">
           <button type="button" className="btn btn-sm" disabled={!olderWeek} onClick={() => setWeek(olderWeek)} aria-label="Older week">‹</button>
           <span className="wl-week-label">{pastWeek ? `Week of ${dayShort(pastWeek)}` : `This week${weeks.current ? ` · ${dayShort(weeks.current)}` : ''}`}</span>
@@ -182,7 +180,7 @@ export default function WatchlistPage() {
       </header>
       <p className="wl-list-note">{pastWeek
         ? 'A past week, as its list ended. Carry over puts a name on this week’s list with a fresh basis.'
-        : 'The list starts fresh after Friday’s scan; earlier weeks stay one click back (‹). Click Ready for ✓ (take it on the trigger) or ✓✓ (top of the week), and a row for its charts.'}</p>
+        : 'The list starts fresh after Friday’s scan; earlier weeks stay one click back (‹). Click a row for its charts.'}</p>
       {priceStatus === 'loading' && shown.length > 0 && <div className="wl-list-note" role="status">Loading quotes…</div>}
       {priceErr && <div className="wl-list-warning" role="status">Quotes could not refresh. Change % and % Diff since add may be stale.</div>}
       {!pastWeek && status === 'error' && <div className="wl-list-warning" role="alert">Couldn’t refresh the watchlist. <button type="button" className="btn btn-sm" onClick={() => fetchWatchlist()}>Retry</button></div>}
