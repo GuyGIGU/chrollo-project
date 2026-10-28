@@ -106,7 +106,8 @@ def get_cached_tickers(csv_path: str | None = None) -> list[str]:
 def get_tickers(csv_path: str | None = None) -> list[str]:
     """
     Load ticker universe from CSV. Falls back to the NASDAQ Trader FTP dump
-    (common-stock filter applied), then caches result to CSV for future runs.
+    (test issues and non-screenable instruments dropped; ETFs kept), then caches
+    the result to CSV for future runs.
     """
     if csv_path is None:
         csv_path = _default_ticker_csv_path()
@@ -134,9 +135,10 @@ def get_tickers(csv_path: str | None = None) -> list[str]:
         url = 'ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqtraded.txt'
         df_table = pd.read_csv(url, sep='|')
         
-        # Filter purely common stocks
-        if 'Test Issue' in df_table.columns and 'ETF' in df_table.columns:
-            df_table = df_table[(df_table['Test Issue'] == 'N') & (df_table['ETF'] == 'N')]
+        # Stocks AND funds (ETFs visible in the base list, 28/10/2026). Test issues go
+        # here; the leveraged / inverse daily products go by name in screen_directory_rows.
+        if 'Test Issue' in df_table.columns:
+            df_table = df_table[df_table['Test Issue'] == 'N']
             
         tickers, stats, rejected = screen_directory_rows(df_table, skiplist)
         if rejected and getattr(settings, "TICKER_ADMISSION_ENABLED", True):

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
@@ -23,6 +24,12 @@ STATUS_INVALID = "invalid_instrument"
 STATUS_ANOMALY = "provider_anomaly"
 
 _SPECIAL_ISSUE_SUFFIXES = {"R", "U", "W"}  # rights, units, warrants
+
+# Leveraged / inverse daily products, read on FUND rows only (Ultragenyx, Webull and
+# Build-A-Bear are stocks): a 2X / 3X / -1X multiple, Ultra, Inverse, Leverage(d), Bull, Bear.
+_LEVERAGED_FUND = re.compile(
+    r"(?<![A-Z0-9])\d(?:\.\d+)?X(?![A-Z0-9])|ULTRA|INVERSE|LEVERAGE|(?<![A-Z])(?:BULL|BEAR)(?![A-Z])"
+)
 
 
 def _now() -> datetime:
@@ -71,8 +78,10 @@ def _entry(status: str, reason: str, *, now=None, next_check=None, **extra) -> d
     return row
 
 
-def _reject_reason_from_name(security_name: str) -> str | None:
+def _reject_reason_from_name(security_name: str, is_fund: bool = False) -> str | None:
     name = (security_name or "").upper()
+    if is_fund and _LEVERAGED_FUND.search(name):
+        return "leveraged_fund"
     if "WARRANT" in name:
         return "warrant"
     if (" RIGHTS" in name or " RIGHT" in name) and "RIGHT TO RECEIVE" not in name:
@@ -170,7 +179,8 @@ def screen_directory_rows(df_table: pd.DataFrame, skiplist: set[str] | None = No
         if symbol in skiplist:
             stats["manual_skip"] += 1
             continue
-        name_reason = _reject_reason_from_name(security_name)
+        is_fund = str(row.get("ETF") or "").strip().upper() == "Y"
+        name_reason = _reject_reason_from_name(security_name, is_fund)
         if name_reason:
             stats["invalid_instrument"] += 1
             rejected[symbol] = {

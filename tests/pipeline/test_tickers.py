@@ -67,3 +67,53 @@ def test_get_tickers_uses_stale_csv_when_ftp_refresh_fails(tmp_path, monkeypatch
     monkeypatch.setattr(tickers_module.pd, "read_csv", fail_ftp_read_csv)
 
     assert tickers_module.get_tickers(str(csv_path)) == ["AAPL", "GOOGL", "MSFT"]
+
+
+# ETFs in the base list (his word, Wed 28/10/2026: "make ETF's visible in the base list"):
+# the directory refresh keeps an ETF row; only the leveraged / inverse daily products go,
+# and that name rule reads FUND rows only (Ultragenyx, Webull, Build-A-Bear are stocks).
+_DIRECTORY = pd.DataFrame({
+    "Symbol": ["FBT", "AAPU", "SQQQ", "TQQQ", "RARE", "BULL", "AAPL"],
+    "Security Name": [
+        "First Trust Amex Biotech Index Fund",
+        "Direxion Daily AAPL Bull 2X ETF",
+        "ProShares UltraPro Short QQQ",
+        "ProShares UltraPro QQQ",
+        "Ultragenyx Pharmaceutical Inc. - Common Stock",
+        "Webull Corporation - Class A Ordinary Shares",
+        "Apple Inc. - Common Stock",
+    ],
+    "ETF": ["Y", "Y", "Y", "Y", "N", "N", "N"],
+    "Test Issue": ["N"] * 7,
+})
+
+
+def test_directory_screen_keeps_an_etf_and_drops_only_leveraged_funds():
+    tickers, stats, rejected = ticker_admission.screen_directory_rows(_DIRECTORY, set())
+
+    assert tickers == ["FBT", "RARE", "BULL", "AAPL"]
+    assert stats["invalid_instrument"] == 3
+    assert {s: r["reason"] for s, r in rejected.items()} == {
+        "AAPU": "leveraged_fund", "SQQQ": "leveraged_fund", "TQQQ": "leveraged_fund",
+    }
+
+
+def test_get_tickers_fresh_directory_keeps_etfs(tmp_path, monkeypatch):
+    csv_path = tmp_path / "tickers.csv"
+    pd.DataFrame({"Ticker": ["AAPL"]}).to_csv(csv_path, index=False)
+    stale = time.time() - 30 * 24 * 3600
+    os.utime(csv_path, (stale, stale))
+    monkeypatch.setattr(settings, "TICKER_CACHE_MAX_AGE_DAYS", 1, raising=False)
+    monkeypatch.setattr(settings, "TICKER_ADMISSION_ENABLED", False, raising=False)
+    monkeypatch.setattr(tickers_module, "_load_skiplist", lambda: set())
+
+    real_read_csv = pd.read_csv
+
+    def directory_read_csv(path, *args, **kwargs):
+        if isinstance(path, str) and path.startswith("ftp://"):
+            return _DIRECTORY.copy()
+        return real_read_csv(path, *args, **kwargs)
+
+    monkeypatch.setattr(tickers_module.pd, "read_csv", directory_read_csv)
+
+    assert tickers_module.get_tickers(str(csv_path)) == ["FBT", "RARE", "BULL", "AAPL"]

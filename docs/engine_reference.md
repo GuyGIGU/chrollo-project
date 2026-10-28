@@ -63,14 +63,21 @@ measuring-stick tooling. Orchestrated by `run_screener()` in
 ### Ticker universe — `get_tickers()` ([core/pipeline/data.py](../core/pipeline/data.py), implemented in [core/pipeline/universe/tickers.py](../core/pipeline/universe/tickers.py))
 
 1. Read from cached `config/tickers.csv` if it exists and is younger than `TICKER_CACHE_MAX_AGE_DAYS` (1 day).
-2. Otherwise download `ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqtraded.txt`, filter rows where `Test Issue == 'N'` and `ETF == 'N'`.
+2. Otherwise download `ftp://ftp.nasdaqtrader.com/symboldirectory/nasdaqtraded.txt`, filter rows where `Test Issue == 'N'`.
+   Funds stay (the operator's ruling of 2026-10-28, "make ETF's visible in the base list";
+   until then `ETF == 'N'` dropped every one of them, and the ETF universes were the only
+   place a fund could be read).
 3. Apply the screenable-symbol filter on both cached CSV reads and fresh FTP downloads:
    alpha-only, <= 5 chars, and excluding 5th-character `R` / `U` / `W` special
    issues (rights, units, warrants) that waste Yahoo requests while still keeping
    real 5-letter common names like `GOOGL`.
 4. On fresh NASDAQ directory refreshes, also read `Security Name` and reject
    obvious non-common instruments (warrants/rights/units, preferreds, notes,
-   debentures, ETNs, and closed-end funds). Rejected directory facts are persisted
+   debentures, ETNs, and closed-end funds), and, on fund rows only (`ETF == 'Y'`), the
+   leveraged / inverse daily products: a 2X / 3X / -1X multiple, Ultra, Inverse,
+   Leverage(d), Bull or Bear in the name (`leveraged_fund`; 823 of the 5,772 funds on
+   28/10/2026, so 4,911 funds join the 5,892 stocks). The rule reads fund rows only
+   because Ultragenyx, Webull and Build-A-Bear are stocks. Rejected directory facts are persisted
    to `ticker_admission.json` as `invalid_instrument` so Yahoo never has to teach
    us the same lesson with empty history requests.
 5. Exclude any one-symbol-per-line entries in `config/ticker_skiplist.txt` before
