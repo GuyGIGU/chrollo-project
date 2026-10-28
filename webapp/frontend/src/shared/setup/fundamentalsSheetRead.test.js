@@ -89,6 +89,9 @@ test('checkGroups: the checks in their three boxes, each counting passed of know
   // A key the scan adds later is shown under "Other", never dropped.
   const later = checkGroups({ grade: { checks: [{ key: 'new_check', label: 'New', passed: true }] } });
   assert.deepEqual(later.map((g) => [g.title, g.count]), [['Other', '1 of 1']]);
+  // A box with no data says so, rather than "0 of 0".
+  const unknown = checkGroups({ grade: { checks: [{ key: 'estimates', label: 'Estimates', passed: null }] } });
+  assert.deepEqual(unknown.map((g) => [g.title, g.count]), [['Analysts and the market', 'no data']]);
   assert.deepEqual(checkGroups({}), []);
 });
 

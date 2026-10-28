@@ -467,6 +467,16 @@ cd C:\actions-runner
   On this prod box (always-on dashboard + the single IBKR login), the `NETWORK SERVICE` account is
   the boundary that keeps CI code away from live trading data. Keep it.
 
+## Looking at a change before it is committed
+
+Double-click **`preview_dashboard.bat`**. It opens `http://localhost:5173`: the frontend served
+straight from the checkout's source files (Vite's dev server, so it refreshes itself as the files
+change), on any branch, committed or not, talking to the live service on `:8000` for its data.
+Nothing is built, nothing restarts, no UAC. A frontend change is looked at here first and committed
+only once it looks right (his ask, Wed 28/10/2026); then it is merged to `main` and deployed below.
+A backend change does not show in the preview (it calls the running service) and goes live only
+through the deploy.
+
 ## Applying Code Changes (one click)
 
 After any code change (frontend or backend), you do **not** need to run `npm run build` and an

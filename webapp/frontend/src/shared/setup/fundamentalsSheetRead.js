@@ -170,12 +170,17 @@ export const checkRows = (sheet) => (sheet?.grade?.checks || []).map((c) => {
 
 // The sheet's three boxes of checks (Wed 28/10/2026, his "this is unreadable"): a
 // grouping by the check's key, nothing more. A key the scan adds later lands in
-// "Other" rather than vanishing.
+// "Other" rather than vanishing. A box whose checks all lack data says so, not "0 of 0".
 const CHECK_GROUPS = [
   { title: 'Earnings', keys: ['eps_growth', 'eps_accel', 'eps_steady', 'beats'] },
   { title: 'Sales and margin', keys: ['sales_growth', 'margins'] },
   { title: 'Analysts and the market', keys: ['estimates', 'reaction', 'quality'] },
 ];
+
+const groupCount = (rows) => {
+  const known = rows.filter((r) => r.state != null).length;
+  return known ? `${rows.filter((r) => r.state === true).length} of ${known}` : 'no data';
+};
 
 export const checkGroups = (sheet) => {
   const rows = checkRows(sheet);
@@ -184,10 +189,7 @@ export const checkGroups = (sheet) => {
     ...CHECK_GROUPS.map((g) => ({ title: g.title, rows: g.keys.map((k) => rows.find((r) => r.key === k)).filter(Boolean) })),
     { title: 'Other', rows: rows.filter((r) => !placed.has(r.key)) },
   ];
-  return groups.filter((g) => g.rows.length).map((g) => ({
-    ...g,
-    count: `${g.rows.filter((r) => r.state === true).length} of ${g.rows.filter((r) => r.state != null).length}`,
-  }));
+  return groups.filter((g) => g.rows.length).map((g) => ({ ...g, count: groupCount(g.rows) }));
 };
 
 // ── The card's second page and the sheet's extra lines (second patch, 2026-10-12) ──

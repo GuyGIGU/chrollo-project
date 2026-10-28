@@ -311,11 +311,17 @@ def test_the_grade_carries_the_cut_points_it_used(monkeypatch):
     from config import settings
     monkeypatch.setattr(settings, "FUND_GRADE_LETTERS", ((0.9, "A"), (0.6, "B"), (0.4, "C")))
     monkeypatch.setattr(settings, "FUND_FLAG_SHARE_DROP", 0.05)
+    monkeypatch.setattr(settings, "FUND_SHEET_QUARTERS", 6)
+    monkeypatch.setattr(settings, "FUND_GRADE_REACTION_RANGES", 2.5)
     r = grade.grade(_sheet())["rules"]
+    assert r["reports"] == 6 and r["reaction"]["ranges"] == 2.5
     assert r["letters"] == [[0.9, "A"], [0.6, "B"], [0.4, "C"]]
     assert r["min_checks"] == settings.FUND_GRADE_MIN_CHECKS
     assert r["eps_growth_min"] == settings.FUND_GRADE_EPS_GROWTH_MIN
     assert r["sales_growth_min"] == settings.FUND_GRADE_SALES_GROWTH_MIN
+    assert r["reports"] == settings.FUND_SHEET_QUARTERS and r["beats_min"] == settings.FUND_GRADE_BEATS_MIN
+    assert r["reaction"] == {"ranges": settings.FUND_GRADE_REACTION_RANGES, "volume": settings.FUND_GRADE_REACTION_VOLUME,
+                             "adr_days": sheet.REACTION_ADR_DAYS, "volume_days": sheet.REACTION_VOLUME_DAYS}
     assert r["flags"] == {"stock_pay_share": settings.FUND_GRADE_SBC_MAX, "one_time_share": settings.FUND_FLAG_UNUSUAL_SHARE,
                           "share_drop": 0.05, "acquisition_share": settings.FUND_FLAG_ACQUISITION_SHARE}
     json.dumps(r)                                                          # it rides the payload and the archive

@@ -62,6 +62,9 @@ _REPORT_WINDOW_DAYS = 120
 _BEFORE_OPEN_HOUR = 12
 #: The same quarter a year earlier sits this close to 365 days back.
 _YEAR_SLACK_DAYS = 20
+#: A report day's move is measured in the ADR of this many days before it, and its
+#: volume against this many days' average (the grade's rules send both to the page).
+REACTION_ADR_DAYS, REACTION_VOLUME_DAYS = 20, 50
 
 
 def _round(value, digits=4) -> Optional[float]:
@@ -326,11 +329,11 @@ def reactions(frame: Optional[pd.DataFrame], all_reports: list[dict], n: int) ->
     for r in all_reports[-n:]:
         side = "left" if r["before_open"] else "right"
         i = int(days.searchsorted(r["day"], side=side))
-        if i < 50 or i >= len(days):
+        if i < REACTION_VOLUME_DAYS or i >= len(days):
             continue
         change = close[i] / close[i - 1] - 1.0
-        adr = float(pd.Series(high[i - 20:i] / low[i - 20:i] - 1.0).mean())
-        avg_volume = float(pd.Series(volume[i - 50:i]).mean())
+        adr = float(pd.Series(high[i - REACTION_ADR_DAYS:i] / low[i - REACTION_ADR_DAYS:i] - 1.0).mean())
+        avg_volume = float(pd.Series(volume[i - REACTION_VOLUME_DAYS:i]).mean())
         out.append({
             "report_day": str(r["day"].date()),
             "day": str(days[i].date()),

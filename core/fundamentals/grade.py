@@ -197,11 +197,21 @@ def rules() -> dict:
     """The grade's own cut points, sent with every grade so the sheet's explanations
     quote the numbers the scan used (Wed 28/10/2026, his "add explanations on
     everything"): the page never keeps its own copy of a threshold (EC-28)."""
+    from core.fundamentals.sheet import REACTION_ADR_DAYS, REACTION_VOLUME_DAYS
+
     return {
         "letters": [[floor, letter] for floor, letter in _knob("FUND_GRADE_LETTERS")],
         "min_checks": _knob("FUND_GRADE_MIN_CHECKS"),
+        "reports": _knob("FUND_SHEET_QUARTERS"),
         "eps_growth_min": _knob("FUND_GRADE_EPS_GROWTH_MIN"),
         "sales_growth_min": _knob("FUND_GRADE_SALES_GROWTH_MIN"),
+        "beats_min": _knob("FUND_GRADE_BEATS_MIN"),
+        "reaction": {
+            "ranges": _knob("FUND_GRADE_REACTION_RANGES"),
+            "volume": _knob("FUND_GRADE_REACTION_VOLUME"),
+            "adr_days": REACTION_ADR_DAYS,
+            "volume_days": REACTION_VOLUME_DAYS,
+        },
         "flags": {
             "stock_pay_share": _knob("FUND_GRADE_SBC_MAX"),
             "one_time_share": _knob("FUND_FLAG_UNUSUAL_SHARE"),

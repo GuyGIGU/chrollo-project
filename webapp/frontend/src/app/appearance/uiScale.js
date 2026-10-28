@@ -67,15 +67,15 @@ export function screenerColumnsAt(scale, viewportWidth) {
   return Math.min(CARD_COLUMNS, Math.max(1, cols));
 }
 
-// "Smart" pick: the least shrink (largest scale <= 1) that gives all four cards
-// their 440px. Density is a shrink, so auto-fit never enlarges past 1 — zooming in
-// is a manual call. The grid draws four columns either way, so a step that cannot
-// reach four buys nothing and auto-fit stays at 100%. On both of his screens this
-// is 100%.
+// "Smart" pick: the least shrink (largest scale <= 1) that gives the four cards
+// the most room, counted in 440px cards: all four of them where a step reaches it.
+// A narrower window (a half screen) cannot, and still shrinks the least that
+// reaches the most, so its four cards are not drawn at full-size type in ~300px.
+// Density is a shrink, so auto-fit never enlarges past 1 — zooming in is a manual
+// call. On both of his screens this is 100%.
 export function computeAutoFitScale(viewportWidth) {
   const candidates = SCALE_STEPS.filter((s) => s <= 1);
   const maxCols = Math.max(...candidates.map((s) => screenerColumnsAt(s, viewportWidth)));
-  if (maxCols < CARD_COLUMNS) return DEFAULT_SCALE;
   return candidates
     .filter((s) => screenerColumnsAt(s, viewportWidth) === maxCols)
     .reduce((a, b) => Math.max(a, b));

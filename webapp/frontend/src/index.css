@@ -2408,8 +2408,13 @@ td {
   font-size: 14px;
 }
 
-.fund-sheet-verdict .fund-card-badge {
-  margin-left: 4px;
+/* The business in one sentence, under the name (on the page again, not on hover). */
+.fund-sheet-summary {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 560px;
 }
 
 .fund-sheet-who {

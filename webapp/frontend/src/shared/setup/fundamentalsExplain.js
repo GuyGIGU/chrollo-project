@@ -7,6 +7,8 @@
 
 const pct = (x) => `${Math.round(x * 100)}%`;
 const rulesOf = (sheet) => sheet?.grade?.rules || null;
+// How many reports and quarters the sheet holds, in words when the rules say it.
+const lastN = (sheet) => (rulesOf(sheet)?.reports ? `last ${rulesOf(sheet).reports}` : 'last');
 
 export const gradeExplain = (sheet) => {
   const r = rulesOf(sheet);
@@ -23,7 +25,7 @@ export const labelExplain = (sheet) => {
     ? `latest EPS up ${pct(r.eps_growth_min)}+ and sales up ${pct(r.sales_growth_min)}+ on the year, the operating margin held`
     : 'big EPS and sales growth on the year, the operating margin held';
   return 'A one-word read of the business, the first that fits: '
-    + 'Accelerating growth = EPS growth and sales growth both rising three quarters running; '
+    + 'Accelerating growth = EPS growth rising three quarters running, and sales growth too (on the year, or on the quarter); '
     + `Strong growth = ${strong}; `
     + 'Turnaround = a loss turned to profit or narrowed, or a negative margin improving; '
     + 'otherwise Mixed / insufficient data.';
@@ -33,27 +35,35 @@ export const CODE33_EXPLAIN = "Minervini's Code 33: EPS growth, sales growth and
 
 export const NEXT_REPORT_EXPLAIN = 'The next earnings report. "Confirmed" means the company has announced the date; "estimate" is the data provider\'s guess. A setup that breaks out just before a report can gap either way on the news.';
 
-export const WHO_EXPLAIN = 'The company, its industry and sector, and its market value (cap). Hover the name for its business in one sentence.';
+export const WHO_EXPLAIN = 'The company, its sector and industry, and its market value (cap).';
 
-export const SECTION_EXPLAIN = {
+export const sectionExplain = (sheet) => ({
   checks: 'The nine checks the grade rests on, each passed (✓), failed (✗) or not known (–, no data), with the figure it was read from under it. Grouped by what they read; hover a check for how it is measured.',
-  reports: 'The last four earnings reports, each against the same quarter a year earlier, the estimate, and how the stock traded on it.',
-  quarters: 'The last four fiscal quarters from the income statement.',
+  reports: `The ${lastN(sheet)} earnings reports, each against the same quarter a year earlier, the estimate, and how the stock traded on it.`,
+  quarters: `The ${lastN(sheet)} fiscal quarters from the income statement.`,
   read: 'The lines the checks do not show on their own: where growth is heading, the estimates, and the quality of the earnings.',
-};
+});
 
 export const GROUP_EXPLAIN = 'Checks passed out of the checks with data in this box. A check with no data (–) counts neither way.';
 
-export const CHECK_EXPLAIN = {
-  eps_growth: "The latest report's adjusted EPS (the figure analysts estimate) against the same quarter a year earlier. O'Neil's C: current earnings growth.",
-  eps_accel: "Is the growth itself speeding up: the latest report's growth on the year against the report before it.",
-  eps_steady: 'Every one of the last four reports up on the year, each against the same quarter a year earlier. Steady growth, not one good quarter.',
-  sales_growth: 'Sales from the income statement, the latest quarter against the same quarter a year earlier (the SEC filings fill the year-ago quarter when the statement no longer has it). Also passes when quarter-on-quarter growth rose three quarters running.',
-  margins: 'Operating income as a share of sales, the latest quarter against the same quarter a year earlier. A business earning more on each dollar of sales.',
-  beats: "Reported EPS against the analysts' estimate on each of the last four reports. Passes on the number of beats the check names, the latest report one of them.",
-  estimates: "This year's EPS estimate now against 90 days ago, and how many analysts raised or cut it in the last 30 days. Passes when the estimate went up and raises are at least the cuts.",
-  reaction: "The market's verdict: the first trading day on each report, its move measured in daily ranges (the move divided by the 20-day ADR before it) and its volume against the 50-day average. Passes when one report closed up by the ranges, on the volume, the check names.",
-  quality: 'Passes when none of the earnings-quality flags is raised (see Flags in the read).',
+export const checkExplain = (sheet) => {
+  const r = rulesOf(sheet);
+  const m = r?.reaction;
+  return {
+    eps_growth: "The latest report's adjusted EPS (the figure analysts estimate) against the same quarter a year earlier. O'Neil's C: current earnings growth.",
+    eps_accel: "Is the growth itself speeding up: the latest report's growth on the year against the report before it.",
+    eps_steady: `Every one of the ${lastN(sheet)} reports up on the year, each against the same quarter a year earlier. Steady growth, not one good quarter.`,
+    sales_growth: 'Sales from the income statement, the latest quarter against the same quarter a year earlier (the SEC filings fill the year-ago quarter when the statement no longer has it). Also passes when quarter-on-quarter growth rose three quarters running.',
+    margins: 'Operating income as a share of sales, the latest quarter against the same quarter a year earlier. A business earning more on each dollar of sales.',
+    beats: r
+      ? `Reported EPS against the analysts' estimate on each of the ${lastN(sheet)} reports. Passes on ${r.beats_min}+ beats, the latest report one of them.`
+      : "Reported EPS against the analysts' estimate on each of the last reports. Passes on the number of beats the check names, the latest report one of them.",
+    estimates: "This year's EPS estimate now against 90 days ago, and how many analysts raised or cut it in the last 30 days. Passes when the estimate went up and raises are at least the cuts.",
+    reaction: m
+      ? `The market's verdict: the first trading day on each report, its move measured in daily ranges (the move divided by the ${m.adr_days}-day ADR before it) and its volume against the ${m.volume_days}-day average. Passes when one report closed up ${m.ranges}+ ranges on ${m.volume}x+ volume.`
+      : "The market's verdict: the first trading day on each report, its move measured in daily ranges (the move divided by the ADR before it) and its volume against its average. Passes when one report closed up by the ranges, on the volume, the check names.",
+    quality: 'Passes when none of the earnings-quality flags is raised (see Flags in the read).',
+  };
 };
 
 export const REPORT_COLUMNS = {

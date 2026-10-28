@@ -1,8 +1,8 @@
 import { fmtMoneyCompact } from '../formatting/format';
 import { cardHeader, checkGroups, gradeNote, nextEarningsLine, quarterRows, reportRows, sheetLines } from './fundamentalsSheetRead';
 import {
-  CHECK_EXPLAIN, CODE33_EXPLAIN, GROUP_EXPLAIN, NEXT_REPORT_EXPLAIN, QUARTER_COLUMNS, REPORT_COLUMNS, SECTION_EXPLAIN,
-  WHO_EXPLAIN, gradeExplain, labelExplain, lineExplain,
+  CODE33_EXPLAIN, GROUP_EXPLAIN, NEXT_REPORT_EXPLAIN, QUARTER_COLUMNS, REPORT_COLUMNS, WHO_EXPLAIN,
+  checkExplain, gradeExplain, labelExplain, lineExplain, sectionExplain,
 } from './fundamentalsExplain';
 
 // The grade, who the business is, and the next report where it cannot be missed.
@@ -10,24 +10,24 @@ import {
 function SheetHead({ sheet, marketCap }) {
   const head = cardHeader(sheet);
   const snap = sheet.snapshot || {};
-  const where = [snap.industry, snap.sector, marketCap ? `cap ${fmtMoneyCompact(marketCap)}` : null].filter(Boolean).join(' · ');
+  const where = [head.snapshot, marketCap ? `cap ${fmtMoneyCompact(marketCap)}` : null].filter(Boolean).join(' · ');
   const next = sheet.next_earnings?.day ? nextEarningsLine(sheet.next_earnings) : null;
   return (
     <header className="fund-sheet-head">
       <div className="fund-sheet-verdict" data-grade={head.letter || 'none'}>
         <span className="fund-grade-tile" title={`${head.title}. ${gradeExplain(sheet)}`}>{head.letter || '–'}</span>
         <div className="fund-sheet-verdict-words">
-          <span className="fund-sheet-label" title={labelExplain(sheet)}>{head.label}</span>
+          <span className="fund-sheet-label" style={{ color: head.labelTone }} title={labelExplain(sheet)}>{head.label}</span>
           <small>
             <span title={gradeExplain(sheet)}>{head.checks ? `${head.checks} passed` : gradeNote(sheet)}</span>
             {head.code33Word ? <> · <span title={`${head.code33Title}. ${CODE33_EXPLAIN}`}>{head.code33Word}</span></> : null}
           </small>
         </div>
-        {head.code33 ? <span className="fund-card-badge" title={`${head.code33Title}. ${CODE33_EXPLAIN}`}>Code 33 ✓</span> : null}
       </div>
       <div className="fund-sheet-who">
-        {snap.name ? <span className="fund-sheet-name" title={head.snapshotTitle}>{snap.name}</span> : null}
+        {snap.name ? <span className="fund-sheet-name">{snap.name}</span> : null}
         {where ? <small title={WHO_EXPLAIN}>{where}</small> : null}
+        {snap.summary ? <p className="fund-sheet-summary">{snap.summary}</p> : null}
         {next ? <span className="fund-sheet-next" title={NEXT_REPORT_EXPLAIN}>Next report {next}</span> : null}
       </div>
     </header>
@@ -51,9 +51,11 @@ function CheckMark({ state }) {
 function SheetChecks({ sheet }) {
   const groups = checkGroups(sheet);
   if (!groups.length) return null;
+  const explain = checkExplain(sheet);
+  const sections = sectionExplain(sheet);
   return (
     <div className="fund-sheet-block">
-      <h3 title={SECTION_EXPLAIN.checks}>The nine checks <small>hover anything on this page for how it is measured</small></h3>
+      <h3 title={sections.checks}>The nine checks <small>hover anything on this page for how it is measured</small></h3>
       <div className="fund-check-groups">
         {groups.map((g) => (
           <div key={g.title} className="fund-check-group">
@@ -62,7 +64,7 @@ function SheetChecks({ sheet }) {
               <small title={GROUP_EXPLAIN}>{g.count}</small>
             </div>
             {g.rows.map((c) => (
-              <div key={c.key} className="fund-check" title={CHECK_EXPLAIN[c.key]}>
+              <div key={c.key} className="fund-check" title={explain[c.key]}>
                 <CheckMark state={c.state} />
                 <div>
                   <span>{c.label}</span>
@@ -81,11 +83,12 @@ function SheetChecks({ sheet }) {
 function SheetTables({ sheet }) {
   const reports = reportRows(sheet);
   const quarters = quarterRows(sheet);
+  const sections = sectionExplain(sheet);
   return (
     <div className="fund-sheet-tables">
       {reports.length ? (
         <div className="fund-sheet-block">
-          <h3 title={SECTION_EXPLAIN.reports}>Earnings reports</h3>
+          <h3 title={sections.reports}>Earnings reports</h3>
           <table className="fund-sheet-table">
             <thead>
               <tr>
@@ -114,7 +117,7 @@ function SheetTables({ sheet }) {
       ) : null}
       {quarters.length ? (
         <div className="fund-sheet-block">
-          <h3 title={SECTION_EXPLAIN.quarters}>Quarters</h3>
+          <h3 title={sections.quarters}>Quarters</h3>
           <table className="fund-sheet-table">
             <thead>
               <tr>
@@ -150,7 +153,7 @@ function SheetRead({ sheet }) {
   const lines = sheetLines(sheet).filter((line) => line.k !== 'Next report');
   return (
     <div className="fund-sheet-block">
-      <h3 title={SECTION_EXPLAIN.read}>The read</h3>
+      <h3 title={sectionExplain(sheet).read}>The read</h3>
       <dl className="fund-sheet-lines">
         {lines.map((line) => (
           <div key={line.k} title={lineExplain(line.k, sheet)}>

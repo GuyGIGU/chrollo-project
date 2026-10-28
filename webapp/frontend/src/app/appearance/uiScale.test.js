@@ -43,12 +43,14 @@ test('screenerColumnsAt: more columns as the scale shrinks (monotonic)', () => {
   }
 });
 
-test('computeAutoFitScale: stays at 100% when no step reaches four cards', () => {
-  // The grid draws four columns whatever the scale, so shrinking his text to
-  // reach three of the minimum buys nothing: a 1280px window reaches three at 90%
-  // and stays at 100%; a 1536px one reaches three at every step.
+test('computeAutoFitScale: a window too narrow for four still shrinks the least that gives the most room', () => {
+  // The grid draws four columns whatever the scale; at 100% a 1280px window (half
+  // his 2560 screen) would draw them ~300px wide with full-size type. It reaches
+  // three of the minimum at 90% (two at 100%), so it shrinks to 90%; a 1536px one
+  // reaches three at every step, so it stays at 100%.
+  assert.equal(screenerColumnsAt(1, 1280), 2);
   assert.equal(screenerColumnsAt(0.9, 1280), 3);
-  assert.equal(computeAutoFitScale(1280), 1);
+  assert.equal(computeAutoFitScale(1280), 0.9);
   assert.equal(screenerColumnsAt(0.85, 1536), 3);
   assert.equal(computeAutoFitScale(1536), 1);
 });
@@ -140,7 +142,7 @@ test('index.html pre-paint auto-fit reproduces computeAutoFitScale across widths
         best = s;
       }
     }
-    return bestCols < COLS ? 1 : best;
+    return best;
   };
   for (const w of [900, 1150, 1280, 1536, 1707, 1920, 2560, 3840]) {
     assert.equal(prePaintAutoFit(w), computeAutoFitScale(w), `auto-fit disagrees at ${w}px`);
