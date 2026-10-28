@@ -43,12 +43,15 @@ const returnCell = (value, title) => (
 );
 const gapTitle = (row, value) => (value == null ? GAIN_GAPS[row.gain_status] : undefined);
 
+// The other best-gain windows ride the 30-day cell's hover, so the list fits the screen.
+const otherWindows = (row) => BEST_GAIN_COLUMNS.filter(({ days }) => days !== 30)
+  .map(({ key, days }) => `${days == null ? 'Since add' : `${days} days`}: ${fmtSignedPctFrac(row[key], 2)}`).join(' · ');
+
 // One week's list in his sheet's column order. This week's rows take his L/S
 // and the remove button; a past week is read-only and offers Carry over.
 export default function WatchlistTable({ rows, sort, onSort, selected, onSelect, onRemove, onMark, onCarry,
   pastWeek, thisWeek, anchorProps, priceErr }) {
   const stop = (event) => event.stopPropagation();
-  const gainColumns = pastWeek ? BEST_GAIN_COLUMNS : BEST_GAIN_COLUMNS.filter((column) => column.days === 30);
   const columns = [
     { key: 'side', label: 'Side', align: 'center', render: (row) => (pastWeek
       ? <span className={`wl-side wl-side-${row.side}`}>{row.side}</span>
@@ -65,12 +68,10 @@ export default function WatchlistTable({ rows, sort, onSort, selected, onSelect,
     { key: 'diff_since_add', align: 'right',
       label: <span title="Latest quote against the high of the day before the add">% Diff since add</span>,
       render: (row) => returnCell(row.diff_since_add, gapTitle(row, row.diff_since_add)) },
-    ...gainColumns.map(({ key, days }) => ({
-      key, align: 'right',
-      label: <span title={`Best high ${days == null ? 'since the add' : `in the first ${days} days after the add`}, against the high of the day before the add`}>
-        {days == null ? '% Diff best since add' : `% Diff best ${days} days`}</span>,
-      render: (row) => returnCell(row[key], gapTitle(row, row[key])),
-    })),
+    { key: 'best_30d', align: 'right',
+      label: <span title="Best high in the first 30 days after the add, against the high of the day before the add; hover a cell for the other windows">
+        % Diff best 30 days</span>,
+      render: (row) => returnCell(row.best_30d, gapTitle(row, row.best_30d) || otherWindows(row)) },
     { key: 'market_cap', label: 'Mkt cap $B', align: 'right',
       render: (row) => <span className="wl-cap">{fx(row.market_cap == null ? null : row.market_cap / 1e9, 1)}</span> },
     { key: 'off_52w_high', align: 'right',

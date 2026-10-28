@@ -38,7 +38,8 @@ it came from.
 **2026-10-28 The Watchlist table, his list (supersedes the column lists above):** Side
 (an L/S dropdown), Ticker, % Change, % Diff since add, % Diff best 30 days, Mkt cap $B,
 52W distance, Next earnings, Sector (the SPDR fund on a tile, the sector's name on hover),
-Industry, Date (his clock, to the second), with taller rows. Ready, Tier, To trigger and
+Industry, Date (his clock, to the second), with taller rows. A past week shows the same
+columns, so no list scrolls sideways; the other best-gain windows ride the 30-day cell's hover. Ready, Tier, To trigger and
 the leadership ranks left the table; the default sort is the newest add first. The data
 stays: `ready` is still stored and patchable, and the scan still writes
 `market_context.leadership`, which no screen shows now.

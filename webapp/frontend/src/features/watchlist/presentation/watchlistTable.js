@@ -10,7 +10,7 @@ import { finiteOrNull, numAsc } from '../../../shared/formatting/format.js';
 
 // The operator's sheet's "% Best Diff" columns, measured server-side
 // (GET /watchlist/best-gains): `field` is the wire name, `days` the window after the add.
-// This week's list shows the 30-day one (his weekly sheet); a past week shows all six.
+// The list shows the 30-day one (his weekly sheet); the others ride its hover.
 export const BEST_GAIN_COLUMNS = [
   { key: 'best_since_add', field: 'since_add', days: null },
   ...[60, 30, 14, 7, 2].map((days) => ({ key: `best_${days}d`, field: `d${days}`, days })),
