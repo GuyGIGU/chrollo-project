@@ -165,8 +165,30 @@ const TONES = { true: 'var(--success)', false: 'var(--warning)', null: 'var(--te
 // The nine checks as the scan decided them: a mark, the words, and why.
 export const checkRows = (sheet) => (sheet?.grade?.checks || []).map((c) => {
   const state = c.passed === true || c.passed === false ? c.passed : null;
-  return { key: c.key, mark: MARKS[state], tone: TONES[state], label: c.label, why: c.why || '' };
+  return { key: c.key, state, mark: MARKS[state], tone: TONES[state], label: c.label, why: c.why || '' };
 });
+
+// The sheet's three boxes of checks (Wed 28/10/2026, his "this is unreadable"): a
+// grouping by the check's key, nothing more. A key the scan adds later lands in
+// "Other" rather than vanishing.
+const CHECK_GROUPS = [
+  { title: 'Earnings', keys: ['eps_growth', 'eps_accel', 'eps_steady', 'beats'] },
+  { title: 'Sales and margin', keys: ['sales_growth', 'margins'] },
+  { title: 'Analysts and the market', keys: ['estimates', 'reaction', 'quality'] },
+];
+
+export const checkGroups = (sheet) => {
+  const rows = checkRows(sheet);
+  const placed = new Set(CHECK_GROUPS.flatMap((g) => g.keys));
+  const groups = [
+    ...CHECK_GROUPS.map((g) => ({ title: g.title, rows: g.keys.map((k) => rows.find((r) => r.key === k)).filter(Boolean) })),
+    { title: 'Other', rows: rows.filter((r) => !placed.has(r.key)) },
+  ];
+  return groups.filter((g) => g.rows.length).map((g) => ({
+    ...g,
+    count: `${g.rows.filter((r) => r.state === true).length} of ${g.rows.filter((r) => r.state != null).length}`,
+  }));
+};
 
 // ── The card's second page and the sheet's extra lines (second patch, 2026-10-12) ──
 
@@ -198,6 +220,7 @@ export const cardHeader = (sheet) => {
     checks: g.letter ? `${g.passed} of ${g.known} checks` : null,
     title: g.letter ? `Fundamental grade ${g.letter}: ${g.passed} of ${g.known} checks with data passed` : 'Not enough data for a grade',
     code33: g.code33?.met === true,
+    code33Word: g.code33?.met === true ? 'Code 33 met' : g.code33?.met === false ? 'Code 33 not met' : null,
     code33Title: g.code33?.why || '',
     snapshot: where || null,
     snapshotTitle: snap.summary || '',

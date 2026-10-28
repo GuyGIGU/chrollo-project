@@ -79,18 +79,23 @@ const barCount = (value) => {
 // 2026-07 sprawl failure — "~48 bars at ~10px/bar let a tight base sprawl
 // edge-to-edge and read tighter than it is" — is held off by the cap.
 export const CHART_FRAMING = {
+  // HELD TO 80-130 DAYS (operator Wed 28/10/2026, picked on the design canvas over his
+  // six 27/10 cards: "80 - 130 days"). At 55-220 the zoom swung with the base, AGL's
+  // 15-day rest drawn in 55 fat days and ACNB's 65-day rest in 175 thin ones with the
+  // whole run-up under it (the box 10% of the height). On the 27/10 scan the window
+  // went from 60-218 days (p10-p90) to 80-130; the price is that a base over ~47 days
+  // now owns more than the 0.40 cap (ACNB 50% of the width) and draws a little
+  // narrower than its length says, which he accepted by eye.
   mini: {
-    minWindowBars: 55,           // the FLOOR, not a span: a very short rest still needs room
-                                 // behind it. It exists so a 5-day rest cannot produce a
-                                 // 23-day window; at cap 0.40 it binds on rests under 17 days.
-    legibilityCeilingBars: 220,  // 563px plot / 220 = 2.56 px/bar at the very bottom — a hard
-                                 // stop, not a target. It has to sit HIGH: a low ceiling makes
-                                 // the window stop growing while the rest keeps growing, so a
-                                 // longer rest starts drawing NARROWER than a shorter one. At
-                                 // 110 that lie returns on rests as short as 37 days and the
-                                 // order-inversion rate goes to 9.7% — worse than the 8.8% this
-                                 // whole program exists to remove. At 220 it is 0.0% (6 pairs of
-                                 // 25,904, all rests of 130+ days). Measured 2026-09-02.
+    minWindowBars: 80,           // the FLOOR, not a span: a very short rest still needs room
+                                 // behind it. At cap 0.40 it binds on rests under 28 days.
+                                 // 55 until 28/10/2026, "zoomed in too much" on AGL.
+    legibilityCeilingBars: 130,  // the far end of his band (220 until 28/10/2026, "zoomed out
+                                 // too much" on AAMI and ACNB). 2026-09-02 measured why it sat
+                                 // high: a ceiling stops the window while the rest keeps
+                                 // growing, so a longer rest draws NARROWER than a shorter one
+                                 // (9.7% of pairs at 110, 0.0% at 220). He ruled the steady
+                                 // zoom worth that.
     ceilingYieldShare: 0.75,     // ...and it yields to a rest it cannot frame (operator
                                  // 2026-09-02, "for monster bases simply zoom out the base").
     baseWidthCap: 0.40,          // the base + its right pad may never own more than 40% of

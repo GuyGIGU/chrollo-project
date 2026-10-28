@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EMPTY } from '../formatting/format.js';
 import {
-  cardHeader, cardLines, checkRows, dayShort, epsChange, gradeNote, growthTone, labelTone, nextEarningsLine, signTone, trendTone, hasFundamentalsSheet, quarterRows, quarterShort, reportRows, sheetLines,
+  cardHeader, cardLines, checkGroups, checkRows, dayShort, epsChange, gradeNote, growthTone, labelTone, nextEarningsLine, signTone, trendTone, hasFundamentalsSheet, quarterRows, quarterShort, reportRows, sheetLines,
 } from './fundamentalsSheetRead.js';
 
 const SHEET = {
@@ -78,6 +78,24 @@ test('sheetLines: estimates and quality in words; a missing estimate reads empty
 test('checkRows: the scan decides, the panel marks: passed, failed, not known', () => {
   assert.deepEqual(checkRows(SHEET).map((c) => c.mark), ['✓', '✗', '–']);
   assert.deepEqual(checkRows({}), []);
+});
+
+test('checkGroups: the checks in their three boxes, each counting passed of known', () => {
+  const groups = checkGroups(SHEET);
+  assert.deepEqual(groups.map((g) => [g.title, g.rows.map((r) => r.key), g.count]), [
+    ['Earnings', ['eps_growth', 'eps_steady'], '1 of 1'],
+    ['Analysts and the market', ['quality'], '0 of 1'],
+  ]);
+  // A key the scan adds later is shown under "Other", never dropped.
+  const later = checkGroups({ grade: { checks: [{ key: 'new_check', label: 'New', passed: true }] } });
+  assert.deepEqual(later.map((g) => [g.title, g.count]), [['Other', '1 of 1']]);
+  assert.deepEqual(checkGroups({}), []);
+});
+
+test('cardHeader: Code 33 in words, met, not met or not known', () => {
+  assert.equal(cardHeader({ grade: { code33: { met: true } } }).code33Word, 'Code 33 met');
+  assert.equal(cardHeader({ grade: { code33: { met: false } } }).code33Word, 'Code 33 not met');
+  assert.equal(cardHeader(SHEET).code33Word, null);
 });
 
 test('hasFundamentalsSheet: only a payload that carries reports or quarters', () => {

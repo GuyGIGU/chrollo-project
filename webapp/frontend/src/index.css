@@ -2329,15 +2329,6 @@ td {
   padding: 3px 5px;
 }
 
-/* The fundamentals page: the numbers (verdict, snapshot, the two tables) on the
-   left, the lines and the nine checks beside them. */
-.fund-sheet-body {
-  align-items: start;
-  display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-}
-
 .stock-lens-section {
   background: var(--lens-section-bg);
   border: 1px solid var(--lens-hairline);
@@ -2366,85 +2357,245 @@ td {
   font-size: 10px;
 }
 
-/* The fundamentals sheet (2026-10-12): two small tables (reports, quarters), the
-   estimates and quality lines, then the nine checks of the fundamental grade. */
+/* The fundamentals sheet, laid out again Wed 28/10/2026 from the design canvas (his
+   "this is unreadable"): the grade and the next report on top, the nine checks in
+   three boxes, the two tables side by side in a larger type, then the read. Every
+   color is a lens token, so the paper skin repaints it. */
+.stock-lens-section.fund-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 28px;
+}
+
+.fund-sheet-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 32px;
+  justify-content: space-between;
+}
+
+.fund-sheet-verdict {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+}
+
+.fund-sheet-verdict .fund-grade-tile {
+  border-radius: 10px;
+  font-size: 34px;
+  font-weight: 900;
+  height: 60px;
+  width: 60px;
+}
+
+.fund-sheet-verdict-words {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fund-sheet-label {
+  color: var(--text-main);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.fund-sheet-verdict small,
+.fund-sheet-who small {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.fund-sheet-verdict .fund-card-badge {
+  margin-left: 4px;
+}
+
+.fund-sheet-who {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: right;
+}
+
+.fund-sheet-name {
+  color: var(--text-main);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.fund-sheet-next {
+  align-items: center;
+  background: rgba(var(--warning-rgb), 0.14);
+  border: 1px solid rgba(var(--warning-rgb), 0.5);
+  border-radius: var(--radius-pill);
+  color: var(--warning);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 600;
+  height: 28px;
+  margin-top: 4px;
+  padding: 0 12px;
+}
+
+.fund-sheet-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.fund-sheet-block h3 {
+  color: var(--text-main);
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.fund-check-groups {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fund-check-group {
+  background: var(--lens-cell-bg);
+  border: 1px solid var(--lens-hairline);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.fund-check-group-head {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.fund-check-group-head span {
+  color: var(--text-main);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.fund-check-group-head small {
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fund-check {
+  display: flex;
+  gap: 12px;
+}
+
+.fund-check > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.fund-check span {
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fund-check small {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.fund-check-mark {
+  flex: none;
+}
+
+.fund-sheet-tables {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .fund-sheet-table {
   border-collapse: collapse;
-  font-size: 11px;
-  margin-bottom: 8px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
   width: 100%;
 }
 
 .fund-sheet-table th {
+  border-bottom: 1px solid var(--border-strong);
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 2px 6px;
+  letter-spacing: 0.08em;
+  padding: 0 10px 10px;
   text-align: right;
+  text-transform: uppercase;
 }
 
 .fund-sheet-table td {
-  border-top: 1px solid var(--lens-hairline-soft);
+  border-bottom: 1px solid var(--lens-hairline-soft);
   color: var(--text-main);
   font-family: 'JetBrains Mono', monospace;
-  padding: 3px 6px;
+  height: 40px;
+  padding: 0 10px;
   text-align: right;
 }
 
 .fund-sheet-table th:first-child,
 .fund-sheet-table td:first-child {
+  padding-left: 0;
   text-align: left;
 }
 
-.fund-sheet-snapshot {
-  color: var(--text-main);
-  display: flex;
-  flex-direction: column;
-  font-size: 11px;
-  gap: 2px;
-  margin-bottom: 8px;
+.fund-sheet-table td:first-child {
+  color: var(--text-muted);
 }
 
-.fund-sheet-snapshot small {
-  color: var(--text-faint);
-  font-size: 10px;
+.fund-sheet-table th:last-child,
+.fund-sheet-table td:last-child {
+  padding-right: 0;
+}
+
+/* The latest report and quarter: the row that matters most, a step brighter. */
+.fund-sheet-table tbody tr:last-child td {
+  background: var(--lens-section-bg);
+  border-bottom: none;
+  font-weight: 700;
+}
+
+.fund-sheet-table tbody tr:last-child td:first-child {
+  color: var(--text-main);
 }
 
 .fund-sheet-lines {
-  color: var(--text-main);
-  display: flex;
-  flex-direction: column;
-  font-size: 11px;
-  gap: 3px;
-  margin-bottom: 8px;
-}
-
-.fund-sheet-checks {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.fund-sheet-checks li {
-  align-items: baseline;
-  color: var(--text-main);
   display: grid;
-  font-size: 11px;
-  gap: 6px;
-  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 12px 32px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
 }
 
-.fund-sheet-checks small {
+.fund-sheet-lines > div {
+  display: grid;
+  font-size: 14px;
+  gap: 16px;
+  grid-template-columns: 110px minmax(0, 1fr);
+}
+
+.fund-sheet-lines dt {
   color: var(--text-faint);
-  font-size: 10px;
-  grid-column: 2;
 }
 
-.fund-check-mark {
-  font-weight: 800;
+.fund-sheet-lines dd {
+  color: var(--text-main);
+  margin: 0;
 }
 
 /* The card's second page (2026-10-12): the business laid over the chart well, in the
@@ -2592,28 +2743,6 @@ td {
 
 .fund-card-v .fund-pill:first-child {
   margin-left: 0;
-}
-
-/* The lens panel's own verdict line: the same tile, label and badge, smaller. */
-.fund-sheet-verdict {
-  align-items: center;
-  display: flex;
-  font-size: 13px;
-  font-weight: 700;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.fund-sheet-verdict .fund-grade-tile {
-  font-size: 15px;
-  height: 26px;
-  width: 26px;
-}
-
-.fund-sheet-verdict small {
-  color: var(--text-faint);
-  font-size: 11px;
-  font-weight: 500;
 }
 
 /* Finviz-style dense read grid: hairline-separated label/value cells. The 1px
@@ -3471,8 +3600,19 @@ td {
 
   .stock-lens-bottom,
   .stock-lens-bottom.is-even,
-  .fund-sheet-body {
+  .fund-check-groups,
+  .fund-sheet-tables,
+  .fund-sheet-lines {
     grid-template-columns: 1fr;
+  }
+
+  .fund-sheet-head {
+    flex-direction: column;
+  }
+
+  .fund-sheet-who {
+    align-items: flex-start;
+    text-align: left;
   }
 }
 

@@ -535,19 +535,15 @@ const resultsStyle = { display: 'flex', flexDirection: 'column', gap: '20px' };
 
 const gridStyle = {
   display: 'grid',
-  // ONE CARD SIZE ON EVERY SCREEN (operator 2026-10-03, "retain the original size
-  // so the scaling looks the same, with the extra monitor space I could just ...
-  // see more of the website"): cards of at least 590px stretched to fill the row —
-  // three of 618px on his 1920 screen, four of 620px on his 2560 one. It replaces
-  // the 2026-10-02 three-card ceiling, which drew three 831px cards at 2560. (A
-  // 620px minimum on 2026-09-02 was a different thing: on the 1536px screen he
-  // had then it meant TWO wide, short cards, and was put back the same day.) The
-  // well is locked to the card's width at --card-chart-aspect, so the same card
-  // size is the same setup shape. Keep this in sync with uiScale.CARD_MIN_PX and
-  // index.html's pre-paint copy; HealthBoard and .wl-card-grid must match too, or
-  // a surface sharing ScreenerMiniChart frames the same window in a different
-  // pane. uiScale.test.js pins all five.
-  gridTemplateColumns: 'repeat(auto-fill, minmax(590px, 1fr))',
+  // FOUR CARDS PER ROW ON EVERY SCREEN (operator Wed 28/10/2026, "fixed 4 cards per
+  // row"): ~460px cards on his 1920 screen, ~620px on his 2560 one. It replaces the
+  // 2026-10-03 one-card-size rule (cards of at least 590px, three at 1920 and four at
+  // 2560). The well is locked to the card's width at --card-chart-aspect, so a setup
+  // keeps its shape on both screens, only its size changes. Keep this in sync with
+  // uiScale.CARD_COLUMNS and index.html's pre-paint copy; HealthBoard must match too,
+  // or a surface sharing ScreenerMiniChart frames the same window in a different pane.
+  // uiScale.test.js pins them.
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
   gap: '14px',
   width: '100%',
 };

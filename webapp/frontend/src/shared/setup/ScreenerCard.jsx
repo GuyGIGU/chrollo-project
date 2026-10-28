@@ -6,8 +6,7 @@ import { healthStateMeta } from './healthStateData';
 import { tierColor, signColor } from '../presentation/theme';
 import { fx, fmtSignedPctFrac } from '../formatting/format';
 import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from './screenerCardData';
-import { hasLeadershipRead, leadershipCells } from './leadershipRead';
-import { groupCardText, groupTitle, hasGroupRead } from './groupRead';
+import { groupTitle, hasGroupRead } from './groupRead';
 import { dialogOpenOutside, hasCommandModifier } from '../navigation/keyboardGuard';
 import FundamentalsCardPage from './FundamentalsCardPage';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
@@ -157,21 +156,6 @@ function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, neste
 
 const monoFaint = { color: 'var(--text-faint)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, whiteSpace: 'nowrap' };
 
-// The leadership read beside the sector (2026-10-02): RS rating, trend template,
-// dollar volume — the stock, not the setup. Neutral ink on purpose: no value is
-// judged good or bad here. Each piece explains itself on hover.
-function LeadershipRead({ data }) {
-  return (
-    <span style={{ ...monoFaint, color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, gap: 7 }}>
-      {leadershipCells(data).map((cell) => (
-        <span key={cell.k} title={cell.title}>{cell.card}</span>
-      ))}
-      {/* The group (2026-10-23): "N of M" of the industry fired tonight; the sentence on hover. */}
-      {hasGroupRead(data) ? <span title={groupTitle(data.group)}>{groupCardText(data.group)}</span> : null}
-    </span>
-  );
-}
-
 // A thin upright rule between two reads on the header's second row.
 const ReadDivider = () => (
   <span style={{ alignSelf: 'stretch', background: 'var(--border-color)', flexShrink: 0, margin: '2px 0', width: 1 }} />
@@ -179,13 +163,11 @@ const ReadDivider = () => (
 
 // Minimal Finviz charts-view header, TWO rows (2026-10-04). Top: the stock —
 // ticker + tier + sector ETF, then, pushed right, the as-of date, the live price
-// and its daily % change, and the two toggles. Under it: the reads — the
-// leadership read, then the weekly / monthly read. It was one row from
-// 2026-10-02 (the operator circled the old two-row header as space the chart
-// should get), until the leadership read joined it and crowded the W/M words
-// into ellipses on every card ("way too crowded ... spare a little bit more
-// space for a second row"). The W/M group is still the part that gives way,
-// and the full read stays in each cell's tooltip.
+// and its daily % change, and the two toggles. Under it: the weekly / monthly
+// read when the scan carried one, the full read in each cell's tooltip. The RS,
+// trend template, dollar volume, the group's "N of M" and the "Daily setup"
+// stand-in came off it (Wed 28/10/2026, his card redesign); the row keeps its
+// height so every card's chart still starts at the same line.
 // The shell (.screener-card-head) is shared with the health card and the
 // Watchlist's clean card, so every card kind's chart starts at the same height.
 // Score, setup name, and the next-earnings date live in the click-through detail
@@ -193,7 +175,6 @@ const ReadDivider = () => (
 function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike, page, onTogglePage, fixed = null }) {
   const changePct = dailyChangeFrac(data.candles);
   const hasHtf = data.htf_w_trend_state != null || data.htf_m_trend_state != null;
-  const hasLeadership = hasLeadershipRead(data);
 
   return (
     <div className="screener-card-head" style={{ pointerEvents: 'auto' }}>
@@ -237,21 +218,14 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onTog
       </div>
 
       <div className="screener-card-head-row is-sub">
-        {hasLeadership ? <LeadershipRead data={data} /> : null}
-        {hasLeadership ? <ReadDivider /> : null}
-
         {/* The weekly / monthly read — shrinks first (minWidth 0 + overflow) */}
-        <div style={{ alignItems: 'center', display: 'flex', flex: '0 1 auto', gap: 8, minWidth: 0, overflow: 'hidden' }}>
-          {hasHtf ? (
-            <>
-              <TimeframeCell tf="W" stage2={data.htf_w_stage2} trendState={data.htf_w_trend_state} inConsol={data.htf_w_in_consol} phase={data.htf_w_phase} reaccum={data.htf_w_reaccum} nested={data.htf_w_daily_nested} />
-              <ReadDivider />
-              <TimeframeCell tf="M" stage2={data.htf_m_stage2} trendState={data.htf_m_trend_state} inConsol={data.htf_m_in_consol} phase={data.htf_m_phase} reaccum={data.htf_m_reaccum} nested={data.htf_m_daily_nested} />
-            </>
-          ) : (
-            <span style={{ color: 'var(--text-faint)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Daily setup</span>
-          )}
-        </div>
+        {hasHtf ? (
+          <div style={{ alignItems: 'center', display: 'flex', flex: '0 1 auto', gap: 8, minWidth: 0, overflow: 'hidden' }}>
+            <TimeframeCell tf="W" stage2={data.htf_w_stage2} trendState={data.htf_w_trend_state} inConsol={data.htf_w_in_consol} phase={data.htf_w_phase} reaccum={data.htf_w_reaccum} nested={data.htf_w_daily_nested} />
+            <ReadDivider />
+            <TimeframeCell tf="M" stage2={data.htf_m_stage2} trendState={data.htf_m_trend_state} inConsol={data.htf_m_in_consol} phase={data.htf_m_phase} reaccum={data.htf_m_reaccum} nested={data.htf_m_daily_nested} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

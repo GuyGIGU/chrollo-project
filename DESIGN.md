@@ -417,7 +417,9 @@ responsive on interaction (lift, tint, border, or glow), never mushy or vague.
 The triage unit of the product: a **two-row** header (on top, the tier-colored
 ticker + tier badge + sector ETF, then the as-of date, the live price and its
 daily %, and the watchlist star and the **like** heart at the far right; under
-it, the leadership read and the weekly/monthly read), a mini price chart, and a
+it, the weekly/monthly read when the scan carried one; the RS, trend template,
+dollar volume, group count and "Daily setup" came off it Wed 28/10/2026, and the
+row keeps its height), a mini price chart, and a
 **one-row** tag strip whose overflow folds into `+N`. The header was one row from
 2026-10-02 (the operator circled the old two rows as space the chart should get)
 until 2026-10-04, when the leadership read crowded the weekly/monthly words into
@@ -444,6 +446,14 @@ blue for a turnaround, Code 33 is a solid green badge shown only when met, every
 figure wears its sign (green up, rose down), and verdict words (speeding up, beat,
 missed, a quality flag, confirmed) are pills in their own tone. Every tone is looked
 up from a sign or a word the scan decided; none is a threshold of the frontend's.
+The lens's Fundamentals tab was laid out again Wed 28/10/2026 from a design canvas
+(his "this is unreadable"): a 60px grade tile and the label on top with the company,
+industry, cap and the next report as an amber pill on the right; the nine checks in
+three boxes (Earnings, Sales and margin, Analysts and the market; a grouping by the
+check's key only, each box counting passed of known); the reports and quarters tables
+side by side at 14px with the latest row a step brighter; then the read (trend,
+estimates, quality, flags, Code 33) in two columns. All of it on lens tokens, so the
+paper skin repaints it.
 
 **The big chart acts like the card** (operator 2026-10-03, suggestion #1), so he
 can walk the whole filtered list with Next and act on each chart without closing
@@ -476,13 +486,11 @@ return at full strength (`.screener-stale`; the decision is `resultsStale` in th
 screener's `scanStream.js`).
 
 **The chart is the card, and its spare room is VERTICAL** (operator 2026-09-02).
-**One card size on every monitor** (operator 2026-10-03, "retain the original
-size so the scaling looks the same, with the extra monitor space I could just ...
-see more of the website"): every card grid is `minmax(590px, 1fr)`, so a wider
-screen gets MORE cards, never bigger ones — three of 618px at 1920x1080, four of
-620px at 2560x1440. (The day before, "the clean 3 Charts per row rule" had been
-built as a three-card ceiling, which drew three 831px cards at 2560; his rule was
-the 1920 card, not the count.) **The big charts hold one size on every monitor too**: the
+**Four cards per row on every monitor** (operator Wed 28/10/2026, "fixed 4 cards
+per row"): every card grid is `repeat(4, minmax(0, 1fr))`, ~460px cards at
+1920x1080 and ~620px at 2560x1440. From 2026-10-03 until then the card kept one
+size (`minmax(590px, 1fr)`, three at 1920, four at 2560), and the day before that
+"the clean 3 Charts per row rule" was a three-card ceiling. **The big charts hold one size on every monitor too**: the
 Watchlist D/W/M band is 1850x805, and the lens's chart band is `--lens-chart-band`,
 600px on every screen. **The lens is TWO BLOCKS (third pass, Fri 17/10/2026)**: the CHART block is his TradingView layout, three panes in one grid (the monthly over the weekly in a side column 29% wide, the daily big beside them; the toolbar's D/W/M tab names the big pane, a side pane's caption opens it big), every pane a real chart with the zoom cluster over its bottom-left corner (+ − ⌂ ⤢; the wheel over a pane zooms it with no modifier, as on TradingView; the page scrolls from outside the panes), and THE PHASE BOARD right under the three panes in the same card, over a hairline, so the chart and the highlights it lights are one screen (*"I need to see both the chart and the highlights it provides in the same screen"*: the card is ~900px tall under the 52px toolbar, inside the 1080 screen); the STATS block under it. The grid is 600px so the board fits; the cards of the second pass below are the record of how it got here. **The lens was a page of separate cards** (second pass) (second pass the same day: *"make them separate and not try to squeeze them together"*: the daily chart full width with the volume in its own pane, then the bigger picture (weekly | monthly), then the grade as THE PHASE BOARD, then the stats, each a 20px heading on the page over a card a tone off it, 44px of page between blocks: measured the same day, a 16px gap and an eyebrow strip inside one box still read as one panel) (operator
 Thu 16/10/2026: *"One block for the chart. and another block for the Stats ... give much
@@ -522,10 +530,12 @@ whole run was squeezed into a strip and the rest read as a sliver in the corner.
 Widening the card is not how this chart gets better; heightening it is.
 
 Density stays the point, and it means *honest bars per trading day*: the window is
-set by the consolidation the engine found (on the card a 24-day rest gets ~65
-days, a 33-day rest ~85 — closer since 2026-10-02, "I want more close up on the
-setups themselves"), never by a fixed span, so a wide choppy setup and a tight
-coil can never occupy the same width. The card's price band takes 88% of the well;
+set by the consolidation the engine found, held between 80 and 130 trading days
+on the card (operator Wed 28/10/2026, picked on a design canvas of six real cards:
+at 55-220 a 15-day rest was drawn in 55 fat days and a 65-day rest in 175 thin ones,
+"some zoomed out too much or in too much"). Inside the band a 40-day rest gets 113
+days; a base over ~47 days owns more than 40% of the width, and only a base too long
+to fit at 130 opens wider. The card's price band takes 88% of the well;
 volume is a thin strip under the bars. See
 [docs/chart_framing_2026-09.md](docs/chart_framing_2026-09.md) (its 2026-10-02
 revision); the knobs are `CHART_FRAMING`, `--card-chart-aspect`,

@@ -1,107 +1,161 @@
 import { fmtMoneyCompact } from '../formatting/format';
-import { cardHeader, checkRows, gradeNote, quarterRows, reportRows, sheetLines } from './fundamentalsSheetRead';
+import { cardHeader, checkGroups, gradeNote, nextEarningsLine, quarterRows, reportRows, sheetLines } from './fundamentalsSheetRead';
 
-// The verdict, the snapshot and the two small tables: the numbers.
-function SheetNumbers({ sheet }) {
-  const reports = reportRows(sheet);
-  const quarters = quarterRows(sheet);
+// The grade, who the business is, and the next report where it cannot be missed.
+function SheetHead({ sheet, marketCap }) {
   const head = cardHeader(sheet);
   const snap = sheet.snapshot || {};
+  const where = [snap.industry, snap.sector, marketCap ? `cap ${fmtMoneyCompact(marketCap)}` : null].filter(Boolean).join(' · ');
+  const next = sheet.next_earnings?.day ? nextEarningsLine(sheet.next_earnings) : null;
   return (
-    <div className="fund-sheet-numbers">
+    <header className="fund-sheet-head">
       <div className="fund-sheet-verdict" data-grade={head.letter || 'none'} title={head.title}>
         <span className="fund-grade-tile">{head.letter || '–'}</span>
-        <span style={{ color: head.labelTone }}>{head.label}</span>
-        <small>{head.checks || gradeNote(sheet)}</small>
+        <div className="fund-sheet-verdict-words">
+          <span className="fund-sheet-label">{head.label}</span>
+          <small>{[head.checks ? `${head.checks} passed` : gradeNote(sheet), head.code33Word].filter(Boolean).join(' · ')}</small>
+        </div>
         {head.code33 ? <span className="fund-card-badge" title={head.code33Title}>Code 33 ✓</span> : null}
       </div>
-      {head.snapshot || snap.summary ? (
-        <div className="fund-sheet-snapshot">
-          {[snap.name, head.snapshot].filter(Boolean).join(' · ')}
-          {snap.summary ? <small>{snap.summary}</small> : null}
+      <div className="fund-sheet-who" title={head.snapshotTitle}>
+        {snap.name ? <span className="fund-sheet-name">{snap.name}</span> : null}
+        {where ? <small>{where}</small> : null}
+        {next ? <span className="fund-sheet-next">Next report {next}</span> : null}
+      </div>
+    </header>
+  );
+}
+
+// A check's mark as a small round glyph: passed, failed or not known.
+function CheckMark({ state }) {
+  const tone = state === true ? 'var(--success)' : state === false ? 'var(--warning)' : 'var(--text-faint)';
+  return (
+    <svg className="fund-check-mark" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: tone }}>
+      <circle cx="12" cy="12" r="12" fill="currentColor" fillOpacity="0.16" />
+      {state === true ? <path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /> : null}
+      {state === false ? <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /> : null}
+      {state == null ? <path d="M8 12h8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /> : null}
+    </svg>
+  );
+}
+
+// The nine checks the grade rests on, in three boxes, each with its own count.
+function SheetChecks({ sheet }) {
+  const groups = checkGroups(sheet);
+  if (!groups.length) return null;
+  return (
+    <div className="fund-sheet-block">
+      <h3>The nine checks</h3>
+      <div className="fund-check-groups">
+        {groups.map((g) => (
+          <div key={g.title} className="fund-check-group">
+            <div className="fund-check-group-head">
+              <span>{g.title}</span>
+              <small>{g.count}</small>
+            </div>
+            {g.rows.map((c) => (
+              <div key={c.key} className="fund-check">
+                <CheckMark state={c.state} />
+                <div>
+                  <span>{c.label}</span>
+                  {c.why ? <small>{c.why}</small> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// The two tables side by side, the latest row of each a step brighter.
+function SheetTables({ sheet }) {
+  const reports = reportRows(sheet);
+  const quarters = quarterRows(sheet);
+  return (
+    <div className="fund-sheet-tables">
+      {reports.length ? (
+        <div className="fund-sheet-block">
+          <h3>Earnings reports</h3>
+          <table className="fund-sheet-table">
+            <thead>
+              <tr><th>Report</th><th title="Adjusted EPS, the figure the analysts estimate">EPS adj.</th><th>Year on year</th><th>vs estimate</th><th>Market move</th></tr>
+            </thead>
+            <tbody>
+              {reports.map((r) => (
+                <tr key={r.key}>
+                  <td>{r.day}</td>
+                  <td>{r.eps}</td>
+                  <td style={{ color: r.yoyTone }}>{r.yoy}</td>
+                  <td style={{ color: r.beat == null ? undefined : r.beat ? 'var(--success)' : 'var(--warning)' }}>
+                    {r.surprise}{r.beat == null ? '' : r.beat ? ' beat' : ' missed'}
+                  </td>
+                  <td title={r.moveTitle} style={{ color: r.moveTone }}>{r.move}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : null}
-      {reports.length ? (
-        <table className="fund-sheet-table">
-          <thead>
-            <tr><th>Report</th><th title="Adjusted EPS, the figure the analysts estimate">EPS adj.</th><th>Year on year</th><th>vs estimate</th><th>Move</th></tr>
-          </thead>
-          <tbody>
-            {reports.map((r) => (
-              <tr key={r.key}>
-                <td>{r.day}</td>
-                <td>{r.eps}</td>
-                <td style={{ color: r.yoyTone }}>{r.yoy}</td>
-                <td style={{ color: r.beat == null ? undefined : r.beat ? 'var(--success)' : 'var(--warning)' }}>{r.surprise}</td>
-                <td title={r.moveTitle} style={{ color: r.moveTone }}>{r.move}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
       {quarters.length ? (
-        <table className="fund-sheet-table">
-          <thead>
-            <tr><th>Quarter</th><th>Sales</th><th>Year on year</th><th>On the quarter</th><th>Op. margin</th><th title="GAAP diluted EPS">EPS GAAP</th></tr>
-          </thead>
-          <tbody>
-            {quarters.map((q) => (
-              <tr key={q.key}>
-                <td>{q.quarter}</td>
-                <td>{q.sales}</td>
-                <td title={q.yoyTitle} style={{ color: q.yoyTone }}>{q.yoy}</td>
-                <td style={{ color: q.qoqTone }}>{q.qoq}</td>
-                <td style={{ color: q.marginTone }}>{q.operatingMargin}</td>
-                <td title={q.gaapTitle}>{q.gaap}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="fund-sheet-block">
+          <h3>Quarters</h3>
+          <table className="fund-sheet-table">
+            <thead>
+              <tr><th>Quarter</th><th>Sales</th><th>Year on year</th><th>On the quarter</th><th>Op. margin</th><th title="GAAP diluted EPS">EPS GAAP</th></tr>
+            </thead>
+            <tbody>
+              {quarters.map((q) => (
+                <tr key={q.key}>
+                  <td>{q.quarter}</td>
+                  <td>{q.sales}</td>
+                  <td title={q.yoyTitle} style={{ color: q.yoyTone }}>{q.yoy}</td>
+                  <td style={{ color: q.qoqTone }}>{q.qoq}</td>
+                  <td style={{ color: q.marginTone }}>{q.operatingMargin}</td>
+                  <td title={q.gaapTitle}>{q.gaap}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
     </div>
   );
 }
 
-// The estimates and earnings-quality lines, then the nine checks: the words.
-function SheetWords({ sheet }) {
+// The estimates, quality, flags and Code 33 lines (the next report sits in the head).
+function SheetRead({ sheet }) {
+  const lines = sheetLines(sheet).filter((line) => line.k !== 'Next report');
   return (
-    <div className="fund-sheet-words">
-      <div className="fund-sheet-lines">
-        {sheetLines(sheet).map((line) => (
-          <div key={line.k}><span className="lens-k">{line.k}</span> <span style={{ color: line.tone }}>{line.v}</span></div>
+    <div className="fund-sheet-block">
+      <h3>The read</h3>
+      <dl className="fund-sheet-lines">
+        {lines.map((line) => (
+          <div key={line.k}>
+            <dt>{line.k}</dt>
+            <dd style={{ color: line.tone }}>{line.v}</dd>
+          </div>
         ))}
-      </div>
-      <ul className="fund-sheet-checks">
-        {checkRows(sheet).map((c) => (
-          <li key={c.key} title={c.why}>
-            <span className="fund-check-mark" style={{ color: c.tone }}>{c.mark}</span>
-            <span>{c.label}</span>
-            <small>{c.why}</small>
-          </li>
-        ))}
-      </ul>
+      </dl>
     </div>
   );
 }
 
 // The fundamentals sheet (2026-10-12): his list, the business beside the stock,
-// graded apart from the setup. Reports and quarters as two small tables, the
-// estimates and earnings-quality lines, then the nine checks the grade rests on.
-// It is the big chart's second page (2026-10-13, his "a second page rather then
-// another block below"): the panel's whole width, the numbers on the left and
-// the lines and checks beside them.
+// graded apart from the setup. It is the big chart's second page (2026-10-13, his
+// "a second page rather then another block below"). Laid out again Wed 28/10/2026
+// from the design canvas (his "this is unreadable"): the grade and the next report
+// on top, the nine checks in three boxes, the two tables side by side in a larger
+// type, then the read.
 export default function FundamentalsSheet({ data }) {
   const sheet = data.fund_sheet;
   return (
     <section className="stock-lens-section fund-sheet">
-      <div className="stock-lens-section-header">
-        <span>Fundamentals</span>
-        <small>cap {fmtMoneyCompact(data.market_cap)}</small>
-      </div>
-      <div className="fund-sheet-body">
-        <SheetNumbers sheet={sheet} />
-        <SheetWords sheet={sheet} />
-      </div>
+      <SheetHead sheet={sheet} marketCap={data.market_cap} />
+      <SheetChecks sheet={sheet} />
+      <SheetTables sheet={sheet} />
+      <SheetRead sheet={sheet} />
     </section>
   );
 }

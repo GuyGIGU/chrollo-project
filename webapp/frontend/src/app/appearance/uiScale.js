@@ -10,12 +10,9 @@
 // (`chrollo:ui-scale@2560x1440`); a screen with no choice runs auto-fit against
 // its own viewport, live, and nothing auto is ever saved.
 //
-// ONE CARD SIZE ON EVERY SCREEN (operator 2026-10-03, after a day of three
-// 831px cards at 2560: "I want them to retain the original size so the scaling
-// looks the same, with the extra monitor space I could just ... see more of the
-// website"). The card keeps its 1920 size (~610-620px) and a wider screen fits
-// MORE of them: three per row at 1920, four at 2560. The 2026-10-02 three-card
-// ceiling is gone; it bought a fourth card's room back as a bigger card.
+// FOUR CARDS PER ROW (operator Wed 28/10/2026, "fixed 4 cards per row"). From
+// 2026-10-03 until then the card kept one size (~618px) and a wider screen got
+// more of them, three at 1920 and four at 2560.
 //
 // The auto-fit heuristic mirrors the real layout. Keep these constants in sync
 // with ScreenerGrid.jsx (the full-bleed grid wrapper's side padding + the card
@@ -39,14 +36,14 @@ export const DEFAULT_SCALE = 1;
 // 86px app rail is gone — it became a horizontal top nav that costs height, not
 // width — so it no longer belongs in this budget.
 export const GRID_CHROME_PX = 32 + 6;
-// 590 = the 1920 screen's card less some slack: three fit the screener's 1882px
-// grid (618px cards) and the Watchlist's 1850px grid (607px), four fit both at
-// 2560 (2522px -> 620px, 2490px -> 612px). The slack (52px on the narrower
-// Watchlist grid) keeps the third card when a scrollbar or a side panel eats
-// a little width. 1fr stretches the cards to fill the row, so between his two
-// screens (a window not maximized) a card can run up to ~790px before the next
-// column opens.
-export const CARD_MIN_PX = 590; // mirrored by ScreenerGrid/HealthBoard gridStyle and .wl-card-grid
+// FOUR CARDS PER ROW ON EVERY SCREEN (operator Wed 28/10/2026, "fixed 4 cards per
+// row"): the grid is always four columns, ~460px cards on his 1920 screen and ~620px
+// on his 2560 one. It replaces the 2026-10-03 one-card-size rule (three at 1920, four
+// at 2560). CARD_COLUMNS is mirrored by ScreenerGrid/HealthBoard gridStyle.
+export const CARD_COLUMNS = 4;
+// The smallest card auto-fit counts as a column: four of 440px fit the screener's
+// 1882px grid at 1920 with 20px of slack each, so both of his screens stay at 100%.
+export const CARD_MIN_PX = 440;
 export const CARD_GAP_PX = 14;  // ScreenerGrid gap
 
 // Snap an arbitrary value to the nearest allowed step (defensive against a
@@ -63,20 +60,22 @@ export function clampScale(value) {
 // How many screener cards fit per row at a given scale for a browser viewport of
 // `viewportWidth` px. Under CSS zoom S the app's internal coordinate width is
 // viewportWidth / S, so the grid sees (viewportWidth / S) - chrome.
+// Capped at CARD_COLUMNS: the grid never draws more.
 export function screenerColumnsAt(scale, viewportWidth) {
   const internalWidth = viewportWidth / scale - GRID_CHROME_PX;
   const cols = Math.floor((internalWidth + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX));
-  return Math.max(1, cols);
+  return Math.min(CARD_COLUMNS, Math.max(1, cols));
 }
 
-// "Smart" pick: the least shrink (largest scale <= 1) that still reaches the most
-// screener columns achievable without shrinking past the smallest step. Density
-// is a shrink, so auto-fit never enlarges past 1 — zooming in is a manual call.
-// On both of his screens this is 100%: no step down to 85% buys another
-// 590px card at 1920 or at 2560.
+// "Smart" pick: the least shrink (largest scale <= 1) that gives all four cards
+// their 440px. Density is a shrink, so auto-fit never enlarges past 1 — zooming in
+// is a manual call. The grid draws four columns either way, so a step that cannot
+// reach four buys nothing and auto-fit stays at 100%. On both of his screens this
+// is 100%.
 export function computeAutoFitScale(viewportWidth) {
   const candidates = SCALE_STEPS.filter((s) => s <= 1);
   const maxCols = Math.max(...candidates.map((s) => screenerColumnsAt(s, viewportWidth)));
+  if (maxCols < CARD_COLUMNS) return DEFAULT_SCALE;
   return candidates
     .filter((s) => screenerColumnsAt(s, viewportWidth) === maxCols)
     .reduce((a, b) => Math.max(a, b));
