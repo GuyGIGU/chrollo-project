@@ -507,6 +507,10 @@ elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the 
 5. Snapshots the current bundle to `webapp\frontend\dist_previous`, then rebuilds the frontend.
 6. Restarts the `ChrolloDashboard` service and polls `http://127.0.0.1:8000/health`.
 
+Both of its windows switch the console's QuickEdit off for themselves (the saved setting is left
+alone). With it on, a click inside the window starts a text selection and pauses the deploy until
+Esc. On 28 Oct 2026 a deploy sat frozen in its preflight that way and looked like a hang.
+
 If a deploy looks wrong in the browser, roll the frontend back in one command (backend code
 comes from git, so rollback only swaps the frontend bundle):
 

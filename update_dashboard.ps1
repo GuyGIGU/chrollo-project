@@ -31,6 +31,32 @@ param([switch]$Rollback, [switch]$Force,
 
 $ErrorActionPreference = 'Stop'
 
+# --- a click must not freeze the window -------------------------------------------
+# With the console's QuickEdit on, one click inside the window starts a text
+# selection and PAUSES this script until Esc. On 28/10/2026 a deploy sat frozen
+# that way in its preflight and looked like a hang. Switch QuickEdit off for this
+# window only (the saved console setting is not touched). The elevated run opens
+# its own window and runs this line again, so both windows are covered.
+function Disable-QuickEdit {
+    try {
+        Add-Type -Namespace ChrolloDeploy -Name ConsoleMode -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int handle);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr handle, out uint mode);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr handle, uint mode);
+'@
+        $stdin = [ChrolloDeploy.ConsoleMode]::GetStdHandle(-10)
+        $mode = [uint32]0
+        if (-not [ChrolloDeploy.ConsoleMode]::GetConsoleMode($stdin, [ref]$mode)) { return }
+        # ENABLE_EXTENDED_FLAGS (0x80) must be set for clearing ENABLE_QUICK_EDIT_MODE (0x40) to stick.
+        $mode = $mode -bor 0x80
+        if ($mode -band 0x40) { $mode -= 0x40 }
+        [void][ChrolloDeploy.ConsoleMode]::SetConsoleMode($stdin, $mode)
+    } catch {
+        # Not worth stopping a deploy over: the window just keeps QuickEdit.
+    }
+}
+Disable-QuickEdit
+
 # --- the release checkout, before anything else ---------------------------------
 $guardArgs = @{ Repo = $PSScriptRoot; ReleaseBranch = $ReleaseBranch }
 if ($AllowAnyCheckout) { $guardArgs.AllowAnyCheckout = $true }
