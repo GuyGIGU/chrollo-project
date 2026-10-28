@@ -193,8 +193,26 @@ def letter_for(share: float) -> str:
     return "D"
 
 
+def rules() -> dict:
+    """The grade's own cut points, sent with every grade so the sheet's explanations
+    quote the numbers the scan used (Wed 28/10/2026, his "add explanations on
+    everything"): the page never keeps its own copy of a threshold (EC-28)."""
+    return {
+        "letters": [[floor, letter] for floor, letter in _knob("FUND_GRADE_LETTERS")],
+        "min_checks": _knob("FUND_GRADE_MIN_CHECKS"),
+        "eps_growth_min": _knob("FUND_GRADE_EPS_GROWTH_MIN"),
+        "sales_growth_min": _knob("FUND_GRADE_SALES_GROWTH_MIN"),
+        "flags": {
+            "stock_pay_share": _knob("FUND_GRADE_SBC_MAX"),
+            "one_time_share": _knob("FUND_FLAG_UNUSUAL_SHARE"),
+            "share_drop": _knob("FUND_FLAG_SHARE_DROP"),
+            "acquisition_share": _knob("FUND_FLAG_ACQUISITION_SHARE"),
+        },
+    }
+
+
 def grade(sheet: dict) -> dict:
-    """``{"letter", "passed", "known", "checks": [{"key", "label", "passed", "why"}]}``.
+    """``{"letter", "passed", "known", "checks": [{"key", "label", "passed", "why"}], "rules"}``.
     ``letter`` is None with fewer known checks than ``FUND_GRADE_MIN_CHECKS``."""
     checks = []
     for key, words in CHECKS:
@@ -206,4 +224,4 @@ def grade(sheet: dict) -> dict:
     if len(known) >= _knob("FUND_GRADE_MIN_CHECKS"):
         letter = letter_for(passed / len(known))
     return {"letter": letter, "passed": passed, "known": len(known), "checks": checks,
-            "label": label(sheet), "code33": code33(sheet)}
+            "label": label(sheet), "code33": code33(sheet), "rules": rules()}

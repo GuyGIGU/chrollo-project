@@ -2454,6 +2454,18 @@ td {
   margin: 0;
 }
 
+.fund-sheet-block h3 small {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 10px;
+}
+
+/* Every part explains itself on hover (Wed 28/10/2026): the help pointer says so. */
+.fund-sheet [title] {
+  cursor: help;
+}
+
 .fund-check-groups {
   display: grid;
   gap: 16px;

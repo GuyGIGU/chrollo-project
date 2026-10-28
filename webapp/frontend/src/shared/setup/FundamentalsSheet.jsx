@@ -1,7 +1,12 @@
 import { fmtMoneyCompact } from '../formatting/format';
 import { cardHeader, checkGroups, gradeNote, nextEarningsLine, quarterRows, reportRows, sheetLines } from './fundamentalsSheetRead';
+import {
+  CHECK_EXPLAIN, CODE33_EXPLAIN, GROUP_EXPLAIN, NEXT_REPORT_EXPLAIN, QUARTER_COLUMNS, REPORT_COLUMNS, SECTION_EXPLAIN,
+  WHO_EXPLAIN, gradeExplain, labelExplain, lineExplain,
+} from './fundamentalsExplain';
 
 // The grade, who the business is, and the next report where it cannot be missed.
+// Every part explains itself on hover (Wed 28/10/2026).
 function SheetHead({ sheet, marketCap }) {
   const head = cardHeader(sheet);
   const snap = sheet.snapshot || {};
@@ -9,18 +14,21 @@ function SheetHead({ sheet, marketCap }) {
   const next = sheet.next_earnings?.day ? nextEarningsLine(sheet.next_earnings) : null;
   return (
     <header className="fund-sheet-head">
-      <div className="fund-sheet-verdict" data-grade={head.letter || 'none'} title={head.title}>
-        <span className="fund-grade-tile">{head.letter || '–'}</span>
+      <div className="fund-sheet-verdict" data-grade={head.letter || 'none'}>
+        <span className="fund-grade-tile" title={`${head.title}. ${gradeExplain(sheet)}`}>{head.letter || '–'}</span>
         <div className="fund-sheet-verdict-words">
-          <span className="fund-sheet-label">{head.label}</span>
-          <small>{[head.checks ? `${head.checks} passed` : gradeNote(sheet), head.code33Word].filter(Boolean).join(' · ')}</small>
+          <span className="fund-sheet-label" title={labelExplain(sheet)}>{head.label}</span>
+          <small>
+            <span title={gradeExplain(sheet)}>{head.checks ? `${head.checks} passed` : gradeNote(sheet)}</span>
+            {head.code33Word ? <> · <span title={`${head.code33Title}. ${CODE33_EXPLAIN}`}>{head.code33Word}</span></> : null}
+          </small>
         </div>
-        {head.code33 ? <span className="fund-card-badge" title={head.code33Title}>Code 33 ✓</span> : null}
+        {head.code33 ? <span className="fund-card-badge" title={`${head.code33Title}. ${CODE33_EXPLAIN}`}>Code 33 ✓</span> : null}
       </div>
-      <div className="fund-sheet-who" title={head.snapshotTitle}>
-        {snap.name ? <span className="fund-sheet-name">{snap.name}</span> : null}
-        {where ? <small>{where}</small> : null}
-        {next ? <span className="fund-sheet-next">Next report {next}</span> : null}
+      <div className="fund-sheet-who">
+        {snap.name ? <span className="fund-sheet-name" title={head.snapshotTitle}>{snap.name}</span> : null}
+        {where ? <small title={WHO_EXPLAIN}>{where}</small> : null}
+        {next ? <span className="fund-sheet-next" title={NEXT_REPORT_EXPLAIN}>Next report {next}</span> : null}
       </div>
     </header>
   );
@@ -45,16 +53,16 @@ function SheetChecks({ sheet }) {
   if (!groups.length) return null;
   return (
     <div className="fund-sheet-block">
-      <h3>The nine checks</h3>
+      <h3 title={SECTION_EXPLAIN.checks}>The nine checks <small>hover anything on this page for how it is measured</small></h3>
       <div className="fund-check-groups">
         {groups.map((g) => (
           <div key={g.title} className="fund-check-group">
             <div className="fund-check-group-head">
               <span>{g.title}</span>
-              <small>{g.count}</small>
+              <small title={GROUP_EXPLAIN}>{g.count}</small>
             </div>
             {g.rows.map((c) => (
-              <div key={c.key} className="fund-check">
+              <div key={c.key} className="fund-check" title={CHECK_EXPLAIN[c.key]}>
                 <CheckMark state={c.state} />
                 <div>
                   <span>{c.label}</span>
@@ -77,10 +85,16 @@ function SheetTables({ sheet }) {
     <div className="fund-sheet-tables">
       {reports.length ? (
         <div className="fund-sheet-block">
-          <h3>Earnings reports</h3>
+          <h3 title={SECTION_EXPLAIN.reports}>Earnings reports</h3>
           <table className="fund-sheet-table">
             <thead>
-              <tr><th>Report</th><th title="Adjusted EPS, the figure the analysts estimate">EPS adj.</th><th>Year on year</th><th>vs estimate</th><th>Market move</th></tr>
+              <tr>
+                <th title={REPORT_COLUMNS.report}>Report</th>
+                <th title={REPORT_COLUMNS.eps}>EPS adj.</th>
+                <th title={REPORT_COLUMNS.yoy}>Year on year</th>
+                <th title={REPORT_COLUMNS.surprise}>vs estimate</th>
+                <th title={REPORT_COLUMNS.move}>Market move</th>
+              </tr>
             </thead>
             <tbody>
               {reports.map((r) => (
@@ -100,10 +114,17 @@ function SheetTables({ sheet }) {
       ) : null}
       {quarters.length ? (
         <div className="fund-sheet-block">
-          <h3>Quarters</h3>
+          <h3 title={SECTION_EXPLAIN.quarters}>Quarters</h3>
           <table className="fund-sheet-table">
             <thead>
-              <tr><th>Quarter</th><th>Sales</th><th>Year on year</th><th>On the quarter</th><th>Op. margin</th><th title="GAAP diluted EPS">EPS GAAP</th></tr>
+              <tr>
+                <th title={QUARTER_COLUMNS.quarter}>Quarter</th>
+                <th title={QUARTER_COLUMNS.sales}>Sales</th>
+                <th title={QUARTER_COLUMNS.yoy}>Year on year</th>
+                <th title={QUARTER_COLUMNS.qoq}>On the quarter</th>
+                <th title={QUARTER_COLUMNS.margin}>Op. margin</th>
+                <th title={QUARTER_COLUMNS.gaap}>EPS GAAP</th>
+              </tr>
             </thead>
             <tbody>
               {quarters.map((q) => (
@@ -129,10 +150,10 @@ function SheetRead({ sheet }) {
   const lines = sheetLines(sheet).filter((line) => line.k !== 'Next report');
   return (
     <div className="fund-sheet-block">
-      <h3>The read</h3>
+      <h3 title={SECTION_EXPLAIN.read}>The read</h3>
       <dl className="fund-sheet-lines">
         {lines.map((line) => (
-          <div key={line.k}>
+          <div key={line.k} title={lineExplain(line.k, sheet)}>
             <dt>{line.k}</dt>
             <dd style={{ color: line.tone }}>{line.v}</dd>
           </div>

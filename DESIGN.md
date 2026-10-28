@@ -453,7 +453,11 @@ three boxes (Earnings, Sales and margin, Analysts and the market; a grouping by 
 check's key only, each box counting passed of known); the reports and quarters tables
 side by side at 14px with the latest row a step brighter; then the read (trend,
 estimates, quality, flags, Code 33) in two columns. All of it on lens tokens, so the
-paper skin repaints it.
+paper skin repaints it. The same day every part got its explanation on hover (his
+"add explanations on everything on the fundamental side to remind how this works";
+`fundamentalsExplain.js`, a help pointer and one faint "hover anything" line beside
+the checks' heading); the cut points it quotes ride the wire as `grade.rules`, so the
+page never keeps its own copy of a threshold.
 
 **The big chart acts like the card** (operator 2026-10-03, suggestion #1), so he
 can walk the whole filtered list with Next and act on each chart without closing

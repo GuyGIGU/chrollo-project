@@ -305,6 +305,22 @@ def test_code_33_is_strict_three_quarters_of_all_three_and_unknown_without_histo
     assert no_sales_history["met"] is None and "sales growth" in no_sales_history["why"]
 
 
+def test_the_grade_carries_the_cut_points_it_used(monkeypatch):
+    """The sheet's explanations quote these, so they are the scan's own knobs, read
+    when the grade is made: a retuned knob reaches the page with the next scan."""
+    from config import settings
+    monkeypatch.setattr(settings, "FUND_GRADE_LETTERS", ((0.9, "A"), (0.6, "B"), (0.4, "C")))
+    monkeypatch.setattr(settings, "FUND_FLAG_SHARE_DROP", 0.05)
+    r = grade.grade(_sheet())["rules"]
+    assert r["letters"] == [[0.9, "A"], [0.6, "B"], [0.4, "C"]]
+    assert r["min_checks"] == settings.FUND_GRADE_MIN_CHECKS
+    assert r["eps_growth_min"] == settings.FUND_GRADE_EPS_GROWTH_MIN
+    assert r["sales_growth_min"] == settings.FUND_GRADE_SALES_GROWTH_MIN
+    assert r["flags"] == {"stock_pay_share": settings.FUND_GRADE_SBC_MAX, "one_time_share": settings.FUND_FLAG_UNUSUAL_SHARE,
+                          "share_drop": 0.05, "acquisition_share": settings.FUND_FLAG_ACQUISITION_SHARE}
+    json.dumps(r)                                                          # it rides the payload and the archive
+
+
 @pytest.mark.parametrize("share, letter", [(1.0, "A"), (0.85, "A"), (0.8, "B"), (0.7, "B"), (0.6, "C"), (0.5, "C"), (0.49, "D")])
 def test_the_letter_is_the_share_of_known_checks_passed(share, letter):
     assert grade.letter_for(share) == letter
