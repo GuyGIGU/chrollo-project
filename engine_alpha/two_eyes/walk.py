@@ -86,6 +86,15 @@ a shown line moves back only to the box it gave up, and only after a DIP (when t
 box above took its place, a fall back into the old box is the newer box's own dip: his ST, where the spring under
 his box is at both rails of the box under it); the unit of a pair (the range of its second anchor's day); the day
 a handed-over box's lines stop (the newer pair's opening).
+
+The switches (Wed 28/10/2026; his word: *"we've got to write the engine in a certain way that will allow us to
+easily tune it in the right direction"*): four readings of his that were tried as monkeypatches are named switches
+in ``two_eyes_numbers``, each read where the walk decides and each ON by default, so the walk reads as built —
+``ONE_BAR_PAIR`` (``pairs_from``: an end may pair with the other end of its own bar), ``GAP_BAR_LOW_IS_REACTION``
+(``swing_ends`` and ``pairs_from``: a gap bar's own low may be the reaction), ``WIDE_ENDS`` (``swing_ends``:
+the other end of one wide bar is listed) and ``CLIMAX_BAR_OWN_REACTION`` (``pairs_from``: a pair opening on a
+trend end's climax bar may take its second anchor from that bar). A reading is measured as one switch off plus one run of
+``tools.calibration.fires_board`` on his live drawings; none is ruled on.
 """
 from __future__ import annotations
 
@@ -212,8 +221,10 @@ def swing_ends(turns, high, low, read_bar: int) -> list:
         wide = False
         if bar > 0 and sign * values[bar - 1] > sign * values[bar]:
             before = out[-1] if out else None
-            if before is None or before.bar != bar or before.kind == turn.kind:
+            if before is None or before.bar != bar or before.kind == turn.kind or not M.WIDE_ENDS:
                 continue
+            if not M.GAP_BAR_LOW_IS_REACTION and turn.kind == "valley" and low[bar] > high[bar - 1]:
+                continue                # a gap bar's own low is where the rise landed, not the reaction
             wide = True
         out.append(End(index=index, bar=bar, kind=turn.kind, price=float(turn.price),
                        known_bar=max(int(turn.knowable_bar), bar + 1), wide=wide))
@@ -379,6 +390,7 @@ def pairs_from(ends, trends, high, low, ranges, read_bar: int) -> list:
     top with each lower low after it until a bar goes over the top: one rail stays while the other moves). A
     pair is listed no sooner than the day a trend end before it was known."""
     walked = [(t["foot_bar"], t["known_bar"]) for t in trends if t.get("foot_bar") is not None]
+    climaxes = {int(t["climax_bar"]) for t in trends}
     out = []
     for a, first in enumerate(ends):
         known = min((k for foot_bar, k in walked if foot_bar <= first.bar), default=None)
@@ -387,7 +399,10 @@ def pairs_from(ends, trends, high, low, ranges, read_bar: int) -> list:
         span = slice(first.bar, read_bar + 1)
         if first.kind == "peak":
             past = np.flatnonzero(high[span] > first.price)
-            running = np.minimum.accumulate(low[span])
+            lows = low[span]
+            if not M.GAP_BAR_LOW_IS_REACTION and first.bar > 0 and low[first.bar] > high[first.bar - 1]:
+                lows = np.concatenate(([np.inf], lows[1:]))      # the gap bar's own low is not the reaction's
+            running = np.minimum.accumulate(lows)
         else:
             past = np.flatnonzero(low[span] < first.price)
             running = np.maximum.accumulate(high[span])
@@ -398,6 +413,10 @@ def pairs_from(ends, trends, high, low, ranges, read_bar: int) -> list:
                 break
             if second.kind == first.kind or running[second.bar - first.bar] != second.price:
                 continue
+            if second.bar == first.bar and not M.ONE_BAR_PAIR:
+                continue                # an end never pairs with the other end of its own bar
+            if second.bar == first.bar and first.bar in climaxes and not M.CLIMAX_BAR_OWN_REACTION:
+                continue                # a trend end's climax bar is never its own reaction
             joined = max(first.known_bar, second.known_bar, int(known))
             out.append(measure(high, low, ranges, first, second, joined, read_bar))
     return out
