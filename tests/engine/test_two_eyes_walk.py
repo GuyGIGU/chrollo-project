@@ -478,6 +478,139 @@ def test_one_wide_bar_is_a_pair_read_in_whichever_order_makes_it_a_counter_move(
 
 
 # --------------------------------------------------------------------------- #
+# The walk's switches: his candidate rules, each a named switch; as built = on #
+# --------------------------------------------------------------------------- #
+def _gap_climax_chart() -> tuple:
+    """The climax bar as one wide bar (the first chart of the one-wide-bar test above), and it GAPPED: its low 76
+    sits over the bar before's high (73.2, the rise walking from 66 to 80). His EHC and ANF gap bars."""
+    chart = _chart(_RISE[:-1] + [(14, 77.2), (17, 79.6), (20, 76.4), (23, 79.4), (26, 76.6)])
+    chart["low"][11] = 76.0
+    turns = [*chart["turns"][:9], _turn(11, "valley", 76.0, know=13), *chart["turns"][9:]]
+    assert chart["high"][10] < chart["low"][11], "the climax bar gaps clear of the bar before"
+    return chart, turns
+
+
+def _wide_bar_later_chart() -> tuple:
+    """A wide bar a swing later (the second chart of that test): 79 / 72 on bar 19, no gap."""
+    later = _chart(_RISE + [(17, 77), (19, 72), (22, 78.6), (25, 72.4), (28, 78.8), (31, 72.6)])
+    later["high"][19] = 79.0
+    turns = [*later["turns"][:12], _turn(19, "peak", 79.0, know=21), *later["turns"][12:]]
+    assert later["low"][19] < later["high"][18], "no gap"
+    return later, turns
+
+
+def _switched(monkeypatch, **switches):
+    from engine_alpha import two_eyes_numbers as M
+
+    for name, value in switches.items():
+        assert isinstance(getattr(M, name), bool), f"{name} is not a switch"
+        monkeypatch.setattr(M, name, value)
+
+
+def test_the_switches_default_to_the_rule_as_built():
+    """Every switch is on: the walk reads exactly as it did before the switches were named (Wed 28/10/2026), so
+    the as-built path is the default and a measurement flips ONE of them."""
+    from engine_alpha import two_eyes_numbers as M
+
+    assert (M.ONE_BAR_PAIR, M.GAP_BAR_LOW_IS_REACTION, M.WIDE_ENDS, M.CLIMAX_BAR_OWN_REACTION) == (True,) * 4
+
+
+def test_the_climax_bar_switch_off_never_takes_both_anchors_from_a_trend_ends_climax_bar(monkeypatch):
+    """``CLIMAX_BAR_OWN_REACTION`` off: a pair whose first anchor is a trend end's CLIMAX bar never takes its second
+    anchor from that same bar (his words, Wed 28/10/2026: "a climax and its reaction are never on one bar as in a
+    true climax's end and its reaction, but when choosing a box, a single bar can represent the climax and the
+    reaction for that box's root swing" — the switch names the first half; on by default, the second). A one-bar
+    pair on any other bar is still listed; ``ONE_BAR_PAIR`` is the switch for all of them."""
+    from engine_alpha.two_eyes import walk
+
+    chart, turns = _gap_climax_chart()
+    high, low, ranges = chart["high"], chart["low"], chart["ranges"]
+    as_built = walk.elect(turns, turns, ranges, high, low, read_bar=chart["n"] - 1)
+    assert [t["climax_bar"] for t in as_built.ends if t["kind"] == "BC"] == [11], "bar 11 is the rise's climax"
+    assert (11, 11) in {(p.r_bar, p.s_bar) for p in as_built.pairs.values()}
+    _switched(monkeypatch, CLIMAX_BAR_OWN_REACTION=False)
+    found = walk.elect(turns, turns, ranges, high, low, read_bar=chart["n"] - 1)
+    assert (11, 11) not in {(p.r_bar, p.s_bar) for p in found.pairs.values()}
+    assert found.swing_ends == as_built.swing_ends and _box(found) != (80.0, 76.0)
+    assert set(found.pairs) == {k for k, p in as_built.pairs.items() if (p.r_bar, p.s_bar) != (11, 11)}
+    # The wide bar a swing later is no climax: its one-bar pair stays.
+    later, turns = _wide_bar_later_chart()
+    found = walk.elect(turns, turns, later["ranges"], later["high"], later["low"], read_bar=later["n"] - 1)
+    assert (19, 19) in {(p.r_bar, p.s_bar) for p in found.pairs.values()}
+    assert 19 not in {t["climax_bar"] for t in found.ends}
+
+
+def test_the_one_bar_pair_switch_off_never_pairs_an_end_with_the_other_end_of_its_own_bar(monkeypatch):
+    """``ONE_BAR_PAIR`` off: sentence 3's pair is not listed (his AMTB, Wed 28/10/2026: "rather than this
+    abomination" of the climax bar's own high and low). The wide end itself is still a swing's end and may pair
+    with ends on other bars; only the pairing with its own bar's other end is refused, in ``pairs_from``."""
+    from engine_alpha.two_eyes import walk
+
+    for chart, turns in (_gap_climax_chart(), _wide_bar_later_chart()):
+        high, low, ranges = chart["high"], chart["low"], chart["ranges"]
+        as_built = walk.elect(turns, turns, ranges, high, low, read_bar=chart["n"] - 1)
+        assert any(p.r_bar == p.s_bar for p in as_built.pairs.values())
+        _switched(monkeypatch, ONE_BAR_PAIR=False)
+        found = walk.elect(turns, turns, ranges, high, low, read_bar=chart["n"] - 1)
+        monkeypatch.undo()
+        assert not any(p.r_bar == p.s_bar for p in found.pairs.values()), "a one-bar pair was listed"
+        assert found.swing_ends == as_built.swing_ends, "the ends are the same ends"
+        assert _box(found) != _box(as_built), "the one-bar box stood"
+        # Every other pair is the same pair.
+        assert set(found.pairs) == {k for k, p in as_built.pairs.items() if p.r_bar != p.s_bar}
+
+
+def test_the_gap_bar_switch_off_reads_a_gap_bars_own_low_as_where_the_rise_landed(monkeypatch):
+    """``GAP_BAR_LOW_IS_REACTION`` off (his EHC and ANF, Sat 24/10/2026; the parked GU2 reading): a bar that gapped
+    clear of the bar before (its low over that bar's high) gives no wide valley end, and from its top the running
+    low leaves the bar's own low out, so a later low can be the reaction. A wide bar that did not gap is read as
+    built."""
+    from engine_alpha.two_eyes import walk
+
+    chart, turns = _gap_climax_chart()
+    high, low, ranges = chart["high"], chart["low"], chart["ranges"]
+    as_built = walk.elect(turns, turns, ranges, high, low, read_bar=chart["n"] - 1)
+    assert (11, 11) in {(p.r_bar, p.s_bar) for p in as_built.pairs.values()}
+    assert (80.0, 77.2) not in {(p.R, p.S) for p in as_built.pairs.values()}, "the gap bar's low hid the 77.2 low"
+    _switched(monkeypatch, GAP_BAR_LOW_IS_REACTION=False)
+    found = walk.elect(turns, turns, ranges, high, low, read_bar=chart["n"] - 1)
+    assert [(e.bar, e.kind, e.wide) for e in found.swing_ends if e.bar == 11] == [(11, "peak", False)]
+    listed = {(p.R, p.S) for p in found.pairs.values()}
+    assert (80.0, 76.0) not in listed and (80.0, 77.2) in listed and (80.0, 76.4) in listed
+    assert _box(found) != (80.0, 76.0)
+    # No gap, no change: the wide bar a swing later reads as built.
+    later, turns = _wide_bar_later_chart()
+    high, low, ranges = later["high"], later["low"], later["ranges"]
+    found = walk.elect(turns, turns, ranges, high, low, read_bar=later["n"] - 1)
+    monkeypatch.undo()
+    same = walk.elect(turns, turns, ranges, high, low, read_bar=later["n"] - 1)
+    assert found.pairs == same.pairs and found.swing_ends == same.swing_ends
+
+
+def test_the_wide_ends_switch_off_lists_no_other_end_of_a_wide_bar(monkeypatch):
+    """``WIDE_ENDS`` off: sentence 3 is off whole — the other end of one wide bar is no swing's end at all, so it
+    pairs with nothing, on its own bar or any other (the W reading of Sat 24/10/2026, for scale)."""
+    from engine_alpha.two_eyes import walk
+
+    high = np.array([10.0, 11.0, 12.0, 11.4, 11.0, 12.6, 13.0, 12.2, 11.8, 12.0, 11.9])
+    low = np.array([9.0, 10.2, 11.2, 10.4, 10.0, 10.8, 11.0, 11.5, 11.0, 11.4, 11.2])
+    turns = [_turn(2, "peak", 12.0), _turn(4, "valley", 10.0), _turn(5, "peak", 12.6, know=5),
+             _turn(5, "valley", 10.8, know=6), _turn(6, "peak", 13.0, know=6), _turn(6, "valley", 11.0, know=8),
+             _turn(8, "valley", 11.0, know=9), _turn(9, "peak", 12.0, know=False)]
+    as_built = walk.swing_ends(turns, high, low, read_bar=10)
+    assert [(e.bar, e.kind, e.wide) for e in as_built] == [(2, "peak", False), (4, "valley", False),
+                                                             (6, "peak", False), (6, "valley", True),
+                                                             (8, "valley", False)]
+    _switched(monkeypatch, WIDE_ENDS=False)
+    assert [(e.bar, e.kind, e.wide) for e in walk.swing_ends(turns, high, low, read_bar=10)] == [
+        (2, "peak", False), (4, "valley", False), (6, "peak", False), (8, "valley", False)]
+    chart, turns = _gap_climax_chart()
+    found = walk.elect(turns, turns, chart["ranges"], chart["high"], chart["low"], read_bar=chart["n"] - 1)
+    assert not any(e.wide for e in found.swing_ends)
+    assert not any(11 in (p.r_bar, p.s_bar) and p.S == 76.0 for p in found.pairs.values())
+
+
+# --------------------------------------------------------------------------- #
 # Sentences 6, 7 and 8: coming back, and the day the pair is a box            #
 # --------------------------------------------------------------------------- #
 def test_the_bars_come_back_to_the_rail_the_pair_opened_on_and_then_to_the_other():

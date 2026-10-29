@@ -135,3 +135,30 @@ GRADE_EMPTY_ZERO = 0.5
 GRADE_S = 75.0
 GRADE_A = 50.0
 GRADE_B = 25.0
+
+# --- The walk's switches (Wed 28/10/2026): his candidate rules, each a named switch -------------------------
+# His word that day: "we've got to write the engine in a certain way that will allow us to easily tune it in the
+# right direction". Each switch names ONE reading of the walk that was tried as a monkeypatch and is NOT ruled on;
+# all of them default to the rule as built, so the as-built path reads exactly as before. A reading is measured as
+# one switch off plus one run of `tools.calibration.fires_board` on his live drawings. Flipping one for good is a
+# ruling (decisions.md) and moves the version stamp like any number here. The walk reads them at call time.
+
+#: Sentence 3's pair: an end may pair with the other end of its OWN bar (the climax bar's own high and low as the
+#: climax and its reaction). Off: never (his AMTB, Wed 28/10/2026; measured 40 -> 39 on his 47, TWLO lost).
+ONE_BAR_PAIR = True
+
+#: A bar that gapped clear of the bar before (its low over that bar's high): its own low may be the reaction, as
+#: a wide end and as the running low under its top. Off: its low is where the rise landed, not the reaction, so a
+#: later low is (his EHC and ANF, Sat 24/10/2026; the GU2 reading, rise only: the mirror cost his EGBN).
+GAP_BAR_LOW_IS_REACTION = True
+
+#: The other end of one wide bar is listed as a swing's end (sentence 3, his "correct" of Thu 01/10/2026). Off:
+#: no wide ends at all (the W reading of Sat 24/10/2026, for scale).
+WIDE_ENDS = True
+
+#: A pair whose first anchor is a trend end's CLIMAX bar may take its second anchor from that same bar: the one
+#: bar is the climax and the reaction of that box's root swing. His words (Wed 28/10/2026): "a climax and its
+#: reaction are never on one bar as in a true climax's end and its reaction, but when choosing a box, a single bar
+#: can represent the climax and the reaction for that box's root swing". Off: never on the climax bar (one-bar
+#: pairs elsewhere stay; measured on his 47: the board unchanged, his AMTB's one-bar box gone).
+CLIMAX_BAR_OWN_REACTION = True
