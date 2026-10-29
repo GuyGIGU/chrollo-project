@@ -173,8 +173,8 @@ def rests_on_the_way_back(found) -> bool:
     for life in reversed(getattr(found, "lives", None) or ()):
         if life.why == walk.CAME_BACK:
             return True
-        if life.why in (walk.LIVE_TREND, walk.FIRST_BOX):
-            return False
+        if life.why in (walk.LIVE_TREND, walk.FIRST_BOX, walk.WRAPS):
+            return False                        # a fresh box: nothing before it is a place to come back to
     return False
 
 

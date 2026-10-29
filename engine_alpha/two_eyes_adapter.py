@@ -107,14 +107,27 @@ def stock_adr(frame) -> dict:
     return {"_adr_pct": adr_pct(daily, settings.ADR_WINDOW)}
 
 
+def stock_stage(frame) -> dict:
+    """The stock's life-cycle stage on its weekly chart and the week its advance began (the stage read, Fri
+    16/10/2026), the leadership read's other half: the stock, not the box. Read on the WHOLE frame the universe
+    door admitted (the cache's five years), never cut to the reader's two years, because a stage and an advance
+    run for years. Under the archive's names (``engine_alpha/stage_read.py``)."""
+    from engine_alpha.stage_read import read_stage
+
+    return {f"_{key}": value for key, value in read_stage(frame).items()}
+
+
 def _spring_day(read: Read) -> Optional[str]:
     """The day of the new reader's own spring (its tip), or None: the screen reads the volume at that key point on
     it. Its story names one spring at most."""
     return next((event.day.isoformat() for event in read.events if event.kind == SPRING), None)
 
 
-def graded_read(read: Read) -> Read:
-    """Compose the measured clarity once, outside the chart-reading leaf.
+def graded_read(read: Read, frame=None, stage=None) -> Read:
+    """Compose the trait grade once, outside the chart-reading leaf: the letter the integrity grade's, the score
+    placed within the letter by his traits (`engine_alpha/scoring/clarity.py`). The weekly stage is one of them:
+    given as ``stage`` (the row's own read), else read off the stock's whole ``frame``; a stage that cannot be read
+    leaves its row unmeasured and costs no other trait.
 
     A grade never costs a fire: if composing fails, the integrity grade stands and the trail says why.
     """
@@ -123,8 +136,13 @@ def graded_read(read: Read) -> Read:
         return read
     from engine_alpha.scoring.clarity import compose_grade
 
+    if stage is None and frame is not None:
+        try:
+            stage = stock_stage(frame).get("_cycle_stage")
+        except Exception:                        # the stage row stays unmeasured; the other traits read
+            stage = None
     try:
-        composed = compose_grade(grade, grade.clarity["facts"])
+        composed = compose_grade(grade, grade.clarity["facts"], stage=stage)
     except Exception as exc:
         step = Step("grade", f"the clarity grade could not be composed ({type(exc).__name__}: {exc}); "
                              "the integrity grade stands")
@@ -143,14 +161,18 @@ def to_result(read: Read, frame=None):
     result dict for a fire. ``frame``, when given, is the chart the universe
     door admitted: a fire then carries the stock's trend template
     (:func:`stock_trend`) and its ADR (:func:`stock_adr`), as an old-reader
-    fire does.
+    fire does, and its stage read (:func:`stock_stage`), which an old-reader
+    fire does not carry.
     """
     if read.failed:
         return EVAL_ERROR
     if not read.fired:
         return None
 
-    read = graded_read(read)
+    # The stock's own reads, once: the trend template, its ADR and its weekly stage ride the row, and the stage
+    # is one of the grade's traits.
+    stock = {} if frame is None else {**stock_trend(frame), **stock_adr(frame), **stock_stage(frame)}
+    read = graded_read(read, stage=stock.get("_cycle_stage"))
     box, lps, grade = read.parent, read.lps, read.grade
     # The grade's number, rounded ONCE to the wire's grade precision (one
     # decimal): the score, `_ta_grade` and the block all carry this one
@@ -248,7 +270,7 @@ def to_result(read: Read, frame=None):
         # 12/10/2026, option A), empty when the frame is not there to read.
         "_two_eyes_lps_volume_ratio": None if frame is None else volume_vs_50d(
             frame, lps.end_day.isoformat(), first_day=lps.start_day.isoformat()),
-        **({} if frame is None else {**stock_trend(frame), **stock_adr(frame)}),
+        **stock,
     }
     for key in WHOLE_NUMBER_KEYS:
         if result[key] is not None:        # whole when measured, empty when not

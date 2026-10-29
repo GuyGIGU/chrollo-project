@@ -66,6 +66,19 @@ BARRIER_LABELS = ["win", "loss", "timeout"]
 # across rows when the window is the same, and the elapsed window grows per row.
 TAIL_MFE_COL = "mfe_20d"
 TAIL_THRESHOLDS = (0.25, 0.40)
+# THE R RULER — his rolling LPS rule (docs/decisions.md 2026-10-24), stored per row
+# by core/archive/r_outcomes.py and read here beside the percent block, never
+# instead of it. The percent tail scores the stock's volatility (a 2%-ADR name
+# never reaches +25% in 20 days); in R quiet names reach 2R as often as wild
+# ones. P(>=kR) reads the R made BEFORE the stop, so a gain made after the stop
+# was hit never counts; the headline is P(>=2R), the R twin of P(+25%).
+R_STATUS_COL = "r_status"
+R_STATUSES = ("bought", "failed", "fired late", "never triggered")
+R_TAIL_COL = "r_best_before_stop_20d"
+R_THRESHOLDS = (2.0, 3.0)
+R_STOP_FIRST_COL = "r_stop_first_20d"
+R_GAIN_COL = "r_gain_20d"
+R_EXIT_COLS = ("r_exit_20d", "r_exit_60d")
 
 
 def _num(s: pd.Series) -> pd.Series:
@@ -108,6 +121,48 @@ def tail_rates(series: pd.Series, thresholds=TAIL_THRESHOLDS) -> dict:
             {"threshold": float(t), "rate": (float((vals >= t).mean()) if n else None)}
             for t in thresholds
         ],
+    }
+
+
+def _mean_or_none(series: pd.Series):
+    vals = _num(series).dropna()
+    return float(vals.mean()) if len(vals) else None
+
+
+def r_block(df: pd.DataFrame) -> dict:
+    """The R ruler for one (sub)set of episodes, from the stored R columns.
+
+    ``shares`` are of the rows the walk decided (bought / failed / fired late /
+    never triggered); ``tail`` is P(>=kR) before the stop on the 20-day window
+    over the matured buys, as an ordered band list like ``tail_rates`` (the wire
+    carries the threshold beside the rate, EC-28); ``mean_exit_r`` is the mean R
+    per mechanical trade (a stop, or out at the window's close) per window;
+    ``stop_first_rate`` the share of matured buys whose stop was hit before the
+    window's high; ``gain_median`` the raw gain from the entry beside the R.
+    Every rate is None, never 0.0, when nothing has matured.
+    """
+    def col(name):
+        return df[name] if name in df.columns else pd.Series(dtype=float)
+
+    status = col(R_STATUS_COL).dropna().astype(str)
+    n_walked = int(status.shape[0])
+    counts = {s: int((status == s).sum()) for s in R_STATUSES}
+    best = _num(col(R_TAIL_COL)).dropna()
+    n_matured = int(best.shape[0])
+    return {
+        "n_walked": n_walked,
+        "counts": counts,
+        "shares": {s: (counts[s] / n_walked if n_walked else None) for s in R_STATUSES},
+        "tail": {
+            "n": n_matured,
+            "col": R_TAIL_COL,
+            "bands": [{"threshold": float(k), "rate": (float((best >= k).mean()) if n_matured else None)}
+                      for k in R_THRESHOLDS],
+        },
+        "stop_first_rate": _mean_or_none(col(R_STOP_FIRST_COL)),
+        "mean_exit_r": {c: _mean_or_none(col(c)) for c in R_EXIT_COLS},
+        "exit_n": {c: int(_num(col(c)).notna().sum()) for c in R_EXIT_COLS},
+        "gain_median": describe(col(R_GAIN_COL)).get("median"),
     }
 
 
@@ -160,6 +215,7 @@ def edge_block(df: pd.DataFrame) -> dict:
     block["barrier"] = barrier_distribution(df)
     block["tail"] = tail_rates(df[TAIL_MFE_COL] if TAIL_MFE_COL in df.columns
                                else pd.Series(dtype=float))
+    block["r"] = r_block(df)
     headline = block["mfe"].get(HEADLINE_MFE_COL, {})
     block["headline_mfe_median"] = headline.get("median")
     block["headline_mfe_n"] = headline.get("n", 0)
@@ -240,6 +296,7 @@ def headline_edge(df: pd.DataFrame, source_basis: str = UNBIASED_SOURCE) -> dict
         "bars_to_date": block.get("bars_to_date"),
         "abnormal": block.get("abnormal"),
         "tail": block.get("tail"),
+        "r": block.get("r"),
     }
 
 

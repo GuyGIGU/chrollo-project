@@ -9,8 +9,6 @@ and existing monkeypatches continue to share one settings namespace.
 # ============================================================
 # Experimental clarity grade, authorized 2026-10-22. Equal starting budgets;
 # set both to zero to retain the prior integrity grade. Letter cuts are unchanged.
-SCORE_CLARITY_SWINGS = 50.0
-SCORE_CLARITY_RAILS = 50.0
 # Initial reference scales: main share .45 is the current 48's lower quartile;
 # rail error .25 is their median, rounded. Training anchors, not validated edge.
 CLARITY_SWING_FULL_SHARE = 0.45

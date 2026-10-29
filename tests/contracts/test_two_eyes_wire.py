@@ -196,8 +196,10 @@ def _payload(monkeypatch, row: dict, frame=None) -> dict:
 TWO_EYES_WIRE_KEYS = (
     "R", "S",
     "adr_pct",
+    "advance_start", "advance_weeks",     # the stage read (Fri 16/10/2026), in the leadership read
     "base_len",
     "candles",
+    "cycle_stage",
     "days_to_earnings",
     "dollar_volume_50d",
     "fund_earnings_surprise", "fund_eps_growth_accel", "fund_eps_growth_yoy", "fund_grade", "fund_grade_score",

@@ -1,0 +1,677 @@
+{
+ "inputs": {
+  "db": "journal_copy.db",
+  "cache_last_day": "2026-10-15",
+  "horizon": 40
+ },
+ "coverage": {
+  "episodes": 5618,
+  "read": 5565,
+  "not_read": 5,
+  "matured": 3360,
+  "first_days": [
+   "2026-06-01",
+   "2026-10-15"
+  ],
+  "stage_counts_all": {
+   "2": 4462,
+   "1": 965,
+   "3": 75,
+   "4": 61,
+   "0": 2
+  },
+  "stage_counts_matured": {
+   "2": 2594,
+   "1": 681,
+   "3": 31,
+   "4": 54
+  },
+  "advance_not_in_view_stage2": 65
+ },
+ "outcome_by_stage": {
+  "1": {
+   "p25": [
+    681,
+    0.0558
+   ],
+   "p40": [
+    681,
+    0.0147
+   ],
+   "median_best": 0.0569
+  },
+  "2": {
+   "p25": [
+    2594,
+    0.1083
+   ],
+   "p40": [
+    2594,
+    0.0335
+   ],
+   "median_best": 0.0862
+  },
+  "3": {
+   "p25": [
+    31,
+    0.1613
+   ],
+   "p40": [
+    31,
+    0.0
+   ],
+   "median_best": 0.1345
+  },
+  "4": {
+   "p25": [
+    54,
+    0.1296
+   ],
+   "p40": [
+    54,
+    0.0556
+   ],
+   "median_best": 0.0525
+  }
+ },
+ "outcome_by_stage_in_adr_thirds": {
+  "0": {
+   "1": {
+    "p25": [
+     346,
+     0.0058
+    ],
+    "p40": [
+     346,
+     0.0
+    ],
+    "median_best": 0.0407
+   },
+   "2": {
+    "p25": [
+     737,
+     0.0054
+    ],
+    "p40": [
+     737,
+     0.0014
+    ],
+    "median_best": 0.0556
+   },
+   "3": {
+    "p25": [
+     3,
+     0.0
+    ],
+    "p40": [
+     3,
+     0.0
+    ],
+    "median_best": 0.0157
+   },
+   "4": {
+    "p25": [
+     34,
+     0.0294
+    ],
+    "p40": [
+     34,
+     0.0294
+    ],
+    "median_best": 0.0327
+   }
+  },
+  "1": {
+   "1": {
+    "p25": [
+     201,
+     0.0746
+    ],
+    "p40": [
+     201,
+     0.01
+    ],
+    "median_best": 0.0785
+   },
+   "2": {
+    "p25": [
+     895,
+     0.0693
+    ],
+    "p40": [
+     895,
+     0.0112
+    ],
+    "median_best": 0.0839
+   },
+   "3": {
+    "p25": [
+     13,
+     0.1538
+    ],
+    "p40": [
+     13,
+     0.0
+    ],
+    "median_best": 0.1486
+   },
+   "4": {
+    "p25": [
+     11,
+     0.3636
+    ],
+    "p40": [
+     11,
+     0.0
+    ],
+    "median_best": 0.1496
+   }
+  },
+  "2": {
+   "1": {
+    "p25": [
+     134,
+     0.1567
+    ],
+    "p40": [
+     134,
+     0.0597
+    ],
+    "median_best": 0.1079
+   },
+   "2": {
+    "p25": [
+     962,
+     0.2235
+    ],
+    "p40": [
+     962,
+     0.079
+    ],
+    "median_best": 0.1211
+   },
+   "3": {
+    "p25": [
+     15,
+     0.2
+    ],
+    "p40": [
+     15,
+     0.0
+    ],
+    "median_best": 0.1403
+   },
+   "4": {
+    "p25": [
+     9,
+     0.2222
+    ],
+    "p40": [
+     9,
+     0.2222
+    ],
+    "median_best": 0.1791
+   }
+  }
+ },
+ "adr_third_cuts": [
+  2.52,
+  3.66
+ ],
+ "stage2_minus_stage1": {
+  "p25_ci": [
+   0.0282,
+   0.0747
+  ],
+  "p40_ci": [
+   0.0071,
+   0.0308
+  ],
+  "p25_ci_in_thirds": {
+   "0": [
+    -0.0084,
+    0.0066
+   ],
+   "1": [
+    -0.0417,
+    0.026
+   ],
+   "2": [
+    -0.0085,
+    0.1359
+   ]
+  }
+ },
+ "stage_share_by_month": {
+  "2026-06": {
+   "2": 678,
+   "1": 161,
+   "3": 14,
+   "4": 39
+  },
+  "2026-07": {
+   "2": 1113,
+   "1": 303,
+   "4": 9,
+   "3": 9
+  },
+  "2026-08": {
+   "2": 803,
+   "1": 217,
+   "3": 8,
+   "4": 6
+  }
+ },
+ "advance_weeks_stage2_quartiles": [
+  17.0,
+  38.0,
+  56.0
+ ],
+ "live_since_flip": {
+  "episodes": 346,
+  "stage_counts": {
+   "2": 276,
+   "1": 55,
+   "4": 4,
+   "3": 11
+  },
+  "by_stage": {
+   "1": [
+    "ACGL",
+    "AFYA",
+    "AIG",
+    "AMT",
+    "APOG",
+    "APXT",
+    "ARQT",
+    "AUNA",
+    "BEKE",
+    "CI",
+    "CV",
+    "DG",
+    "DIS",
+    "DMAC",
+    "EG",
+    "EOI",
+    "EVTC",
+    "EXLS",
+    "EXPO",
+    "FLGT",
+    "GFL",
+    "GOOD",
+    "HCI",
+    "HHH",
+    "ICE",
+    "INSP",
+    "JENA",
+    "KE",
+    "KOYN",
+    "LYFT",
+    "MDT",
+    "MELI",
+    "MORN",
+    "MQ",
+    "MTN",
+    "NOMD",
+    "NPAC",
+    "NTES",
+    "PRDO",
+    "RAC",
+    "RMD",
+    "SAP",
+    "SMMT",
+    "SONO",
+    "SONY",
+    "SSNC",
+    "STRA",
+    "TDC",
+    "TVA",
+    "TW",
+    "UGI",
+    "ULTA",
+    "WK",
+    "WMG",
+    "YEXT"
+   ],
+   "3": [
+    "AGYS",
+    "BRZE",
+    "CRM",
+    "FDS",
+    "ICFI",
+    "INTA",
+    "PLMR",
+    "SAIL",
+    "SIBN",
+    "SPT",
+    "ZIP"
+   ],
+   "4": [
+    "DEC",
+    "LSAK",
+    "RYZ",
+    "WS"
+   ]
+  }
+ },
+ "calibration_setups": [
+  {
+   "ticker": "VLO",
+   "day": "2026-07-07",
+   "cycle_stage": 2,
+   "advance_start": "2025-06-13",
+   "advance_weeks": 56
+  },
+  {
+   "ticker": "PBT",
+   "day": "2026-05-07",
+   "cycle_stage": 2,
+   "advance_start": "2025-05-23",
+   "advance_weeks": 50
+  },
+  {
+   "ticker": "MS",
+   "day": "2026-05-19",
+   "cycle_stage": 2,
+   "advance_start": "2023-12-15",
+   "advance_weeks": 127
+  },
+  {
+   "ticker": "MATX",
+   "day": "2026-06-30",
+   "cycle_stage": 2,
+   "advance_start": "2025-12-05",
+   "advance_weeks": 30
+  },
+  {
+   "ticker": "SILC",
+   "day": "2026-04-10",
+   "cycle_stage": 2,
+   "advance_start": "2026-01-09",
+   "advance_weeks": 14
+  },
+  {
+   "ticker": "ORMP",
+   "day": "2026-04-09",
+   "cycle_stage": 2,
+   "advance_start": "2025-11-14",
+   "advance_weeks": 21
+  },
+  {
+   "ticker": "NKTR",
+   "day": "2026-04-07",
+   "cycle_stage": 2,
+   "advance_start": "2025-06-27",
+   "advance_weeks": 41
+  },
+  {
+   "ticker": "SKYT",
+   "day": null
+  },
+  {
+   "ticker": "FOSL",
+   "day": "2026-02-17",
+   "cycle_stage": 2,
+   "advance_start": "2025-05-09",
+   "advance_weeks": 41
+  },
+  {
+   "ticker": "NTCT",
+   "day": "2026-03-03",
+   "cycle_stage": 2,
+   "advance_start": "2024-09-20",
+   "advance_weeks": 76
+  },
+  {
+   "ticker": "EWTX",
+   "day": "2026-03-30",
+   "cycle_stage": 2,
+   "advance_start": "2025-10-31",
+   "advance_weeks": 22
+  },
+  {
+   "ticker": "WTS",
+   "day": "2026-06-08",
+   "cycle_stage": 2,
+   "advance_start": "2025-01-17",
+   "advance_weeks": 73
+  },
+  {
+   "ticker": "VIK",
+   "day": "2026-06-08",
+   "cycle_stage": 2,
+   "advance_start": null,
+   "advance_weeks": null
+  },
+  {
+   "ticker": "NGL",
+   "day": "2026-01-15",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-08",
+   "advance_weeks": 23
+  },
+  {
+   "ticker": "NGL",
+   "day": "2026-04-17",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-08",
+   "advance_weeks": 37
+  },
+  {
+   "ticker": "AVT",
+   "day": "2026-04-06",
+   "cycle_stage": 2,
+   "advance_start": "2025-12-19",
+   "advance_weeks": 16
+  },
+  {
+   "ticker": "DLX",
+   "day": "2026-04-10",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-08",
+   "advance_weeks": 36
+  },
+  {
+   "ticker": "DSGN",
+   "day": "2026-03-30",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-15",
+   "advance_weeks": 33
+  },
+  {
+   "ticker": "MRK",
+   "day": "2026-08-07",
+   "cycle_stage": 2,
+   "advance_start": "2025-10-03",
+   "advance_weeks": 45
+  },
+  {
+   "ticker": "BODI",
+   "day": "2026-04-16",
+   "cycle_stage": 2,
+   "advance_start": "2025-11-14",
+   "advance_weeks": 22
+  },
+  {
+   "ticker": "BWA",
+   "day": "2026-05-04",
+   "cycle_stage": 2,
+   "advance_start": "2025-05-16",
+   "advance_weeks": 51
+  },
+  {
+   "ticker": "JAZZ",
+   "day": "2026-02-11",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-22",
+   "advance_weeks": 25
+  },
+  {
+   "ticker": "RGR",
+   "day": "2026-03-12",
+   "cycle_stage": 2,
+   "advance_start": "2026-01-09",
+   "advance_weeks": 9
+  },
+  {
+   "ticker": "UNF",
+   "day": "2026-07-09",
+   "cycle_stage": 2,
+   "advance_start": "2025-12-26",
+   "advance_weeks": 28
+  },
+  {
+   "ticker": "EGBN",
+   "day": "2026-01-13",
+   "cycle_stage": 2,
+   "advance_start": "2025-12-05",
+   "advance_weeks": 6
+  },
+  {
+   "ticker": "PKE",
+   "day": "2026-04-02",
+   "cycle_stage": 2,
+   "advance_start": "2025-06-06",
+   "advance_weeks": 44
+  },
+  {
+   "ticker": "NOK",
+   "day": "2026-02-13",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-29",
+   "advance_weeks": 25
+  },
+  {
+   "ticker": "SYRE",
+   "day": "2026-02-17",
+   "cycle_stage": 2,
+   "advance_start": "2025-10-10",
+   "advance_weeks": 19
+  },
+  {
+   "ticker": "ANRO",
+   "day": "2026-08-11",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-22",
+   "advance_weeks": 51
+  },
+  {
+   "ticker": "MDT",
+   "day": "2026-07-23",
+   "cycle_stage": 4,
+   "advance_start": null,
+   "advance_weeks": null
+  },
+  {
+   "ticker": "YPF",
+   "day": "2026-05-15",
+   "cycle_stage": 2,
+   "advance_start": "2025-10-31",
+   "advance_weeks": 29
+  },
+  {
+   "ticker": "ST",
+   "day": "2026-04-16",
+   "cycle_stage": 2,
+   "advance_start": "2025-06-27",
+   "advance_weeks": 42
+  },
+  {
+   "ticker": "DRTS",
+   "day": "2026-04-10",
+   "cycle_stage": 2,
+   "advance_start": "2025-04-11",
+   "advance_weeks": 53
+  },
+  {
+   "ticker": "ALB",
+   "day": "2026-04-10",
+   "cycle_stage": 2,
+   "advance_start": "2025-08-15",
+   "advance_weeks": 35
+  },
+  {
+   "ticker": "MTLS",
+   "day": "2026-09-03",
+   "cycle_stage": 2,
+   "advance_start": "2026-05-01",
+   "advance_weeks": 18
+  },
+  {
+   "ticker": "ROIV",
+   "day": "2026-06-16",
+   "cycle_stage": 2,
+   "advance_start": "2025-07-11",
+   "advance_weeks": 49
+  },
+  {
+   "ticker": "SGHT",
+   "day": "2026-09-23",
+   "cycle_stage": 2,
+   "advance_start": "2026-08-07",
+   "advance_weeks": 7
+  },
+  {
+   "ticker": "WAT",
+   "day": "2026-09-23",
+   "cycle_stage": 2,
+   "advance_start": "2026-04-24",
+   "advance_weeks": 22
+  },
+  {
+   "ticker": "NET",
+   "day": "2026-09-11",
+   "cycle_stage": 2,
+   "advance_start": "2026-05-22",
+   "advance_weeks": 17
+  },
+  {
+   "ticker": "MSGS",
+   "day": "2026-05-21",
+   "cycle_stage": 2,
+   "advance_start": "2025-09-12",
+   "advance_weeks": 36
+  },
+  {
+   "ticker": "DDI",
+   "day": "2026-09-29",
+   "cycle_stage": 2,
+   "advance_start": "2026-05-01",
+   "advance_weeks": 22
+  },
+  {
+   "ticker": "ANET",
+   "day": "2026-09-24",
+   "cycle_stage": 2,
+   "advance_start": "2025-06-27",
+   "advance_weeks": 65
+  }
+ ],
+ "leaders_on_the_last_day": {
+  "SNOW": {
+   "cycle_stage": 2,
+   "advance_start": "2026-05-29",
+   "advance_weeks": 20
+  },
+  "FROG": {
+   "cycle_stage": 2,
+   "advance_start": "2026-03-20",
+   "advance_weeks": 30
+  },
+  "HNGE": {
+   "cycle_stage": 2,
+   "advance_start": "2026-05-08",
+   "advance_weeks": 23
+  },
+  "ANET": {
+   "cycle_stage": 2,
+   "advance_start": "2025-06-27",
+   "advance_weeks": 68
+  },
+  "DDI": {
+   "cycle_stage": 2,
+   "advance_start": "2026-05-01",
+   "advance_weeks": 24
+  }
+ }
+}

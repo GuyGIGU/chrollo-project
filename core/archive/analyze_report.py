@@ -288,9 +288,13 @@ def _print_segments(df: pd.DataFrame, by: str, label: Optional[str] = None,
     if by not in df.columns:
         return
     subhdr(f"By {label}")
+    # The three columns on the right are the R ruler (his rolling LPS rule):
+    # bought% of the walked rows, P(>=2R) before the stop in 20 trading days,
+    # and the mean R per mechanical trade. The percent columns stay beside them.
     emit(f"{label:<16}{'n':>4}{'med20d':>9}{'avg20d':>9}{'med60d':>9}"
-         f"{'win%':>7}{'trig%':>7}{'avgR':>7}{'expR':>7}")
-    emit("-" * 76)
+         f"{'win%':>7}{'trig%':>7}{'avgR':>7}{'expR':>7}"
+         f"{'bought%':>9}{'>=2R%':>7}{'meanR':>7}")
+    emit("-" * 99)
     keys = order if order else sorted([k for k in df[by].dropna().unique()], key=str)
     for k in keys:
         sub = df[df[by] == k]
@@ -300,7 +304,9 @@ def _print_segments(df: pd.DataFrame, by: str, label: Optional[str] = None,
         emit(f"{str(k):<16}{r['n']:>4}{fmt(r['med_20d'], pct=True):>9}"
              f"{fmt(r['avg_20d'], pct=True):>9}{fmt(r['med_60d'], pct=True):>9}"
              f"{fmt(r['win_rate'], pct=True):>7}{fmt(r['trig_rate'], pct=True):>7}"
-             f"{fmt(r['avg_rmult']):>7}{fmt(r['exp_r']):>7}")
+             f"{fmt(r['avg_rmult']):>7}{fmt(r['exp_r']):>7}"
+             f"{fmt(r['bought_rate'], pct=True):>9}{fmt(r['p_2r'], pct=True):>7}"
+             f"{fmt(r['mean_exit_r']):>7}")
 
 
 def section_performance(df: pd.DataFrame, valid: bool) -> None:
@@ -510,14 +516,16 @@ def section_calibration(df: pd.DataFrame, calibration: pd.DataFrame) -> None:
     fires = df[df["source"] == UNBIASED_SOURCE] if "source" in df.columns else df
     emit()
     emit(f"{'group':<20}{'n':>5}{'measured':>10}{'med best':>10}"
-         f"{'>=25%':>8}{'>=40%':>8}{'win':>7}{'resolved':>10}")
-    emit("-" * 78)
+         f"{'>=25%':>8}{'>=40%':>8}{'win':>7}{'resolved':>10}{'>=2R':>7}{'>=3R':>7}")
+    emit("-" * 92)
     emit(_cohort_line("engine fires", edge_block(fires)))
     emit(_cohort_line("calibration setups", edge_block(calibration)))
     emit()
     emit("  med best = median best gain so far (mfe_to_date, up to 60 trading days);")
     emit("  >=25% / >=40% = share whose best 20-day gain reached it; win = share of")
-    emit("  the resolved that hit +15% or 2.5R before the stop.")
+    emit("  the resolved that hit +15% or 2.5R before the stop; >=2R / >=3R = share")
+    emit("  of the buys by his rolling LPS rule that made it before the stop in 20")
+    emit("  trading days (the fires only; his setups are not walked yet).")
 
 
 def _rate(value) -> str:
@@ -528,8 +536,11 @@ def _cohort_line(label: str, block: dict) -> str:
     bands = {round(b["threshold"], 2): b["rate"]
              for b in (block.get("tail") or {}).get("bands", [])}
     barrier = block.get("barrier") or {}
+    r_bands = {round(b["threshold"], 2): b["rate"]
+               for b in ((block.get("r") or {}).get("tail") or {}).get("bands", [])}
     return (f"{label:<20}{block.get('n', 0):>5}{block.get('headline_mfe_n', 0):>10}"
             f"{fmt(block.get('headline_mfe_median'), pct=True):>10}"
             f"{_rate(bands.get(0.25)):>8}{_rate(bands.get(0.4)):>8}"
             f"{_rate(barrier.get('win_rate')):>7}"
-            f"{_rate(barrier.get('resolution_rate')):>10}")
+            f"{_rate(barrier.get('resolution_rate')):>10}"
+            f"{_rate(r_bands.get(2.0)):>7}{_rate(r_bands.get(3.0)):>7}")

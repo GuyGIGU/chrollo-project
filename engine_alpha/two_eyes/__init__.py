@@ -190,7 +190,8 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
                 from engine_alpha.two_eyes.clarity import measure
 
                 facts = measure(line, events, days, R=found.winner.R, S=found.winner.S,
-                                opening_bar=found.winner.opening_bar, read_bar=len(prepared) - 1)
+                                opening_bar=found.winner.opening_bar, read_bar=len(prepared) - 1,
+                                high=high, low=low, unit=found.winner.unit)
                 the_grade = replace(the_grade, clarity={"facts": facts})
             except Exception as exc:
                 trail = trail + (Step(grade_stage.STAGE, f"the clarity facts could not be measured "

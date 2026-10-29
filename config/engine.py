@@ -1040,6 +1040,16 @@ HTF_MONTHLY_WINDOWS = {
     "BOTTOMING_BASE_LANE_ENABLED": False,
 }
 
+# --- The stage read (the stock's life cycle on its weekly chart; built Fri 16/10/2026) -----------
+# MEASURE-ONLY: shown and archived on every new-reader fire, never a gate, a score or a tier, and no
+# reader reads it (engine_alpha/stage_read.py; docs/strategy_alpha.md "Reading the stage"). Not on
+# the engine's version stamp: it moves no fire. The numbers are the book's own stage-2 checks as the
+# trend template already reads them, on weekly bars (ours).
+STAGE_MA_WEEKS = 40               # the 40-week average (Minervini's 200-day; the base-count rule of 12/10/2026)
+STAGE_SLOPE_WEEKS = 4             # rising / falling: the average against itself this many weeks earlier
+STAGE_OFF_LOW_MIN = 0.30          # an advance week closes at least this far over the 52-week low
+STAGE_LOW_WEEKS = 52              # the 52-week low, in weeks
+
 # ---------------------------------------------------------------------------
 # THE TWO-EYES READER (the rewrite, 2026-09-20) - DARK
 # ---------------------------------------------------------------------------
@@ -1068,4 +1078,4 @@ TWO_EYES_READER_ENABLED = True
 # a bump appends its new string to SPENT_RULESETS in
 # tests/engine/test_two_eyes_adapter.py, and a re-flip after an undo always
 # bumps (docs/flag_ledger.md, "The engine stamps of the flip").
-TWO_EYES_RULESET = "two-eyes-0.10.3-known-rails"
+TWO_EYES_RULESET = "two-eyes-0.11.0-wrap-and-traits"

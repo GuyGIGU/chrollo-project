@@ -310,11 +310,12 @@ def test_a_changed_number_moves_the_version_stamp(monkeypatch):
     from engine_alpha import two_eyes_numbers as method_numbers
 
     names = sorted(n for n in vars(method_numbers) if n.isupper())
-    assert len(names) == 25, names           # six from the copies (task 7; R15's margin left with the box-end copy at task 11), two from stage 1 (task 8), three from stages 2 and 3 (task 10), five from stage 6 (task 12a), the last supper's naming floor (Sat 03/10/2026), four from the grade (task 14), three from his HCA (Sat 24/10/2026)
+    assert len(names) == 37, names    # + the wrap switch and the seven TRAIT_* numbers of Thu 29/10/2026           # six from the copies (task 7; R15's margin left with the box-end copy at task 11), two from stage 1 (task 8), three from stages 2 and 3 (task 10), five from stage 6 (task 12a), the last supper's naming floor (Sat 03/10/2026), four from the grade (task 14), three from his HCA (Sat 24/10/2026), the walk's four switches (Wed 28/10/2026)
     before = manifest.manifest_hash()
     for name in names:
         value = getattr(method_numbers, name)
-        moved = value + "x" if isinstance(value, str) else value + 1
+        moved = (value + "x" if isinstance(value, str) else (not value) if isinstance(value, bool)
+                 else {**value, "moved": 1} if isinstance(value, dict) else value + 1)
         monkeypatch.setattr(method_numbers, name, moved)
         assert manifest.manifest_hash() != before, f"moving {name} left the version stamp where it was"
         monkeypatch.undo()

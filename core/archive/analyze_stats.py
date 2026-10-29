@@ -14,7 +14,9 @@ import pandas as pd
 
 from core.archive.analyze_features import SUB_SCORES
 from core.archive.outcomes import HORIZON_BARS
-from core.backtest.edge_report import TAIL_MFE_COL, TAIL_THRESHOLDS
+from core.backtest.edge_report import (
+    R_EXIT_COLS, R_STATUS_COL, R_TAIL_COL, R_THRESHOLDS, TAIL_MFE_COL, TAIL_THRESHOLDS,
+)
 
 # A win that round-trips to the stop within this many bars of first touching a
 # profit target is a "cash-grab" — it spiked into profit then collapsed before
@@ -156,6 +158,13 @@ def _perf_row(sub: pd.DataFrame) -> dict:
         aw = wins.mean() if len(wins) else 0.0
         al = losses.mean() if len(losses) else 0.0
         exp_r = wr * aw + (1 - wr) * al
+    # The R ruler beside the percent one (his rolling LPS rule, 2026-10-24; the
+    # columns core/archive/r_outcomes.py stores): the share of the walked rows
+    # that were bought, P(>=2R) before the stop on the 20-day window, and the
+    # mean R per mechanical trade (a stop, or out at the window's close).
+    status = sub[R_STATUS_COL].dropna() if R_STATUS_COL in sub.columns else pd.Series(dtype=object)
+    r_best = _num_col(sub, R_TAIL_COL).dropna()
+    r_exit = _num_col(sub, R_EXIT_COLS[0]).dropna()
     return {
         "n": len(sub),
         "med_20d": ret20.median() if len(ret20) else None,
@@ -165,6 +174,9 @@ def _perf_row(sub: pd.DataFrame) -> dict:
         "trig_rate": trig.mean() if len(trig) else None,
         "avg_rmult": rmult.mean() if len(rmult) else None,
         "exp_r": exp_r,
+        "bought_rate": (status == "bought").mean() if len(status) else None,
+        "p_2r": (r_best >= R_THRESHOLDS[0]).mean() if len(r_best) else None,
+        "mean_exit_r": r_exit.mean() if len(r_exit) else None,
     }
 
 

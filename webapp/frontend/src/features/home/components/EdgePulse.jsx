@@ -4,7 +4,7 @@ import { PulseIcon } from '../../../shared/components/NavIcons';
 import { pct, signedPct } from '../presentation/homeFormat';
 import { tierColor } from '../../../shared/presentation/theme';
 import { TIER_LETTERS } from '../../../shared/presentation/wireVocabulary';
-import { fmtDay } from '../../../shared/formatting/format';
+import { EMPTY, fmtDay, fx } from '../../../shared/formatting/format';
 
 // Display floors: a median MFE over very few rows is noise; a win-rate over few
 // LABELLED (resolved) rows is worse. Below the floor we show the n, never a
@@ -21,6 +21,44 @@ const TIERS = TIER_LETTERS;
 // Format only. The threshold arrives on the wire beside the rate it was measured
 // against, so this labels what the backend measured and never declares it (EC-28).
 const bandLabel = (band) => `≥${Math.round((band?.threshold ?? 0) * 100)}%`;
+// The R ruler's bands the same way (the threshold is in R, not percent).
+const rBandLabel = (band) => `≥${fx(band?.threshold, 0)}R`;
+// An R figure: the house null guard, with the unit only when there is a number.
+const rFmt = (value, digits = 2) => (Number.isFinite(value) ? `${fx(value, digits)}R` : EMPTY);
+// The R rates read the same floor as the percent tail: the base rate is higher
+// (~25%), but one tier's hundred rows is still where a swing stops being noise.
+const R_MIN_N = TAIL_MIN_N;
+
+// The R ruler's headline figures: P(>=2R / >=3R) before the stop in 20 trading
+// days, the mean R per mechanical trade, and how the walk ended (bought /
+// failed / no entry). His rolling LPS rule (2026-10-24), measured engine-side
+// and stored per row; this only formats. Null-safe: an archive without the R
+// columns shows the ruler empty.
+function rFigures(r) {
+  const tail = r?.tail ?? { n: 0, bands: [] };
+  const bands = tail.bands ?? [];
+  const tailValue = bands.length
+    ? (tail.n >= R_MIN_N ? bands.map((b) => pct(b.rate)).join(' / ') : `n=${tail.n}`)
+    : EMPTY;
+  const tailLabel = bands.length
+    ? `${bands.map(rBandLabel).join(' / ')} before the stop, 20d`
+    : 'R before the stop, 20d';
+  const meanValue = r?.mean_exit_n_20d >= R_MIN_N ? rFmt(r.mean_exit_r_20d) : (r?.mean_exit_n_20d ? `n=${r.mean_exit_n_20d}` : EMPTY);
+  const shares = r?.shares ?? {};
+  const noEntry = (shares['fired late'] ?? 0) + (shares['never triggered'] ?? 0);
+  const sharesValue = r?.n_walked
+    ? `${pct(shares.bought, 0)} / ${pct(shares.failed, 0)} / ${pct(noEntry, 0)}`
+    : EMPTY;
+  return { tailValue, tailLabel, meanValue, sharesValue, bands };
+}
+
+// One tier's or one line's P(>=2R) cell: the FIRST R band, floored like the percent tail.
+function rTailCell(r) {
+  const tail = r?.tail ?? { n: 0, bands: [] };
+  const band = (tail.bands ?? [])[0];
+  if (!band) return EMPTY;
+  return tail.n >= R_MIN_N ? pct(band.rate) : (tail.n ? `n=${tail.n}` : EMPTY);
+}
 
 // Which reader wrote the rows, in his words. Presentational only: the backend
 // decides which reader is current (the one that wrote the latest scan).
@@ -76,6 +114,7 @@ function BaselineLine({ b }) {
     >
       <span>{name} ({b.n}) to {fmtDay(b.last_scan)}</span>
       {bands.length > 0 && <span>MFE {bands.map(bandLabel).join(' / ')} in 20d <b>{tailCell}</b></span>}
+      <span>≥2R before the stop <b>{rTailCell(b.r)}</b></span>
     </div>
   );
 }
@@ -113,6 +152,10 @@ export default function EdgePulse() {
     : 'MFE tail in 20d';
   // The tier column shows the FIRST measured band; the headline shows every band.
   const tierBandIdx = 0;
+  const r = rFigures(data.r);
+  const rTitle = data.r?.n_walked
+    ? `His rolling LPS rule on ${data.r.n_walked} setups: from the fire night, yesterday's high is the trigger and a cent under its low the stop, while the Low holds. Stop hit before the window's high on ${pct(data.r.stop_first_rate, 0)} of the buys (counted -1R). Median raw gain from the entry ${pct(data.r.gain_median)}.`
+    : 'His rolling LPS rule: not measured on this archive yet (the nightly pass writes it).';
 
   return (
     <HomeZone title="Engine Edge" icon={icon} status="ready">
@@ -126,6 +169,11 @@ export default function EdgePulse() {
           <Figure value={tailValue} label={tailLabel} />
           <Figure value={headlineMfe} label="median MFE" />
           <Figure value={signedPct(data.abnormal_median)} label="excess vs SPY" />
+        </div>
+        <div className="home-edge-heads home-edge-heads-r" title={rTitle}>
+          <Figure value={r.tailValue} label={r.tailLabel} />
+          <Figure value={r.meanValue} label="mean R per trade, 20d" />
+          <Figure value={r.sharesValue} label="bought / failed / no entry" />
         </div>
         <div className="home-edge-tiers">
           {TIERS.map((t) => {
@@ -149,6 +197,7 @@ export default function EdgePulse() {
                 <span className="home-edge-tier-id" style={{ color: tierColor(t) }}>{t}</span>
                 <span className="home-edge-tier-v">{mfe}</span>
                 <span className="home-edge-tier-w">{tailCell}</span>
+                <span className="home-edge-tier-r">{rTailCell(b.r)}</span>
               </div>
             );
           })}
@@ -156,7 +205,7 @@ export default function EdgePulse() {
         <BaselineLine b={data.baseline} />
         <CalibrationLine b={data.calibration} />
         <span className="home-edge-foot">
-          median MFE, elapsed window · tier column {headBands[tierBandIdx] ? `= MFE ${bandLabel(headBands[tierBandIdx])} in 20d` : ''} · unbiased, excludes seed · n={n}
+          median MFE, elapsed window · tier columns {headBands[tierBandIdx] ? `= MFE ${bandLabel(headBands[tierBandIdx])} in 20d` : ''} · {r.bands[0] ? rBandLabel(r.bands[0]) : '≥2R'} before the stop · unbiased, excludes seed · n={n}
         </span>
       </div>
     </HomeZone>

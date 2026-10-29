@@ -199,6 +199,9 @@ BASE_WIRE_KEYS = (
     # stage read in the lens's Leadership section — deliberate edit)
     "stage2_52w_low_pct", "stage2_ma200_slope_1m_pct",
     "stage2_trend_pass_count",
+    # + cycle_stage / advance_start / advance_weeks 2026-10-16 (the stage read
+    # on the weekly chart, in the lens's Leadership section — deliberate edit)
+    "cycle_stage", "advance_start", "advance_weeks",
     "story_admission_profile", "sub_scores", "support_slope_atr",
     "tier", "traversal_density", "trigger",
     "volumes",
@@ -218,11 +221,15 @@ def test_wire_ungraded_key_set_snapshot(monkeypatch):
 def test_wire_carries_the_leadership_read(monkeypatch):
     chart = _payload(monkeypatch, v2_overlay={
         "_rs_rating": 84.21, "_stage2_trend_pass_count": 7,
-        "_stage2_52w_low_pct": 0.8412, "_stage2_ma200_slope_1m_pct": -1.25})
+        "_stage2_52w_low_pct": 0.8412, "_stage2_ma200_slope_1m_pct": -1.25,
+        "_cycle_stage": 2, "_advance_start": "2026-05-29", "_advance_weeks": 20})
     assert chart["rs_rating"] == 84.21
     assert chart["stage2_trend_pass_count"] == 7
     assert chart["stage2_52w_low_pct"] == 0.8412
     assert chart["stage2_ma200_slope_1m_pct"] == -1.25
+    assert (chart["cycle_stage"], chart["advance_start"], chart["advance_weeks"]) == (2, "2026-05-29", 20)
+    bare = _payload(monkeypatch)
+    assert bare["cycle_stage"] is None and bare["advance_start"] is None and bare["advance_weeks"] is None
 
 
 def test_wire_carries_the_group_facts(monkeypatch):

@@ -140,7 +140,10 @@ numbers, hashed into the version stamp), `two_eyes_roles.py` (the box roles the 
 needs), `two_eyes_adapter.py` (a read spoken in the old result shape, the one place the
 two vocabularies meet), `two_eyes_archive.py` (the dated-line archive columns, one
 producer for every writer) and `market_sessions.py` (the NYSE calendar, moved here from
-`core` so the leaf can read it). The door has three ways in — `evaluate_ticker` (the whole chain
+`core` so the leaf can read it). Beside them, `stage_read.py` (2026-10-16) reads the STOCK's
+life-cycle stage on its weekly chart and the week its advance began; the adapter attaches it to
+every fire (`stock_stage`), display and archive only, and it sits here, not under the frozen
+`structure/context/`. The door has three ways in — `evaluate_ticker` (the whole chain
 under its skip guard), `run_eval_chain` (the chain that raises, for callers that
 want the exception) and `read_box` (the box read alone, no pullback, no score) —
 plus `scan_worker`, which composes the scan's three lanes under the old reader (the

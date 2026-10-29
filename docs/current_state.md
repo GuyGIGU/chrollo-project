@@ -1,5 +1,14 @@
 # Current state
 
+**2026-10-28 ETFs in the base list (branch `claude/etfs-in-base-list`, not merged; deployment
+pending):** the US-stocks universe keeps the NASDAQ directory's fund rows (it used to drop
+every `ETF == 'Y'` row), minus the leveraged / inverse daily products by name
+(`leveraged_fund` in the admission ledger). On the directory of 28/10/2026 that is 4,911
+funds beside the 5,892 stocks. The door and the reader judge them as stocks; nothing else
+moved. The change lands at the next daily refresh of `config/tickers.csv`, and that first
+refresh fetches two years of history for every new name. FBT, the chart that raised it,
+is on the curated ETF list as well.
+
 **2026-10-24 The weekly Watchlist (branch `claude/weekly-watchlist`, not merged; deployment
 pending):** the Watchlist tab shows one week's list, in the operator's weekly sheet's
 column order: Type (L/S), Ticker, Ready, Tier (the 0-100 chart score on hover), Change %,
@@ -144,6 +153,13 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   size counts the scanned universe through `output/industry_cache.json`; the operator runs
   `python -m tools.maintenance.industry_backfill` once to fill it (the nightly scan keeps it fresh
   from the sheets; until then a group reads as the names seen firing).
+- **The stage read** (2026-10-16, built for his book stops; display and archive only, no flag): every
+  fire of the live reader carries the stock's stage on its weekly chart (1 neglect, 2 advance, 3 top,
+  4 decline) and the week its stage-2 advance began (`engine_alpha/stage_read.py`; archived as
+  `cycle_stage`, `advance_start`, `advance_weeks`), shown in the detail panel's Leadership section.
+  It gates nothing, and by his ruling (16/10/2026) stage-1 and stage-3 fires stay on the board, the
+  stage shown only. The base count and the inter-base width still wait on where the first leg ends. Live after `update_dashboard.bat` and
+  the next scan.
 - **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
   panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
   display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated

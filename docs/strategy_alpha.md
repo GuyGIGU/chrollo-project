@@ -82,7 +82,8 @@ tight base with a live LPS, and how good is the read?) are two questions with tw
 Reading Model below is the setup read, all of it. The stock read is the leadership read: the
 RS rating, the trend template, the distance above the 52-week low, the 200-day average's
 direction, the dollar volume, the market cap and the fundamentals (earnings and sales growth,
-shown and archived from 2026-10-03); later the group.
+shown and archived from 2026-10-03), and from 2026-10-16 the stage on the weekly chart and the
+week its advance began ("Reading the stage" below); later the group.
 
 His plan (2026-10-03): **two grades, one per read, built apart and used together at the end**
 to find a market leader with a good setup. The stock grade is to be defined from measurement,
@@ -416,8 +417,87 @@ weeks, SNOW's base 1 lasted 8). It misses HNGE's three-week May pit stop, and it
 
 *Status: not built.* Chrollo's base count reads 1 on every archived fire (it counts inside the
 latest short up-leg, never from the start of stage 2), so it is not shown. A real count needs
-the start of the advance, which the weekly bigger-picture read below is to supply; comparing a
-base with the stock's own earlier bases needs the same.
+the start of the advance, and from 2026-10-16 the stage read below supplies it (the written
+count rule's own start, on the weekly chart); comparing a base with the stock's own earlier
+bases needs the same. Both still wait on where the first leg ends, which is his to rule.
+
+#### Reading the stage (built 16/10/2026, display and archive only)
+
+What the stage read says, on the weekly chart, for the stock behind every fire of the live
+reader. The rules are the book's own real-time checks and the count rule written from his five
+counts (12/10/2026); their form is ours.
+
+- **Weeks, completed.** The bars are weeks ending Friday, and a week counts once its last
+  trading day has closed: read on a Wednesday, the stage stands on last week. A stage that moved
+  with every day's close would flip back and forth inside one week.
+- **The average.** The 40-week average of the weekly closes (Minervini's 200-day). It rises when
+  it stands above where it stood four weeks earlier, and falls when it stands below.
+- **An advance week** closes above a rising average and at least 30% over the 52-week low (the
+  book waits for a rally of 25 to 30% off the 52-week low before it calls stage 2; the trend
+  template reads 30%). **A decline week** closes below a falling average.
+- **The stage.** 2 on an advance week, and after one while the average still rises; 3 once the
+  average stops rising after an advance; 4 on a decline week; 1 after a decline week, or with
+  neither in view. So a close under a still-rising average is a pullback inside stage 2, and a
+  rally over a still-falling average after a decline is stage 1, the turn he marks on AMGN and
+  FFIV, never stage 4.
+- **The advance began** the week after the last weekly close under a 40-week average that is not
+  rising (week over week), the written count rule's start (12/10/2026). It is said in stage 2
+  only: in a top the average flattens and the closes under it restart the count week after week.
+  When no such close lies in the five years read, the advance is older than the frame and no
+  week is said.
+
+It is shown in the detail panel's Leadership section (Stage, Advance) and archived on every fire
+of the live reader. It gates nothing, scores nothing and tiers nothing; the old reader's fires
+do not carry it.
+
+**What it reads (16/10/2026).** On the book's charts, walked day by day with the live reader
+(five years of daily bars up to each day, every trading day kept), on the days the reader fired:
+the flat stage 1 of Bank of America and Citigroup reads 1 on every fire day (33, and 76 from
+December 2005), and so does Citigroup's failed turn (28 of 28); Bank of America's top reads 2 on
+4 fire days and 1 on 6 (its average turned down in May 2007, and rallies over the falling
+average read 1); and the stage-3 fires of Vicor (26), Chipotle (7), DECK's fifth base (19) and
+Crocs (2) read 2, because on those days the 40-week average still rose. No day of the book's
+stage 4 fires. The book's stage-2 fires read 2 (Vicor 33, Crocs 32, Chipotle 30, DECK 24; 8 more
+came before 44 weeks of prices), but for Bank of America's short stage 2 of 2006: 30 of its 44
+fire days read 1, because the stock was not yet 30% over its 52-week low, the book's own check.
+Of his 42 drawn setups (his live marks, 16/10/2026), 40 read 2 on the trading day before his
+trigger; MDT, his bottoming base, reads 4, and SKYT has no prices left. His five leaders read 2,
+their advances beginning in the weeks ending 29/05/2026 (SNOW), 20/03/2026 (FROG), 08/05/2026
+(HNGE), 27/06/2025 (ANET) and 01/05/2026 (DDI). Counting the written rule's pauses (three weeks
+or more, ended by a weekly close over the top) from those weeks, as of Fri 09/10/2026, gives his
+count on SNOW (2) and DDI (2); FROG reads 3 and ANET 6, the extra ones the first leg's pauses he
+does not count and ANET's pause just under its next base; HNGE reads 1, its three-week May pit
+stop not a pause by the rule (a higher high in its first weeks moves the top).
+
+**What it cannot see.** A top that comes before the average stops rising, which on the book's
+charts is every top: on Vicor, AMGN, Stryker (1992), Bank of America, Crocs, DECK and Chipotle
+the read goes from 2 straight to 4 (Vicor in April 1992, AMGN and Stryker in October and August
+1992, Bank of America in May 2007, Crocs in February 2008, DECK in August 2008, Chipotle in
+August 2012), because the 40-week average kept rising through the top and turned down only once
+the price was already under it. Its stage 3 is a flat average after an advance (75 of the
+archive's 5,565 episodes), never one of these tops, and a fire, which needs the price over its
+averages, meets such a top only while the read still says 2. Vicor topped within weeks of a
+climax-like run, its average still climbing; on Chipotle's fire days (20 to 25 June 2012) the
+topping base was not yet the widest base of the advance in its own weekly bars, and its weekly
+lows had not yet turned lower (401, then 385, then 388): the tells of his signature came with
+the break. His topping-base signature (late in a long run, wider than the bases before it, the
+sellers winning) is not read; it needs the advance's earlier bases, which need the first leg's
+end.
+
+**The archive, read on each episode's first day (16/10/2026).** Of 5,565 episodes of the
+screener's fires (01/06 to 15/10/2026), 4,462 read stage 2, 965 stage 1, 75 stage 3 and 61 stage
+4; of the 346 the live reader fired since the flip, 276, 55, 11 and 4. Of the 3,360 matured ones
+(the best gain within 40 trading days), stage 1 reached +25% half as often as stage 2 (5.6% of
+681 against 10.8% of 2,594; the gap's 95% interval 2.8 to 7.5 points), but inside each
+volatility third the gap is gone (calm 0.6 against 0.5%, middle 7.5 against 6.9%, jumpy 15.7
+against 22.4%, every interval across zero): stage 1 is where the calm stocks sit (51% of its
+fires are in the calm third, against 28% of stage 2's). Stage 3 (31 matured, 16.1%) and stage 4
+(54, 13.0%) are too few to read. So the stage separates the outcomes only as the stock's
+volatility does, the same null as the trend template's (the decisions record, Nulls,
+2026-10-03), and whether stage-1 and stage-3 fires leave Alpha's board was a question of his
+theory, not of a measured edge. **His ruling (16/10/2026), choosing the wording put to him:**
+*"Keep stage-1 and stage-3 fires on Alpha's board; show the stage only, as built."* The stage
+stays a shown and archived fact; no fire moves on it.
 
 ### The bigger picture: one process on every timeframe
 
@@ -533,19 +613,20 @@ selection summary tells:
 | "Tight": weekly closes in a narrow range | the box's height in daily ranges and the bar texture inside the box and the LPS window, on the daily chart | today and the method both read it; the method never in percent of price |
 | Buy at the right price, as the stock is ready to move | the buy is the cross of the LPS's high; nothing fires without an LPS | today |
 | Bases in stage 2 last about 5 to 26 weeks | the engine's boxes, one per base in the archive: median 46 trading days (about 9 weeks); 85% run 5 weeks or more, about 5% past 26. His 40 calibration setups, box start to his trigger: median 40 trading days (8 weeks); 90% run 5 weeks or more, none past 26 | today: both are base-sized, and the 20-day minimum (15 in the method) sits at the low end; the engine has a long tail his setups do not |
-| Count the bases: 1 and 2 best, 3 tradable, 4 and 5 late | a base count, and a ratio of the box's width to the base before it | **broken:** the count reads 1 on every archived fire, and the ratio is empty on all 15,606 archived rows (it rides the same walk, and it compares in percent of price) |
-| Weekly charts for the stage | the old engine's weekly and monthly read on resampled bars, measure-only | sees no base on MTLS; scoring it is Tested-DEAD; the bigger picture is to be rebuilt on the new reader (not built) |
+| Count the bases: 1 and 2 best, 3 tradable, 4 and 5 late | a base count, and a ratio of the box's width to the base before it | **broken:** the count reads 1 on every archived fire, and the ratio is empty on all 15,606 archived rows (it rides the same walk, and it compares in percent of price); the advance's start they need is read from 2026-10-16, the first leg's end is still his to rule |
+| Weekly charts for the stage | the stage read (2026-10-16): the stage on the weekly chart's completed weeks, from the 40-week average and the 52-week low, and the week the advance began; beside it the old engine's weekly and monthly read on resampled bars, measure-only | the stage is shown and archived, never a gate; it reads 1 on the book's flat stage 1 and failed turn and 2 on the tops whose average still rose (Vicor, Chipotle, DECK); the old weekly read sees no base on MTLS, and scoring it is Tested-DEAD |
 | RS leadership | the RS rating, ranked across the scanned universe | shown; scoring it is Tested-DEAD |
 | Group leadership | none | owed: the industry and a count of peers also leading |
 
 **What the comparison shows.** The setup side lines up well: Chrollo's box, LPS and buy are
 the stage-2 base and its entry, the events tell his accumulation sequence, and the boxes are
 base-sized. The gaps are on the stock and the bigger picture: no read of where the stock is in
-its stage-2 run (the base count is broken and the bigger picture is not built), volume measured
+its stage-2 run (the base count is broken and the bigger picture is not built; from 2026-10-16
+the stage and the week the advance began are read, but not the bases since), volume measured
 and shown at its key points but not graded (2026-10-04: of the Momentum Masters volume lines,
 only the old reader's quiet LPS stretch separated outcomes; 2026-10-12: on the new reader's LPS
-days none does), no group read, and no read of the late stage.
-Every gap is a display read first, measure-first, never a gate.
+days none does), no group read, and no read of the late stage before the 40-week average stops
+rising. Every gap is a display read first, measure-first, never a gate.
 
 ### For whoever designs a change
 
@@ -748,6 +829,14 @@ default as ours.
    respected pair stands, and picking the better-fitting box among respected ones is his eye's
    work at review, as he put it on Sun 13/09/2026: *"for the engine's sake it's probably
    better to keep it that way"*.
+   Measured on his word of Sat 24/10/2026 on his 48 drawings and 12 fixes, as a hand-over in
+   the walk (a tighter later pair inside or across the box takes its place once no swing
+   turns at the rail it does not share) and as the mini shown in the parent's place: every
+   form cost his own boxes (from 29 to between 10 and 24), because inside a long base the
+   bars spend weeks away from one rail, and he draws where they come back within half a
+   range, not where they turn to the cent. On DSGX's mark of 08/10 his box is the reader's
+   mini inside the climax pair (as was his EHC fix of 17/10; he redrew EHC on 24/10 at the
+   bar of 10/09, 124.25 / 120.42, which no mini reaches).
 4. **The box's life.** A box ends only by what the bars do, and only into a new box: *"if the
    price continues to Rise/Fall with out recovering we can deduce that either that the
    consolidating structure we measured ended and the price began to trend"*, *"its tricky
@@ -756,7 +845,17 @@ default as ours.
    (9) *Once a box, it stays a box through dips under support and pokes over resistance that
    come back* — *"correct"*. A dip or a poke that comes back is the box's own event, a
    spring or an upthrust, never an end; a pair inside or across the shown box is its own
-   leg, or a mini, and never takes its place. And a dip that comes back LATE: the reader
+   leg, or a mini, and never takes its place — with one exception, his AMTB (Wed
+   28/10/2026; built Thu 29/10/2026): a box that is ONE bar's own high and low is measured
+   in that one wide bar's range, so every bar inside it "respects" its rails; the
+   meaningfully tighter pair inside it (under the mini bar, 80% of its height) that opened
+   while the one-bar pair was forming takes its place on the first day the bars have come
+   back to both its rails while none since the box opened has come back to one of the
+   box's rails, read in the tighter pair's own half-range — *"we simply must increase the
+   reading accuracy of our Reader to match better with the ranges of the actual price
+   action"*. A two-bar box, the climax and its reaction, keeps its place whatever sits
+   inside it (his SILC). Measured on his 47: not one of his boxes moves, 40 of 47 fire on
+   his day as before; AMTB reads his box to the cent. And a dip that comes back LATE: the reader
    reads day by day, so when the price has been under the box for fifteen days it follows
    it to the lower pair (sentence 10); on the first day the bars since then, and of the
    last fifteen days, are back at both rails of the box it gave up and no longer come back
@@ -1018,7 +1117,30 @@ default as ours.
    mini that became a box only after the pullback ended, or a fault on the mini's side: the
    parent's read (ours). The window and the trigger are the bars' and never move; the two
    position sentences read the lines of the box named.
-7. **The grade, the state word, the screen.** **Experimental clarity, authorized for activation on 22 October 2026.** His working definition is a clear, easy-to-read zigzag between resistance and support with understandable events. The technical grade now awards equal budgets for two measured traits: the share of price travel retained by the existing main swing line relative to its finer line, and the average distance of the main peaks/valleys from their expected rails, in box heights. Both travel sums use exactly the same endpoints; the base ends before the strength push, so the right-side advance and LPS do not have to traverse the parent range. A known spring's own below-support valley and a known upthrust's own above-resistance peak keep their event context. Other optional event names earn no automatic points.
+7. **The grade, the state word, the screen.** **From Thu 29/10/2026 the technical grade is a letter and a place
+   within it.** The LETTER is the integrity reading below: his dead space in time and whether the base held;
+   his sealed 40 keep their letters (his ruling that day: "3. Yes"). WITHIN the letter his traits order the
+   setups, so that the screener's top rows are his tight, clean bases and a wide "nothing burger" S reads the
+   letter's floor (his words: *"these fuck ass wide ass nothing burger stocks all hug the damn S spot"*; *"i've
+   explained a million times what makes a setup higher quality and what traits i want to see"*). The traits, his
+   (Sat 18/10/2026 and Thu 29/10/2026): a tight box (its height in its OWN daily ranges, never in percent of
+   price: full marks at a box and a quarter, none at three and a half), clean swings (the main zigzag's share of the line's
+   travel), no dead space (the empty-days share the letter is cut on), right-side contraction (the last third
+   of the base's daily ranges against the earlier two thirds'), rails the turns sit on, and the stock's weekly
+   stage (*"the stage thing I taught you"*: stage 2 full marks). Each is a fraction of like quantities in a
+   named unit; a trait not measured leaves the budget; the weights are ours and live with the reader's numbers.
+   **The width carries the score** (the critique of the same night): tightness is 60 of the 100 points, so a
+   box three ranges tall tops out at 88 under every tight box, where with 30 points it read 94 among them.
+   Measured on his sealed 40: 39 S and BODI C as before, the S scores running 89 (NOK, 2.75 ranges) to 99 by
+   the traits; on the scan of 28/10/2026 the 197 S rows that all read 100 spread 84 to 100, the ten boxes
+   three ranges tall and more at 84 to 87, the 78 under a range and a half at 95 to 100. Measured and found
+   mute: his 90 hearts (36 liked, 54 passed on the same screener) separate within S on NO trait and on no
+   stock fact (ADR, run, stage, dollar volume, price), every one a coin flip; the letter separates them (4 of
+   36 liked under S against 11 of 54 passed). His likes and passes within S are decided by something the
+   grade does not measure, so the hearts tune nothing here and the width is the one trait his complaint and
+   his drawings both name.
+
+   **The experimental clarity reading of 22 October 2026, which the table above replaced:** His working definition is a clear, easy-to-read zigzag between resistance and support with understandable events. The technical grade now awards equal budgets for two measured traits: the share of price travel retained by the existing main swing line relative to its finer line, and the average distance of the main peaks/valleys from their expected rails, in box heights. Both travel sums use exactly the same endpoints; the base ends before the strength push, so the right-side advance and LPS do not have to traverse the parent range. A known spring's own below-support valley and a known upthrust's own above-resistance peak keep their event context. Other optional event names earn no automatic points.
 
    The initial full-credit reference anchors are a main-travel share of 45% (the current 48 references' lower quartile, rounded) and a rail error at or below one quarter of a box height (their median, rounded); rail credit falls to zero at one box height. These are experimental training scales, not established predictive thresholds. Rail definition needs opposing major peaks and valleys; a lone endpoint is insufficient. Unmeasured traits remain unknown and the available point budget is normalized; with no measured trait, the integrity grade stands. The old empty-space/hold grade remains the ceiling, so a failed base cannot become good through clarity. The S/A/B/C cuts remain 75/50/25. Geometry, event detection, readiness and which setups fire are unchanged by this scoring experiment. Raw measurements, awarded points, reference method and the prior integrity score accompany the grade and are archived from the first new scan; historical grades are not rewritten.
 
