@@ -36,8 +36,7 @@ _FROZEN_FILES = ("engine_alpha/evaluation.py", "engine_alpha/stability.py", "eng
 # The new reader's judge belongs in scoring; none of the frozen legacy files imports it.
 _NEW_READER_SCORING = {"engine_alpha/scoring/clarity.py"}
 _NEW_READER_SETTINGS = {
-    "SCORE_CLARITY_SWINGS", "SCORE_CLARITY_RAILS", "CLARITY_SWING_FULL_SHARE",
-    "CLARITY_RAIL_FULL_ERROR", "CLARITY_RAIL_ZERO_ERROR",
+    "CLARITY_SWING_FULL_SHARE", "CLARITY_RAIL_FULL_ERROR", "CLARITY_RAIL_ZERO_ERROR",
 }
 
 

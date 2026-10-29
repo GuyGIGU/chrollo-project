@@ -17,3 +17,16 @@ ROLE_PARENT = "parent"
 ROLE_MINI = "mini"
 ROLE_EARLIER = "earlier"
 ROLES = (ROLE_PARENT, ROLE_MINI, ROLE_EARLIER)
+
+
+def height_in_ranges(R, S, unit):
+    """The box's height in its own daily range: the ONE place the screen's ``ranges_tall`` and the grade's tightness
+    read it (review 2026-10-29). None when the unit is missing, nil or not a number. Lives here, outside the new
+    reader's package, because the archive family's writer runs on the old reader's nightly path too."""
+    try:
+        unit = float(unit)
+    except (TypeError, ValueError):
+        return None
+    if unit != unit or unit <= 0 or unit in (float("inf"), float("-inf")):
+        return None
+    return float(R - S) / unit

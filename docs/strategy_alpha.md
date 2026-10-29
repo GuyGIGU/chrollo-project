@@ -1129,7 +1129,7 @@ default as ours.
    of the base's daily ranges against the earlier two thirds'), rails the turns sit on, and the stock's weekly
    stage (*"the stage thing I taught you"*: stage 2 full marks). Each is a fraction of like quantities in a
    named unit; a trait not measured leaves the budget; the weights are ours and live with the reader's numbers.
-   Measured on his sealed 40: 39 S and BODI C as before, the S scores running 91 to 100 by the traits; on
+   Measured on his sealed 40: 39 S and BODI C as before, the S scores running 91 to 99 by the traits; on
    the scan of 28/10/2026 the 197 S rows that all read 100 spread 89 to 100, the boxes three ranges tall
    and more at the bottom of S.
 

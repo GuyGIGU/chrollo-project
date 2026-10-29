@@ -65,7 +65,7 @@ def resting(found, high, low) -> Optional[dict]:
     for k in range(len(lives) - 1, -1, -1):
         if lives[k].why == walk.CAME_BACK:
             return next(w for w in way_backs(found, high, low) if w["index"] == k)
-        if lives[k].why in (walk.LIVE_TREND, walk.FIRST_BOX):
+        if lives[k].why in (walk.LIVE_TREND, walk.FIRST_BOX, walk.WRAPS):
             return None
     return None
 

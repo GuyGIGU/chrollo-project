@@ -2017,11 +2017,9 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `766ee2e4b5a70de6f99f091db9a14433665a1ec7e0d871865eb64e30d944cedf`_
+_engine_config_version: `c64c87eea77def143a0b12ebecececb84e9079d6b5f528c860e42be7fa110276`_
 
 ```text
-SCORE_CLARITY_SWINGS = 50.0
-SCORE_CLARITY_RAILS = 50.0
 CLARITY_SWING_FULL_SHARE = 0.45
 CLARITY_RAIL_FULL_ERROR = 0.25
 CLARITY_RAIL_ZERO_ERROR = 1.0
@@ -2435,7 +2433,7 @@ against forward outcomes before loosening or hardening anything.
 
 ## Experimental clarity grade — 2026-10-22 (replaced 2026-10-29 by the trait table)
 
-**2026-10-29.** `engine_alpha/scoring/clarity.py` now holds the trait table (the two-eyes table row "7 · the grade: a letter and a place within it"): the integrity letter stands, the traits place the score within it. `SCORE_CLARITY_*` are no longer read; the `CLARITY_*` anchors feed the swings and rails rows; the trait weights, bands and anchors are `TRAIT_*` in `two_eyes_numbers.py`. The record below is the reading it replaced.
+**2026-10-29.** `engine_alpha/scoring/clarity.py` now holds the trait table (the two-eyes table row "7 · the grade: a letter and a place within it"): the integrity letter stands, the traits place the score within it. `SCORE_CLARITY_*` are retired (removed from config, settings and the manifest allow-list); the `CLARITY_*` anchors feed the swings and rails rows; the trait weights, bands and anchors are `TRAIT_*` in `two_eyes_numbers.py`. The record below is the reading it replaced.
 
 The operator authorized building and activating the first experimental version today, accepting changed results. `two_eyes/clarity.py` measures the existing fine/far line on the parent base; no new swing algorithm or detection threshold. `two_eyes/grade.py` remains the integrity reader. The raw reader carries facts beside that integrity grade; `two_eyes_adapter.graded_read` composes the technical grade once, and the public reader door and adapter both use it. `scoring/clarity.py` judges facts only. All budgets/reference scales live in `config/scoring.py`, are re-exported by settings and included in the engine manifest. The ruleset is `two-eyes-0.10.0-clarity`. The legacy freeze still fingerprints every prior reader file and pins its prior settings digest; it excludes only this new scorer and its five new-reader-only settings, with a separate test proving those settings leave the legacy identity unchanged.
 
@@ -2445,4 +2443,4 @@ The new nullable `two_eyes_clarity_json` family member retains facts, components
 
 **Review fixes, 2026-10-23.** Clarity never costs the integrity grade or the fire. The reader measures the facts in their own guard after the grade stage, so a fault there leaves the integrity grade standing, with no `clarity`, and a trail step saying why. `graded_read` guards its composition the same way. Before this fix, a measuring fault discarded the whole grade, which became an empty tier with the 0.0 placeholder. A composing fault escaped to `evaluate_ticker` as EVAL_ERROR and lost the fire. The grade's trail step now keeps the integrity sentence after the technical one ("…; under it, the grade: S (100): N of the base's days empty; …"). `tools/calibration/core_board` reads graded reads, so its letters are the screen's. No score or fire moves on a read that does not fault, and the ruleset is unchanged.
 
-Set both `SCORE_CLARITY_SWINGS` and `SCORE_CLARITY_RAILS` to zero to restore the prior integrity number; change the ruleset again for a later release rather than reusing an old identity. No service or broker operation belongs to this module.
+`SCORE_CLARITY_SWINGS` and `SCORE_CLARITY_RAILS` were retired on 2026-10-29 with the trait table (unread since; removed from config, settings and the manifest allow-list). Change the ruleset again for a later release rather than reusing an old identity. No service or broker operation belongs to this module.

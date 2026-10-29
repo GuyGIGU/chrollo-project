@@ -34,7 +34,7 @@ import math
 
 import pandas as pd
 
-from engine_alpha.two_eyes_roles import ROLES
+from engine_alpha.two_eyes_roles import ROLES, height_in_ranges
 
 __all__ = [
     "SCREEN_KEY",
@@ -170,7 +170,7 @@ def two_eyes_screen_boxes(values: dict) -> list:
                       "r": part("r_price"), "r_day": part("r_anchor_date"),
                       "s": part("s_price"), "s_day": part("s_anchor_date"),
                       "opened": part("opened_date"), "end": part("end_date"),
-                      "ranges_tall": (part("r_price") - part("s_price")) / unit if unit else None})
+                      "ranges_tall": height_in_ranges(part("r_price"), part("s_price"), unit)})
     return boxes
 
 

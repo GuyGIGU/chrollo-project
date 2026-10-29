@@ -119,9 +119,20 @@ def test_the_facts_carry_the_height_in_ranges_and_the_right_sides_contraction():
     high = np.linspace(100, 100, 31); low = high - np.r_[np.full(21, 4.0), np.full(10, 2.0)]
     facts = measure(line, (), days, R=100, S=90, opening_bar=0, read_bar=30, high=high, low=low, unit=4.0)
     assert facts['height_in_ranges'] == pytest.approx(2.5)
-    assert facts['contraction'] == pytest.approx(0.5)
+    assert facts['contraction'] == pytest.approx(0.5), "no SOS: the base's last third against its earlier two thirds"
     bare = measure(line, (), days, R=100, S=90, opening_bar=0, read_bar=30)
     assert bare['height_in_ranges'] is None and bare['contraction'] is None
+    # With THE SOS the right side is the bars from its push on, set against the whole base: the base's bars are four
+    # points tall, the right side's two, so the ratio is 0.5 whatever the base's own last third did.
+    from engine_alpha.two_eyes.record import SOS
+    sos = Event(SOS, days[22], 101, first_day=days[21], last_day=days[23], committed=True, known_day=days[23])
+    low = high - np.r_[np.full(10, 4.0), np.full(11, 4.0), np.full(10, 2.0)]
+    with_sos = measure(line, (sos,), days, R=100, S=90, opening_bar=0, read_bar=30, high=high, low=low, unit=4.0)
+    assert with_sos['base_end'] == days[20].isoformat()
+    assert with_sos['contraction'] == pytest.approx(0.5)
+    low = high - np.r_[np.full(10, 2.0), np.full(11, 4.0), np.full(10, 4.0)]
+    loose = measure(line, (sos,), days, R=100, S=90, opening_bar=0, read_bar=30, high=high, low=low, unit=4.0)
+    assert loose['contraction'] == pytest.approx(4.0 / (31 / 21 * 2 + 0)) if False else loose['contraction'] > 1.0
 
 
 def test_the_adapter_composes_once_and_archives_the_same_breakdown_without_moving_the_setup():
@@ -173,8 +184,7 @@ def test_each_scoring_control_rotates_the_engine_identity(monkeypatch):
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()
-    for name in ['SCORE_CLARITY_SWINGS', 'SCORE_CLARITY_RAILS', 'CLARITY_SWING_FULL_SHARE',
-                 'CLARITY_RAIL_FULL_ERROR', 'CLARITY_RAIL_ZERO_ERROR']:
+    for name in ['CLARITY_SWING_FULL_SHARE', 'CLARITY_RAIL_FULL_ERROR', 'CLARITY_RAIL_ZERO_ERROR']:
         with monkeypatch.context() as patch:
             patch.setattr(settings, name, getattr(settings, name) + .01)
             assert manifest_hash() != before

@@ -48,8 +48,6 @@ from typing import Any, Dict
 # frozen contract, add its name here (and accept the new hash + re-baseline).
 # ─────────────────────────────────────────────────────────────────────────────
 ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
-    "SCORE_CLARITY_SWINGS",
-    "SCORE_CLARITY_RAILS",
     "CLARITY_SWING_FULL_SHARE",
     "CLARITY_RAIL_FULL_ERROR",
     "CLARITY_RAIL_ZERO_ERROR",

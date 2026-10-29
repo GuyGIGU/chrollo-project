@@ -6,19 +6,26 @@ import numpy as np
 from engine_alpha import two_eyes_numbers as M
 from engine_alpha.two_eyes.grade import ending_sos, own_swings
 from engine_alpha.two_eyes.record import SPRING, UPTHRUST
+from engine_alpha.two_eyes_roles import height_in_ranges
 
 
-def contraction(high, low, opening_bar: int, end: int):
-    """The right side's contraction, his VCP eye (Thu 29/10/2026, "right-side contraction = strength"): the bars'
-    mean daily range over the last third of the base against their mean over the two thirds before it, as a ratio
-    (0.5: the bars halved; 1.0: no tighter). None when the base is under six days or the earlier ranges are nil."""
-    span = end - opening_bar + 1
-    if span < 6:
-        return None
-    cut = end + 1 - max(2, span // 3)
-    early = np.asarray(high[opening_bar:cut], dtype=float) - np.asarray(low[opening_bar:cut], dtype=float)
-    late = np.asarray(high[cut:end + 1], dtype=float) - np.asarray(low[cut:end + 1], dtype=float)
-    if not len(early) or not len(late) or not np.isfinite(early).all() or not np.isfinite(late).all():
+def contraction(high, low, opening_bar: int, end: int, read_bar: int):
+    """The right side's contraction, his VCP eye (Thu 29/10/2026, "right-side contraction = strength"). The RIGHT
+    SIDE is the bars after the base — from THE SOS's push to the read day — and its mean daily range is set against
+    the base's (``end`` is the base's last day); with no right side of three days yet, the base's own last third
+    against its earlier two thirds. A ratio: 0.5, the bars halved; 1.0, no tighter. None when there are fewer than
+    six bars to compare or the earlier ranges are nil (review 2026-10-29: the first cut read the base's last third
+    only, never the right side)."""
+    ranges = np.asarray(high, dtype=float) - np.asarray(low, dtype=float)
+    if read_bar - end >= 3:
+        early, late = ranges[opening_bar:end + 1], ranges[end + 1:read_bar + 1]
+    else:
+        span = end - opening_bar + 1
+        if span < 6:
+            return None
+        cut = end + 1 - max(2, span // 3)
+        early, late = ranges[opening_bar:cut], ranges[cut:end + 1]
+    if len(early) < 3 or not len(late) or not np.isfinite(early).all() or not np.isfinite(late).all():
         return None
     base = float(np.mean(early))
     return None if base <= 0 else float(np.mean(late)) / base
@@ -77,7 +84,6 @@ def measure(line, events, days, *, R: float, S: float, opening_bar: int, read_ba
                                  if errors and {t.kind for t in far} == {"peak", "valley"} else None),
         "rail_turns": len(errors),
         "event_turns": explained,
-        "height_in_ranges": (float(R - S) / float(unit) if unit is not None and np.isfinite(unit) and unit > 0
-                             else None),
-        "contraction": None if high is None or low is None else contraction(high, low, opening_bar, end),
+        "height_in_ranges": height_in_ranges(R, S, unit),
+        "contraction": None if high is None or low is None else contraction(high, low, opening_bar, end, read_bar),
     }
