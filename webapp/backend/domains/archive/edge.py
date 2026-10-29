@@ -59,10 +59,31 @@ def _tail_view(block: dict) -> dict:
     }
 
 
+def _r_view(block: dict) -> dict:
+    """Project an r_block (the R ruler beside the percent one) through the finite
+    guard. An archive measured before the R columns existed gives an empty view:
+    the tile shows the ruler with nothing on it, never a crash."""
+    r = block.get("r", {}) or {}
+    exits = r.get("mean_exit_r", {}) or {}
+    exit_n = r.get("exit_n", {}) or {}
+    return {
+        "n_walked": int(r.get("n_walked", 0)),
+        "shares": {k: _finite(v) for k, v in (r.get("shares") or {}).items()},
+        "tail": _tail_view(r),
+        "stop_first_rate": _finite(r.get("stop_first_rate")),
+        "mean_exit_r_20d": _finite(exits.get("r_exit_20d")),
+        "mean_exit_n_20d": int(exit_n.get("r_exit_20d", 0)),
+        "mean_exit_r_60d": _finite(exits.get("r_exit_60d")),
+        "mean_exit_n_60d": int(exit_n.get("r_exit_60d", 0)),
+        "gain_median": _finite(r.get("gain_median")),
+    }
+
+
 def _tier_view(block: dict) -> dict:
     """Project an edge_block down to the few fields the pulse tile renders."""
     barrier = block.get("barrier", {}) or {}
     return {
+        "r": _r_view(block),
         "n": int(block.get("n", 0)),
         "mfe_median": _finite(block.get("headline_mfe_median")),
         "mfe_n": int(block.get("headline_mfe_n", 0)),
@@ -89,6 +110,7 @@ def _empty() -> dict:
         "headline_mfe_n": 0,
         "abnormal_median": None,
         "tail": {"n": 0, "col": None, "bands": []},
+        "r": _r_view({}),
         "by_tier": {},
         "calibration": None,
     }
@@ -180,6 +202,7 @@ def _compute() -> dict:
         "headline_mfe_n": int(headline.get("headline_mfe_n", 0)),
         "abnormal_median": _finite(abnormal.get("median")),
         "tail": _tail_view(headline),
+        "r": _r_view(headline),
         "by_tier": by_tier,
         "calibration": _calibration_view(),
     }

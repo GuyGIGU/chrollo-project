@@ -83,6 +83,53 @@ class SetupArchive(Base):
     bars_to_date = Column(Integer, nullable=True)       # forward bars used (1..60)
     abnormal_ret_to_date = Column(Float, nullable=True) # ret_to_date minus SPY's same-window return (bias control)
 
+    # ── The R outcome: his rolling LPS rule, beside the percent columns ──────
+    # Written by core/archive/r_outcomes.py from the price cache, never in the
+    # request path. The percent ruler scores volatility (a quiet name never
+    # reaches +25% in 20 days); in R quiet names win as often (measured
+    # 2026-10-24). NULL on a row without bars in the cache. Model-only columns
+    # (AP-7): the boot pass and the backfill ALTER them in from this table.
+    r_status = Column(String, nullable=True)            # bought / failed / fired late / never triggered
+    r_lps_first_day = Column(String, nullable=True)     # the LPS's first day at the fire night
+    r_low_at_fire = Column(Float, nullable=True)        # the Low at the fire night (the LPS's lowest low)
+    r_buy_date = Column(String, nullable=True)
+    r_days_to_buy = Column(Integer, nullable=True)      # trading days from the fire night
+    r_entry = Column(Float, nullable=True)              # yesterday's high + a cent, or the open on a gap
+    r_stop = Column(Float, nullable=True)               # a cent under yesterday's low; 1R = entry - stop
+    r_risk_pct = Column(Float, nullable=True)           # 1R as a fraction of the entry
+    r_gap_open = Column(Integer, nullable=True)         # 1 when the buy day opened above the trigger
+    r_mfe_20d = Column(Float, nullable=True)            # best gain in R from the buy day, 20 trading days
+    r_outcome_20d = Column(Float, nullable=True)        # -1R when the stop was hit before the window's high
+    r_stop_first_20d = Column(Integer, nullable=True)
+    r_best_before_stop_20d = Column(Float, nullable=True)  # the R made BEFORE the stop: P(>=kR) reads this
+    r_gain_20d = Column(Float, nullable=True)           # the raw gain from the entry (fraction), beside the R
+    r_exit_20d = Column(Float, nullable=True)           # the mechanical trade: -1R on a stop, else the window's close
+    r_mfe_60d = Column(Float, nullable=True)
+    r_outcome_60d = Column(Float, nullable=True)
+    r_stop_first_60d = Column(Integer, nullable=True)
+    r_best_before_stop_60d = Column(Float, nullable=True)
+    r_gain_60d = Column(Float, nullable=True)
+    r_exit_60d = Column(Float, nullable=True)
+    r_fail_date = Column(String, nullable=True)         # the close under the Low
+    r_supper = Column(String, nullable=True)            # last supper / true failure / open
+    r_reclaim_date = Column(String, nullable=True)      # the close back above the Low
+    r2_status = Column(String, nullable=True)           # the second trade, from the reclaim day
+    r2_buy_date = Column(String, nullable=True)
+    r2_entry = Column(Float, nullable=True)
+    r2_stop = Column(Float, nullable=True)
+    r2_risk_pct = Column(Float, nullable=True)
+    r2_mfe_20d = Column(Float, nullable=True)
+    r2_outcome_20d = Column(Float, nullable=True)
+    r2_stop_first_20d = Column(Integer, nullable=True)
+    r2_best_before_stop_20d = Column(Float, nullable=True)
+    r2_exit_20d = Column(Float, nullable=True)
+    r2_mfe_60d = Column(Float, nullable=True)
+    r2_outcome_60d = Column(Float, nullable=True)
+    r2_stop_first_60d = Column(Integer, nullable=True)
+    r2_best_before_stop_60d = Column(Float, nullable=True)
+    r2_exit_60d = Column(Float, nullable=True)
+    r_measured_through = Column(String, nullable=True)  # the cache's last day the measure used
+
     # ── Triple-barrier outcome label (path events + derived win/loss/timeout) ──
     # Anchored to the scan close. Stop = s_level*0.97; targets = entry+2.5*risk
     # and entry*1.15. Raw event timings stored so the label can be re-cut later.

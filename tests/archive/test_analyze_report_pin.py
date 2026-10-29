@@ -121,6 +121,11 @@ def _mixed_rows() -> list[dict]:
                              else 12 + i % 5 if durable and i % 2 == 0
                              else 3 + i % 6 if label == "loss" else None),
             "mfe_20d": round(0.10 + 0.03 * touch, 4),
+            # the R ruler (his rolling LPS rule): three of four walked rows bought,
+            # the rest failed; the buys' best R before the stop and mechanical exit
+            "r_status": None if i % 8 == 7 else ("failed" if i % 4 == 3 else "bought"),
+            "r_best_before_stop_20d": _wave(i, 7, -1.0, 4.0) if i % 4 != 3 and i % 8 != 7 else None,
+            "r_exit_20d": _wave(i, 9, -1.0, 2.5) if i % 4 != 3 and i % 8 != 7 else None,
             "score_box_tightness": (12.0 if durable else 6.0) + _wave(i, 2, 0, 2),
             "score_touch_density": touch,
             "score_traversal_quality": _wave(i, 4, 0, 8),

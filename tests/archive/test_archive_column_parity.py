@@ -68,6 +68,7 @@ from engine_alpha.structure.context.htf import htf_archive_values  # noqa: E402
 from engine_alpha.structure.context.strategy_read import strategy_archive_values  # noqa: E402
 from engine_alpha.two_eyes_archive import two_eyes_archive_values  # noqa: E402
 from engine_alpha.structure.box.trace_export import election_trace_archive_values  # noqa: E402
+from core.archive.r_outcomes import R_COLUMNS  # noqa: E402
 
 
 # ── Intentional divergence allowlist ─────────────────────────────────────────
@@ -119,6 +120,11 @@ _SEED_ONLY_ALLOW = frozenset({
     "pp_state", "pp_clock", "pp_climax_date", "pp_ar_date", "pp_pole_gain",
     "pp_shelf_start_date", "pp_shelf_end_date", "pp_shelf_bars",
     "pp_lower_third_bars", "pp_zone_coverage", "pp_zone_collided",
+    # The R outcome (his rolling LPS rule, core/archive/r_outcomes.py, 2026-10-28):
+    # written by the nightly backfill from the price cache, by NEITHER writer, so
+    # the seed mapper auto-maps the model columns as NULL while the scan literal
+    # never names them. Taken from the module's own list so the two stay in step.
+    *R_COLUMNS,
 })
 _INTENTIONAL_DIVERGENCE = _WRITER_ONLY_ALLOW | _SEED_ONLY_ALLOW
 

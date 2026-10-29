@@ -646,6 +646,10 @@ if __name__ == "__main__":
         # fires' committed maturation "failed" (review finding 6).
         run_near_miss_maturation(min_age_days=args.min_age, force=args.force)
         run_calibration_maturation(force=args.force)
+        # The R ruler (his rolling LPS rule) rides the same run, contained like
+        # the two above; it reads the price cache, never a download.
+        from core.archive.r_outcomes import run_r_maturation
+        run_r_maturation(force=args.force)
         if _status is not None and _run_id is not None:
             _status.finish_run(_run_id, status="ok", n_setups=_updated)
     except Exception as _exc:

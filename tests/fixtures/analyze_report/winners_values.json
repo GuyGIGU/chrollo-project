@@ -288,20 +288,26 @@
   "A": {
    "avg_20d": 0.14972666666666667,
    "avg_rmult": 2.709093333333334,
+   "bought_rate": null,
    "exp_r": 2.709093333333334,
+   "mean_exit_r": null,
    "med_20d": 0.1418,
    "med_60d": 0.35,
    "n": 15,
+   "p_2r": null,
    "trig_rate": 1.0,
    "win_rate": 1.0
   },
   "S": {
    "avg_20d": 0.14445333333333332,
    "avg_rmult": 2.7499999999999996,
+   "bought_rate": null,
    "exp_r": 2.7499999999999996,
+   "mean_exit_r": null,
    "med_20d": 0.1418,
    "med_60d": 0.325,
    "n": 15,
+   "p_2r": null,
    "trig_rate": 1.0,
    "win_rate": 1.0
   }
