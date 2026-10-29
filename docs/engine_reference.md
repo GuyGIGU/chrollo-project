@@ -2017,7 +2017,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `c64c87eea77def143a0b12ebecececb84e9079d6b5f528c860e42be7fa110276`_
+_engine_config_version: `8b7858f2725c1004b042d8fd122ae700b71b550e29d61876427dde0fa2f44abf`_
 
 ```text
 CLARITY_SWING_FULL_SHARE = 0.45
