@@ -845,7 +845,17 @@ default as ours.
    (9) *Once a box, it stays a box through dips under support and pokes over resistance that
    come back* — *"correct"*. A dip or a poke that comes back is the box's own event, a
    spring or an upthrust, never an end; a pair inside or across the shown box is its own
-   leg, or a mini, and never takes its place. And a dip that comes back LATE: the reader
+   leg, or a mini, and never takes its place — with one exception, his AMTB (Wed
+   28/10/2026; built Thu 29/10/2026): a box that is ONE bar's own high and low is measured
+   in that one wide bar's range, so every bar inside it "respects" its rails; the
+   meaningfully tighter pair inside it (under the mini bar, 80% of its height) that opened
+   while the one-bar pair was forming takes its place on the first day the bars have come
+   back to both its rails while none since the box opened has come back to one of the
+   box's rails, read in the tighter pair's own half-range — *"we simply must increase the
+   reading accuracy of our Reader to match better with the ranges of the actual price
+   action"*. A two-bar box, the climax and its reaction, keeps its place whatever sits
+   inside it (his SILC). Measured on his 47: not one of his boxes moves, 40 of 47 fire on
+   his day as before; AMTB reads his box to the cent. And a dip that comes back LATE: the reader
    reads day by day, so when the price has been under the box for fifteen days it follows
    it to the lower pair (sentence 10); on the first day the bars since then, and of the
    last fifteen days, are back at both rails of the box it gave up and no longer come back
@@ -1107,7 +1117,23 @@ default as ours.
    mini that became a box only after the pullback ended, or a fault on the mini's side: the
    parent's read (ours). The window and the trigger are the bars' and never move; the two
    position sentences read the lines of the box named.
-7. **The grade, the state word, the screen.** **Experimental clarity, authorized for activation on 22 October 2026.** His working definition is a clear, easy-to-read zigzag between resistance and support with understandable events. The technical grade now awards equal budgets for two measured traits: the share of price travel retained by the existing main swing line relative to its finer line, and the average distance of the main peaks/valleys from their expected rails, in box heights. Both travel sums use exactly the same endpoints; the base ends before the strength push, so the right-side advance and LPS do not have to traverse the parent range. A known spring's own below-support valley and a known upthrust's own above-resistance peak keep their event context. Other optional event names earn no automatic points.
+7. **The grade, the state word, the screen.** **From Thu 29/10/2026 the technical grade is a letter and a place
+   within it.** The LETTER is the integrity reading below: his dead space in time and whether the base held;
+   his sealed 40 keep their letters (his ruling that day: "3. Yes"). WITHIN the letter his traits order the
+   setups, so that the screener's top rows are his tight, clean bases and a wide "nothing burger" S reads the
+   letter's floor (his words: *"these fuck ass wide ass nothing burger stocks all hug the damn S spot"*; *"i've
+   explained a million times what makes a setup higher quality and what traits i want to see"*). The traits, his
+   (Sat 18/10/2026 and Thu 29/10/2026): a tight box (its height in its OWN daily ranges, never in percent of
+   price: full marks at a box and a quarter, none at three and a half), clean swings (the main zigzag's share of the line's
+   travel), no dead space (the empty-days share the letter is cut on), right-side contraction (the last third
+   of the base's daily ranges against the earlier two thirds'), rails the turns sit on, and the stock's weekly
+   stage (*"the stage thing I taught you"*: stage 2 full marks). Each is a fraction of like quantities in a
+   named unit; a trait not measured leaves the budget; the weights are ours and live with the reader's numbers.
+   Measured on his sealed 40: 39 S and BODI C as before, the S scores running 91 to 100 by the traits; on
+   the scan of 28/10/2026 the 197 S rows that all read 100 spread 89 to 100, the boxes three ranges tall
+   and more at the bottom of S.
+
+   **The experimental clarity reading of 22 October 2026, which the table above replaced:** His working definition is a clear, easy-to-read zigzag between resistance and support with understandable events. The technical grade now awards equal budgets for two measured traits: the share of price travel retained by the existing main swing line relative to its finer line, and the average distance of the main peaks/valleys from their expected rails, in box heights. Both travel sums use exactly the same endpoints; the base ends before the strength push, so the right-side advance and LPS do not have to traverse the parent range. A known spring's own below-support valley and a known upthrust's own above-resistance peak keep their event context. Other optional event names earn no automatic points.
 
    The initial full-credit reference anchors are a main-travel share of 45% (the current 48 references' lower quartile, rounded) and a rail error at or below one quarter of a box height (their median, rounded); rail credit falls to zero at one box height. These are experimental training scales, not established predictive thresholds. Rail definition needs opposing major peaks and valleys; a lone endpoint is insufficient. Unmeasured traits remain unknown and the available point budget is normalized; with no measured trait, the integrity grade stands. The old empty-space/hold grade remains the ceiling, so a failed base cannot become good through clarity. The S/A/B/C cuts remain 75/50/25. Geometry, event detection, readiness and which setups fire are unchanged by this scoring experiment. Raw measurements, awarded points, reference method and the prior integrity score accompany the grade and are archived from the first new scan; historical grades are not rewritten.
 

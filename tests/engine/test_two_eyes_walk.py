@@ -507,12 +507,55 @@ def _switched(monkeypatch, **switches):
         monkeypatch.setattr(M, name, value)
 
 
+def test_a_one_bar_climax_box_the_bars_never_came_back_to_gives_way_to_the_tighter_pair_inside_that_wraps_them():
+    """His AMTB (Wed 28/10/2026), "rather than this abomination": the climax bar's own high and low (80 / 72, one
+    bar eight points tall) is a box by the rule on its fifteenth day, because in its OWN range (area four points)
+    every bar under its top "respects" both rails. The bars live between 77.5 and 74.5 and never come back to 80 or
+    to 72. His word (Thu 29/10/2026): the box must wrap the actual price action. The pair inside them, meaningfully
+    tighter and opened while the one-bar pair was forming, takes its place the day it is a box (``WRAPS``): his two
+    pictures, the BC / AR box first, then the box found later. Only a ONE-BAR box gives way this way: a box of two
+    bars, the climax and its reaction, keeps its place whatever sits inside it (his SILC, 21.70 / 19.35, whose top
+    the bars came back to only loosely). Read day by day with no memory, told the same on every later day."""
+    from engine_alpha.two_eyes import walk
+
+    chart = _chart(_RISE[:-1] + [(14, 74.5), (17, 77.5), (20, 74.6), (23, 77.3), (26, 74.4), (29, 77.4), (32, 74.7),
+                                 (35, 77.2), (38, 74.5), (41, 77.3), (44, 74.6)])
+    chart["low"][11], chart["ranges"][11] = 72.0, 8.0
+    chart["turns"] = [*chart["turns"][:9], _turn(11, "valley", 72.0, know=13), *chart["turns"][9:]]
+    found = _elect(chart)
+    one_bar = _pair(found, 80.0, 72.0)
+    assert (one_bar.r_bar, one_bar.s_bar, one_bar.unit, one_bar.birth_bar) == (11, 11, 8.0, 25)
+    first, then = found.lives[0], found.lives[-1]
+    assert (first.pair.R, first.pair.S, first.shown_bar, first.why) == (80.0, 72.0, 25, walk.FIRST_BOX)
+    assert then.why == walk.WRAPS and then.pair.R == 77.5 and 74.4 <= then.pair.S <= 74.6, then
+    assert then.pair.opening_bar <= one_bar.birth_bar and then.pair.height < one_bar.height
+    assert then.shown_bar == then.pair.birth_bar and first.ended_bar == then.pair.opening_bar
+    assert walk.wraps(one_bar, then.pair, chart["high"], chart["low"], 25, chart["n"] - 1) == then.shown_bar
+    assert walk.wraps(one_bar, then.pair, chart["high"], chart["low"], 25, then.shown_bar - 1) is None
+    # Told the same on every later day: the hand-over is dated on what its own day knew.
+    shown = _shown_day_by_day(chart)
+    assert shown[0] == (80.0, 72.0, 25) and shown[1][:2] == (then.pair.R, then.pair.S) and len(shown) == 2
+    boxes, trail, _ = walk.record(found)
+    assert trail[0].stage == "hand-over" and "never came back to one of its rails" in trail[0].saying
+    assert "80.00 / 72.00" in trail[0].saying and f"{then.pair.R:.2f} / {then.pair.S:.2f}" in trail[0].saying
+    # With the switch off the one-bar box stands, as the rule was built before Thu 29/10/2026.
+    with pytest.MonkeyPatch.context() as mp:
+        _switched(mp, WRAP_TAKES_OVER=False)
+        assert _box(_elect(chart)) == (80.0, 72.0) and len(_elect(chart).lives) == 1
+    # The box whose rails the bars DO come back to (the one-wide-bar test above: 80 / 76 over bars between 79.6
+    # and 76.4) keeps its place: its legs inside it are its own.
+    kept, turns = _gap_climax_chart()
+    found = walk.elect(turns, turns, kept["ranges"], kept["high"], kept["low"], read_bar=kept["n"] - 1)
+    assert _box(found) == (80.0, 76.0) and len(found.lives) == 1
+
+
 def test_the_switches_default_to_the_rule_as_built():
     """Every switch is on: the walk reads exactly as it did before the switches were named (Wed 28/10/2026), so
     the as-built path is the default and a measurement flips ONE of them."""
     from engine_alpha import two_eyes_numbers as M
 
-    assert (M.ONE_BAR_PAIR, M.GAP_BAR_LOW_IS_REACTION, M.WIDE_ENDS, M.CLIMAX_BAR_OWN_REACTION) == (True,) * 4
+    assert (M.ONE_BAR_PAIR, M.GAP_BAR_LOW_IS_REACTION, M.WIDE_ENDS, M.CLIMAX_BAR_OWN_REACTION,
+            M.WRAP_TAKES_OVER) == (True,) * 5
 
 
 def test_the_climax_bar_switch_off_never_takes_both_anchors_from_a_trend_ends_climax_bar(monkeypatch):
@@ -706,9 +749,11 @@ def test_a_run_past_a_rail_never_unmakes_a_pair_by_itself():
 # --------------------------------------------------------------------------- #
 # Stage 4: the box's life                                                     #
 # --------------------------------------------------------------------------- #
-def test_the_first_pair_to_become_a_box_is_shown_and_a_pair_inside_or_across_it_never_takes_its_place():
+def test_the_first_pair_to_become_a_box_is_shown_and_its_own_legs_inside_it_never_take_its_place():
     """"were looking for the first instance that a consolidation is respected!", and sentence 9: "Once a box, it
-    stays a box through dips under support and pokes over resistance that come back"."""
+    stays a box through dips under support and pokes over resistance that come back". The box's own legs inside it
+    never take its place (from Thu 29/10/2026 one box gives way inside: a box that is ONE bar's own high and low, to the
+    pair inside it the bars live in — the test after the switches' tests)."""
     from engine_alpha.two_eyes import walk
 
     chart = _chart(_BOX)
@@ -1841,7 +1886,7 @@ def test_mtls_the_box_of_june_does_not_give_way_to_the_rails_of_the_july_run(his
 
 def test_the_boxes_life_on_his_drawings_moves_by_the_three_rules_and_goes_back_only_after_a_dip(his_reads):
     """Read with no memory on days up to his last receding day, the reader tells the same history: what a later
-    day tells of the days before is what those days told. Every hand-over is by one of the four rules, on or
+    day tells of the days before is what those days told. Every hand-over is by one of the five rules, on or
     after the day the box that takes the place became a box: to a pair that opened LATER (the box before it was
     anchored inside a live trend; the price left it for good), to the SIBLING tried before it (the same opening
     anchor, the earlier second anchor: his GFR), or BACK to the box given up, when the price had
@@ -1874,6 +1919,16 @@ def test_the_boxes_life_on_his_drawings_moves_by_the_three_rules_and_goes_back_o
                 hand_overs += 1
                 continue
             assert new.pair.opening_bar > old.pair.opening_bar, f"{key}: the shown line moved back"
+            if new.why == walk.WRAPS:
+                # A one-bar box gives way to the tighter pair inside or across it, opened while it was forming, the
+                # day the bars hang on its rails and have never come back to one of the box's.
+                assert old.pair.r_bar == old.pair.s_bar, key
+                assert not walk.lies_beyond(new.pair, old.pair) and new.pair.height < 0.8 * old.pair.height, key
+                assert new.pair.opening_bar <= old.pair.birth_bar, key
+                assert walk.wraps(old.pair, new.pair, row["high"], row["low"], old.shown_bar,
+                                  new.shown_bar) == new.shown_bar, key
+                hand_overs += 1
+                continue
             if new.why == walk.LEFT_FOR_GOOD:
                 assert walk.left_for_good(old.pair, new.pair, row["high"], row["low"], old.shown_bar,
                                           new.shown_bar) == new.shown_bar, key

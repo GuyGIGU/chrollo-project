@@ -170,7 +170,8 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
         if watch is not None:
             watch.update(two_eyes=True, state="not scanned", why=reason[0])
         return None, None
-    read = two_eyes_adapter.graded_read(two_eyes.read(ticker, df))
+    read = two_eyes_adapter.graded_read(two_eyes.read(ticker, df),
+                                        frame=None if admitted is None else admitted[0])
     two_eyes_adapter.fill_watch(read, watch)
     if refused is not None and read.failed:
         return read, NotRead(ticker, refused.rule or str(refused), read.refusal or str(refused))

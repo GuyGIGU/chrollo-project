@@ -106,11 +106,11 @@ def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
             assert not on_last["fired"] or result["_two_eyes_lps_read_against"] == on_last["lps_box"], row["key"]
 
 
-def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_none(tmp_path):
-    """AEF: the pullback he refused runs from Wed 03/06/2026. Since the walk of Sat 18/10/2026 its box of April
-    (9.04 / 8.66) stands through the window's first days, so its first day is a range over resistance, refused by
-    sentence four; from the second day on it is refused each day by his own sentence (the rule of Thu 01/10/2026
-    fired that first day: tests/engine/test_two_eyes_lps.py)."""
+def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_its_first_day_only(tmp_path):
+    """AEF: the pullback he refused runs from Wed 03/06/2026. Since the wrap rule of Thu 29/10/2026 the one-bar box
+    of April (9.04 / 8.66) gives way to the pair inside it, so 9.98 / 9.57 is shown and the pullback's first day
+    fires at 10.00 (as on the rule of Thu 01/10/2026); from the second day on it is refused each day by his own
+    sentence (tests/engine/test_two_eyes_lps.py)."""
     import datetime as dt
 
     from engine_alpha.two_eyes import lps
@@ -120,15 +120,15 @@ def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_none(t
     frames, meta = negative_corpus._load_fixture()
     case = next(c for c in meta["cases"] if c["ticker"] == "AEF")
     row = core_board.junk_row(case, frames["AEF"])
-    assert len(row["reads"]) == 10 and [f["day"] for f in row["fires"]] == []
+    assert len(row["reads"]) == 10 and [f["day"] for f in row["fires"]] == [dt.date(2026, 6, 3)]
     said = [core_board.why_silent(r) or "" for r in row["reads"]]
     assert any(lps.SLICE in why for why in said) and any(lps.UNDER_SUPPORT in why for why in said)
-    assert any(lps.SELLERS_RISING in why for why in said) and any(lps.OVER_RESISTANCE in why for why in said)
+    assert any(lps.SELLERS_RISING in why for why in said)      # the first day fires now, so no "over resistance"
     # How a refused pullback is drawn: grey, "no LPS".
     refused = next(r for r in row["reads"] if r["day"] == dt.date(2026, 6, 4))
     assert core_board.pullback_look(refused)[1] == "no LPS"
     board = core_board.format_junk([row])
-    assert "charts that fire on any day of their window: 0 of 1" in board and "silent: AEF" in board
+    assert "charts that fire on any day of their window: 1 of 1" in board and "silent: AEF" not in board
 
 
 def test_the_pages_draw_bars_and_never_candles_and_one_is_written_per_chart(rows, tmp_path):

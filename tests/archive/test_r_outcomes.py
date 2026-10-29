@@ -179,6 +179,18 @@ def test_a_stop_hit_before_the_windows_high_counts_minus_one_r():
     assert out["r_best_before_stop_20d"] == pytest.approx(-1.0)   # stopped on the buy day: nothing made
 
 
+def test_the_stop_and_the_windows_high_on_one_bar_count_the_stop_first():
+    # Day 3 prints both the window's high (12.0, 4R) and a low under the stop: the bar does not say which came
+    # first, so the stop counts first and the R made before it is day 2's 2R (the outcome, the exit and the
+    # best-before-stop agree; the raw MFE still records the 4R).
+    days = [(10.2, 9.9, 10.1), (11.0, 10.0, 10.8), (12.0, 9.4, 9.6)] + [(10.0, 9.5, 9.8)] * 17
+    out = _trade(days)
+    assert out["r_stop_first_20d"] == 1 and out["r_outcome_20d"] == pytest.approx(-1.0)
+    assert out["r_exit_20d"] == pytest.approx(-1.0)
+    assert out["r_best_before_stop_20d"] == pytest.approx(2.0)
+    assert out["r_mfe_20d"] == pytest.approx(4.0)
+
+
 def test_the_r_made_before_the_stop_is_what_the_tail_rate_reads():
     # 2R on day 2, the stop on day 5, 6R afterwards: P(>=2R) counts it, P(>=3R) does not.
     days = [(10.2, 9.9, 10.1), (11.0, 10.0, 10.8), (10.5, 9.9, 10.0), (10.2, 9.8, 9.9),

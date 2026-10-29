@@ -669,15 +669,17 @@ def _junk_days(key: str) -> list:
     return [(ts.date(), raw.loc[:ts]) for ts in sessions]
 
 
-def test_aef_the_pullback_he_refused_fires_on_no_day_and_each_refusal_names_his_sentence():
+def test_aef_the_pullback_he_refused_fires_on_its_first_day_only_and_each_refusal_names_his_sentence():
     """His AEF words (Mon 14/09/2026): "3 bars with huge increases in both spread and price changes meaning the
     pull back is increasing with sellers, not to mention you cut the move off and it's a part of a bigger swing
     downwards that reaches support". That pullback runs from Wed 03/06/2026; from its second day on it is refused,
-    each day by his own sentence. Its FIRST day is one receding day a range and more over the box of April (9.04 /
-    8.66), refused by sentence four: since the walk of Sat 18/10/2026 (his EXPD's poke rule; the far rail of his
-    DSGX the same evening keeps it) that box stands through Fri 05/06, and 9.98 / 9.57 takes the place only on Mon
-    08/06, when the fall reached its rails. On the rule as it stood from Thu 01/10/2026 the box of 9.98 / 9.57 was
-    shown already and that first day fired at 10.00; on the box of tasks 10 and 11, as now, AEF fired on no day."""
+    each day by his own sentence. Its FIRST day is one receding day under the top of Tue 02/06, and it fires at
+    10.00 against 9.98 / 9.57: since the wrap rule of Thu 29/10/2026 the one-bar box of April (9.04 / 8.66, the
+    bar of Fri 17/04) gives way on Thu 14/05 to the pair inside it the bars live in (9.15 / 8.87), which the rise to
+    9.99 then swallows, so 9.98 / 9.57 is shown from Thu 28/05 — as it was on the rule of Thu 01/10/2026, when this
+    first day fired at 10.00 too. Between the walk of Sat 18/10/2026 and the wrap rule the April box stood through
+    Fri 05/06 and AEF fired on no day. A junk chart, set aside on his word (Thu 29/10/2026: "Do not focus on junk
+    charts at all right now"): pinned so a move is seen, not as a rule."""
     from engine_alpha import two_eyes
     from engine_alpha.two_eyes import lps
 
@@ -690,13 +692,12 @@ def test_aef_the_pullback_he_refused_fires_on_no_day_and_each_refusal_names_his_
         said[day] = next((s.saying for s in read.trail if s.stage == "LPS"), "")
         parent = next(b for b in read.boxes if b.role == "parent")
         boxes[day] = (round(parent.resistance.price, 2), round(parent.support.price, 2))
-    assert fires == []
-    assert boxes[dt.date(2026, 6, 5)] == (9.04, 8.66) and boxes[dt.date(2026, 6, 8)] == (9.98, 9.57)
+    assert fires == [(dt.date(2026, 6, 3), 10.0)]
+    assert boxes[dt.date(2026, 6, 5)] == (9.98, 9.57) and boxes[dt.date(2026, 6, 8)] == (9.98, 9.57)
     assert "one receding day under the top of Tue 02/06/2026" in said[dt.date(2026, 6, 3)]
-    assert lps.OVER_RESISTANCE in said[dt.date(2026, 6, 3)]
     assert lps.SELLERS_RISING in said[dt.date(2026, 6, 4)] and lps.SELLERS_RISING in said[dt.date(2026, 6, 5)]
     assert lps.SLICE in said[dt.date(2026, 6, 8)] and lps.SLICE in said[dt.date(2026, 6, 9)]
-    assert all("no LPS" in words for words in said.values())
+    assert all("no LPS" in words for day, words in said.items() if day != dt.date(2026, 6, 3))
 
 
 @pytest.fixture(scope="module")
@@ -722,11 +723,11 @@ def junk_fire_days() -> dict:
 #: The junk charts none of his four sentences and nothing in the box's rules keeps silent today. His words on them
 #: are about the box ("Extreme Width, Spread, Messy non tight structure"; on OHI "lps is fine though"), which his
 #: method grades (task 14) and never gates.
-_JUNK_THAT_FIRES = ("ABEV", "BBVA", "BBVA@2026-06-05", "BMRN", "COLM", "DBD", "DGII", "ENIC", "FLG", "FRPH", "KWR",
-                    "OHI", "RLGT", "SPCB")
+_JUNK_THAT_FIRES = ("ABEV", "AEF", "BBVA", "BBVA@2026-06-05", "BMRN", "COLM", "DBD", "DGII", "ENIC", "FLG", "FRPH",
+                    "KWR", "OHI", "RLGT", "SPCB")
 
 
-def test_the_junk_charts_that_fire_and_the_two_that_stay_silent(junk_fire_days):
+def test_the_junk_charts_that_fire_and_the_one_that_stays_silent(junk_fire_days):
     firing = sorted(key for key, days in junk_fire_days.items() if days)
     assert firing == sorted(_JUNK_THAT_FIRES)
     # GOOD by the door; AEF since the walk of Sat 18/10/2026 (its April box stands through its window, so its one
@@ -736,8 +737,9 @@ def test_the_junk_charts_that_fire_and_the_two_that_stay_silent(junk_fire_days):
     # aside, his word of Wed 30/09/2026 ("idc about bodi, nor about other junk charts lets focus on Working intended
     # examples"). BBVA joined on Fri 02/10/2026: once a dip that comes back gives a box its place back, its box is
     # the one over the dip (23.74 / 22.89) and three days of its window fire.
-    assert sorted(set(junk_fire_days) - set(firing)) == ["AEF", "GOOD"]
-    assert junk_fire_days["AEF"] == []
+    # GOOD by the door. AEF fires on one day again since the wrap rule of Thu 29/10/2026 (the test above).
+    assert sorted(set(junk_fire_days) - set(firing)) == ["GOOD"]
+    assert junk_fire_days["AEF"] == [dt.date(2026, 6, 3)]
     assert junk_fire_days["DBD"] == [dt.date(2026, 6, 3), dt.date(2026, 6, 5)]
     assert junk_fire_days["BBVA"] == [dt.date(2026, 6, 18), dt.date(2026, 6, 24), dt.date(2026, 6, 26)]
 

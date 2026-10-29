@@ -123,8 +123,10 @@ def _spring_day(read: Read) -> Optional[str]:
     return next((event.day.isoformat() for event in read.events if event.kind == SPRING), None)
 
 
-def graded_read(read: Read) -> Read:
-    """Compose the measured clarity once, outside the chart-reading leaf.
+def graded_read(read: Read, frame=None) -> Read:
+    """Compose the trait grade once, outside the chart-reading leaf: the letter the integrity grade's, the score
+    placed within the letter by his traits (`engine_alpha/scoring/clarity.py`). With the stock's whole frame given,
+    the weekly stage is one of them.
 
     A grade never costs a fire: if composing fails, the integrity grade stands and the trail says why.
     """
@@ -134,7 +136,8 @@ def graded_read(read: Read) -> Read:
     from engine_alpha.scoring.clarity import compose_grade
 
     try:
-        composed = compose_grade(grade, grade.clarity["facts"])
+        stage = None if frame is None else stock_stage(frame).get("_cycle_stage")
+        composed = compose_grade(grade, grade.clarity["facts"], stage=stage)
     except Exception as exc:
         step = Step("grade", f"the clarity grade could not be composed ({type(exc).__name__}: {exc}); "
                              "the integrity grade stands")
@@ -161,7 +164,7 @@ def to_result(read: Read, frame=None):
     if not read.fired:
         return None
 
-    read = graded_read(read)
+    read = graded_read(read, frame)
     box, lps, grade = read.parent, read.lps, read.grade
     # The grade's number, rounded ONCE to the wire's grade precision (one
     # decimal): the score, `_ta_grade` and the block all carry this one

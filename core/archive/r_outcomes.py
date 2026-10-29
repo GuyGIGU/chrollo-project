@@ -179,7 +179,10 @@ def score_trade(h, l, c, buy: int, entry: float, stop: float, last_bar: int,
         mfe_r = float((wh[mfe_bar] - entry) / risk)
         under = np.where(wl <= stop)[0]
         stop_bar = int(under[0]) if under.size else None
-        stop_first = stop_bar is not None and stop_bar < mfe_bar
+        # The stop and the window's high on ONE bar: the bar does not say which printed first, so the stop
+        # counts first (the gain before the stop is read off the bars before it, as `best_before_stop` and
+        # `exit` already do; review 2026-10-29).
+        stop_first = stop_bar is not None and stop_bar <= mfe_bar
         if stop_bar is None:
             best_before_stop = mfe_r
         elif stop_bar == 0:

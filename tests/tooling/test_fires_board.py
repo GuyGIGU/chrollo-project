@@ -18,7 +18,8 @@ def test_the_switches_are_the_walks_bools_and_a_switch_is_zero_or_one():
     from tools.calibration import fires_board
 
     names = fires_board.switch_names()
-    assert set(names) == {"ONE_BAR_PAIR", "GAP_BAR_LOW_IS_REACTION", "WIDE_ENDS", "CLIMAX_BAR_OWN_REACTION"}
+    assert set(names) == {"ONE_BAR_PAIR", "GAP_BAR_LOW_IS_REACTION", "WIDE_ENDS", "CLIMAX_BAR_OWN_REACTION",
+                          "WRAP_TAKES_OVER"}
     assert all(isinstance(getattr(M, name), bool) for name in names)
     assert fires_board.parse_switch("ONE_BAR_PAIR=0") == ("ONE_BAR_PAIR", False)
     assert fires_board.parse_switch("wide_ends=on") == ("WIDE_ENDS", True)

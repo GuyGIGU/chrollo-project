@@ -110,8 +110,8 @@ from engine_alpha.two_eyes.runs import _cmp
 __all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
            "far_rail", "first_foot", "inside_a_live_trend", "knew_the_rails", "known_by", "left_for_good", "lies_beyond",
            "lives", "measure", "move_began", "poke_came_back", "poke_stayed_in",
-           "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD", "TRIED_FIRST",
-           "LIVE_TREND", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
+           "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "wraps", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD",
+           "TRIED_FIRST", "LIVE_TREND", "WRAPS", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
 
 #: Why a listed pair can never be a box.
 UNFIT_TALL = "under one daily range tall"
@@ -126,6 +126,10 @@ TRIED_FIRST = "the pair tried before it became a box"
 LIVE_TREND = "the box before it was anchored inside a live trend"
 LEFT_FOR_GOOD = "the price left the box before it and the bars no longer came back to both its rails"
 CAME_BACK = "the dip came back: the bars are back at both rails of the box it had given up"
+#: His AMTB (Wed 28/10/2026) and his word of Thu 29/10/2026, *"we simply must increase the reading accuracy of our Reader
+#: to match better with the ranges of the actual price action"*: a box the bars never came back to at one of its rails
+#: does not wrap them; the tighter pair inside it that they do come back to is the box (``wraps``).
+WRAPS = "the box was one bar's own high and low; the pair inside it the bars live in and come back to is the box"
 
 RESISTANCE, SUPPORT = "R", "S"
 _BOTH = frozenset((RESISTANCE, SUPPORT))
@@ -581,6 +585,52 @@ def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) 
     return int(days[gone[0]]) if len(gone) else None
 
 
+def wraps(shown: Pair, new: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
+    """His AMTB (Wed 28/10/2026: the reader boxed the climax bar's own high and low, 30.60 / 28.41, over bars that
+    lived between 29.67 and 28.54) and his word of Thu 29/10/2026 that the box must wrap the actual price action.
+    Of a box that is ONE bar's own high and low (sentence 3; his TOP and CYRX too): its unit is that one wide bar's
+    range, so every bar inside it "respects" its rails, and the pair the bars then live in, measured in a normal
+    range, is the honest reading (a two-bar box — a climax and its reaction, his SILC — keeps its place, however
+    tight the pairs inside it: his eye draws it). A newer pair INSIDE or ACROSS the shown box, meaningfully tighter
+    than it (under his mini bar, 80% of its
+    height, his ruling of 21/10/2026: a pair covering substantially the same range is the same box, his SILC), that
+    opened while the shown pair was still forming
+    (on or before the day it became a box: the same formation's own anchors, never a leg of the right side, which
+    is the mini's business, his DSGX) takes its place on the first day from ``since`` on, never before it is a box,
+    on which the bars have come back to both its rails over the last fifteen trading days while NO bar since the
+    shown box OPENED has come back to one of the shown box's rails. A come-back is a bar at the rail after the bars
+    had left it: the anchor bar and the bars on either side of it that stay at that rail are the root swing's own
+    (the bars that fell from his AMTB's climax, or TOP's, through the top's area on their way down to the reaction).
+    Come back is read within half the NEWER pair's daily range of the rail: his respect, in the honest unit (a one-bar
+    climax's own range is so wide that every bar under its top "respects" it). None when there is none by the read
+    day. Behind ``WRAP_TAKES_OVER`` (the walk's switches, Wed 28/10/2026)."""
+    if new.opening_bar <= shown.opening_bar or new.birth_bar is None or shown.birth_bar is None:
+        return None
+    if int(shown.r_bar) != int(shown.s_bar):
+        return None                                 # a two-bar box stands; only one bar's own range gives way
+    if lies_beyond(new, shown) or int(new.opening_bar) > int(shown.birth_bar):
+        return None
+    if new.height >= float(M.MINI_MAX_PARENT_HEIGHT_RATIO) * shown.height:
+        return None
+    start = max(int(since), int(new.birth_bar))
+    if start > read_bar:
+        return None
+    first = int(shown.opening_bar)
+    on_r, on_s = _respects(high[first:read_bar + 1], low[first:read_bar + 1], shown.R, shown.S, new.area)
+    for hits, anchor in ((on_r, int(shown.r_bar) - first), (on_s, int(shown.s_bar) - first)):
+        hits[anchor] = False
+        for step in (1, -1):                        # the bars that stay at the rail on either side of its anchor
+            k = anchor + step
+            while 0 <= k < len(hits) and hits[k]:
+                hits[k] = False
+                k += step
+    at_r, at_s = np.cumsum(on_r), np.cumsum(on_s)
+    days = np.arange(start, read_bar + 1)
+    dead = (at_r[days - first] == 0) | (at_s[days - first] == 0)
+    took = np.flatnonzero(dead & _back_at_both(new, high, low, int(new.opening_bar), days))
+    return int(days[took[0]]) if len(took) else None
+
+
 def came_back_to(old: Pair, shown: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
     """His sentence 9 for a dip that comes back late — *"Once a box, it stays a box through dips under support
     ... that come back"*: the first day after ``since`` (the day the box was given up) on which the bars since
@@ -616,8 +666,12 @@ def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True) -> 
     pair's own opening anchor with an earlier second anchor — the climax and its reaction, before the pair one
     swing to its right — was tried first (sentence 5), and takes the place on the day it becomes a box
     (``TRIED_FIRST``; his GFR, Thu 16/10/2026: *"the AR ended where I marked it ... the entire wave going down
-    is already 2 swings and it's not part of the AR"*). Every box handed over stays, with the day its lines
-    stop; the last one stands."""
+    is already 2 swings and it's not part of the AR"*). And one goes INSIDE a box that is one bar's own high and
+    low: a meaningfully tighter pair inside or across it, opened while it was still forming, takes its place on the
+    first day the bars have come back to both its rails while none since the box opened has come back to one of
+    the box's rails, read in the tighter pair's own range (``wraps``; his AMTB, Wed 28/10/2026: the box must wrap
+    the bars). Every box handed over
+    stays, with the day its lines stop; the last one stands."""
     born = sorted((p for p in pairs if p.birth_bar is not None), key=_key)
     if not born:
         return ()
@@ -657,6 +711,9 @@ def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True) -> 
             left = left_for_good(shown, pair, high, low, day, read_bar)
             if left is not None and (when is None or left < when):
                 when, took, by = left, LEFT_FOR_GOOD, None
+            wrap = wraps(shown, pair, high, low, day, read_bar) if M.WRAP_TAKES_OVER else None
+            if wrap is not None and (when is None or wrap < when):
+                when, took, by = wrap, WRAPS, None
             if when is None:
                 continue
             order = (max(when, day), _key(pair))
@@ -756,6 +813,10 @@ def _hand_over_words(walk: Walk, life: Life, new: Life) -> str:
         return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: the dip came back, the "
                 f"bars came back to both rails of the box before it, and {pair.R:.2f} / {pair.S:.2f} took its "
                 f"place again on {_when(walk, new.shown_bar)}")
+    elif new.why == WRAPS:
+        return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: one bar's own high and low, "
+                f"and the bars never came back to one of its rails; {pair.R:.2f} / {pair.S:.2f}, the pair inside them "
+                f"they do come back to, took its place on {_when(walk, new.shown_bar)}")
     elif new.why == TRIED_FIRST:
         which = "the earlier reaction low" if pair.top_first else "the earlier reaction high"
         return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: {pair.R:.2f} / "

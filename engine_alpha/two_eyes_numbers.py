@@ -136,6 +136,31 @@ GRADE_S = 75.0
 GRADE_A = 50.0
 GRADE_B = 25.0
 
+# THE TRAITS (Thu 29/10/2026, his words: "I want an actual grading system that pops up the best stock at the top of
+# the page ... i've explained a million times what makes a setup higher quality and what traits i want to see"; his
+# traits of Sat 18/10/2026: a tight box, clean swings, right-side contraction, no dead space; and "the stage thing I
+# taught you"). The letter stays the integrity grade's (dead space and the hold: his sealed 40 keep their letters, his
+# ruling 3 of 29/10). WITHIN the letter the traits order the setups: the score runs from the letter's floor to its
+# ceiling by the weighted traits, each a 0..1 fraction of like quantities in a named unit. The weights are OURS; a
+# trait that is not measured leaves the budget.
+TRAIT_WEIGHTS = {"tightness": 30.0, "swings": 15.0, "dead_space": 20.0, "contraction": 15.0, "rails": 10.0,
+                 "stage": 10.0}
+#: Tightness: the box's height in its own daily ranges, full marks at or under this many ranges ("a box about as
+#: tall as its bars is completely fine", Mon 05/10/2026; his boxes run 1.1 to 2.75 ranges, most under 2) ...
+TRAIT_TIGHT_FULL_RANGES = 1.25
+#: ... and none at or over this many: a wide, nothing-burger box (on the scan of 28/10/2026, 10 of 197 S boxes).
+TRAIT_TIGHT_ZERO_RANGES = 3.5
+#: Right-side contraction: the ratio of the last third's mean daily range to the earlier two thirds'. Full marks at
+#: or under this ratio, none at TRAIT_CONTRACTION_ZERO_RATIO or looser (his 40 run 0.63 to 1.68; most 0.8 to 1.1).
+TRAIT_CONTRACTION_FULL_RATIO = 0.7
+TRAIT_CONTRACTION_ZERO_RATIO = 1.1
+#: The stage, his weekly read (Fri 16/10/2026): the fraction each stage earns. Stage 2, the advance, is the setup's
+#: home; stage 1 may be the base before it; a stage-3 or stage-4 base is late or against the tide.
+TRAIT_STAGE_FRACTION = {1: 0.5, 2: 1.0, 3: 0.25, 4: 0.0}
+#: The letters' bands: the floor each letter's traits build from and the width they fill. S fills to 100; the others
+#: stop one point under the next letter's floor so the letter the score is cut on is still the integrity grade's.
+TRAIT_BANDS = {"S": (75.0, 25.0), "A": (50.0, 24.0), "B": (25.0, 24.0), "C": (0.0, 24.0)}
+
 # --- The walk's switches (Wed 28/10/2026): his candidate rules, each a named switch -------------------------
 # His word that day: "we've got to write the engine in a certain way that will allow us to easily tune it in the
 # right direction". Each switch names ONE reading of the walk that was tried as a monkeypatch and is NOT ruled on;
@@ -162,3 +187,14 @@ WIDE_ENDS = True
 #: can represent the climax and the reaction for that box's root swing". Off: never on the climax bar (one-bar
 #: pairs elsewhere stay; measured on his 47: the board unchanged, his AMTB's one-bar box gone).
 CLIMAX_BAR_OWN_REACTION = True
+
+#: The box must WRAP the bars (his AMTB, Wed 28/10/2026; his words Thu 29/10/2026: "we simply must increase the
+#: reading accuracy of our Reader to match better with the ranges of the actual price action"): a box that is ONE
+#: bar's own high and low is measured in that one wide bar's range, so every bar inside it "respects" it; a
+#: meaningfully tighter pair inside or across it (under the mini bar, 80% of its height), opened while it was still
+#: forming, takes its place on the first day the bars have come back to both its rails while none since the box
+#: opened has come back to one of the box's rails (a come-back: a bar at the rail after the bars had left it; the
+#: root swing's own bars at it are none), read in the tighter pair's own daily range (`walk.wraps`). A two-bar box
+#: — a climax and its reaction, his SILC — keeps its place whatever sits inside it. Off: a pair inside or across the
+#: box never takes its place (the rule as built before Thu 29/10/2026).
+WRAP_TAKES_OVER = True
