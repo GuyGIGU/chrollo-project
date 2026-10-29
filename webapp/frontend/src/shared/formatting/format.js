@@ -66,7 +66,9 @@ export const fmtMoneyCompact = (value, empty = EMPTY) => {
   if (Math.round(abs) < 1e3) return `$${Math.round(abs)}`;
   if (Math.round(abs / 1e3) < 1e3) return `$${Math.round(abs / 1e3)}K`;
   if (Number((abs / 1e6).toFixed(1)) < 1e3) return `$${(abs / 1e6).toFixed(1)}M`;
-  return `$${(abs / 1e9).toFixed(1)}B`;
+  if (Number((abs / 1e9).toFixed(1)) < 1e3) return `$${(abs / 1e9).toFixed(1)}B`;
+  // Trillions to the cent of a trillion (Thu 29/10/2026: AAPL's cap read "$5017.9B"); one decimal would be $5.0T.
+  return `$${(abs / 1e12).toFixed(2)}T`;
 };
 
 // Percent where the value is ALREADY in percent units (12.3 -> "12.3%").

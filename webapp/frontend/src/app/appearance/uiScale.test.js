@@ -99,7 +99,7 @@ test('both card grids are the one-size grid, built from uiScale', () => {
   }
 });
 
-test('the lens fills the screen and scrolls, and the big charts hold one size on every screen', () => {
+test('the lens fills the 1920 screen and scrolls, and the big charts hold one size on every screen', () => {
   // Operator 2026-10-03, "same goes for the big charts": the lens's chart band and
   // the Watchlist D/W/M band are one size on every monitor. Operator Thu
   // 16/10/2026: the lens is TWO BLOCKS — the chart block at its own height and
@@ -113,8 +113,9 @@ test('the lens fills the screen and scrolls, and the big charts hold one size on
   const css = readRepo('src/index.css');
   const modal = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-shell"[\s\S]*?style=\{\{([\s\S]*?)\}\}/);
   assert.ok(modal, 'ScreenerModal: the lens shell style not found');
-  // Thu 29/10/2026: no width cap, the whole screen ("make the entire pop up bigger").
-  assert.doesNotMatch(modal[1], /maxWidth/, 'the lens is width-capped again — it no longer fills the screen');
+  // Thu 29/10/2026: the whole 1920 screen inside the scrim ("make the entire pop up bigger"), and that size,
+  // not a bigger one, on the 2560 screen (2026-10-03 "same goes for the big charts").
+  assert.match(modal[1], /maxWidth: 1896,/, 'the lens no longer fills the 1920 screen, or grows past it on a bigger one');
   assert.doesNotMatch(modal[1], /maxHeight/, 'the lens shell is height-capped again — the stats block loses the room below the chart');
   assert.match(css, /--lens-chart-band: 400px;/, 'the chart lost its one height (Finviz’s 400px on every monitor, so the grade board fits under it at 1080)');
   const lensBand = css.match(/\n\.lens-chart-grid\s*\{([^}]*)\}/);

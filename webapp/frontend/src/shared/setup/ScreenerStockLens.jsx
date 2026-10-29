@@ -136,16 +136,26 @@ function fundamentalsTableCells(data) {
 
 const SNAPSHOT_COLUMNS = 6;
 
-function SnapshotTable({ cells }) {
+// A cell with a `region` lights it on the chart while the pointer is over it (the box's facts light the box).
+function SnapshotTable({ cells, onRegionChange }) {
   const rows = Math.max(1, Math.ceil(cells.length / SNAPSHOT_COLUMNS));
   return (
     <div className="lens-snapshot" style={{ gridTemplateRows: `repeat(${rows}, auto)` }}>
-      {cells.map((cell, index) => (
-        <div className="lens-cell" key={`${cell.k}-${index}`} title={cell.title}>
-          <span className="lens-k">{cell.k}</span>
-          <span className="lens-v" style={{ color: cell.tone || 'var(--text-main)' }}>{cell.v}</span>
-        </div>
-      ))}
+      {cells.map((cell, index) => {
+        const lights = Boolean(cell.region && onRegionChange);
+        return (
+          <div
+            className={`lens-cell${lights ? ' is-lit' : ''}`}
+            key={`${cell.k}-${index}`}
+            onMouseEnter={lights ? () => onRegionChange(cell.region) : undefined}
+            onMouseLeave={lights ? () => onRegionChange(null) : undefined}
+            title={cell.title}
+          >
+            <span className="lens-k">{cell.k}</span>
+            <span className="lens-v" style={{ color: cell.tone || 'var(--text-main)' }}>{cell.v}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -402,7 +412,7 @@ export default function ScreenerStockLens({
           regions={regions}
         />
       ) : null}
-      <SnapshotTable cells={cells} />
+      <SnapshotTable cells={cells} onRegionChange={onRegionChange} />
       {ticker ? <FiredCrossedLine ticker={ticker} /> : null}
       {showDailyStructure && data?.two_eyes ? (
         <section className="stock-lens-section">

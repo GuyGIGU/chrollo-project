@@ -71,7 +71,7 @@ function quoteChips(data) {
   return [
     { k: 'Sector', v: sector ? `${sector}${data?.sector_etf ? ` (${data.sector_etf})` : ''}` : data?.sector_etf },
     { k: 'Industry', v: snap.industry || data?.group?.industry },
-    { k: 'Cap', v: data?.market_cap >= 1e12 ? `$${fx(data.market_cap / 1e12, 2)}T` : data?.market_cap > 0 ? fmtMoneyCompact(data.market_cap) : null },
+    { k: 'Cap', v: data?.market_cap > 0 ? fmtMoneyCompact(data.market_cap) : null },
     { k: 'Setup', v: data?.setup },
   ].filter((chip) => chip.v);
 }

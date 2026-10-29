@@ -502,8 +502,9 @@ of at least 590px; the day before that a three-card ceiling. **The big charts ho
 Watchlist D/W/M band is 1850x805, and the lens's chart band is `--lens-chart-band`,
 400px on every screen (600 until Thu 29/10/2026). **The lens is Finviz's quote page (fourth pass, Thu 29/10/2026**, his
 *"base our advanced chart page on their page ... notice how everything is sitting compact and easy to
-read"*, measured on finviz.com/stock the same day): the whole screen inside the scrim's 12px frame,
-no width cap (his "make the entire pop up bigger"; Finviz's 1425 for an hour, then 1760), a slim bar (‹ Back, the counter, Prev, Next, the skin, ✕), the quote (the ticker
+read"*, measured on finviz.com/stock the same day): 1896px, the whole 1920 screen inside the scrim's
+12px frame (his "make the entire pop up bigger"; Finviz's 1425 for an hour, then 1760), and that size,
+centred, on the 2560 screen too (the 2026-10-03 "same goes for the big charts"), a slim bar (‹ Back, the counter, Prev, Next, the skin, ✕), the quote (the ticker
 30px in its tier hue, the company 18px in blue, the tier, the price 32px with its date and the day's
 change), a tab row (The read | Fundamentals on the left; the Sector (with its ETF), Industry, Cap and
 Setup chips, each saying what it is, the star, the heart and ↗ TV on the right), then the chart box:
@@ -513,8 +514,9 @@ afternoon), at 400px (his "the chart is way to big"), the toolbar's tab naming t
 green up / red down like Finviz's (the card's too, with a month axis, and the card names its sector
 by its ETF alone), no headings over the blocks; under it the phase board (the events by phase; the
 box's own facts moved out of it), then the stock's numbers as Finviz's snapshot table (six columns of
-label/value pairs read top to bottom, 12px on 21px rows), the box's lines, height, base, bars in the
-box, hold and clarity parts first. The Fundamentals tab swaps the board and the numbers for the sheet
+label/value pairs read top to bottom, 12px on 21px rows), the box's lines, height, base, the days in
+the box up to the SOS, hold and clarity parts first; hovering one of the box's cells lights the box
+on the chart, as the board's Box column did. The Fundamentals tab swaps the board and the numbers for the sheet
 and keeps the chart. The page's sides are 72px SCROLL LANES (his "make this entire area bigger so it
 would be easier for me to scroll between the chart and the damn stats"): the wheel over a pane zooms
 it, so the page scrolls with the pointer beside the charts. **The lens was TWO BLOCKS (third pass, Fri 17/10/2026)**: the CHART block is his TradingView layout, three panes in one grid (the monthly over the weekly in a side column 29% wide, the daily big beside them; the toolbar's D/W/M tab names the big pane, a side pane's caption opens it big), every pane a real chart with the zoom cluster over its bottom-left corner (+ − ⌂ ⤢; the wheel over a pane zooms it with no modifier, as on TradingView; the page scrolls from outside the panes), and THE PHASE BOARD right under the three panes in the same card, over a hairline, so the chart and the highlights it lights are one screen (*"I need to see both the chart and the highlights it provides in the same screen"*: the card is ~900px tall under the 52px toolbar, inside the 1080 screen); the STATS block under it. The grid is 600px so the board fits; the cards of the second pass below are the record of how it got here. **The lens was a page of separate cards** (second pass) (second pass the same day: *"make them separate and not try to squeeze them together"*: the daily chart full width with the volume in its own pane, then the bigger picture (weekly | monthly), then the grade as THE PHASE BOARD, then the stats, each a 20px heading on the page over a card a tone off it, 44px of page between blocks: measured the same day, a 16px gap and an eyebrow strip inside one box still read as one panel) (operator

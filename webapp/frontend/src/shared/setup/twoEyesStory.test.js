@@ -105,8 +105,18 @@ test("the technical read's cells come from the reader's own read, never the old 
   assert.equal(cells.LPS, '3 days');
   assert.equal(cells.Mini, '1.3 ranges');
   // The box's own facts, moved here from the phase board's Box column (Thu 29/10/2026, "the dry stats section").
-  assert.equal(cells['Bars in box'], '38 of 40');
+  assert.equal(cells['In box to SOS'], '38 of 40 days');
   assert.equal(cells.Hold, 'held');
+  // The box's cells light the whole box on the chart, as the board's Box column did; the LPS cell does not.
+  const byKey = Object.fromEntries(twoEyesTechnicalCells(data, buildPhaseRegions(data)).map((c) => [c.k, c]));
+  assert.equal(byKey.Box.region, 'b');
+  assert.equal(byKey.Base.region, 'b');
+  assert.equal(byKey.LPS.region, undefined);
+  // With no SOS named the grade's count runs to the last day, and the label stops saying "to SOS".
+  const quiet = scanRow({ events: [] });
+  const quietCells = Object.fromEntries(twoEyesTechnicalCells(quiet, buildPhaseRegions(quiet)).map((c) => [c.k, c.v]));
+  assert.equal(quietCells['In box'], '38 of 40 days');
+  assert.equal(quietCells['In box to SOS'], undefined);
   const noMini = scanRow({ boxes: [scanRow().two_eyes.boxes[0]] });
   assert.equal(Object.fromEntries(twoEyesTechnicalCells(noMini, buildPhaseRegions(noMini)).map((c) => [c.k, c.v])).Mini, 'none');
 });

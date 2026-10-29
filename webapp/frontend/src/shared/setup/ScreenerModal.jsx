@@ -193,9 +193,11 @@ const ScreenerModal = ({
           // block at its own height, then the stats block at its natural height
           // (operator, Thu 16/10/2026: "One block for the chart. and another
           // block for the Stats ... I can scroll the page so the space is
-          // essentially infinite"). No width cap: the shell fills the screen to
-          // the scrim's 12px frame on every monitor (his "make the entire pop up
-          // bigger", Thu 29/10/2026; held at 1760 until then).
+          // essentially infinite"). 1896 is the WHOLE 1920 screen inside the
+          // scrim's 12px frame (his "make the entire pop up bigger", Thu
+          // 29/10/2026; 1760 until then), and the cap holds that size on the
+          // 2560 screen: "retain the original size ... same goes for the big
+          // charts" (2026-10-03). A bigger screen shows more page around it.
           background: 'var(--bg-main)',
           border: '1px solid var(--border-color)',
           borderRadius: 8,
@@ -203,6 +205,8 @@ const ScreenerModal = ({
           display: 'flex',
           flex: 1,
           flexDirection: 'column',
+          margin: '0 auto',
+          maxWidth: 1896,
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',

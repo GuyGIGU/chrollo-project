@@ -62,6 +62,8 @@ test('fmtMoneyCompact: one unit per size, rounding up into the next unit', () =>
   assert.equal(fmtMoneyCompact(32_620_000), '$32.6M');
   assert.equal(fmtMoneyCompact(999_960_000), '$1.0B');
   assert.equal(fmtMoneyCompact(1_240_000_000), '$1.2B');
+  assert.equal(fmtMoneyCompact(999_960_000_000), '$1.00T');
+  assert.equal(fmtMoneyCompact(5_017_900_000_000), '$5.02T');
 });
 
 test('fmtPct: value already in percent units (no multiply)', () => {

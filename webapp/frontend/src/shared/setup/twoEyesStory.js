@@ -167,14 +167,22 @@ export function twoEyesTechnicalCells(data, regions = []) {
   const count = (region) => (region ? region.endIndex - region.startIndex + 1 : null);
   const daysText = (n) => (n == null ? '-' : `${n} day${n === 1 ? '' : 's'}`);
   const filled = grade.base_days != null && grade.empty_days != null ? grade.base_days - grade.empty_days : null;
+  // The grade's count stops the day before the SOS push (at the last day when there is no SOS), so it is shorter than
+  // the Base (to the last day on the chart) and its label says where it stops. An archived row carries no story, so
+  // whether there was an SOS is not known there and the label keeps the general case.
+  const noSos = Array.isArray(block.events) && !block.events.some((event) => event.kind === 'SOS');
+  // The box's cells light the whole box on the chart, as the board's Box column did (Fri 17/10/2026).
+  const lit = box ? 'b' : null;
   return [
-    { k: 'Box', v: parent ? `${fx(parent.r, 2)} / ${fx(parent.s, 2)}` : '-', title: parent ? `Resistance / support, from the day it opened${parent.opened ? `, ${fmtDay(parent.opened)}` : ''}` : 'No box on this row' },
-    { k: 'Box opened', v: parent?.opened ? fmtDay(parent.opened) : '-' },
-    { k: 'Box width', v: width == null ? '-' : `${fx(width, 1)}%` },
-    { k: 'Box height', v: parent?.ranges_tall == null ? '-' : `${fx(parent.ranges_tall, 1)} ranges`, title: 'How many of its own daily ranges tall the box is' },
-    { k: 'Base', v: daysText(count(box)), title: 'Trading days from the day the box opened to the last day on the chart' },
-    ...(filled == null ? [] : [{ k: 'Bars in box', v: `${filled} of ${grade.base_days}`, title: `${grade.base_days} base days, ${filled} of them with a bar in the box (the grade counts the empty ones)` }]),
-    ...(grade.holds == null ? [] : [{ k: 'Hold', v: grade.holds ? 'held' : 'broke', tone: grade.holds ? undefined : 'var(--danger)', title: grade.holds ? 'No low fell through the support area after the SOS' : 'A low fell through the support area after the SOS' }]),
+    { k: 'Box', v: parent ? `${fx(parent.r, 2)} / ${fx(parent.s, 2)}` : '-', region: lit, title: parent ? `Resistance / support, from the day it opened${parent.opened ? `, ${fmtDay(parent.opened)}` : ''}` : 'No box on this row' },
+    { k: 'Box opened', v: parent?.opened ? fmtDay(parent.opened) : '-', region: lit },
+    { k: 'Box width', v: width == null ? '-' : `${fx(width, 1)}%`, region: lit },
+    { k: 'Box height', v: parent?.ranges_tall == null ? '-' : `${fx(parent.ranges_tall, 1)} ranges`, region: lit, title: 'How many of its own daily ranges tall the box is' },
+    { k: 'Base', v: daysText(count(box)), region: lit, title: 'Trading days from the day the box opened to the last day on the chart' },
+    ...(filled == null ? [] : [{ k: noSos ? 'In box' : 'In box to SOS', v: `${filled} of ${grade.base_days} days`, region: lit,
+      title: `From the day the box opened to ${noSos ? 'the last day on the chart' : 'the day before the SOS push'}: ${grade.base_days} days, ${filled} of them with a bar in the box (the grade counts the empty ones)` }]),
+    ...(grade.holds == null ? [] : [{ k: 'Hold', v: grade.holds ? 'held' : 'broke', tone: grade.holds ? undefined : 'var(--danger)', region: lit,
+      title: noSos ? 'No SOS yet: the hold is read after one' : grade.holds ? 'No low fell through the support area after the SOS' : 'A low fell through the support area after the SOS' }]),
     { k: 'LPS', v: daysText(count(lps)), title: 'The receding days of the LPS' },
     { k: 'Mini', v: mini ? `${fx(mini.ranges_tall, 1, '-')} ranges` : 'none', title: mini ? 'A smaller box inside the setup, its height in its own daily ranges' : 'No smaller box inside the setup' },
     ...(grade.clarity?.components ?? []).map((component) => ({
