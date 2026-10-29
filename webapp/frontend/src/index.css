@@ -4394,7 +4394,7 @@ td.cell-editable { overflow: hidden; }
 .home-edge-tiers { display: flex; flex-direction: column; gap: 3px; }
 .home-edge-tier {
   display: grid;
-  grid-template-columns: 18px 1fr 1fr;
+  grid-template-columns: 18px 1fr 1fr 1fr;
   align-items: center;
   gap: 10px;
   font-family: 'JetBrains Mono', monospace;
@@ -4407,6 +4407,9 @@ td.cell-editable { overflow: hidden; }
 .home-edge-tier-id { font-weight: 800; }
 .home-edge-tier-v { color: var(--text-main); text-align: right; }
 .home-edge-tier-w { color: var(--text-muted); text-align: right; }
+/* The R ruler's cell (P(>=2R) before the stop), beside the percent tail. */
+.home-edge-tier-r { color: var(--text-muted); text-align: right; }
+.home-edge-heads-r { border-top: 1px dashed var(--border-color); padding-top: 8px; }
 /* His calibration setups: their own line under the tiers, never a tier row. */
 .home-edge-cal { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; border-top: 1px solid var(--border-color); padding-top: 5px; }
 .home-edge-cal b { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-main); }

@@ -708,3 +708,7 @@ def run_scheduled_scan_and_forward_returns() -> None:
             # His calibration setups mature with the fires (ruling 2026-10-03), as
             # a contained passenger: it never raises and never owns the run status.
             run_calibration_maturation()
+            # The R ruler (his rolling LPS rule, 2026-10-24) is measured from the
+            # price cache the scan just rewrote, the same contained way.
+            from core.archive.r_outcomes import run_r_maturation
+            run_r_maturation()
