@@ -1,5 +1,14 @@
 # Current state
 
+**2026-10-28 ETFs in the base list (branch `claude/etfs-in-base-list`, not merged; deployment
+pending):** the US-stocks universe keeps the NASDAQ directory's fund rows (it used to drop
+every `ETF == 'Y'` row), minus the leveraged / inverse daily products by name
+(`leveraged_fund` in the admission ledger). On the directory of 28/10/2026 that is 4,911
+funds beside the 5,892 stocks. The door and the reader judge them as stocks; nothing else
+moved. The change lands at the next daily refresh of `config/tickers.csv`, and that first
+refresh fetches two years of history for every new name. FBT, the chart that raised it,
+is on the curated ETF list as well.
+
 **2026-10-24 The weekly Watchlist (branch `claude/weekly-watchlist`, not merged; deployment
 pending):** the Watchlist tab shows one week's list, in the operator's weekly sheet's
 column order: Type (L/S), Ticker, Ready, Tier (the 0-100 chart score on hover), Change %,
