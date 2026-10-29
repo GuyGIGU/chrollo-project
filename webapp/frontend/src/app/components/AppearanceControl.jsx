@@ -3,7 +3,6 @@ import { SlidersIcon } from '../../shared/components/NavIcons';
 import {
   SCALE_STEPS,
   DEFAULT_SCALE,
-  computeAutoFitScale,
   screenerColumnsAt,
   monitorId,
   readStoredScale,
@@ -20,15 +19,15 @@ const readViewport = () =>
 // it to the document root — index.html's pre-paint script sets the initial value
 // so there is no flash on reload. The scale is PER SCREEN (operator 2026-10-02):
 // a manual step is remembered for the screen it was chosen on; a screen with no
-// choice auto-fits to its own width, live, and moving the window to the other
-// monitor re-reads that monitor's choice.
+// choice is at 100% (the cards keep one size, Thu 29/10/2026), and moving the
+// window to the other monitor re-reads that monitor's choice.
 function AppearanceControl() {
   const [open, setOpen] = useState(false);
   const [monitor, setMonitor] = useState(monitorId);
   const [override, setOverride] = useState(() => readStoredScale(monitorId()));
   const [viewport, setViewport] = useState(readViewport);
   const anchorRef = useRef(null);
-  const scale = override ?? computeAutoFitScale(viewport);
+  const scale = override ?? DEFAULT_SCALE;
 
   useEffect(() => {
     applyScale(scale);
@@ -59,7 +58,7 @@ function AppearanceControl() {
     persistScale(next, monitor);
     setOverride(next);
   };
-  const pickAuto = () => {
+  const reset = () => {
     clearStoredScale(monitor);
     setOverride(null);
   };
@@ -111,7 +110,7 @@ function AppearanceControl() {
               −
             </button>
             <span className="appearance-value">
-              {Math.round(scale * 100)}%{override == null ? ' · auto' : ''}
+              {Math.round(scale * 100)}%
             </span>
             <button
               type="button"
@@ -128,17 +127,8 @@ function AppearanceControl() {
           </div>
 
           <div className="appearance-actions">
-            <button
-              type="button"
-              className="appearance-primary"
-              onClick={pickAuto}
-              aria-pressed={override == null}
-              title="Size the app to this screen automatically (follows the window)"
-            >
-              Auto-fit
-            </button>
-            <button type="button" onClick={() => choose(DEFAULT_SCALE)}>
-              Reset
+            <button type="button" className="appearance-primary" onClick={reset} disabled={override == null}>
+              Reset to 100%
             </button>
           </div>
 

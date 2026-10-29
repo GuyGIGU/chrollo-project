@@ -14,11 +14,7 @@ export const FILTER_DEFAULTS = { tierFilter: 'ALL', setupFilter: 'ALL', sortBy: 
 // 'No setups match' with no pill pressed, and ?sort=valueOf crashed the sort.
 export const TIER_FILTERS = ['ALL', ...TIER_LETTERS, 'LIKED'];
 export const SORT_KEYS = ['score', 'base', 'trigger', 'rs'];
-export const RESULT_VIEWS = ['charts', 'table'];
 const shownOr = (value, shown, fallback) => (shown.includes(value) ? value : fallback);
-
-// Presentation only: switching views keeps the same filters, rank and page.
-export const readResultView = (params) => shownOr(params.get('view'), RESULT_VIEWS, 'charts');
 
 export function readFilterParams(params) {
   const page = parseInt(params.get('p'), 10);

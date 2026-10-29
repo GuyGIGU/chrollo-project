@@ -104,6 +104,9 @@ test("the technical read's cells come from the reader's own read, never the old 
   assert.equal(cells.Base, '58 days', 'from the day the box opened (index 2) through the last candle (index 59)');
   assert.equal(cells.LPS, '3 days');
   assert.equal(cells.Mini, '1.3 ranges');
+  // The box's own facts, moved here from the phase board's Box column (Thu 29/10/2026, "the dry stats section").
+  assert.equal(cells['Bars in box'], '38 of 40');
+  assert.equal(cells.Hold, 'held');
   const noMini = scanRow({ boxes: [scanRow().two_eyes.boxes[0]] });
   assert.equal(Object.fromEntries(twoEyesTechnicalCells(noMini, buildPhaseRegions(noMini)).map((c) => [c.k, c.v])).Mini, 'none');
 });

@@ -81,8 +81,8 @@ local report with
 `npm --prefix webapp/frontend exec -- playwright show-report webapp/frontend/playwright-report`.
 The preview server exits with the suite and never replaces the live service.
 
-The comparison-table pass also checks Charts/Table switching over the same query,
-keyboard/lens focus, table shortlist saves and missing numbers on narrow screens.
+The screener pass also checks that a card is one size (460px) at 2560, 1920 and
+1024 with no table view, and keyboard/lens focus over the card grid.
 The Watchlist cases cover the ticker ledger, immediate quote loading, search/sort,
 row inspection and candle retry, saved replay, removal/undo and keyboard actions.
 The frontend ownership guard covers indirect feature cycles and prevents shared

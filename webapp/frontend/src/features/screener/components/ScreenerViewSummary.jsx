@@ -1,6 +1,5 @@
 import Pager from '../../../shared/components/Pager';
 import { TAG_CATALOG } from '../../../shared/setup/tagCatalog';
-import { RESULT_VIEWS } from '../model/screenerUrlState.js';
 
 // The visible query: every applied filter has one removal action, including
 // filters hidden in the popover. Counts refer only to drawable scan charts.
@@ -28,14 +27,6 @@ export default function ScreenerViewSummary({ filters, matchedCount, totalCount 
         <button type="button" className="btn btn-sm" onClick={filters.resetFilters}>Clear filters</button>
       )}
       <div className="screener-page-controls">
-        <div className="screener-result-views" role="group" aria-label="Result view">
-          {RESULT_VIEWS.map((view) => (
-            <button key={view} type="button" className="btn btn-sm"
-              aria-pressed={filters.viewMode === view} onClick={() => filters.setViewMode(view)}>
-              {view === 'charts' ? 'Charts' : 'Table'}
-            </button>
-          ))}
-        </div>
         <Pager compact page={filters.currentPage} pageCount={filters.totalPages}
           onPage={filters.setCurrentPage} label="Setup pages (top)" />
       </div>

@@ -7,7 +7,6 @@ import Pager from '../../../shared/components/Pager';
 import ScreenerScanProgress from './ScreenerScanProgress';
 import ScreenerToolbar from './ScreenerToolbar';
 import ScreenerViewSummary from './ScreenerViewSummary';
-import ScreenerResultsTable from './ScreenerResultsTable';
 import WatchLanePanel from './WatchLanePanel';
 import { universeLabel, isEtfUniverse } from '../../../shared/presentation/universeSwitcherData';
 import useScanRunner from '../hooks/useScanRunner';
@@ -28,6 +27,7 @@ import {
   pushedEntry,
 } from '../model/screenerUrlState.js';
 import { canStepLens, lensPosition, stepTicker } from '../model/lensStepping.js';
+import { CARD_GAP_PX, CARD_PX } from '../../../app/appearance/uiScale.js';
 
 const ScreenerGrid = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -234,7 +234,7 @@ const ScreenerGrid = () => {
     }
     lensTickerRef.current = null;
     const escaped = CSS.escape(ticker);
-    const card = rootRef.current?.querySelector(`.screener-card[data-ticker="${escaped}"], .screener-result-open[data-ticker="${escaped}"]`);
+    const card = rootRef.current?.querySelector(`.screener-card[data-ticker="${escaped}"]`);
     if (!card) return;
     card.scrollIntoView({ block: 'nearest' });
     card.focus({ preventScroll: true });
@@ -346,11 +346,7 @@ const ScreenerGrid = () => {
           )}
           {showResults && filters.paginatedTickers.length > 0 && (
             <>
-              {filters.viewMode === 'table' ? (
-                <ScreenerResultsTable tickers={filters.paginatedTickers} chartData={screenerData.chart_data}
-                  watchlist={watchlist} liked={liked} onOpen={openModal}
-                  onToggleWatchlist={handleToggleWatchlist} onToggleLike={toggleLiked} />
-              ) : <div className="screener-grid" style={gridStyle}>
+              <div className="screener-grid" style={gridStyle}>
                 {filters.paginatedTickers.map(ticker => (
                   <ScreenerCard
                     key={ticker}
@@ -365,7 +361,7 @@ const ScreenerGrid = () => {
                     onDrilldown={etfUniverse ? handleDrilldown : undefined}
                   />
                 ))}
-              </div>}
+              </div>
               <Pager page={filters.currentPage} pageCount={filters.totalPages} onPage={filters.setCurrentPage} label="Setup pages" />
             </>
           )}
@@ -413,7 +409,7 @@ function EmptyState({ message, onRetry, actionLabel = 'Retry' }) {
 }
 
 // A card-wall-shaped placeholder (the one loading look, shared Skeleton's card form):
-// 4 blocks = one row at 2560, 3+1 at 1920. Reuses gridStyle, so no extra copy of the card minimum.
+// 4 blocks = one row at 1920. Reuses gridStyle, so no extra copy of the card size.
 function GridSkeleton({ hint }) {
   return (
     <div role="status" aria-label="Loading setups">
@@ -533,18 +529,17 @@ const etfNoteStyle = {
 // Keeps the grid, pager and watch-lane spacing equal to the outer column's gap.
 const resultsStyle = { display: 'flex', flexDirection: 'column', gap: '20px' };
 
+// ONE CARD SIZE ON EVERY SCREEN, THE FINVIZ WAY (operator Thu 29/10/2026): every card
+// is CARD_PX wide, a row holds as many as fit (four at 1920, five at 2560, two in a
+// 1024px window) and the rows are centred. The well is locked to that width at
+// --card-chart-aspect, so a setup is drawn the same size, at the same days per pixel,
+// on every monitor. HealthBoard builds the same grid, or one ScreenerMiniChart would
+// frame the same window in a different pane.
 const gridStyle = {
   display: 'grid',
-  // FOUR CARDS PER ROW ON EVERY SCREEN (operator Wed 28/10/2026, "fixed 4 cards per
-  // row"): ~460px cards on his 1920 screen, ~620px on his 2560 one. It replaces the
-  // 2026-10-03 one-card-size rule (cards of at least 590px, three at 1920 and four at
-  // 2560). The well is locked to the card's width at --card-chart-aspect, so a setup
-  // keeps its shape on both screens, only its size changes. Keep this in sync with
-  // uiScale.CARD_COLUMNS and index.html's pre-paint copy; HealthBoard must match too,
-  // or a surface sharing ScreenerMiniChart frames the same window in a different pane.
-  // uiScale.test.js pins them.
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: '14px',
+  gridTemplateColumns: `repeat(auto-fill, ${CARD_PX}px)`,
+  justifyContent: 'center',
+  gap: `${CARD_GAP_PX}px`,
   width: '100%',
 };
 

@@ -7,33 +7,31 @@ import { dirname, join } from 'node:path';
 import {
   SCALE_STEPS,
   GRID_CHROME_PX,
-  CARD_COLUMNS,
-  CARD_MIN_PX,
+  CARD_PX,
   CARD_GAP_PX,
   clampScale,
   screenerColumnsAt,
-  computeAutoFitScale,
   monitorId,
   storageKeyFor,
 } from './uiScale.js';
 
-// The width of one card when `cols` cards share a grid `gridWidth` px wide.
-const cardWidth = (gridWidth, cols) => (gridWidth - (cols - 1) * CARD_GAP_PX) / cols;
-// How many cards a grid `gridWidth` px wide holds (the CSS auto-fill rule).
-const colsIn = (gridWidth) => Math.floor((gridWidth + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX));
+// The width of the row `cols` fixed cards take.
+const rowWidth = (cols) => cols * CARD_PX + (cols - 1) * CARD_GAP_PX;
 
-test('four cards per row on both of his screens, each at least the minimum', () => {
-  // Operator Wed 28/10/2026, "fixed 4 cards per row".
-  for (const width of [1920, 2560]) {
-    assert.equal(screenerColumnsAt(1, width), CARD_COLUMNS, `${width}px does not reach ${CARD_COLUMNS} cards at 100%`);
-    assert.ok(colsIn(width - GRID_CHROME_PX) >= CARD_COLUMNS);
-    assert.ok(cardWidth(width - GRID_CHROME_PX, CARD_COLUMNS) >= CARD_MIN_PX);
-  }
-  assert.equal(CARD_COLUMNS, 4);
+test('one card size, the Finviz way: four at 1920, five at 2560, two in a 1024px window', () => {
+  // Operator Thu 29/10/2026, his Finviz chart view: one chart size on every screen,
+  // a wider window shows more of them.
+  assert.equal(screenerColumnsAt(1, 1920), 4);
+  assert.equal(screenerColumnsAt(1, 2560), 5);
+  assert.equal(screenerColumnsAt(1, 1280), 2);
+  assert.equal(screenerColumnsAt(1, 1024), 2);
+  // Four cards fill the 1920 grid to the pixel: the card he had there on 28/10.
+  assert.equal(rowWidth(4), 1920 - GRID_CHROME_PX);
+  assert.ok(rowWidth(5) <= 2560 - GRID_CHROME_PX);
 });
 
 test('screenerColumnsAt: never returns fewer than one column', () => {
-  assert.equal(screenerColumnsAt(1.3, 700), 1);
+  assert.equal(screenerColumnsAt(1.3, 400), 1);
 });
 
 test('screenerColumnsAt: more columns as the scale shrinks (monotonic)', () => {
@@ -41,34 +39,6 @@ test('screenerColumnsAt: more columns as the scale shrinks (monotonic)', () => {
   for (let i = 1; i < cols.length; i += 1) {
     assert.ok(cols[i] <= cols[i - 1], `cols should not grow as scale grows at index ${i}`);
   }
-});
-
-test('computeAutoFitScale: a window too narrow for four still shrinks the least that gives the most room', () => {
-  // The grid draws four columns whatever the scale; at 100% a 1280px window (half
-  // his 2560 screen) would draw them ~300px wide with full-size type. It reaches
-  // three of the minimum at 90% (two at 100%), so it shrinks to 90%; a 1536px one
-  // reaches three at every step, so it stays at 100%.
-  assert.equal(screenerColumnsAt(1, 1280), 2);
-  assert.equal(screenerColumnsAt(0.9, 1280), 3);
-  assert.equal(computeAutoFitScale(1280), 0.9);
-  assert.equal(screenerColumnsAt(0.85, 1536), 3);
-  assert.equal(computeAutoFitScale(1536), 1);
-});
-
-test('computeAutoFitScale: shrinks the least that brings the fourth card in', () => {
-  // 1707px: three at 100% and 95%, four at 90%.
-  assert.equal(screenerColumnsAt(1, 1707), 3);
-  assert.equal(computeAutoFitScale(1707), 0.9);
-});
-
-test('the grid never counts more than four columns, however wide the screen', () => {
-  for (const width of [2560, 3440, 3840]) assert.equal(screenerColumnsAt(1, width), CARD_COLUMNS);
-});
-
-test('computeAutoFitScale: both of his screens stay at 100%', () => {
-  // Four 440px cards fit at 100% on both, so auto-fit has nothing to chase.
-  assert.equal(computeAutoFitScale(1920), 1);
-  assert.equal(computeAutoFitScale(2560), 1);
 });
 
 test('monitorId names the screen by its CSS size, and degrades to one shared id', () => {
@@ -79,16 +49,6 @@ test('monitorId names the screen by its CSS size, and degrades to one shared id'
   assert.equal(storageKeyFor('2560x1440'), 'chrollo:ui-scale@2560x1440');
 });
 
-test('computeAutoFitScale: never enlarges past 1', () => {
-  assert.ok(computeAutoFitScale(900) <= 1);
-});
-
-test('computeAutoFitScale: always returns an allowed step', () => {
-  for (const w of [900, 1280, 1536, 1707, 1920, 2560]) {
-    assert.ok(SCALE_STEPS.includes(computeAutoFitScale(w)), `width ${w} produced a non-step scale`);
-  }
-});
-
 test('clampScale: snaps arbitrary/garbage values to the nearest step', () => {
   assert.equal(clampScale(0.87), 0.85);
   assert.equal(clampScale(1.02), 1);
@@ -97,11 +57,10 @@ test('clampScale: snaps arbitrary/garbage values to the nearest step', () => {
 });
 
 // --- Parity guard for the forced twin -------------------------------------------------------
-// index.html's pre-paint <head> script duplicates this auto-fit math so the saved/first-run scale
-// applies before React mounts (no flash). It cannot import this ES module, so it is a forced twin
-// (like the AP-5 JS/Python ledger). These tests are its parity guard: if the pre-paint constants or
-// the resulting scale drift from uiScale.js, the flash-prevention silently breaks and every other
-// unit test still passes. Keep the two in sync or this goes red.
+// index.html's pre-paint <head> script applies the stored scale before React mounts (no flash).
+// It cannot import this ES module, so it is a forced twin (like the AP-5 JS/Python ledger). These
+// tests are its parity guard: if its steps or the scale it applies drift from uiScale.js, the
+// flash-prevention silently breaks and every other unit test still passes.
 const preScript = (() => {
   const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../../index.html'), 'utf8');
   const start = html.indexOf('chrollo:ui-scale');
@@ -109,79 +68,38 @@ const preScript = (() => {
   return html.slice(start);
 })();
 
-const preNum = (re) => {
-  const m = preScript.match(re);
-  assert.ok(m, `index.html pre-paint script: constant ${re} not found`);
-  return Number(m[1]);
-};
-
 const preSteps = () => JSON.parse(preScript.match(/STEPS\s*=\s*(\[[^\]]*\])/)[1]);
 
-test('index.html pre-paint constants match uiScale.js', () => {
-  assert.equal(preNum(/CHROME\s*=\s*(\d+)/), GRID_CHROME_PX);
-  assert.equal(preNum(/CARD\s*=\s*(\d+)/), CARD_MIN_PX);
-  assert.equal(preNum(/GAP\s*=\s*(\d+)/), CARD_GAP_PX);
-  assert.equal(preNum(/COLS\s*=\s*(\d+)/), CARD_COLUMNS);
+test('index.html pre-paint steps match uiScale.js', () => {
   assert.deepEqual(preSteps(), SCALE_STEPS);
 });
 
-test('index.html pre-paint auto-fit reproduces computeAutoFitScale across widths', () => {
-  const CHROME = preNum(/CHROME\s*=\s*(\d+)/);
-  const CARD = preNum(/CARD\s*=\s*(\d+)/);
-  const GAP = preNum(/GAP\s*=\s*(\d+)/);
-  const COLS = preNum(/COLS\s*=\s*(\d+)/);
-  const STEPS = preSteps();
-  const prePaintAutoFit = (V) => {
-    let best = 1;
-    let bestCols = 0;
-    for (const s of STEPS) {
-      if (s > 1) continue;
-      const cols = Math.min(COLS, Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP))));
-      if (cols > bestCols || (cols === bestCols && s > best)) {
-        bestCols = cols;
-        best = s;
-      }
-    }
-    return best;
-  };
-  for (const w of [900, 1150, 1280, 1536, 1707, 1920, 2560, 3840]) {
-    assert.equal(prePaintAutoFit(w), computeAutoFitScale(w), `auto-fit disagrees at ${w}px`);
-  }
-});
-
-
 // --- the forced twins -------------------------------------------------------
 //
-// The card minimum lives at FIVE sites and the pre-paint auto-fit is a hand copy
-// of computeAutoFitScale. Both were guarded by prose until the 2026-09-02
-// review, which mutation-proved the gaps: three grid declarations could drift to
-// a different minimum with the whole suite green, and the pre-paint script's
-// LOGIC could drift (or be deleted outright) while a re-typed copy of it was
-// tested instead of the real thing.
+// The card grid is declared at two sites and the pre-paint script is a hand copy.
+// Both were guarded by prose until the 2026-09-02 review, which mutation-proved the
+// gaps: grid declarations could drift apart with the whole suite green, and the
+// pre-paint script's LOGIC could drift (or be deleted outright) while a re-typed
+// copy of it was tested instead of the real thing.
 
 const frontendDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const readRepo = (rel) => readFileSync(join(frontendDir, rel), 'utf8');
 
-test('the column count is identical across the card-rendering sites', () => {
-  // Each regex is anchored to its OWN rule: a bare repeat() match on index.css
-  // finds an unrelated grid first and the test would be red on arrival.
-  const sites = [
-    ['index.html pre-paint', readRepo('index.html'), /var CHROME = \d+, CARD = \d+, GAP = \d+, COLS = (\d+)/],
-    ['ScreenerGrid gridStyle', readRepo('src/features/screener/components/ScreenerGrid.jsx'), /gridStyle\s*=\s*\{[^}]*?gridTemplateColumns: 'repeat\((\d+), minmax\(0, 1fr\)\)'/],
-    ['HealthBoard gridStyle', readRepo('src/features/screener/components/HealthBoard.jsx'), /gridStyle\s*=\s*\{[^}]*?gridTemplateColumns: 'repeat\((\d+), minmax\(0, 1fr\)\)'/],
-  ];
-  for (const [label, text, pattern] of sites) {
-    const match = text.match(pattern);
-    assert.ok(match, `${label}: card-grid column count not found — did the declaration move or get renamed?`);
-    assert.equal(
-      Number(match[1]),
-      CARD_COLUMNS,
-      `${label} says ${match[1]} columns but uiScale.CARD_COLUMNS is ${CARD_COLUMNS}. All card sites must move together: uiScale.js, index.html, ScreenerGrid, HealthBoard — HealthBoard renders inside ScreenerGrid's own wrapper, so a split makes one ScreenerMiniChart frame the same window at two densities in one pane.`,
-    );
+test('both card grids are the one-size grid, built from uiScale', () => {
+  // HealthBoard renders inside ScreenerGrid's own wrapper: a split makes one
+  // ScreenerMiniChart frame the same window at two densities in one pane. A
+  // stretched track (1fr) or a fixed column count is the 28/10 grid again, which
+  // drew a 620px card at 2560 and a 236px one in a 1024px window.
+  for (const rel of ['src/features/screener/components/ScreenerGrid.jsx', 'src/features/screener/components/HealthBoard.jsx']) {
+    const style = readRepo(rel).match(/const gridStyle\s*=\s*\{([\s\S]*?)\r?\n\};/);
+    assert.ok(style, `${rel}: gridStyle not found — did the declaration move or get renamed?`);
+    assert.match(style[1], /gridTemplateColumns: `repeat\(auto-fill, \$\{CARD_PX\}px\)`/, `${rel}: the card is no longer one fixed size`);
+    assert.match(style[1], /justifyContent: 'center'/, `${rel}: the rows are no longer centred`);
+    assert.match(style[1], /gap: `\$\{CARD_GAP_PX\}px`/, `${rel}: the gap is no longer uiScale's`);
   }
 });
 
-test('the lens is two blocks on a page that scrolls, and the big charts hold one size on every screen', () => {
+test('the lens fills the screen and scrolls, and the big charts hold one size on every screen', () => {
   // Operator 2026-10-03, "same goes for the big charts": the lens's chart band and
   // the Watchlist D/W/M band are one size on every monitor. Operator Thu
   // 16/10/2026: the lens is TWO BLOCKS — the chart block at its own height and
@@ -195,9 +113,10 @@ test('the lens is two blocks on a page that scrolls, and the big charts hold one
   const css = readRepo('src/index.css');
   const modal = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-shell"[\s\S]*?style=\{\{([\s\S]*?)\}\}/);
   assert.ok(modal, 'ScreenerModal: the lens shell style not found');
-  assert.match(modal[1], /maxWidth: 1760,/, 'the lens is no longer held at its 1920 width');
+  // Thu 29/10/2026: no width cap, the whole screen ("make the entire pop up bigger").
+  assert.doesNotMatch(modal[1], /maxWidth/, 'the lens is width-capped again — it no longer fills the screen');
   assert.doesNotMatch(modal[1], /maxHeight/, 'the lens shell is height-capped again — the stats block loses the room below the chart');
-  assert.match(css, /--lens-chart-band: 600px;/, 'the chart grid lost its one height (600px on every monitor: the grade board must fit under it at 1080)');
+  assert.match(css, /--lens-chart-band: 400px;/, 'the chart lost its one height (Finviz’s 400px on every monitor, so the grade board fits under it at 1080)');
   const lensBand = css.match(/\n\.lens-chart-grid\s*\{([^}]*)\}/);
   assert.ok(lensBand, 'index.css: the desktop .lens-chart-grid rule not found');
   assert.match(lensBand[1], /height: var\(--lens-chart-band\);/, 'the chart grid no longer takes its own height');
@@ -205,6 +124,10 @@ test('the lens is two blocks on a page that scrolls, and the big charts hold one
   const narrowBand = css.match(/@media \(max-width: 760px\)[\s\S]*?\n {2}\.lens-chart-grid\s*\{([^}]*)\}/);
   assert.ok(narrowBand, 'index.css: the 760px .lens-chart-grid override not found');
   assert.match(narrowBand[1], /height: auto;/, 'the stacked lens grid keeps the desktop block height again');
+  // Thu 29/10/2026: the wheel over a pane zooms, so the page's sides are the lanes he scrolls in.
+  const lanes = css.match(/\n\.lens-page\s*\{([^}]*)\}/);
+  assert.ok(lanes, 'index.css: the desktop .lens-page rule not found');
+  assert.match(lanes[1], /padding: 8px 72px 32px;/, 'the scroll lanes beside the chart and the stats are thin again');
   const body = readRepo('src/shared/setup/ScreenerModal.jsx').match(/className="screener-modal-body lens-page" style=\{\{([^}]*)\}\}/);
   assert.ok(body, 'ScreenerModal: the lens body style not found');
   assert.match(body[1], /overflowY: 'auto'/, 'the lens body no longer scrolls — the two blocks are squeezed into the screen again');
@@ -223,7 +146,7 @@ test('the lens is two blocks on a page that scrolls, and the big charts hold one
   assert.match(band[1], /max-width: 1850px;/, 'the Watchlist chart band is no longer held at its 1920 width');
 });
 
-test('the index.html pre-paint script RUNS and agrees with computeAutoFitScale', () => {
+test('the index.html pre-paint script RUNS: a stored choice, else 100%', () => {
   // Executes the real script, not a re-typed copy of it. The script wraps
   // everything in try/catch, so a gap in the stub is swallowed silently — hence
   // the `calls` assertion, which is the load-bearing half: it is the only thing
@@ -252,11 +175,12 @@ test('the index.html pre-paint script RUNS and agrees with computeAutoFitScale',
     return { applied, calls, saved };
   };
 
+  // A screen with no choice is at 100% whatever its width: nothing is zoomed to fit.
   for (const width of [900, 1150, 1280, 1440, 1536, 1707, 1920, 2560, 3840]) {
     const { applied, calls, saved } = runPrePaint(width);
     assert.equal(calls >= 1, true, `pre-paint never applied a scale at ${width}px`);
-    assert.equal(applied, computeAutoFitScale(width), `pre-paint scale disagrees with computeAutoFitScale at ${width}px`);
-    assert.equal(saved, undefined, `auto-fit at ${width}px was saved - auto must stay live, never stored`);
+    assert.equal(applied, 1, `pre-paint zoomed a ${width}px window to ${applied}`);
+    assert.equal(saved, undefined, `the scale at ${width}px was saved - only a manual choice is stored`);
   }
 
   // THIS screen's stored choice is honoured verbatim and NOT re-saved...
@@ -265,11 +189,11 @@ test('the index.html pre-paint script RUNS and agrees with computeAutoFitScale',
   assert.equal(stored.saved, undefined);
   // ...the OTHER screen's choice does not leak onto this one...
   const other = runPrePaint(2560, '0.85', { width: 2560, height: 1440 }, 'chrollo:ui-scale@1920x1080');
-  assert.equal(other.applied, computeAutoFitScale(2560));
+  assert.equal(other.applied, 1);
   // ...nor does the retired single key...
   const legacy = runPrePaint(2560, '0.85', { width: 2560, height: 1440 }, 'chrollo:ui-scale');
-  assert.equal(legacy.applied, computeAutoFitScale(2560));
-  // ...but a garbage one falls through to auto-fit.
+  assert.equal(legacy.applied, 1);
+  // ...and a garbage one falls through to 100%.
   const garbage = runPrePaint(1536, '9');
-  assert.equal(garbage.applied, computeAutoFitScale(1536));
+  assert.equal(garbage.applied, 1);
 });

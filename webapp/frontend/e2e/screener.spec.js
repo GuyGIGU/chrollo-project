@@ -2,62 +2,20 @@ import { test, expect } from './mockApi.js';
 
 const cards = (page) => page.locator('.screener-card[data-ticker]');
 
-test('table and charts share the sorted shortlist, page and chart lens', async ({ page, api }) => {
-  await page.goto('/screener?sort=base');
-  await expect(cards(page).first()).toHaveAttribute('data-ticker', 'DEMOB');
-  await page.getByRole('button', { name: 'Table', exact: true }).click();
-  const rows = page.locator('.screener-result-open');
-  await expect(rows).toHaveText(['DEMOB', 'DEMOA', 'DEMOC']);
-  await expect(cards(page)).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole('button', { name: 'Table', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await rows.first().focus();
-  await page.keyboard.press('ArrowDown');
-  await expect(rows.nth(1)).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog', { name: 'DEMOA chart lens' })).toBeVisible();
-  await page.getByRole('button', { name: 'Next', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'DEMOC chart lens' })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(rows.nth(2)).toBeFocused();
-  await page.getByRole('button', { name: 'Charts', exact: true }).click();
-  await expect(cards(page).first()).toHaveAttribute('data-ticker', 'DEMOB');
-  expect(new URL(page.url()).searchParams.get('sort')).toBe('base');
-  expect(new URL(page.url()).searchParams.has('view')).toBe(false);
-  expect(api.writes).toEqual([]);
-});
-
-test('table shortlisting uses the same hearts and pinned scan identity', async ({ page, api }) => {
-  await page.goto('/screener?view=table');
-  const star = page.getByRole('button', { name: 'Watchlist DEMOB', exact: true });
-  const heart = page.getByRole('button', { name: 'Like DEMOB', exact: true });
-  await star.click();
-  await expect(star).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(() => api.watches.length).toBe(1);
-  expect(api.writes.at(-1)).toEqual({ path: '/watchlist/DEMOB', body: { universe: 'us_stocks', scan_date: '2026-10-22' } });
-  await heart.click();
-  await expect.poll(() => api.likes).toEqual(['DEMOB']);
-  await page.getByRole('button', { name: 'Liked (1)', exact: true }).click();
-  await expect(page.locator('.screener-result-open')).toHaveText(['DEMOB']);
-  await page.reload();
-  await expect(heart).toHaveAttribute('aria-pressed', 'true');
-  await expect(star).toHaveAttribute('aria-pressed', 'true');
-});
-
-test('table represents missing numbers honestly and scrolls within a small viewport', async ({ page, api }) => {
-  Object.assign(api.payload.chart_data.DEMOA, { ta_grade: null, price: null, trigger: null, rs_rating: null, base_len: null });
-  await page.setViewportSize({ width: 640, height: 900 });
-  await page.goto('/screener?view=table&q=DEMOA');
-  const cells = page.locator('.screener-results-table tbody tr').getByRole('cell');
-  await expect(cells.nth(1)).toHaveText('—');
-  await expect(cells.nth(3)).toHaveText('—');
-  await expect(cells.nth(4)).toHaveText('—');
-  const bounds = await page.locator('.screener-results-table-wrap').evaluate((el) => ({
-    right: el.getBoundingClientRect().right, width: el.clientWidth, contentWidth: el.scrollWidth,
-  }));
-  expect(bounds.right).toBeLessThanOrEqual(640);
-  expect(bounds.contentWidth).toBeGreaterThan(bounds.width);
-  expect(api.writes).toEqual([]);
+test('a card is one size on every window, the Finviz way, and the wall offers no table', async ({ page }) => {
+  // Operator Thu 29/10/2026: one chart size whatever the monitor, more of them on a
+  // wider one; and "only charts".
+  for (const [width, perRow] of [[2560, 5], [1920, 4], [1024, 2]]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/screener');
+    await expect(cards(page)).toHaveCount(3);
+    const box = await cards(page).first().boundingBox();
+    expect(Math.round(box.width)).toBe(460);
+    const tracks = await page.locator('.screener-grid').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+    expect(tracks).toBe(perRow);
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--ui-scale').trim())).toBe('1');
+  }
+  await expect(page.getByRole('button', { name: 'Table', exact: true })).toHaveCount(0);
 });
 
 test('filters, sorting, chart keyboard navigation and URL reload retain the operator place', async ({ page, api }) => {
@@ -232,11 +190,7 @@ test('top paging can reach the next scan results without scrolling through the c
     .getByRole('button', { name: 'Next page', exact: true }).click();
   await expect(cards(page)).toHaveCount(1);
   await expect(cards(page)).toHaveAttribute('data-ticker', 'DEMO24');
-  await page.getByRole('button', { name: 'Table', exact: true }).click();
-  await expect(page.locator('.screener-result-open')).toHaveText(['DEMO24']);
   await page.reload();
-  await expect(page.locator('.screener-result-open')).toHaveText(['DEMO24']);
-  await page.getByRole('button', { name: 'Charts', exact: true }).click();
   await expect(cards(page)).toHaveAttribute('data-ticker', 'DEMO24');
 });
 

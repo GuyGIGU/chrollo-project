@@ -7,18 +7,17 @@
 // scale breaks and the clean 3 Charts per row rule gets ignored"). His two
 // screens are 2560x1440 and 1920x1080, both at Windows 100%, and one stored
 // value served both. A manual choice is now remembered per screen
-// (`chrollo:ui-scale@2560x1440`); a screen with no choice runs auto-fit against
-// its own viewport, live, and nothing auto is ever saved.
+// (`chrollo:ui-scale@2560x1440`); a screen with no choice is at 100%. index.html's
+// pre-paint script applies the stored choice before React mounts, with no flash
+// (uiScale.test.js runs the real script).
 //
-// FOUR CARDS PER ROW (operator Wed 28/10/2026, "fixed 4 cards per row"). From
-// 2026-10-03 until then the card kept one size (~618px) and a wider screen got
-// more of them, three at 1920 and four at 2560.
-//
-// The auto-fit heuristic mirrors the real layout. Keep these constants in sync
-// with ScreenerGrid.jsx (the full-bleed grid wrapper's side padding + the card
-// min-width + gap) and the app's scrollbar width. The same math is duplicated in
-// index.html's pre-paint script (so the scale applies before React mounts, with
-// no flash); update both together — uiScale.test.js runs the real script.
+// ONE CARD SIZE, THE FINVIZ WAY (operator Thu 29/10/2026, his Finviz chart view
+// "like finviz ... no matter monitor"). Measured there the same day: every chart is
+// 466x219px at 1280, 1920 and 2560 alike, two, four and five to a row, centred, and
+// the page is never zoomed to fit. So a card is CARD_PX wide on every screen and a
+// wider window shows more of them. Before: always four columns (Wed 28/10/2026),
+// stretched to 620px at 2560 and squeezed to 236px in a 1024px window, with an
+// auto-fit that zoomed the whole app down in a narrower one.
 
 // One key per screen. Until 2026-10-02 every screen shared the single key
 // 'chrollo:ui-scale'; it is no longer read — its one value served both monitors.
@@ -36,15 +35,12 @@ export const DEFAULT_SCALE = 1;
 // 86px app rail is gone — it became a horizontal top nav that costs height, not
 // width — so it no longer belongs in this budget.
 export const GRID_CHROME_PX = 32 + 6;
-// FOUR CARDS PER ROW ON EVERY SCREEN (operator Wed 28/10/2026, "fixed 4 cards per
-// row"): the grid is always four columns, ~460px cards on his 1920 screen and ~620px
-// on his 2560 one. It replaces the 2026-10-03 one-card-size rule (three at 1920, four
-// at 2560). CARD_COLUMNS is mirrored by ScreenerGrid/HealthBoard gridStyle.
-export const CARD_COLUMNS = 4;
-// The smallest card auto-fit counts as a column: four of 440px fit the screener's
-// 1882px grid at 1920 with 20px of slack each, so both of his screens stay at 100%.
-export const CARD_MIN_PX = 440;
-export const CARD_GAP_PX = 14;  // ScreenerGrid gap
+// The card's one width (Finviz draws 466px). Four of 460px and three 14px gaps are
+// exactly the screener's 1882px grid at 1920, the card he has had there since Wed
+// 28/10/2026; 2560 holds five, a 1024px window two. ScreenerGrid and HealthBoard
+// build their grids from these two numbers.
+export const CARD_PX = 460;
+export const CARD_GAP_PX = 14;
 
 // Snap an arbitrary value to the nearest allowed step (defensive against a
 // stale/garbage stored value).
@@ -58,27 +54,12 @@ export function clampScale(value) {
 }
 
 // How many screener cards fit per row at a given scale for a browser viewport of
-// `viewportWidth` px. Under CSS zoom S the app's internal coordinate width is
-// viewportWidth / S, so the grid sees (viewportWidth / S) - chrome.
-// Capped at CARD_COLUMNS: the grid never draws more.
+// `viewportWidth` px (the grid's own auto-fill rule). Under CSS zoom S the app's
+// internal coordinate width is viewportWidth / S, so the grid sees
+// (viewportWidth / S) - chrome.
 export function screenerColumnsAt(scale, viewportWidth) {
   const internalWidth = viewportWidth / scale - GRID_CHROME_PX;
-  const cols = Math.floor((internalWidth + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX));
-  return Math.min(CARD_COLUMNS, Math.max(1, cols));
-}
-
-// "Smart" pick: the least shrink (largest scale <= 1) that gives the four cards
-// the most room, counted in 440px cards: all four of them where a step reaches it.
-// A narrower window (a half screen) cannot, and still shrinks the least that
-// reaches the most, so its four cards are not drawn at full-size type in ~300px.
-// Density is a shrink, so auto-fit never enlarges past 1 — zooming in is a manual
-// call. On both of his screens this is 100%.
-export function computeAutoFitScale(viewportWidth) {
-  const candidates = SCALE_STEPS.filter((s) => s <= 1);
-  const maxCols = Math.max(...candidates.map((s) => screenerColumnsAt(s, viewportWidth)));
-  return candidates
-    .filter((s) => screenerColumnsAt(s, viewportWidth) === maxCols)
-    .reduce((a, b) => Math.max(a, b));
+  return Math.max(1, Math.floor((internalWidth + CARD_GAP_PX) / (CARD_PX + CARD_GAP_PX)));
 }
 
 // Which physical screen the window is on. `screen` reports the CSS size of the
@@ -93,7 +74,7 @@ export function monitorId(screenLike = globalThis.screen) {
 
 export const storageKeyFor = (id) => `${STORAGE_KEY_PREFIX}${id}`;
 
-// The operator's manual choice for this screen, or null (= auto-fit).
+// The operator's manual choice for this screen, or null (= 100%).
 export function readStoredScale(id = monitorId()) {
   try {
     const raw = localStorage.getItem(storageKeyFor(id));
@@ -111,7 +92,7 @@ export function persistScale(scale, id = monitorId()) {
   }
 }
 
-// Back to auto-fit on this screen.
+// Back to 100% on this screen.
 export function clearStoredScale(id = monitorId()) {
   try {
     localStorage.removeItem(storageKeyFor(id));

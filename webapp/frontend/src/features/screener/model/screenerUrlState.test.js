@@ -19,22 +19,12 @@ import {
   pageForIndex,
   pushedEntry,
   readFilterParams,
-  readResultView,
 } from './screenerUrlState.js';
 
 test('an empty address is the default view', () => {
   assert.deepEqual(readFilterParams(new URLSearchParams('')), {
     tierFilter: 'ALL', setupFilter: 'ALL', tagIds: [], sortBy: 'score', searchTerm: '', page: 1,
   });
-});
-
-test('the result presentation survives a bookmark without changing the query or page', () => {
-  assert.equal(readResultView(new URLSearchParams()), 'charts');
-  assert.equal(readResultView(new URLSearchParams('view=unknown')), 'charts');
-  const query = new URLSearchParams('tier=LIKED&sort=base&p=2');
-  const table = applyParamPatch(query, { view: 'table' });
-  assert.equal(readResultView(table), 'table');
-  assert.deepEqual(readFilterParams(table), readFilterParams(query));
 });
 
 test('every filter reads back from the address', () => {

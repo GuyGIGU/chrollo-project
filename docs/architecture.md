@@ -182,7 +182,7 @@ Rules that go with this layout:
   participate in a direct or indirect import cycle. It also rejects shared production code
   importing a feature. Home now reads scan data through the shared hook, without importing the Screener feature.
 - Screener result selection and display sorting live in `features/screener/model/screenerResults.js`;
-  the hook owns React/URL state and Charts/Table consume the same selected page.
+  the hook owns React/URL state and the card grid draws the selected page.
 
 ## 8. Archive and research
 

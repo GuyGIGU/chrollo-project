@@ -7,7 +7,6 @@ import {
   filterParamPatch,
   pageForIndex,
   readFilterParams,
-  readResultView,
 } from '../model/screenerUrlState.js';
 
 const ITEMS_PER_PAGE = 24;
@@ -32,7 +31,6 @@ function useScreenerFilters(screenerData, { searchParams, patchParams, liked }) 
     [url, availableSetups, availableTagIds],
   );
   const { tierFilter, sortBy } = url;
-  const viewMode = readResultView(searchParams);
   const filteredTickers = useMemo(() => {
     return filterTickers({
       screenerData,
@@ -64,9 +62,6 @@ function useScreenerFilters(screenerData, { searchParams, patchParams, liked }) 
   const setTierFilter = useCallback((value) => write({ tierFilter: value }), [write]);
   const setSetupFilter = useCallback((value) => write({ setupFilter: value }), [write]);
   const setSortBy = useCallback((value) => write({ sortBy: value }), [write]);
-  const setViewMode = useCallback((value) => {
-    patchParams({ view: value === 'table' ? 'table' : null }, { replace: true });
-  }, [patchParams]);
   const setCurrentPage = useCallback(
     (page) => patchParams(filterParamPatch({ page }), { replace: true }),
     [patchParams],
@@ -100,8 +95,6 @@ function useScreenerFilters(screenerData, { searchParams, patchParams, liked }) 
     tagFilter,
     sortBy,
     setSortBy,
-    viewMode,
-    setViewMode,
     currentPage,
     setCurrentPage,
     availableSetups,

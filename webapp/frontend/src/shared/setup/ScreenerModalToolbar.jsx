@@ -1,34 +1,28 @@
 import { useEffect } from 'react';
 import { tierColor, signColor } from '../presentation/theme';
-import { fx, fmtSignedPctFrac } from '../formatting/format';
-import { dailyChangeFrac } from './screenerCardData';
+import { fx, fmtMoneyCompact, fmtSignedPctFrac, EMPTY } from '../formatting/format';
+import { asOfDate, dailyChangeFrac } from './screenerCardData';
 import { lensKeyAction, tradingViewUrl } from './lensActions';
 
+// THE LENS IS FINVIZ'S QUOTE PAGE (operator Thu 29/10/2026, "base our advanced chart page on their page
+// ... notice how everything is sitting compact and easy to read"): a slim bar with the way back and the
+// pager, then the quote (ticker, company, price), a row of tabs with the stock's chips and its acts on the
+// right, then the chart box with its own toolbar (the timeframe tabs in the middle). This file draws the
+// bar, the quote and the chart toolbar; ScreenerModal lays them out.
+
 const INTERVAL_TABS = [
-  { key: 'D', label: 'D', name: 'Daily' },
-  { key: 'W', label: 'W', name: 'Weekly' },
-  { key: 'M', label: 'M', name: 'Monthly' },
+  { key: 'D', name: 'Daily' },
+  { key: 'W', name: 'Weekly' },
+  { key: 'M', name: 'Monthly' },
 ];
 
-// TradingView-style D/W/M switcher: which of the three panes is the BIG one (Fri 17/10/2026; the
-// other two take the side column). Weekly/Monthly are disabled when the row predates the
-// higher-timeframe read (no resampled candles in payload).
+// Finviz's Daily / Weekly / Monthly: words, the shown one boxed. Weekly/Monthly are disabled when the row
+// predates the higher-timeframe read (no resampled candles in payload).
 function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
   const enabled = { D: true, W: hasWeekly, M: hasMonthly };
   return (
-    <div
-      role="tablist"
-      aria-label="Chart timeframe"
-      style={{
-        alignItems: 'stretch',
-        border: '1px solid var(--border-color)',
-        borderRadius: 6,
-        display: 'flex',
-        height: 28,
-        overflow: 'hidden',
-      }}
-    >
-      {INTERVAL_TABS.map((tab, index) => {
+    <div role="tablist" aria-label="Chart timeframe" className="lens-interval-tabs">
+      {INTERVAL_TABS.map((tab) => {
         const active = interval === tab.key;
         const ok = enabled[tab.key];
         return (
@@ -37,23 +31,12 @@ function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
             type="button"
             role="tab"
             aria-selected={active}
+            className={`lens-interval-tab${active ? ' is-active' : ''}`}
             disabled={!ok}
             onClick={() => ok && onIntervalChange(tab.key)}
-            title={ok ? `${tab.name} in the big pane` : `${tab.name} — needs more history`}
-            style={{
-              background: active ? 'var(--myth-soft)' : 'transparent',
-              border: 'none',
-              borderLeft: index === 0 ? 'none' : '1px solid var(--border-color)',
-              color: !ok ? 'var(--text-faint)' : active ? 'var(--myth)' : 'var(--text-muted)',
-              cursor: ok ? 'pointer' : 'default',
-              fontFamily: 'inherit',
-              fontSize: 12,
-              fontWeight: 700,
-              minWidth: 30,
-              padding: '0 10px',
-            }}
+            title={ok ? `The ${tab.name.toLowerCase()} chart` : `${tab.name} — needs more history`}
           >
-            {tab.label}
+            {tab.name}
           </button>
         );
       })}
@@ -80,130 +63,30 @@ function useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix)
   }, [ticker, onToggleWatchlist, onToggleLike, onToggleFix]);
 }
 
-export default function ScreenerModalToolbar({
-  data, onClose, onNext, onPrev, ticker, interval, onIntervalChange, hasWeekly, hasMonthly,
-  watchlisted, onToggleWatchlist, liked, onToggleLike, position, skin = 'dark', onToggleSkin,
-  fixing = false, onToggleFix, fixedSummary = null,
+// The stock's chips, Finviz's row of sector · industry · country · cap: what the payload carries.
+// Each chip says what it is (Thu 29/10/2026, his "say the sector in the advanced chart"): Sector, Industry, Cap, Setup.
+function quoteChips(data) {
+  const snap = data?.fund_sheet?.snapshot ?? {};
+  const sector = snap.sector || data?.sector_name;
+  return [
+    { k: 'Sector', v: sector ? `${sector}${data?.sector_etf ? ` (${data.sector_etf})` : ''}` : data?.sector_etf },
+    { k: 'Industry', v: snap.industry || data?.group?.industry },
+    { k: 'Cap', v: data?.market_cap >= 1e12 ? `$${fx(data.market_cap / 1e12, 2)}T` : data?.market_cap > 0 ? fmtMoneyCompact(data.market_cap) : null },
+    { k: 'Setup', v: data?.setup },
+  ].filter((chip) => chip.v);
+}
+
+// The slim bar over the page: the way back (Finviz's "‹ Screener") and, on the right, the pager, the skin
+// and the close. The lens's keys live here, because this bar is drawn by every host.
+export function LensNavBar({
+  ticker, onClose, onNext, onPrev, position, skin = 'dark', onToggleSkin,
+  onToggleWatchlist, onToggleLike, onToggleFix, backLabel = 'Back',
 }) {
-  const changePct = dailyChangeFrac(data?.candles);
   useLensActionKeys(ticker, onToggleWatchlist, onToggleLike, onToggleFix);
   return (
-    <header style={{
-      alignItems: 'center',
-      background: 'var(--lens-toolbar-bg)',
-      borderBottom: '1px solid var(--border-color)',
-      display: 'flex',
-      gap: 16,
-      justifyContent: 'space-between',
-      minHeight: 52,
-      padding: '8px 14px',
-    }} className="screener-modal-toolbar">
-      <div style={{ alignItems: 'center', display: 'flex', gap: 12, minWidth: 0 }}>
-        <strong style={{ color: tierColor(data.tier), fontFamily: "'JetBrains Mono', monospace", fontSize: 22 }}>
-          {ticker}
-        </strong>
-        <span style={{
-          border: `1px solid ${tierColor(data.tier)}55`,
-          borderRadius: 6,
-          color: tierColor(data.tier),
-          fontSize: 11,
-          fontWeight: 800,
-          padding: '2px 7px',
-        }}>
-          {data.tier} TIER
-        </span>
-        {/* A fixed box is visibly a fixed box (Sat 18/10/2026): one glyph, one word, the operator hue; the
-            sentence is the backend's (what was fixed, and when). */}
-        {fixedSummary && (
-          <span className="lens-fixed-mark" title={fixedSummary} aria-label={fixedSummary}>✎ fixed</span>
-        )}
-        <IntervalTabs
-          hasMonthly={hasMonthly}
-          hasWeekly={hasWeekly}
-          interval={interval}
-          onIntervalChange={onIntervalChange}
-        />
-        <span style={{ color: 'var(--text-main)', fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700 }}>
-          ${fx(data.price, 2)}
-        </span>
-        {changePct != null && (
-          <span style={{ color: signColor(changePct) || 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700 }}>
-            {fmtSignedPctFrac(changePct, 1)}
-          </span>
-        )}
-        <span style={{ color: 'var(--text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {data.setup}
-        </span>
-      </div>
-      <div style={{ alignItems: 'center', display: 'flex', gap: 8 }}>
-        {/* The card's own acts, so he can walk the list with Next and act on each
-            chart without closing it. Star and heart only where the host can save
-            them (the screener grid); TradingView needs only the ticker. */}
-        {onToggleWatchlist && (
-          <button
-            type="button"
-            className="btn btn-icon lens-toggle"
-            aria-pressed={Boolean(watchlisted)}
-            aria-label="Watchlist"
-            aria-keyshortcuts="W"
-            title={watchlisted ? 'Remove from watchlist (W)' : 'Save to watchlist (W)'}
-            onClick={() => onToggleWatchlist(ticker)}
-          >
-            {watchlisted ? '★' : '☆'}
-          </button>
-        )}
-        {onToggleLike && (
-          <button
-            type="button"
-            className="btn btn-icon lens-toggle"
-            aria-pressed={Boolean(liked)}
-            aria-label="Like"
-            aria-keyshortcuts="L"
-            title={liked ? 'Liked, press L to unlike' : 'Like this setup, the kind you want more of (L)'}
-            onClick={() => onToggleLike(ticker)}
-          >
-            {liked ? '♥' : '♡'}
-          </button>
-        )}
-        <a
-          className="btn"
-          href={tradingViewUrl(ticker)}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-keyshortcuts="T"
-          title={`Open ${ticker} on TradingView (T)`}
-        >
-          ↗ TV
-        </a>
-        {/* "Fix the box" (Fri 17/10/2026): he corrects the reader's two lines on the daily chart; the fix is
-            saved beside the reader's pair, the material the chooser is learned from later. Drawn only where
-            the daily is a two-eyes read (the host hands in the toggle). */}
-        {onToggleFix && (
-          <button
-            type="button"
-            className="btn lens-toggle"
-            aria-pressed={Boolean(fixing)}
-            aria-label="Fix the box"
-            aria-keyshortcuts="B"
-            title={fixing ? 'Back to the chart (B)' : 'Fix the box: open the fix page over this chart (B)'}
-            onClick={onToggleFix}
-          >
-            {fixing ? 'fixing the box' : 'fix the box'}
-          </button>
-        )}
-        {/* The lens's skin, paper or dark (Thu 16/10/2026); the choice is kept per browser. */}
-        {onToggleSkin && (
-          <button
-            type="button"
-            className="btn btn-icon"
-            aria-pressed={skin === 'paper'}
-            aria-label="Paper skin"
-            title={skin === 'paper' ? 'Paper skin on: switch the lens to dark' : 'Switch the lens to paper (white blocks)'}
-            onClick={onToggleSkin}
-          >
-            {skin === 'paper' ? '☾' : '☼'}
-          </button>
-        )}
+    <div className="screener-modal-toolbar lens-nav-bar">
+      <button type="button" className="lens-back" onClick={onClose} title="Close (Esc)">‹ {backLabel}</button>
+      <div className="lens-nav-acts">
         {/* "– / 36" once the chart drops out of the list (un-starred on the Watchlist
             tier): the slot stays, so the star beside it never slides from under the pointer. */}
         {position && (
@@ -215,10 +98,139 @@ export default function ScreenerModalToolbar({
           </span>
         )}
         {/* Prev/Next only where the host can step (screener grid, weekly review); a button that does nothing is not drawn. */}
-        {onPrev && <button type="button" className="btn" onClick={onPrev}>Prev</button>}
-        {onNext && <button type="button" className="btn" onClick={onNext}>Next</button>}
-        <button type="button" className="btn btn-icon" onClick={onClose} title="Close" aria-label="Close">✕</button>
+        {onPrev && <button type="button" className="btn btn-sm" onClick={onPrev}>Prev</button>}
+        {onNext && <button type="button" className="btn btn-sm" onClick={onNext}>Next</button>}
+        {/* The lens's skin, paper or dark (Thu 16/10/2026); the choice is kept per browser. */}
+        {onToggleSkin && (
+          <button
+            type="button"
+            className="btn btn-icon btn-sm"
+            aria-pressed={skin === 'paper'}
+            aria-label="Paper skin"
+            title={skin === 'paper' ? 'Paper skin on: switch the lens to dark' : 'Switch the lens to paper (white blocks)'}
+            onClick={onToggleSkin}
+          >
+            {skin === 'paper' ? '☾' : '☼'}
+          </button>
+        )}
+        <button type="button" className="btn btn-icon btn-sm" onClick={onClose} title="Close" aria-label="Close">✕</button>
+      </div>
+    </div>
+  );
+}
+
+// The quote, Finviz's header: the ticker big, the company in blue, the tier; the price big on the right
+// with the day's change under its date. Then the tabs row: the panel's pages on the left (the host hands
+// them in), the chips and the card's own acts on the right.
+export function LensQuote({
+  data, ticker, tabs = null, watchlisted, onToggleWatchlist, liked, onToggleLike, fixedSummary = null,
+}) {
+  const changePct = dailyChangeFrac(data?.candles);
+  const name = data?.fund_sheet?.snapshot?.name;
+  const asOf = asOfDate(data?.candles);
+  return (
+    <header className="lens-quote">
+      <div className="lens-quote-row">
+        <div className="lens-quote-id">
+          <span className="lens-quote-ticker" style={{ color: tierColor(data.tier) }}>{ticker}</span>
+          {name ? <span className="lens-quote-name">{name}</span> : null}
+          <span className="lens-quote-tier" style={{ borderColor: `${tierColor(data.tier)}55`, color: tierColor(data.tier) }}>
+            {data.tier} TIER
+          </span>
+          {/* A fixed box is visibly a fixed box (Sat 18/10/2026): one glyph, one word, the operator hue; the
+              sentence is the backend's (what was fixed, and when). */}
+          {fixedSummary && (
+            <span className="lens-fixed-mark" title={fixedSummary} aria-label={fixedSummary}>✎ fixed</span>
+          )}
+        </div>
+        <div className="lens-quote-price">
+          <span className="lens-quote-last">${fx(data.price, 2)}</span>
+          <span className="lens-quote-change">
+            {asOf !== EMPTY ? <small>{asOf}</small> : null}
+            {changePct != null && (
+              <b style={{ color: signColor(changePct) || 'var(--text-muted)' }}>{fmtSignedPctFrac(changePct, 2)}</b>
+            )}
+          </span>
+        </div>
+      </div>
+      <div className="lens-quote-tabs">
+        <div className="lens-quote-pages">{tabs}</div>
+        <div className="lens-quote-acts">
+          {quoteChips(data).map((chip) => (
+            <span className="lens-chip" key={chip.k}><span className="lens-chip-k">{chip.k}</span>{chip.v}</span>
+          ))}
+          {/* The card's own acts, so he can walk the list with Next and act on each
+              chart without closing it. Star and heart only where the host can save
+              them (the screener grid); TradingView needs only the ticker. */}
+          {onToggleWatchlist && (
+            <button
+              type="button"
+              className="btn btn-icon btn-sm lens-toggle"
+              aria-pressed={Boolean(watchlisted)}
+              aria-label="Watchlist"
+              aria-keyshortcuts="W"
+              title={watchlisted ? 'Remove from watchlist (W)' : 'Save to watchlist (W)'}
+              onClick={() => onToggleWatchlist(ticker)}
+            >
+              {watchlisted ? '★' : '☆'}
+            </button>
+          )}
+          {onToggleLike && (
+            <button
+              type="button"
+              className="btn btn-icon btn-sm lens-toggle"
+              aria-pressed={Boolean(liked)}
+              aria-label="Like"
+              aria-keyshortcuts="L"
+              title={liked ? 'Liked, press L to unlike' : 'Like this setup, the kind you want more of (L)'}
+              onClick={() => onToggleLike(ticker)}
+            >
+              {liked ? '♥' : '♡'}
+            </button>
+          )}
+          <a
+            className="btn btn-sm"
+            href={tradingViewUrl(ticker)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-keyshortcuts="T"
+            title={`Open ${ticker} on TradingView (T)`}
+          >
+            ↗ TV
+          </a>
+        </div>
       </div>
     </header>
+  );
+}
+
+// The chart box's own toolbar, Finviz's Draw · Ideas | Daily Weekly Monthly | Full Chart: "fix the box" on
+// the left, the timeframe in the middle, how to move the chart on the right.
+export function LensChartToolbar({ interval, onIntervalChange, hasWeekly, hasMonthly, fixing = false, onToggleFix }) {
+  return (
+    <div className="lens-chart-toolbar">
+      <div className="lens-chart-toolbar-side">
+        {/* "Fix the box" (Fri 17/10/2026): he corrects the reader's two lines on the daily chart; the fix is
+            saved beside the reader's pair, the material the chooser is learned from later. Drawn only where
+            the daily is a two-eyes read (the host hands in the toggle). */}
+        {onToggleFix && (
+          <button
+            type="button"
+            className="btn btn-sm lens-toggle"
+            aria-pressed={Boolean(fixing)}
+            aria-label="Fix the box"
+            aria-keyshortcuts="B"
+            title={fixing ? 'Back to the chart (B)' : 'Fix the box: open the fix page over this chart (B)'}
+            onClick={onToggleFix}
+          >
+            ✎ {fixing ? 'fixing the box' : 'Fix the box'}
+          </button>
+        )}
+      </div>
+      <IntervalTabs hasMonthly={hasMonthly} hasWeekly={hasWeekly} interval={interval} onIntervalChange={onIntervalChange} />
+      <div className="lens-chart-toolbar-side is-right">
+        <span className="lens-chart-hint">wheel zooms · drag pans · ⌂ opening view · ⤢ all</span>
+      </div>
+    </div>
   );
 }

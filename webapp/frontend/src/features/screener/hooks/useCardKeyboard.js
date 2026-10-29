@@ -9,14 +9,13 @@ export default function useCardKeyboard(rootRef) {
     const onKey = (event) => {
       const move = cardMove(event.key);
       if (!move || !isPageKeystroke(event)) return;   // typing, a modifier, or ANY dialog (the lens included)
-      const grid = rootRef.current?.querySelector('.screener-grid, .screener-results-table');
+      const grid = rootRef.current?.querySelector('.screener-grid');
       // Evaluate dims the results and makes them inert: focus() would be a no-op, so leave the keys alone.
       if (!grid || grid.closest('[inert]')) return;
-      const table = grid.matches('.screener-results-table');
-      const cards = [...grid.querySelectorAll(table ? '.screener-result-open' : ':scope > .screener-card[tabindex="0"]')];
+      const cards = [...grid.querySelectorAll(':scope > .screener-card[tabindex="0"]')];
       if (!cards.length) return;
-      const current = cards.indexOf(document.activeElement?.closest?.('.screener-card, .screener-result-open'));
-      const columns = table ? 1 : gridColumnCount(getComputedStyle(grid).gridTemplateColumns);
+      const current = cards.indexOf(document.activeElement?.closest?.('.screener-card'));
+      const columns = gridColumnCount(getComputedStyle(grid).gridTemplateColumns);
       const target = nextCardIndex(move, current, cards.length, columns, firstVisibleIndex(cards));
       event.preventDefault();   // arrows never scroll the page here; the page follows the ring
       cards[target].focus({ preventScroll: true });

@@ -7,13 +7,11 @@
     <meta name="description" content="Chrollo — Wyckoff Screener & Trading Journal Dashboard" />
     <title>Chrollo</title>
     <script>
-      /* Apply this screen's UI scale (or a live auto-fit) before React paints,
-         so there is no scale flash on load. Mirrors src/app/appearance/uiScale.js —
-         keep the constants in sync (uiScale.test.js runs this script). The scale is
-         remembered PER SCREEN ('chrollo:ui-scale@2560x1440'); a screen with no
-         manual choice auto-fits = least shrink that gives the four cards the most
-         room (counted in minimum-size cards, at most four), never enlarging past
-         100%, and is NOT saved. */
+      /* Apply this screen's UI scale before React paints, so there is no scale
+         flash on load. Mirrors src/app/appearance/uiScale.js (uiScale.test.js runs
+         this script). The scale is remembered PER SCREEN ('chrollo:ui-scale@2560x1440');
+         a screen with no manual choice is at 100%: the cards keep one size and a
+         wider window shows more of them, so nothing is zoomed to fit. */
       (function () {
         try {
           var PREFIX = 'chrollo:ui-scale@';
@@ -21,20 +19,7 @@
           var sc = window.screen || {};
           var id = (sc.width > 0 && sc.height > 0) ? Math.round(sc.width) + 'x' + Math.round(sc.height) : 'default';
           var saved = localStorage.getItem(PREFIX + id);
-          var scale;
-          if (saved != null && STEPS.indexOf(parseFloat(saved)) !== -1) {
-            scale = parseFloat(saved);
-          } else {
-            var V = document.documentElement.clientWidth || window.innerWidth || 1920;
-            var CHROME = 38, CARD = 440, GAP = 14, COLS = 4, best = 1, bestCols = 0;
-            for (var i = 0; i < STEPS.length; i++) {
-              var s = STEPS[i];
-              if (s > 1) continue;
-              var cols = Math.min(COLS, Math.max(1, Math.floor((V / s - CHROME + GAP) / (CARD + GAP))));
-              if (cols > bestCols || (cols === bestCols && s > best)) { bestCols = cols; best = s; }
-            }
-            scale = best;
-          }
+          var scale = (saved != null && STEPS.indexOf(parseFloat(saved)) !== -1) ? parseFloat(saved) : 1;
           document.documentElement.style.setProperty('--ui-scale', String(scale));
         } catch (e) { /* leave the CSS default of 1 */ }
       })();

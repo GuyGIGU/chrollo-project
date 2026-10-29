@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gradeCell, lpsGrade, storyRows } from './setupStoryRows.js';
 import { phaseBoard } from './phaseBoard.js';
+import { twoEyesTechnicalCells } from './twoEyesStory.js';
 
 test('experimental clarity displays the resolved grade and component explanations', () => {
   const summary = 'Experimental clarity · base integrity 100/100';
@@ -12,11 +13,13 @@ test('experimental clarity displays the resolved grade and component explanation
     ] } } } };
   assert.equal(gradeCell(data).value, 68);
   assert.equal(gradeCell(data).note, summary);
-  const box = phaseBoard(data).phases.find((phase) => phase.key === 'box');
-  const lines = box.lines.filter((line) => line.key.startsWith('box:clarity:'));
-  assert.equal(lines[0].hero, '18.2 / 50');
-  assert.equal(lines[0].sentence, 'Main swings retain measured travel');
-  assert.equal(lines[1].hero, '—');
+  // The clarity parts are dry stats since Thu 29/10/2026: cells of the stats table, no longer a Box column.
+  assert.equal(phaseBoard(data).phases.find((phase) => phase.key === 'box'), undefined, 'the phase board grew a Box column again');
+  const cells = Object.fromEntries(twoEyesTechnicalCells(data).map((cell) => [cell.k, cell]));
+  assert.equal(cells['Main zigzag'].v, '18.2 / 50');
+  assert.equal(cells['Main zigzag'].title, 'Main swings retain measured travel');
+  assert.equal(cells['Rail definition'].v, '—');
+  assert.equal(cells.Box.v, '100.00 / 90.00');
 });
 
 // A graded payload as the wire serves it: chapters + engine-resolved fractions.

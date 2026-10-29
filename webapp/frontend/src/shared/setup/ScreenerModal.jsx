@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import ScreenerStockLens from './ScreenerStockLens';
+import ScreenerStockLens, { LensPageTabs } from './ScreenerStockLens';
 import SetupStoryPanel from './SetupStoryPanel';
 import { buildPhaseRegions } from '../charts/chartPhaseOverlay';
 import ChartZoomControls from '../charts/ChartZoomControls';
 import TimeframeMainChart from '../charts/TimeframeMainChart';
 import useDailyStructureChart from '../charts/useDailyStructureChart';
-import ScreenerModalToolbar from './ScreenerModalToolbar';
+import { LensChartToolbar, LensNavBar, LensQuote } from './ScreenerModalToolbar';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
 import BoxFixPage from './BoxFixPage';
 import { lensKeyAction } from './lensActions';
@@ -25,8 +25,10 @@ const readSkin = () => {
 };
 
 // THE THREE PANES (Fri 17/10/2026, his TradingView layout): the monthly over the weekly in a side
-// column, the daily big beside them. The toolbar's D/W/M tab says which one is big; the other two
-// take the side column, higher timeframe first; a click on a side pane's caption swaps it in.
+// column, the big pane beside them. The toolbar's Daily / Weekly / Monthly says which one is big; the
+// other two take the side column, higher timeframe first; a click on a side pane's caption swaps it in.
+// One Finviz chart replaced them on Thu 29/10/2026 and he had them back the same day ("I still need the
+// 3 sized screen of Daily/weekly/monthly").
 const PANES = ['M', 'W', 'D'];
 const PANE_NAME = { D: 'Daily', W: 'Weekly', M: 'Monthly' };
 const SIDE_BARS = { W: 100, M: 60 };
@@ -159,6 +161,9 @@ const ScreenerModal = ({
       />
     );
   };
+  const onToggleFix = canFix ? () => setFixing((now) => !now) : undefined;
+  const fundamentalsShown = hasSheet && page === 'fundamentals';
+  const pageTabs = hasSheet ? <LensPageTabs onPageChange={setPage} page={page} /> : null;
 
   return (
     <div
@@ -188,7 +193,9 @@ const ScreenerModal = ({
           // block at its own height, then the stats block at its natural height
           // (operator, Thu 16/10/2026: "One block for the chart. and another
           // block for the Stats ... I can scroll the page so the space is
-          // essentially infinite"). 1760 is the 1920 screen's width.
+          // essentially infinite"). No width cap: the shell fills the screen to
+          // the scrim's 12px frame on every monitor (his "make the entire pop up
+          // bigger", Thu 29/10/2026; held at 1760 until then).
           background: 'var(--bg-main)',
           border: '1px solid var(--border-color)',
           borderRadius: 8,
@@ -196,34 +203,24 @@ const ScreenerModal = ({
           display: 'flex',
           flex: 1,
           flexDirection: 'column',
-          margin: '0 auto',
-          maxWidth: 1760,
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',
         }}
         onClick={event => event.stopPropagation()}
       >
-        <ScreenerModalToolbar
-          data={data}
-          hasMonthly={hasMonthly}
-          hasWeekly={hasWeekly}
-          interval={interval}
-          liked={liked}
+        <LensNavBar
+          backLabel="Back"
           onClose={onClose}
-          onIntervalChange={selectInterval}
           onNext={onNext}
           onPrev={onPrev}
+          onToggleFix={onToggleFix}
           onToggleLike={onToggleLike}
+          onToggleSkin={toggleSkin}
           onToggleWatchlist={onToggleWatchlist}
           position={position}
           skin={skin}
-          onToggleSkin={toggleSkin}
           ticker={ticker}
-          watchlisted={watchlisted}
-          fixing={fixing}
-          onToggleFix={canFix ? () => setFixing((now) => !now) : undefined}
-          fixedSummary={fixedBox.fixed?.summary ?? null}
         />
         {/* The fix page covers the lens (Sat 18/10/2026, "a new page covers this one"); Save or Back returns here. */}
         {fixing && (
@@ -237,60 +234,65 @@ const ScreenerModal = ({
             ticker={ticker}
           />
         )}
-        {/* THE LENS IS TWO BLOCKS (operator, Fri 17/10/2026): the CHART block — the three panes laid out
-            as his TradingView (monthly over weekly in a side column, the daily big) with the grade board,
-            the phases over their events, right under them in the SAME card, so the chart and the
-            highlights it lights sit in one screen — and the STATS block under it, at its natural height;
-            the body scrolls to it. */}
+        {/* THE LENS IS FINVIZ'S QUOTE PAGE (Thu 29/10/2026): the quote, the chart box (its toolbar, the three panes),
+            then the grade board and the stock's numbers, compact, one column; the body scrolls. The Fundamentals
+            tab swaps the board and the numbers for the sheet and keeps the chart. */}
         <div className="screener-modal-body lens-page" style={{ display: 'flex', flex: 1, flexDirection: 'column', minHeight: 0, overflowY: 'auto' }}>
-          <section key={skin} className="lens-block lens-block-chart">
-            <header className="lens-block-head">
-              <span>Chart</span>
-              <small>the daily big, the monthly and the weekly beside it; the wheel over a pane zooms it, drag the bars to pan, ⌂ back to the opening view, ⤢ the whole history; click a small pane to open it big</small>
-            </header>
-            <div className="lens-card">
-              <div className="lens-chart-grid" style={{ flex: '0 0 auto' }}>
-                <div className="lens-chart-side">
-                  {PANES.filter((tf) => tf !== interval).map((tf) => (
-                    <LensChartPane big={false} data={data} key={tf} onOpen={() => selectInterval(tf)} tf={tf}>
-                      {paneCanvas(tf, false)}
-                    </LensChartPane>
-                  ))}
-                </div>
-                <div className="lens-chart-main">
-                  <LensChartPane big data={data} tf={interval}>
-                    {paneCanvas(interval, true)}
+          <LensQuote
+            data={data}
+            fixedSummary={fixedBox.fixed?.summary ?? null}
+            liked={liked}
+            onToggleLike={onToggleLike}
+            onToggleWatchlist={onToggleWatchlist}
+            tabs={pageTabs}
+            ticker={ticker}
+            watchlisted={watchlisted}
+          />
+          <section key={skin} className="lens-chart-box">
+            <LensChartToolbar
+              fixing={fixing}
+              hasMonthly={hasMonthly}
+              hasWeekly={hasWeekly}
+              interval={interval}
+              onIntervalChange={selectInterval}
+              onToggleFix={onToggleFix}
+            />
+            <div className="lens-chart-grid" style={{ flex: '0 0 auto' }}>
+              <div className="lens-chart-side">
+                {PANES.filter((tf) => tf !== interval).map((tf) => (
+                  <LensChartPane big={false} data={data} key={tf} onOpen={() => selectInterval(tf)} tf={tf}>
+                    {paneCanvas(tf, false)}
                   </LensChartPane>
-                </div>
+                ))}
               </div>
+              <div className="lens-chart-main">
+                <LensChartPane big data={data} tf={interval}>
+                  {paneCanvas(interval, true)}
+                </LensChartPane>
+              </div>
+            </div>
+          </section>
+          {!fundamentalsShown && (
+            <section className="lens-box">
               <SetupStoryPanel
                 data={data}
                 note={null}
                 onRegionChange={setActiveRegion}
                 regions={buildPhaseRegions(data)}
               />
-            </div>
-          </section>
-          <section className="lens-block lens-block-stats">
-            <header className="lens-block-head">
-              <span>The stock</span>
-              <small>the technical read, leadership, volume at the key points, and the fundamentals page</small>
-            </header>
-            <div className="lens-card">
-              <ScreenerStockLens
-                activeRegion={activeRegion}
-                data={data}
-                earnings={earnings}
-                interval={interval}
-                onPageChange={hasSheet ? setPage : null}
-                onRegionChange={setActiveRegion}
-                page={hasSheet ? page : 'read'}
-                scanIdentity={scanIdentity}
-                story={false}
-                ticker={ticker}
-              />
-            </div>
-          </section>
+            </section>
+          )}
+          <ScreenerStockLens
+            activeRegion={activeRegion}
+            data={data}
+            earnings={earnings}
+            interval={interval}
+            onRegionChange={setActiveRegion}
+            page={fundamentalsShown ? 'fundamentals' : 'read'}
+            scanIdentity={scanIdentity}
+            story={false}
+            ticker={ticker}
+          />
         </div>
         {footer}
       </section>

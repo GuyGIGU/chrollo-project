@@ -1,5 +1,6 @@
 import ScreenerCard from '../../../shared/setup/ScreenerCard';
 import { groupHealthMembers } from '../presentation/healthBoardSort';
+import { CARD_GAP_PX, CARD_PX } from '../../../app/appearance/uiScale.js';
 
 // The Market & Sector Health Board: a full-time, state-classified read of every
 // member of a non-equity universe (the firing engine fires zero setups on broad
@@ -157,11 +158,12 @@ const unreadableCardStyle = {
   padding: '12px 14px',
 };
 
+// The same one-size grid as ScreenerGrid's gridStyle (uiScale.test.js pins both).
 const gridStyle = {
   display: 'grid',
-  // Same four columns as ScreenerGrid's gridStyle (uiScale.test.js pins both).
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: '14px',
+  gridTemplateColumns: `repeat(auto-fill, ${CARD_PX}px)`,
+  justifyContent: 'center',
+  gap: `${CARD_GAP_PX}px`,
   width: '100%',
 };
 

@@ -54,11 +54,11 @@ const VARIANTS = {
 export const lensSkinOf = (container) =>
   (container && typeof container.closest === 'function' && container.closest('[data-skin="paper"]') ? 'paper' : null);
 
-// The structure bars' colour under a skin: whitewashed on the dark skin, ink on paper.
-export const lensBarOptions = (container) => {
-  const color = lensSkinOf(container) === 'paper' ? '#1F2430' : CHART_COLORS.candle;
-  return { upColor: color, downColor: color, thinBars: false };
-};
+// The structure bars green up and red down, Finviz's convention, on both skins (Thu 29/10/2026, his Finviz
+// charts; whitewashed on the dark skin and ink on paper until then). A bar the read paints (the root
+// swing grey, the LPS gold) keeps its own colour over these. The card's bars use the same pair.
+export const STRUCTURE_BAR_OPTIONS = { upColor: CHART_COLORS.indexUp, downColor: CHART_COLORS.indexDown, thinBars: false };
+export const lensBarOptions = () => STRUCTURE_BAR_OPTIONS;
 
 // The hl2 SMA-20's colour under a skin: the teal reads on the dark skin only.
 export const lensSmaOptions = (container) => (lensSkinOf(container) === 'paper' ? { color: 'rgba(23, 143, 134, 0.85)' } : {});

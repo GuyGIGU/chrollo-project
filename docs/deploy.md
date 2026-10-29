@@ -472,8 +472,8 @@ cd C:\actions-runner
 Double-click **`preview_dashboard.bat`**. It opens `http://localhost:5173`: the frontend served
 straight from the checkout's source files (Vite's dev server, so it refreshes itself as the files
 change), on any branch, committed or not, talking to the live service on `:8000` for its data.
-Nothing is built, nothing restarts, no UAC. A frontend change is looked at here first and committed
-only once it looks right (his ask, Wed 28/10/2026); then it is merged to `main` and deployed below.
+Nothing is built, nothing restarts, no UAC. A frontend change is looked at here first (his ask, Wed
+28/10/2026); the deploy below puts the checkout live as it is, committed or not.
 A backend change does not show in the preview (it calls the running service) and goes live only
 through the deploy.
 
@@ -483,13 +483,10 @@ After any code change (frontend or backend), you do **not** need to run `npm run
 elevated `nssm restart` by hand. Double-click **`update_dashboard.bat`** in the repo root (or run
 `update_dashboard.ps1`). It:
 
-1. Checks the checkout, **before** it asks for admin rights (`tools\ops\deploy_guard.ps1`): it
-   **refuses** a checkout that is not on the release branch, or that has uncommitted changes to
-   tracked files, and names the branch or the files. The service runs whatever this checkout holds,
-   so a deploy from a side branch would put live code no release ever named. The release branch is
-   named in one place, `update_dashboard.ps1`'s `-ReleaseBranch` (default `main`); untracked files
-   (the runtime files in `output\`) do not count. `update_dashboard.bat -AllowAnyCheckout` deploys
-   anyway and prints what it overrode.
+1. Deploys the checkout **as it is on disk**, committed or not, on whatever branch it is on (his
+   word Thu 29/10/2026, "back to how it was"). From 10/10/2026 until then a guard refused a side
+   branch or uncommitted files; it was removed, so check `git status` before a deploy if a side
+   branch or someone else's work-in-progress might be in this checkout.
 2. Self-elevates once via UAC (restarting a Windows service needs admin rights).
 3. Asks the live service whether a scan is running, and **refuses to deploy while one is** — a
    restart would kill the scan child mid-run (12-17 minutes of work, and the archive row it never

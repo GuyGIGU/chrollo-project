@@ -1,6 +1,6 @@
 import CandleChart from './CandleChart';
 import { addBoxRails } from './chartRails';
-import { baseChartOptions, CHART_COLORS } from './chartTheme';
+import { baseChartOptions, STRUCTURE_BAR_OPTIONS } from './chartTheme';
 import { CHART_FRAMING, colorMiniCandles, miniFocusLogicalRange } from './chartGeometry';
 
 // The CONSOLIDATION sets the window: wide enough that the rest owns up to ~40%
@@ -15,6 +15,17 @@ import { CHART_FRAMING, colorMiniCandles, miniFocusLogicalRange } from './chartG
 // stays overridable so the narrower hover glance can frame at its own span.
 const MINI = CHART_FRAMING.mini;
 
+// lightweight-charts' tick kinds: 0 a new year, 1 a new month, 2 a day of the month. A daily bar's time
+// reaches the formatter as 'YYYY-MM-DD' or as { year, month, day }.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthTick = (time, kind) => {
+  if (kind > 1) return '';
+  const year = typeof time === 'string' ? Number(time.slice(0, 4)) : time?.year;
+  const month = typeof time === 'string' ? Number(time.slice(5, 7)) : time?.month;
+  if (!year || !month) return '';
+  return kind === 0 ? `'${String(year).slice(2)}` : MONTHS[month - 1];
+};
+
 const chartOptions = (width, height, profile) => {
   const base = baseChartOptions('mini', width, height);
   return {
@@ -28,15 +39,15 @@ const chartOptions = (width, height, profile) => {
     // fills the pane and a real consolidation reads at its true height, not flattened
     // (the card's price band is 88% of the well since 2026-10-02 — CHART_FRAMING.mini).
     rightPriceScale: { ...base.rightPriceScale, scaleMargins: profile.scaleMargins, autoScale: true },
-    // The date axis is hidden, not just unlabelled: the card header already
-    // carries the as-of date, and the ~26px it costs is candle height.
-    // lockVisibleTimeRangeOnResize: when the card changes width without a rebuild
-    // (the window dragged to the other monitor, the UI scale stepped), keep the
-    // FRAMED trading days and re-space the bars — the default keeps the bar
-    // spacing, so a wider card would quietly show more history than the setup's
-    // window and the close-up would drift (2026-10-02).
-    timeScale: { ...base.timeScale, timeVisible: false, visible: false, fixLeftEdge: true, fixRightEdge: true,
-                 lockVisibleTimeRangeOnResize: true },
+    // The month axis along the bottom, as on a Finviz chart (Thu 29/10/2026; hidden
+    // from 2026-09 to give its ~20px to the bars): month names, the year where it
+    // turns, no day numbers. lockVisibleTimeRangeOnResize: when the card changes
+    // width without a rebuild (the window dragged to the other monitor, the UI scale
+    // stepped), keep the FRAMED trading days and re-space the bars — the default
+    // keeps the bar spacing, so a wider card would quietly show more history than
+    // the setup's window and the close-up would drift (2026-10-02).
+    timeScale: { ...base.timeScale, timeVisible: false, visible: true, fixLeftEdge: true, fixRightEdge: true,
+                 lockVisibleTimeRangeOnResize: true, tickMarkFormatter: monthTick },
     handleScroll: false,
     handleScale: false,
   };
@@ -67,13 +78,7 @@ const ScreenerMiniChart = ({ ticker, data, profile = MINI }) => {
         chartOptions: (container) =>
           chartOptions(container.clientWidth || 380, container.clientHeight || 240, profile),
         candles: coloredCandles,
-        barOptions: {
-          upColor: CHART_COLORS.candle,
-          downColor: CHART_COLORS.candle,
-          lastValueVisible: false,
-          priceLineVisible: false,
-          thinBars: false,
-        },
+        barOptions: { ...STRUCTURE_BAR_OPTIONS, lastValueVisible: false, priceLineVisible: false },
         volumes: data.volumes,
         showVolume: true,
         volumeScaleTop: profile.volumeScaleTop,

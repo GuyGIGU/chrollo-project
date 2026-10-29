@@ -77,7 +77,7 @@ Two concrete ownership issues were corrected:
 |---|---|---|
 | React subscription to the shared scan cache | [shared/hooks/useScreenerData.js](../webapp/frontend/src/shared/hooks/useScreenerData.js) | Home and Screener both use it. The shared hook now sits beside its shared store; Home no longer imports this hook from the Screener feature. |
 | Pure result selection, tag projection and display sorting | [screener/model/screenerResults.js](../webapp/frontend/src/features/screener/model/screenerResults.js) | Removed from the React hook into its feature's model layer. Selection can be tested directly without React or a browser. |
-| Comparison table | [ScreenerResultsTable.jsx](../webapp/frontend/src/features/screener/components/ScreenerResultsTable.jsx) | Feature-owned presentation; no duplicated selection, network state or scoring logic. |
+| Comparison table | `ScreenerResultsTable.jsx`, deleted Thu 29/10/2026 on the operator's word ("only charts"; docs/decisions.md 2026-10-29) | Feature-owned presentation; no duplicated selection, network state or scoring logic. |
 
 All current callers were repointed; the moved hook has no compatibility wrapper.
 Historical migration records retain their historical paths. The frontend import

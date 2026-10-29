@@ -49,9 +49,17 @@ test('the counter is drawn only with a position; ↗ TV in every lens; the order
   // ↗ TV straight after the heart's block: no guard of its own.
   const heart = guardedBlock(src, 'onToggleLike', '♥');
   assert.match(src, new RegExp(`${heart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*<a\\b[^>]*href=\\{tradingViewUrl\\(ticker\\)\\}`));
-  const order = ["'★'", "'♥'", '↗ TV', 'lens-position', '>Prev<', '>Next<', 'aria-label="Close"'].map((m) => src.indexOf(m));
-  assert.ok(order.every((at) => at >= 0), order.join(','));
-  assert.deepEqual([...order].sort((a, b) => a - b), order, 'star, heart, TV, counter, Prev, Next, close');
+  // Finviz's quote page (Thu 29/10/2026): the pager in the slim bar over the page, the card's acts at the
+  // end of the quote's tab row.
+  const inOrder = (part, markers, label) => {
+    const order = markers.map((m) => part.indexOf(m));
+    assert.ok(order.every((at) => at >= 0), `${label}: ${order.join(',')}`);
+    assert.deepEqual([...order].sort((a, b) => a - b), order, label);
+  };
+  const bar = src.slice(src.indexOf('export function LensNavBar'), src.indexOf('export function LensQuote'));
+  const quote = src.slice(src.indexOf('export function LensQuote'), src.indexOf('export function LensChartToolbar'));
+  inOrder(bar, ['lens-position', '>Prev<', '>Next<', 'aria-label="Close"'], 'the bar: counter, Prev, Next, close');
+  inOrder(quote, ["'★'", "'♥'", '↗ TV'], 'the quote: star, heart, TV');
 });
 
 test('W and L act only where their button is drawn; T opens TradingView in a new tab', () => {
@@ -65,7 +73,7 @@ test('W and L act only where their button is drawn; T opens TradingView in a new
   // The listener is installed, and re-bound to the chart on screen: with stale
   // deps, W and L after Next would act on the FIRST chart opened.
   const start = src.indexOf('function useLensActionKeys');
-  const end = src.indexOf('export default function', start);
+  const end = src.indexOf('export function LensNavBar', start);
   assert.ok(start >= 0 && end > start, 'the useLensActionKeys hook is gone');
   const hook = src.slice(start, end);
   assert.match(hook, /window\.addEventListener\('keydown', onKey\);/);
@@ -86,11 +94,20 @@ test('the screener grid hands the lens the star (drill-down aware), the heart an
   assert.match(grid, /stepTicker\(modalTickers, activeModalTicker, lensIndexRef\.current, delta\)/);
 });
 
-test('the lens hands all five through to its top bar', () => {
+test('the lens hands all five through: the acts to the quote, the counter and the keys to the bar', () => {
   const lens = read('shared/setup/ScreenerModal.jsx');
-  const mount = lens.slice(lens.indexOf('<ScreenerModalToolbar'), lens.indexOf('/>', lens.indexOf('<ScreenerModalToolbar')));
-  for (const prop of ['watchlisted', 'onToggleWatchlist', 'liked', 'onToggleLike', 'position']) {
-    assert.match(mount, new RegExp(`\\b${prop}=\\{${prop}\\}`), prop);
+  const mountOf = (tag) => {
+    const at = lens.indexOf(`<${tag}`);
+    assert.ok(at >= 0, `${tag} is not mounted`);
+    return lens.slice(at, lens.indexOf('/>', at));
+  };
+  const quote = mountOf('LensQuote');
+  for (const prop of ['watchlisted', 'onToggleWatchlist', 'liked', 'onToggleLike']) {
+    assert.match(quote, new RegExp(`\\b${prop}=\\{${prop}\\}`), `the quote's ${prop}`);
+  }
+  const bar = mountOf('LensNavBar');
+  for (const prop of ['position', 'onToggleWatchlist', 'onToggleLike', 'onToggleFix']) {
+    assert.match(bar, new RegExp(`\\b${prop}=\\{${prop}\\}`), `the bar's ${prop} (its keys act only where the button is drawn)`);
   }
 });
 
