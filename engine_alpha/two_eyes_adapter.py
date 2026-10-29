@@ -107,6 +107,16 @@ def stock_adr(frame) -> dict:
     return {"_adr_pct": adr_pct(daily, settings.ADR_WINDOW)}
 
 
+def stock_stage(frame) -> dict:
+    """The stock's life-cycle stage on its weekly chart and the week its advance began (the stage read, Fri
+    16/10/2026), the leadership read's other half: the stock, not the box. Read on the WHOLE frame the universe
+    door admitted (the cache's five years), never cut to the reader's two years, because a stage and an advance
+    run for years. Under the archive's names (``engine_alpha/stage_read.py``)."""
+    from engine_alpha.stage_read import read_stage
+
+    return {f"_{key}": value for key, value in read_stage(frame).items()}
+
+
 def _spring_day(read: Read) -> Optional[str]:
     """The day of the new reader's own spring (its tip), or None: the screen reads the volume at that key point on
     it. Its story names one spring at most."""
@@ -143,7 +153,8 @@ def to_result(read: Read, frame=None):
     result dict for a fire. ``frame``, when given, is the chart the universe
     door admitted: a fire then carries the stock's trend template
     (:func:`stock_trend`) and its ADR (:func:`stock_adr`), as an old-reader
-    fire does.
+    fire does, and its stage read (:func:`stock_stage`), which an old-reader
+    fire does not carry.
     """
     if read.failed:
         return EVAL_ERROR
@@ -248,7 +259,7 @@ def to_result(read: Read, frame=None):
         # 12/10/2026, option A), empty when the frame is not there to read.
         "_two_eyes_lps_volume_ratio": None if frame is None else volume_vs_50d(
             frame, lps.end_day.isoformat(), first_day=lps.start_day.isoformat()),
-        **({} if frame is None else {**stock_trend(frame), **stock_adr(frame)}),
+        **({} if frame is None else {**stock_trend(frame), **stock_adr(frame), **stock_stage(frame)}),
     }
     for key in WHOLE_NUMBER_KEYS:
         if result[key] is not None:        # whole when measured, empty when not

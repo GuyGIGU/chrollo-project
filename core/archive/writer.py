@@ -843,6 +843,11 @@ def archive_scan_results(
                 fund_grade_score=row.get("_fund_grade_score"),
                 fund_sheet_json=(json.dumps(row["_fund_sheet"], separators=(",", ":"))
                                  if isinstance(row.get("_fund_sheet"), dict) else None),
+                # The stage read (2026-10-16): the stock's life cycle on its weekly chart, display +
+                # archive only; a new-reader fire carries it, an old-reader fire leaves it NULL
+                cycle_stage=row.get("_cycle_stage"),
+                advance_start=row.get("_advance_start"),
+                advance_weeks=row.get("_advance_weeks"),
                 **sector_rank_columns(sector_etf),
                 engine_config_version=engine_config_version,
                 source="screener",

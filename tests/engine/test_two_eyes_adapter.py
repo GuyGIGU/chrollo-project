@@ -13,6 +13,7 @@ from __future__ import annotations
 from _paths import REPO_ROOT
 import datetime as dt
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -89,6 +90,28 @@ def test_a_fire_says_its_base_window_so_the_sector_read_is_not_quietly_void():
         assert key in result, f"{key} is absent, and nothing downstream says so"
     assert result["_base_date_start"] == "2026-01-05"
     assert result["_base_date_end"] == "2026-03-06"
+
+
+def test_a_fire_read_on_the_admitted_frame_carries_the_stage_read_beside_the_trend_template():
+    """The stage read (Fri 16/10/2026) is the stock's, read on the WHOLE frame the door admitted, never its two-year
+    cut: a fire with the frame carries the three facts under the archive's names, one without carries none."""
+    from engine_alpha.stage_read import read_stage
+    from engine_alpha.two_eyes_adapter import to_result
+
+    days = pd.bdate_range(end="2026-03-06", periods=5 * 150)
+    weekly = np.concatenate([np.full(100, 100.0), np.arange(102.0, 202.0, 2.0)])
+    weekly[50] = 90.0                      # a week under a falling average, before a two-year cut's first average
+    close = np.repeat(weekly, 5)
+    frame = pd.DataFrame({"Open": close, "High": close + 1, "Low": close - 1, "Close": close,
+                          "Volume": 1e6}, index=days)
+    fire = to_result(_read_with_lines(), frame=frame)
+    stage = read_stage(frame)
+    assert stage["cycle_stage"] == 2 and stage["advance_weeks"] is not None
+    assert {k: fire[f"_{k}"] for k in stage} == stage
+    assert "_stage2_trend_pass_count" in fire, "the trend template still rides beside it"
+    two_year_cut = frame.loc[frame.index >= frame.index[-1] - pd.Timedelta(days=735)]
+    assert read_stage(two_year_cut) != stage, "the frame is long enough that a two-year cut would read otherwise"
+    assert not any(k in to_result(_read_with_lines()) for k in ("_cycle_stage", "_advance_start", "_advance_weeks"))
 
 
 def test_the_forced_whole_numbers_are_whole_when_measured_and_empty_when_not():

@@ -153,6 +153,13 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   size counts the scanned universe through `output/industry_cache.json`; the operator runs
   `python -m tools.maintenance.industry_backfill` once to fill it (the nightly scan keeps it fresh
   from the sheets; until then a group reads as the names seen firing).
+- **The stage read** (2026-10-16, built for his book stops; display and archive only, no flag): every
+  fire of the live reader carries the stock's stage on its weekly chart (1 neglect, 2 advance, 3 top,
+  4 decline) and the week its stage-2 advance began (`engine_alpha/stage_read.py`; archived as
+  `cycle_stage`, `advance_start`, `advance_weeks`), shown in the detail panel's Leadership section.
+  It gates nothing, and by his ruling (16/10/2026) stage-1 and stage-3 fires stay on the board, the
+  stage shown only. The base count and the inter-base width still wait on where the first leg ends. Live after `update_dashboard.bat` and
+  the next scan.
 - **Volume at key points** (2026-10-04, his go-ahead after the step-2 measurement): the detail
   panel shows the LPS pullback's volume and the Phase C spring's against the 50-day average,
   display only. Of the Momentum Masters volume lines, only the quiet LPS pullback separated
