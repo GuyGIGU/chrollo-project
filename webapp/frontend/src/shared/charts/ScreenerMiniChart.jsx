@@ -1,6 +1,6 @@
 import CandleChart from './CandleChart';
 import { addBoxRails } from './chartRails';
-import { baseChartOptions, STRUCTURE_BAR_OPTIONS } from './chartTheme';
+import { baseChartOptions, CHART_COLORS } from './chartTheme';
 import { CHART_FRAMING, colorMiniCandles, miniFocusLogicalRange } from './chartGeometry';
 
 // The CONSOLIDATION sets the window: wide enough that the rest owns up to ~40%
@@ -78,7 +78,13 @@ const ScreenerMiniChart = ({ ticker, data, profile = MINI }) => {
         chartOptions: (container) =>
           chartOptions(container.clientWidth || 380, container.clientHeight || 240, profile),
         candles: coloredCandles,
-        barOptions: { ...STRUCTURE_BAR_OPTIONS, lastValueVisible: false, priceLineVisible: false },
+        barOptions: {
+          upColor: CHART_COLORS.candle,
+          downColor: CHART_COLORS.candle,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          thinBars: false,
+        },
         volumes: data.volumes,
         showVolume: true,
         volumeScaleTop: profile.volumeScaleTop,

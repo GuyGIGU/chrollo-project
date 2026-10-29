@@ -492,15 +492,23 @@ screener's `scanStream.js`).
 **The chart is the card, and its spare room is VERTICAL** (operator 2026-09-02).
 **One card size on every monitor, the Finviz way** (operator Thu 29/10/2026, his
 Finviz chart view: "scale and open good in no matter monitor"): every card grid is
-`repeat(auto-fill, 460px)`, centred, so a card is 460px wide everywhere and a wider
-window shows more of them: four at 1920, five at 2560, two in a 1024px window.
-Finviz, measured the same day, draws 466x219 at every width and never zooms the
-page; an unstored scale is therefore 100% (there is no auto-fit). Before it: four
+`repeat(auto-fill, 466px)` with 4px gaps, centred, so a card is 466px wide everywhere
+and a wider window shows more of them: four at 1920, five at 2560, two in a 1024px
+window. Finviz, measured the same day, draws 466x219 at every width and never zooms
+the page; an unstored scale is therefore 100% (there is no auto-fit). **The card's
+chart IS Finviz's daily** (his "Finviz Daily, exactly", the same night; 460px, a 47px
+two-row header over a 1.9:1 well and 80-130 days framed on the base until then): a
+466:219 well with the ticker line drawn inside its top (the weekly / monthly read in
+the ticker's tooltip), the last 94 trading days on every card (wider only when the box
+opened earlier: its open and approach leg stay on the card), the bars from 13% under
+the top to 20% over the dates, volume under them. The bars are one colour (whitewashed
+on the dark skin, ink on paper), card and lens alike: green / red for an afternoon was
+never his ask. Before it: four
 columns on every monitor (Wed 28/10/2026, `repeat(4, minmax(0, 1fr))`), which drew
 620px at 2560 and squeezed to 236px in a 1024px window; from 2026-10-03 one size
 of at least 590px; the day before that a three-card ceiling. **The big charts hold one size on every monitor too**: the
 Watchlist D/W/M band is 1850x805, and the lens's chart band is `--lens-chart-band`,
-400px on every screen (600 until Thu 29/10/2026). **The lens is Finviz's quote page (fourth pass, Thu 29/10/2026**, his
+460px on every screen (600 until Thu 29/10/2026, then 400 for an evening). **The lens is Finviz's quote page (fourth pass, Thu 29/10/2026**, his
 *"base our advanced chart page on their page ... notice how everything is sitting compact and easy to
 read"*, measured on finviz.com/stock the same day): 1896px, the whole 1920 screen inside the scrim's
 12px frame (his "make the entire pop up bigger"; Finviz's 1425 for an hour, then 1760), and that size,
@@ -510,9 +518,8 @@ change), a tab row (The read | Fundamentals on the left; the Sector (with its ET
 Setup chips, each saying what it is, the star, the heart and ↗ TV on the right), then the chart box:
 its toolbar (Fix the box | Daily Weekly Monthly | how to move it) over THE THREE PANES of the third
 pass below, kept (his "I still need the 3 sized screen of Daily/weekly/monthly"; one chart for an
-afternoon), at 400px (his "the chart is way to big"), the toolbar's tab naming the big pane, its bars
-green up / red down like Finviz's (the card's too, with a month axis, and the card names its sector
-by its ETF alone), no headings over the blocks; under it the phase board (the events by phase; the
+afternoon), at 460px (400 on his "the chart is way to big", then "bigger slightly"), the toolbar's tab naming the big pane (the
+card has a month axis and names its sector by its ETF alone), no headings over the blocks; under it the phase board (the events by phase; the
 box's own facts moved out of it), then the stock's numbers as Finviz's snapshot table (six columns of
 label/value pairs read top to bottom, 12px on 21px rows), the box's lines, height, base, the days in
 the box up to the SOS, hold and clarity parts first; hovering one of the box's cells lights the box

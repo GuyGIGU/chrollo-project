@@ -5,7 +5,7 @@ import { explainTip } from '../formatting/tooltipText';
 import { healthStateMeta } from './healthStateData';
 import { tierColor, signColor } from '../presentation/theme';
 import { fx, fmtSignedPctFrac } from '../formatting/format';
-import { dailyChangeFrac, asOfDate, htfStateLabel, htfTrendArrow } from './screenerCardData';
+import { dailyChangeFrac, asOfDate, htfStateLabel } from './screenerCardData';
 import { groupTitle, hasGroupRead } from './groupRead';
 import { dialogOpenOutside, hasCommandModifier } from '../navigation/keyboardGuard';
 import FundamentalsCardPage from './FundamentalsCardPage';
@@ -125,61 +125,35 @@ const tierBadgeStyle = (tier) => ({
   padding: '0 3px',
 });
 
-// One timeframe's read: trend arrow (color = up/down/neutral), the structural
-// state (re-accum / consol+phase / stage-2 / —), and a nesting mark when the
-// daily base sits inside this timeframe's box. Re-accumulation is the premium
-// case, so it takes the categorical gold. Rendered compact on the card's meta row.
-function TimeframeCell({ tf, stage2, trendState, inConsol, phase, reaccum, nested }) {
-  const trend = htfTrendArrow(trendState);
-  const { label: state, tone: stateCol } = htfStateLabel({ stage2, trendState, inConsol, phase, reaccum });
-  const tfName = tf === 'W' ? 'Weekly' : 'Monthly';
-  const status = [
-    `trend ${trendState || 'unknown'}`,
-    inConsol ? `worked box phase ${phase || '?'}` : 'no worked box',
-    reaccum ? 're-accumulation: established uptrend plus consolidation' : null,
-    nested ? 'daily base nests inside this higher-timeframe box' : null,
-  ].filter(Boolean).join('; ');
-  const title = explainTip({
-    what: `${tfName} context for the same setup engine: ${status}.`,
-    why: 'Higher-timeframe agreement helps separate a small daily pattern from a setup aligned with a larger established uptrend or Wyckoff-style trend pause.',
-    use: 'Give more weight to daily setups that are also supported by weekly or monthly re-accumulation; be stricter when context is weak or missing.',
-  });
-  return (
-    <div title={title} style={{ alignItems: 'center', display: 'flex', gap: 5, minWidth: 0 }}>
-      <span style={{ color: 'var(--text-faint)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>{tf}</span>
-      <span style={{ color: trend.col, fontSize: 13, lineHeight: 1 }}>{trend.sym}</span>
-      <span style={{ color: stateCol, fontSize: 11, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{state}</span>
-      {nested ? <span style={{ color: 'var(--accent-yellow)', fontSize: 13, lineHeight: 1 }}>⊂</span> : null}
-    </div>
-  );
+// The weekly / monthly read, one line each, for the ticker's tooltip: it had its own row under the ticker line
+// until the card became Finviz's chart (Thu 29/10/2026), where there is room for one line only.
+function htfTitle(data) {
+  if (data.htf_w_trend_state == null && data.htf_m_trend_state == null) return undefined;
+  const line = (name, stage2, trendState, inConsol, phase, reaccum, nested) => {
+    const { label } = htfStateLabel({ stage2, trendState, inConsol, phase, reaccum });
+    return `${name}: ${label}, trend ${trendState || 'unknown'}${nested ? ', the daily base nests inside its box' : ''}`;
+  };
+  return [
+    line('Weekly', data.htf_w_stage2, data.htf_w_trend_state, data.htf_w_in_consol, data.htf_w_phase, data.htf_w_reaccum, data.htf_w_daily_nested),
+    line('Monthly', data.htf_m_stage2, data.htf_m_trend_state, data.htf_m_in_consol, data.htf_m_phase, data.htf_m_reaccum, data.htf_m_daily_nested),
+  ].join('\n');
 }
 
 const monoFaint = { color: 'var(--text-faint)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, whiteSpace: 'nowrap' };
 
-// A thin upright rule between two reads on the header's second row.
-const ReadDivider = () => (
-  <span style={{ alignSelf: 'stretch', background: 'var(--border-color)', flexShrink: 0, margin: '2px 0', width: 1 }} />
-);
-
-// Minimal Finviz charts-view header, TWO rows (2026-10-04). Top: the stock —
-// ticker + tier + sector ETF, then, pushed right, the as-of date, the live price
-// and its daily % change, and the two toggles. Under it: the weekly / monthly
-// read when the scan carried one, the full read in each cell's tooltip. The RS,
-// trend template, dollar volume, the group's "N of M" and the "Daily setup"
-// stand-in came off it (Wed 28/10/2026, his card redesign); the row keeps its
-// height so every card's chart still starts at the same line.
-// The shell (.screener-card-head) is shared with the health card and the
-// Watchlist's clean card, so every card kind's chart starts at the same height.
-// Score, setup name, and the next-earnings date live in the click-through detail
-// lens, keeping the card face to the chart itself.
+// Finviz's ticker line, INSIDE the chart (Thu 29/10/2026, his "Finviz Daily, exactly"): the ticker, tier and
+// sector ETF, then, pushed right, the as-of date, the price and its daily % change, and the toggles. It was a
+// two-row lip over the chart from 2026-10-04; the weekly / monthly read it carried is the ticker's tooltip now.
+// The shell (.screener-card-head) is shared with the health card, so every card kind's line sits the same.
+// Score, setup name, and the next-earnings date live in the click-through detail lens, keeping the card face
+// to the chart itself.
 function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onToggleLike, page, onTogglePage, fixed = null }) {
   const changePct = dailyChangeFrac(data.candles);
-  const hasHtf = data.htf_w_trend_state != null || data.htf_m_trend_state != null;
 
   return (
-    <div className="screener-card-head" style={{ pointerEvents: 'auto' }}>
+    <div className="screener-card-head">
       <div className="screener-card-head-row">
-        <span style={{ color: tierColor(data.tier), flexShrink: 0, fontSize: 17, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
+        <span title={htfTitle(data)} style={{ color: tierColor(data.tier), flexShrink: 0, fontSize: 15, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, pointerEvents: 'auto', whiteSpace: 'nowrap' }}>
           {ticker}
         </span>
         <span style={tierBadgeStyle(data.tier)}>{data.tier}</span>
@@ -188,7 +162,7 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onTog
         {/* The sector ETF alone: the industry's full name came off the card (Thu 29/10/2026, his "remove the full
             sector name from the mini chart"; shown from 2026-10-23); it stays in this tag's tooltip and on the lens. */}
         {data.sector_etf ? (
-          <span style={{ alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, height: 15, lineHeight: 1, padding: '0 4px' }}
+          <span style={{ alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', color: 'var(--text-muted)', display: 'inline-flex', flexShrink: 0, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, height: 15, lineHeight: 1, padding: '0 4px', pointerEvents: 'auto' }}
             title={hasGroupRead(data) ? groupTitle(data.group) : undefined}>
             {data.sector_etf}
           </span>
@@ -212,17 +186,6 @@ function CardHeader({ data, ticker, watchlisted, onToggleWatchlist, liked, onTog
           <LikeButton active={liked} onToggle={() => onToggleLike(ticker)} />
           {onTogglePage ? <PageButton active={page === 'fundamentals'} onToggle={onTogglePage} /> : null}
         </span>
-      </div>
-
-      <div className="screener-card-head-row is-sub">
-        {/* The weekly / monthly read — shrinks first (minWidth 0 + overflow) */}
-        {hasHtf ? (
-          <div style={{ alignItems: 'center', display: 'flex', flex: '0 1 auto', gap: 8, minWidth: 0, overflow: 'hidden' }}>
-            <TimeframeCell tf="W" stage2={data.htf_w_stage2} trendState={data.htf_w_trend_state} inConsol={data.htf_w_in_consol} phase={data.htf_w_phase} reaccum={data.htf_w_reaccum} nested={data.htf_w_daily_nested} />
-            <ReadDivider />
-            <TimeframeCell tf="M" stage2={data.htf_m_stage2} trendState={data.htf_m_trend_state} inConsol={data.htf_m_in_consol} phase={data.htf_m_phase} reaccum={data.htf_m_reaccum} nested={data.htf_m_daily_nested} />
-          </div>
-        ) : null}
       </div>
     </div>
   );
@@ -315,18 +278,18 @@ const FiringCard = React.memo(({ ticker, data, watchlisted, onToggleWatchlist, l
       event.currentTarget.style.background = 'var(--bg-panel)';
     }}
   >
-    <CardHeader
-      data={data}
-      fixed={fixed}
-      liked={liked}
-      onToggleLike={onToggleLike}
-      onToggleWatchlist={onToggleWatchlist}
-      onTogglePage={togglePage}
-      page={page}
-      ticker={ticker}
-      watchlisted={watchlisted}
-    />
     <div className="screener-card-well" style={chartWellStyle}>
+      <CardHeader
+        data={data}
+        fixed={fixed}
+        liked={liked}
+        onToggleLike={onToggleLike}
+        onToggleWatchlist={onToggleWatchlist}
+        onTogglePage={togglePage}
+        page={page}
+        ticker={ticker}
+        watchlisted={watchlisted}
+      />
       {/* The chart stays mounted under the page, so flipping back costs no redraw. */}
       <ScreenerMiniChart ticker={ticker} data={data} />
       {page === 'fundamentals' && hasSheet ? <FundamentalsCardPage data={data} /> : null}
@@ -427,26 +390,22 @@ const HealthCard = React.memo(({ ticker, data, onDrilldown }) => (
       event.currentTarget.style.background = 'var(--bg-panel)';
     }}
   >
-    {/* Header mirrors the firing card's two-row shell (2026-10-04) so nothing
-        jumps between tabs: ticker and the state chip in the verdict slot on
-        top, the name under them (the name gives way). */}
-    <div className="screener-card-head" style={{ background: 'rgba(20, 23, 33, 0.98)', overflow: 'hidden' }}>
-      <div className="screener-card-head-row" style={{ justifyContent: 'space-between' }}>
-        <span style={{ color: 'var(--text-main)', flexShrink: 0, fontSize: 17, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
-          {ticker}
-        </span>
-        <StateChip state={data.state} />
-      </div>
-      <div className="screener-card-head-row is-sub">
-        {data.name ? (
-          <span title={data.name} style={{ color: 'var(--text-faint)', fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {data.name}
-          </span>
-        ) : null}
-      </div>
-    </div>
-
+    {/* The firing card's ticker line, inside the chart (Thu 29/10/2026), so nothing jumps between tabs: the
+        ticker, the name (it gives way), the state chip pushed right. */}
     <div style={chartWellStyle}>
+      <div className="screener-card-head">
+        <div className="screener-card-head-row">
+          <span style={{ color: 'var(--text-main)', flexShrink: 0, fontSize: 15, fontWeight: 850, letterSpacing: '-0.01em', lineHeight: 1, whiteSpace: 'nowrap' }}>
+            {ticker}
+          </span>
+          {data.name ? (
+            <span title={data.name} style={{ color: 'var(--text-faint)', fontSize: 11, minWidth: 0, overflow: 'hidden', pointerEvents: 'auto', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {data.name}
+            </span>
+          ) : null}
+          <span style={{ flexShrink: 0, marginLeft: 'auto' }}><StateChip state={data.state} /></span>
+        </div>
+      </div>
       <ScreenerMiniChart ticker={ticker} data={data} />
     </div>
 

@@ -35,12 +35,12 @@ export const DEFAULT_SCALE = 1;
 // 86px app rail is gone — it became a horizontal top nav that costs height, not
 // width — so it no longer belongs in this budget.
 export const GRID_CHROME_PX = 32 + 6;
-// The card's one width (Finviz draws 466px). Four of 460px and three 14px gaps are
-// exactly the screener's 1882px grid at 1920, the card he has had there since Wed
-// 28/10/2026; 2560 holds five, a 1024px window two. ScreenerGrid and HealthBoard
-// build their grids from these two numbers.
-export const CARD_PX = 460;
-export const CARD_GAP_PX = 14;
+// The card's one width: Finviz's 466px chart with Finviz's 4px gap between them (his
+// "Finviz Daily, exactly", Thu 29/10/2026; 460 and 14 that afternoon). Four and three
+// gaps are 1876px of the screener's 1882px grid at 1920; 2560 holds five, a 1024px
+// window two. ScreenerGrid and HealthBoard build their grids from these two numbers.
+export const CARD_PX = 466;
+export const CARD_GAP_PX = 4;
 
 // Snap an arbitrary value to the nearest allowed step (defensive against a
 // stale/garbage stored value).

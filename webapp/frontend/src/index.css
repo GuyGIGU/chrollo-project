@@ -57,7 +57,7 @@
   --lens-hairline-soft: rgba(255, 255, 255, 0.08);
   --lens-well: rgba(0, 0, 0, 0.22);
   --lens-well-hover: rgba(0, 0, 0, 0.32);
-  --lens-chart-band: 400px;   /* Finviz's chart height (Thu 29/10/2026, "the chart is way to big, make it compact like finviz") */
+  --lens-chart-band: 460px;   /* Finviz's 400 (Thu 29/10/2026, "the chart is way to big, make it compact like finviz"), then 15% taller the same night: "make the advanced chart bigger slightly" */
   --glow-active: 0 0 0 1px var(--myth), 0 0 12px var(--myth-glow);
 
   /* Setup tier identity (DESIGN.md tier ladder). Reserved hues — one source of
@@ -144,8 +144,10 @@
      well is too. A ratio is unitless, so --ui-scale's `zoom` grows the well
      with its card and needs no correction. The 200px floor is a backstop for a
      card under ~382px wide; it never binds at the 590px card minimum. Used by
-     ScreenerCard (firing + health) and WatchlistCardGrid's clean card. */
-  --card-chart-aspect: 1.9;
+     ScreenerCard (firing + health) and WatchlistCardGrid's clean card.
+     Thu 29/10/2026, his "Finviz Daily, exactly": Finviz's chart image, 466x219,
+     the ticker line drawn INSIDE it (.screener-card-head is an overlay since). */
+  --card-chart-aspect: 466 / 219;
   --card-chart-min-h: 200px;
 }
 
@@ -2730,7 +2732,7 @@ td {
   gap: 8px;
   inset: 0;
   overflow: hidden;
-  padding: 10px 12px 10px 11px;
+  padding: 28px 12px 10px 11px; /* under the card's ticker line, which stays on top (Thu 29/10/2026) */
   position: absolute;
   z-index: 10; /* over the chart library's own logo */
 }
@@ -3072,37 +3074,30 @@ td {
   box-shadow: inset 0 3px 7px -4px rgba(0, 0, 0, 0.7);
 }
 
-/* The header lip — the same 47px on every card kind (firing, health, the
-   Watchlist's clean card), so their charts start at the same height in a mixed
-   row. TWO rows again since 2026-10-04: the stock and its price on top, the
-   reads under it. One row (2026-10-02, to give the chart the space) got too
-   crowded once the leadership read joined it — the weekly/monthly words were
-   ellipsizing on every card. Children decide what gives way; a row never wraps. */
+/* The ticker line INSIDE the chart, Finviz's (Thu 29/10/2026, his "Finviz Daily,
+   exactly"): one 20px line over the top of the well, the same on every card kind,
+   faded into the chart under it; the chart's top margin keeps its bars clear of
+   it. Until then a 47px two-row lip above the chart (2026-10-04); the weekly /
+   monthly read it carried is in the ticker's tooltip. Children decide what gives
+   way; the line never wraps. */
 .screener-card-head {
-  background: rgba(20, 23, 33, 0.5);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  gap: 2px;
-  height: 47px; /* 4 + 20 + 2 + 16 + 4, and the 1px rule under it */
-  justify-content: center;
+  background: linear-gradient(rgba(20, 23, 33, 0.92), rgba(20, 23, 33, 0));
+  left: 0;
   min-width: 0;
-  padding: 4px 10px;
+  padding: 3px 8px 6px;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 11; /* over the chart, and over the fundamentals page (10) so F can flip it back */
 }
 
 .screener-card-head-row {
   align-items: center;
   display: flex;
-  gap: 7px;
+  gap: 6px;
   height: 20px;
   min-width: 0;
-}
-
-/* The second row: the reads, a step quieter than the stock above them. */
-.screener-card-head-row.is-sub {
-  gap: 9px;
-  height: 16px;
 }
 
 /* Corner reticle — solid mythril L-brackets, one per corner, hidden until

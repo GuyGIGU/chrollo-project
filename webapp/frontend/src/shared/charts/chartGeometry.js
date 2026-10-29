@@ -86,30 +86,33 @@ export const CHART_FRAMING = {
   // went from 60-218 days (p10-p90) to 80-130; the price is that a base over ~47 days
   // now owns more than the 0.40 cap (ACNB 50% of the width) and draws a little
   // narrower than its length says, which he accepted by eye.
+  // FINVIZ'S DAILY, EXACTLY (Thu 29/10/2026, his pick over keeping our framing): every card
+  // shows the last 94 trading days, the span Finviz's 466x219 daily chart draws (measured on
+  // its own image the same day), so every card is at ONE zoom. Floor and ceiling are both 94
+  // and the window never yields to a long base; the one exception is the never-crop clause in
+  // miniFocusLogicalRange (2026-08-09): a base older than the window still shows the day it
+  // opened and its approach leg, and only then is a card wider than 94 days. Until then the
+  // card framed the base in 80-130 days (his 28/10 pick), the base owning up to 40% of it.
   mini: {
-    minWindowBars: 80,           // the FLOOR, not a span: a very short rest still needs room
-                                 // behind it. At cap 0.40 it binds on rests under 28 days.
-                                 // 55 until 28/10/2026, "zoomed in too much" on AGL.
-    legibilityCeilingBars: 130,  // the far end of his band (220 until 28/10/2026, "zoomed out
-                                 // too much" on AAMI and ACNB). 2026-09-02 measured why it sat
-                                 // high: a ceiling stops the window while the rest keeps
-                                 // growing, so a longer rest draws NARROWER than a shorter one
-                                 // (9.7% of pairs at 110, 0.0% at 220). He ruled the steady
-                                 // zoom worth that.
-    ceilingYieldShare: 0.75,     // ...and it yields to a rest it cannot frame (operator
-                                 // 2026-09-02, "for monster bases simply zoom out the base").
-    baseWidthCap: 0.40,          // the base + its right pad may never own more than 40% of
+    minWindowBars: 94,
+    legibilityCeilingBars: 94,
+    ceilingYieldShare: Infinity, // never yields: the never-crop clause is the only widening.
+    baseWidthCap: 0.40,          // INERT on the card since Thu 29/10/2026 (the window is 94 days
+                                 // whatever the base); kept because the popover shares it (and
+                                 // the modal is held at or below it). Until then:
+                                 // the base + its right pad may never own more than 40% of
                                  // the pane, so the context behind it is always >= 1.5x the
                                  // base + pad. 0.35 until 2026-10-02, 0.45 for the close-up,
                                  // 0.40 since 2026-10-04 ("zoom out a little bit"). The
                                  // measured knee is 0.50 (2026-09-02: p90 43.2 -> 47.5, cards
                                  // over 45% of width 17 -> 63) — stay below.
     minContextBars: 18,          // UNCHANGED — the 2026-08-09 approach-leg ruling.
-    // The price band is 88% of the well (was 80%): volume is decoration on the
-    // card — doctrine keeps it out of the read — so its strip, under the bars,
-    // gives up height to the candles (2026-10-02).
-    scaleMargins: { top: 0.04, bottom: 0.08 },
-    volumeScaleTop: 0.92,
+    // Finviz's fit (measured on its 466x219 daily image, Thu 29/10/2026): the bars from 12% under
+    // the top (the ticker line sits there) to 20% over the date axis, volume in the 17% under
+    // them. Until then the price band was 88% of the well with volume a strip under the bars
+    // (2026-10-02).
+    scaleMargins: { top: 0.13, bottom: 0.2 },
+    volumeScaleTop: 0.83,
   },
   modal: {
     minWindowBars: 150,          // About seven months — here the floor IS the span,
