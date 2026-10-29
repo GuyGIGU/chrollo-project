@@ -4,7 +4,9 @@ from types import SimpleNamespace as NS
 
 import pytest
 
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.scoring.clarity import compose_grade
+from engine_alpha.two_eyes.grade import whole_points
 from engine_alpha.two_eyes.clarity import measure
 from engine_alpha.two_eyes.record import Event, Grade, SPRING
 
@@ -83,7 +85,6 @@ def test_a_tighter_box_outranks_a_wider_one_at_equal_dead_space():
     tight = compose_grade(Grade(90, 'S', 1, 40, True), {**facts, 'height_in_ranges': 1.5})
     wide = compose_grade(Grade(90, 'S', 1, 40, True), {**facts, 'height_in_ranges': 3.5})
     assert tight.score > wide.score and tight.letter == wide.letter == 'S'
-    from engine_alpha import two_eyes_numbers as M
     rows = {c['key']: c for c in wide.clarity['components']}
     expected = (M.TRAIT_TIGHT_ZERO_RANGES - 3.5) / (M.TRAIT_TIGHT_ZERO_RANGES - M.TRAIT_TIGHT_FULL_RANGES)
     assert rows['tightness']['fraction'] == pytest.approx(max(0.0, expected))
@@ -95,9 +96,11 @@ def test_the_stage_is_a_trait_and_an_unread_stage_leaves_the_budget():
     weekly stage is not read is graded on the other traits alone."""
     facts = _perfect()
     two, four, none = (compose_grade(Grade(100, 'S', 0, 40, True), facts, stage=s) for s in (2, 4, None))
-    assert two.score == none.score == 100 and four.score == 98
+    budget, stage_points = sum(M.TRAIT_WEIGHTS.values()), M.TRAIT_WEIGHTS['stage']
+    assert two.score == none.score == 100
+    assert four.score == whole_points(75 + 25 * (1 - stage_points / budget)) < 100, "stage 4 costs exactly the stage row"
     assert {c['key']: c['fraction'] for c in none.clarity['components']}['stage'] is None
-    assert none.clarity['available_points'] == 90.0 and two.clarity['available_points'] == 100.0
+    assert none.clarity['available_points'] == budget - stage_points and two.clarity['available_points'] == budget
 
 
 def test_missing_facts_leave_the_integrity_grade_and_a_broken_base_stays_at_zero():

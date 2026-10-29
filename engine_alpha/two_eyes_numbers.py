@@ -142,9 +142,14 @@ GRADE_B = 25.0
 # taught you"). The letter stays the integrity grade's (dead space and the hold: his sealed 40 keep their letters, his
 # ruling 3 of 29/10). WITHIN the letter the traits order the setups: the score runs from the letter's floor to its
 # ceiling by the weighted traits, each a 0..1 fraction of like quantities in a named unit. The weights are OURS; a
-# trait that is not measured leaves the budget.
-TRAIT_WEIGHTS = {"tightness": 30.0, "swings": 15.0, "dead_space": 20.0, "contraction": 15.0, "rails": 10.0,
-                 "stage": 10.0}
+# trait that is not measured leaves the budget. TIGHTNESS CARRIES THE SCORE (Thu 29/10/2026, his "wide ass nothing
+# burger stocks all hug the damn S spot"; his 46 drawings run 1.1 to 2.75 ranges): with 30 points a box three ranges
+# tall with clean swings, rails and stage still read 94, inside the tight pack; with 60 it tops out at 88, under any
+# tight box. Measured the same night on his 90 hearts (36 liked, 54 passed, the same screener): within S NO trait
+# and no stock fact (ADR, run, stage, dollar volume) tells his likes from his passes (every one near a coin flip),
+# so the hearts tune nothing here; the width is the one thing his complaint and his drawings both name.
+TRAIT_WEIGHTS = {"tightness": 60.0, "swings": 5.0, "dead_space": 15.0, "contraction": 5.0, "rails": 10.0,
+                 "stage": 5.0}
 #: Tightness: the box's height in its own daily ranges, full marks at or under this many ranges ("a box about as
 #: tall as its bars is completely fine", Mon 05/10/2026; his boxes run 1.1 to 2.75 ranges, most under 2) ...
 TRAIT_TIGHT_FULL_RANGES = 1.25

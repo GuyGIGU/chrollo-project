@@ -1129,9 +1129,16 @@ default as ours.
    of the base's daily ranges against the earlier two thirds'), rails the turns sit on, and the stock's weekly
    stage (*"the stage thing I taught you"*: stage 2 full marks). Each is a fraction of like quantities in a
    named unit; a trait not measured leaves the budget; the weights are ours and live with the reader's numbers.
-   Measured on his sealed 40: 39 S and BODI C as before, the S scores running 91 to 99 by the traits; on
-   the scan of 28/10/2026 the 197 S rows that all read 100 spread 89 to 100, the boxes three ranges tall
-   and more at the bottom of S.
+   **The width carries the score** (the critique of the same night): tightness is 60 of the 100 points, so a
+   box three ranges tall tops out at 88 under every tight box, where with 30 points it read 94 among them.
+   Measured on his sealed 40: 39 S and BODI C as before, the S scores running 89 (NOK, 2.75 ranges) to 99 by
+   the traits; on the scan of 28/10/2026 the 197 S rows that all read 100 spread 84 to 100, the ten boxes
+   three ranges tall and more at 84 to 87, the 78 under a range and a half at 95 to 100. Measured and found
+   mute: his 90 hearts (36 liked, 54 passed on the same screener) separate within S on NO trait and on no
+   stock fact (ADR, run, stage, dollar volume, price), every one a coin flip; the letter separates them (4 of
+   36 liked under S against 11 of 54 passed). His likes and passes within S are decided by something the
+   grade does not measure, so the hearts tune nothing here and the width is the one trait his complaint and
+   his drawings both name.
 
    **The experimental clarity reading of 22 October 2026, which the table above replaced:** His working definition is a clear, easy-to-read zigzag between resistance and support with understandable events. The technical grade now awards equal budgets for two measured traits: the share of price travel retained by the existing main swing line relative to its finer line, and the average distance of the main peaks/valleys from their expected rails, in box heights. Both travel sums use exactly the same endpoints; the base ends before the strength push, so the right-side advance and LPS do not have to traverse the parent range. A known spring's own below-support valley and a known upthrust's own above-resistance peak keep their event context. Other optional event names earn no automatic points.
 
