@@ -30,6 +30,8 @@ test('one card size, the Finviz way: four at 1920, five at 2560, two in a 1024px
   assert.equal(CARD_GAP_PX, 4);
   assert.ok(rowWidth(4) <= 1920 - GRID_CHROME_PX);
   assert.ok(rowWidth(5) <= 2560 - GRID_CHROME_PX);
+  // Fri 30/10/2026, his "even slightly bigger": the well grows in height, the row stays four at 1920.
+  assert.match(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../index.css'), 'utf8'), /--card-chart-aspect: 466 \/ 240;/);
 });
 
 test('screenerColumnsAt: never returns fewer than one column', () => {
@@ -119,7 +121,7 @@ test('the lens fills the 1920 screen and scrolls, and the big charts hold one si
   // not a bigger one, on the 2560 screen (2026-10-03 "same goes for the big charts").
   assert.match(modal[1], /maxWidth: 1896,/, 'the lens no longer fills the 1920 screen, or grows past it on a bigger one');
   assert.doesNotMatch(modal[1], /maxHeight/, 'the lens shell is height-capped again — the stats block loses the room below the chart');
-  assert.match(css, /--lens-chart-band: 460px;/, 'the chart lost its one height (460px on every monitor, so the grade board fits under it at 1080)');
+  assert.match(css, /--lens-chart-band: 500px;/, 'the chart lost its one height (500px on every monitor, so the grade board fits under it at 1080)');
   const lensBand = css.match(/\n\.lens-chart-grid\s*\{([^}]*)\}/);
   assert.ok(lensBand, 'index.css: the desktop .lens-chart-grid rule not found');
   assert.match(lensBand[1], /height: var\(--lens-chart-band\);/, 'the chart grid no longer takes its own height');

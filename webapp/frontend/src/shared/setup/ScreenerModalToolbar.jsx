@@ -7,42 +7,8 @@ import { lensKeyAction, tradingViewUrl } from './lensActions';
 // THE LENS IS FINVIZ'S QUOTE PAGE (operator Thu 29/10/2026, "base our advanced chart page on their page
 // ... notice how everything is sitting compact and easy to read"): a slim bar with the way back and the
 // pager, then the quote (ticker, company, price), a row of tabs with the stock's chips and its acts on the
-// right, then the chart box with its own toolbar (the timeframe tabs in the middle). This file draws the
-// bar, the quote and the chart toolbar; ScreenerModal lays them out.
-
-const INTERVAL_TABS = [
-  { key: 'D', name: 'Daily' },
-  { key: 'W', name: 'Weekly' },
-  { key: 'M', name: 'Monthly' },
-];
-
-// Finviz's Daily / Weekly / Monthly: words, the shown one boxed. Weekly/Monthly are disabled when the row
-// predates the higher-timeframe read (no resampled candles in payload).
-function IntervalTabs({ interval, onIntervalChange, hasWeekly, hasMonthly }) {
-  const enabled = { D: true, W: hasWeekly, M: hasMonthly };
-  return (
-    <div role="tablist" aria-label="Chart timeframe" className="lens-interval-tabs">
-      {INTERVAL_TABS.map((tab) => {
-        const active = interval === tab.key;
-        const ok = enabled[tab.key];
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            className={`lens-interval-tab${active ? ' is-active' : ''}`}
-            disabled={!ok}
-            onClick={() => ok && onIntervalChange(tab.key)}
-            title={ok ? `The ${tab.name.toLowerCase()} chart` : `${tab.name} — needs more history`}
-          >
-            {tab.name}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+// right, then the chart box with its own toolbar. This file draws the bar, the quote and the chart toolbar;
+// ScreenerModal lays them out.
 
 // W / L / T while the lens is open (operator 2026-10-03, suggestion #1): the
 // same acts as the top bar's buttons, and only where that button is drawn, so W
@@ -204,9 +170,9 @@ export function LensQuote({
   );
 }
 
-// The chart box's own toolbar, Finviz's Draw · Ideas | Daily Weekly Monthly | Full Chart: "fix the box" on
-// the left, the timeframe in the middle, how to move the chart on the right.
-export function LensChartToolbar({ interval, onIntervalChange, hasWeekly, hasMonthly, fixing = false, onToggleFix }) {
+// The chart box's own toolbar: "fix the box" on the left, how to move the chart on the right. The
+// Daily / Weekly / Monthly tabs left it on Fri 30/10/2026 (his word); a side pane's caption opens it big.
+export function LensChartToolbar({ fixing = false, onToggleFix }) {
   return (
     <div className="lens-chart-toolbar">
       <div className="lens-chart-toolbar-side">
@@ -227,9 +193,8 @@ export function LensChartToolbar({ interval, onIntervalChange, hasWeekly, hasMon
           </button>
         )}
       </div>
-      <IntervalTabs hasMonthly={hasMonthly} hasWeekly={hasWeekly} interval={interval} onIntervalChange={onIntervalChange} />
-      <div className="lens-chart-toolbar-side is-right">
-        <span className="lens-chart-hint">wheel zooms · drag pans · ⌂ opening view · ⤢ all</span>
+      <div className="lens-chart-toolbar-side">
+        <span className="lens-chart-hint">wheel zooms · drag pans · ⌂ opening view</span>
       </div>
     </div>
   );

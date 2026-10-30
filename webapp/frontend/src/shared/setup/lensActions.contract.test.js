@@ -111,6 +111,28 @@ test('the lens hands all five through: the acts to the quote, the counter and th
   }
 });
 
+test('the lens panes carry the reset alone, and no Daily / Weekly / Monthly tabs (Fri 30/10/2026, his word)', () => {
+  const lens = read('shared/setup/ScreenerModal.jsx');
+  assert.match(lens, /<ChartZoomControls chartRef=\{daily\.chartRef\} onHome=\{daily\.home\} resetOnly \/>/, 'the daily pane');
+  const timeframe = lens.slice(lens.indexOf('<TimeframeMainChart'), lens.indexOf('/>', lens.indexOf('<TimeframeMainChart')));
+  assert.match(timeframe, /\bresetOnly\b/, 'the weekly and monthly panes');
+  assert.match(read('shared/charts/TimeframeMainChart.jsx'), /resetOnly=\{resetOnly\}/, 'the timeframe chart drops the word');
+  const controls = read('shared/charts/ChartZoomControls.jsx');
+  assert.match(controls, /if \(resetOnly\) return <div className="chart-zoom is-reset">\{reset\}<\/div>;/);
+  assert.doesNotMatch(read(TOOLBAR), /role="tab"|IntervalTabs/, 'timeframe tabs are back in the chart toolbar');
+  // The swap the tabs did lives on: a side pane's caption opens it big.
+  assert.match(lens, /onOpen=\{\(\) => selectInterval\(tf\)\}/);
+});
+
+test('the setup count and the page select sit inside the command band', () => {
+  const grid = read(GRID);
+  const mount = grid.slice(grid.indexOf('<ScreenerToolbar'), grid.indexOf('{screenerData && refreshFailed'));
+  assert.match(mount, /summary=\{[\s\S]*<ScreenerViewSummary/, 'the toolbar is not handed the summary');
+  assert.equal(grid.match(/<ScreenerViewSummary/g).length, 1, 'a second summary is drawn outside the band');
+  const toolbar = read('features/screener/components/ScreenerToolbar.jsx');
+  assert.match(toolbar, /<\/Popover>\s*\{summary\}\s*<\/div>\s*\);\s*\}\s*function statusLabel/, 'the band does not close with the summary');
+});
+
 test('every other lens host gets ↗ TV alone, and no lens carries a second TradingView link', () => {
   const hosts = readdirSync(srcDir, { recursive: true })
     .map((f) => f.split('\\').join('/'))

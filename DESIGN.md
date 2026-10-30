@@ -498,7 +498,9 @@ window. Finviz, measured the same day, draws 466x219 at every width and never zo
 the page; an unstored scale is therefore 100% (there is no auto-fit). **The card's
 chart IS Finviz's daily** (his "Finviz Daily, exactly", the same night; 460px, a 47px
 two-row header over a 1.9:1 well and 80-130 days framed on the base until then): a
-466:219 well with the ticker line drawn inside its top (the weekly / monthly read in
+466:240 well (Finviz's 466:219 for a night; his "even slightly bigger", Fri 30/10/2026,
+21px taller because four 466px cards already fill the 1920 screen) with the ticker line
+drawn inside its top (the weekly / monthly read in
 the ticker's tooltip), the last 94 trading days on every card (wider only when the box
 opened earlier: its open and approach leg stay on the card), the bars from 13% under
 the top to 20% over the dates, volume under them. The bars are one colour (whitewashed
@@ -508,7 +510,7 @@ columns on every monitor (Wed 28/10/2026, `repeat(4, minmax(0, 1fr))`), which dr
 620px at 2560 and squeezed to 236px in a 1024px window; from 2026-10-03 one size
 of at least 590px; the day before that a three-card ceiling. **The big charts hold one size on every monitor too**: the
 Watchlist D/W/M band is 1850x805, and the lens's chart band is `--lens-chart-band`,
-460px on every screen (600 until Thu 29/10/2026, then 400 for an evening). **The lens is Finviz's quote page (fourth pass, Thu 29/10/2026**, his
+500px on every screen (600 until Thu 29/10/2026, then 400 for an evening, 460 for a night). **The lens is Finviz's quote page (fourth pass, Thu 29/10/2026**, his
 *"base our advanced chart page on their page ... notice how everything is sitting compact and easy to
 read"*, measured on finviz.com/stock the same day): 1896px, the whole 1920 screen inside the scrim's
 12px frame (his "make the entire pop up bigger"; Finviz's 1425 for an hour, then 1760), and that size,
@@ -516,9 +518,11 @@ centred, on the 2560 screen too (the 2026-10-03 "same goes for the big charts"),
 30px in its tier hue, the company 18px in blue, the tier, the price 32px with its date and the day's
 change), a tab row (The read | Fundamentals on the left; the Sector (with its ETF), Industry, Cap and
 Setup chips, each saying what it is, the star, the heart and ↗ TV on the right), then the chart box:
-its toolbar (Fix the box | Daily Weekly Monthly | how to move it) over THE THREE PANES of the third
+its toolbar (Fix the box | how to move it) over THE THREE PANES of the third
 pass below, kept (his "I still need the 3 sized screen of Daily/weekly/monthly"; one chart for an
-afternoon), at 460px (400 on his "the chart is way to big", then "bigger slightly"), the toolbar's tab naming the big pane (the
+afternoon), at 500px (400 on his "the chart is way to big", then "bigger slightly", then "even slightly bigger"). Fri 30/10/2026 he
+had the toolbar's Daily / Weekly / Monthly tabs and the panes' +, - and fit buttons removed: a side pane's caption
+opens it big, and each pane keeps one small reset (⌂) in the empty corner where its price axis meets its date axis. The Watchlist's panes and the fix page keep the zoom cluster (the
 card has a month axis and names its sector by its ETF alone), no headings over the blocks; under it the phase board (the events by phase; the
 box's own facts moved out of it), then the stock's numbers as Finviz's snapshot table (six columns of
 label/value pairs read top to bottom, 12px on 21px rows), the box's lines, height, base, the days in

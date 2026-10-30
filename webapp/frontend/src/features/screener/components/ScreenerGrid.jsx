@@ -266,6 +266,10 @@ const ScreenerGrid = () => {
         universe={universe}
         onUniverseChange={handleUniverseChange}
         hideFilters={showHealthBoard}
+        summary={showResults && !showHealthBoard && !drilldown ? (
+          <ScreenerViewSummary filters={filters} matchedCount={filters.filteredTickers.length}
+            totalCount={Object.keys(screenerData.chart_data || {}).length} />
+        ) : null}
       />
       {screenerData && refreshFailed && (
         <div className="screener-refresh-warning" role="alert">
@@ -273,10 +277,6 @@ const ScreenerGrid = () => {
           <button type="button" className="btn btn-sm" disabled={refreshing}
             onClick={() => fetchScreener(universe)}>{refreshing ? 'Retrying…' : 'Retry refresh'}</button>
         </div>
-      )}
-      {showResults && !showHealthBoard && !drilldown && (
-        <ScreenerViewSummary filters={filters} matchedCount={filters.filteredTickers.length}
-          totalCount={Object.keys(screenerData.chart_data || {}).length} />
       )}
       {isEtfUniverse(universe) && (
         <div style={etfNoteStyle}>

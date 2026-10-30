@@ -25,10 +25,10 @@ const readSkin = () => {
 };
 
 // THE THREE PANES (Fri 17/10/2026, his TradingView layout): the monthly over the weekly in a side
-// column, the big pane beside them. The toolbar's Daily / Weekly / Monthly says which one is big; the
-// other two take the side column, higher timeframe first; a click on a side pane's caption swaps it in.
-// One Finviz chart replaced them on Thu 29/10/2026 and he had them back the same day ("I still need the
-// 3 sized screen of Daily/weekly/monthly").
+// column, the big pane beside them. The other two take the side column, higher timeframe first; a click
+// on a side pane's caption swaps it in (the one way to swap since Fri 30/10/2026: he had the toolbar's
+// Daily / Weekly / Monthly removed). One Finviz chart replaced them on Thu 29/10/2026 and he had them back
+// the same day ("I still need the 3 sized screen of Daily/weekly/monthly").
 const PANES = ['M', 'W', 'D'];
 const PANE_NAME = { D: 'Daily', W: 'Weekly', M: 'Monthly' };
 const SIDE_BARS = { W: 100, M: 60 };
@@ -99,9 +99,6 @@ const ScreenerModal = ({
     }
   };
 
-  const hasWeekly = data?.weekly_candles?.length > 0;
-  const hasMonthly = data?.monthly_candles?.length > 0;
-
   // Reset overlays and snap back to the daily chart and the read on every ticker change.
   useEffect(() => {
     setActiveRegion(null);
@@ -147,7 +144,7 @@ const ScreenerModal = ({
       return (
         <div className="lens-daily-frame">
           <div ref={chartContainerRef} className="lens-daily-canvas" />
-          <ChartZoomControls chartRef={daily.chartRef} onHome={daily.home} />
+          <ChartZoomControls chartRef={daily.chartRef} onHome={daily.home} resetOnly />
         </div>
       );
     }
@@ -157,6 +154,7 @@ const ScreenerModal = ({
         box={tf === 'W' ? data.weekly_box : data.monthly_box}
         candles={tf === 'W' ? data.weekly_candles : data.monthly_candles}
         label={tf === 'W' ? 'WEEKLY' : 'MONTHLY'}
+        resetOnly
         volumes={tf === 'W' ? data.weekly_volumes : data.monthly_volumes}
       />
     );
@@ -253,14 +251,7 @@ const ScreenerModal = ({
             watchlisted={watchlisted}
           />
           <section key={skin} className="lens-chart-box">
-            <LensChartToolbar
-              fixing={fixing}
-              hasMonthly={hasMonthly}
-              hasWeekly={hasWeekly}
-              interval={interval}
-              onIntervalChange={selectInterval}
-              onToggleFix={onToggleFix}
-            />
+            <LensChartToolbar fixing={fixing} onToggleFix={onToggleFix} />
             <div className="lens-chart-grid" style={{ flex: '0 0 auto' }}>
               <div className="lens-chart-side">
                 {PANES.filter((tf) => tf !== interval).map((tf) => (

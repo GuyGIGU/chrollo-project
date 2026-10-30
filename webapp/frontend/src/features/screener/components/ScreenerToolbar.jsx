@@ -13,6 +13,8 @@ import { TIER_FILTERS } from '../model/screenerUrlState.js';
 // health line). Evaluate stays OUT on the bar — it's run constantly while the
 // reading engine is being tuned. Nothing here is new state: it re-seats the
 // existing filters/scan controls; mythril marks only the active control.
+// `summary` (the setup count, the active filters, the page select) closes the same
+// block (Fri 30/10/2026, his "Filter and Page select be the same block").
 function ScreenerToolbar({
   screenerData,
   isScanning,
@@ -27,6 +29,7 @@ function ScreenerToolbar({
   universe,
   onUniverseChange,
   hideFilters = false,
+  summary = null,
 }) {
   // The Download/Evaluate actions operate ONLY on the US-Stocks cache; the ETF
   // universes are refreshed by the scheduled daily scan, so these controls are
@@ -146,6 +149,8 @@ function ScreenerToolbar({
           </button>
         </div>
       </Popover>
+
+      {summary}
     </div>
   );
 }

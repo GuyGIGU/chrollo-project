@@ -57,7 +57,7 @@
   --lens-hairline-soft: rgba(255, 255, 255, 0.08);
   --lens-well: rgba(0, 0, 0, 0.22);
   --lens-well-hover: rgba(0, 0, 0, 0.32);
-  --lens-chart-band: 460px;   /* Finviz's 400 (Thu 29/10/2026, "the chart is way to big, make it compact like finviz"), then 15% taller the same night: "make the advanced chart bigger slightly" */
+  --lens-chart-band: 500px;   /* Finviz's 400 (Thu 29/10/2026, "the chart is way to big, make it compact like finviz"), then 460 the same night ("make the advanced chart bigger slightly"), then 500 (Fri 30/10/2026, "even slightly bigger") */
   --glow-active: 0 0 0 1px var(--myth), 0 0 12px var(--myth-glow);
 
   /* Setup tier identity (DESIGN.md tier ladder). Reserved hues — one source of
@@ -146,8 +146,10 @@
      card under ~382px wide; it never binds at the 590px card minimum. Used by
      ScreenerCard (firing + health) and WatchlistCardGrid's clean card.
      Thu 29/10/2026, his "Finviz Daily, exactly": Finviz's chart image, 466x219,
-     the ticker line drawn INSIDE it (.screener-card-head is an overlay since). */
-  --card-chart-aspect: 466 / 219;
+     the ticker line drawn INSIDE it (.screener-card-head is an overlay since).
+     Fri 30/10/2026, his "even slightly bigger": 21px taller. Height is the lever: four
+     466px cards already fill the 1920 screen, and a wider one would drop the row to three. */
+  --card-chart-aspect: 466 / 240;
   --card-chart-min-h: 200px;
 }
 
@@ -2184,6 +2186,25 @@ td {
   outline: none;
 }
 
+/* The lens's panes keep only the reset (Fri 30/10/2026, his "just have a small reset button at the
+   bottom right"): it sits in the empty corner where the price axis meets the date axis, so it never
+   covers a bar. */
+.chart-zoom.is-reset {
+  background: transparent;
+  border: 0;
+  bottom: 3px;
+  left: auto;
+  padding: 0;
+  right: 4px;
+}
+
+.chart-zoom.is-reset .chart-zoom-btn {
+  font-size: 12px;
+  height: 20px;
+  min-width: 20px;
+  padding: 0;
+}
+
 
 /* THE LENS IS FINVIZ'S QUOTE PAGE (Thu 29/10/2026, his "base our advanced chart page on their page
    ... notice how everything is sitting compact and easy to read"). Measured on finviz.com/stock the
@@ -2327,36 +2348,16 @@ td {
 .lens-chart-toolbar {
   align-items: center;
   border-bottom: 1px solid var(--lens-hairline);
-  display: grid;
+  display: flex;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  justify-content: space-between;
   min-height: 40px;
   padding: 4px 8px;
 }
 
 .lens-chart-toolbar-side { align-items: center; display: flex; gap: 6px; min-width: 0; }
-.lens-chart-toolbar-side.is-right { justify-content: flex-end; }
 
 .lens-chart-hint { color: var(--text-faint); font-size: 11px; white-space: nowrap; }
-
-.lens-interval-tabs { align-items: center; display: flex; gap: 2px; }
-
-.lens-interval-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 3px 8px;
-}
-
-.lens-interval-tab:hover:not(:disabled) { color: var(--text-main); }
-.lens-interval-tab:disabled { color: var(--text-faint); cursor: default; }
-.lens-interval-tab.is-active { border-color: var(--accent-blue); color: var(--text-main); }
-.lens-interval-tab:focus-visible { outline: 1px solid var(--accent-blue); outline-offset: 1px; }
 
 /* A block under the chart (the grade board): the panel tone, the same hairline frame. */
 .lens-box {
@@ -2917,7 +2918,7 @@ td {
    The panel's controls speak the house interaction grammar — the same
    hover wash + border strengthening as .phase-bin-control beside them, the
    app's accent focus ring, one shared padding and type size. A SELECTED
-   verdict wears the modal's selection grammar (the IntervalTabs myth-soft
+   verdict wears the modal's selection grammar (a myth-soft
    wash), never the solid primary-action fill: a recorded verdict is a
    resting state, not a live action. */
 .narrative-glyph {
@@ -3177,8 +3178,11 @@ td {
   border-radius: var(--radius-sm);
 }
 
+/* The count and the pager live INSIDE the band (Fri 30/10/2026, his "have the top component (Filter and
+   Page select) be the same block"): they take what is left of the band's last line, the pager at its end. */
 .screener-view-summary {
   display: flex;
+  flex: 1 1 360px;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;

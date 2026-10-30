@@ -52,8 +52,9 @@ const homeView = (chart, candles, boxStart, show) => {
   chart.timeScale().setVisibleLogicalRange({ from: viewFrom, to: n - 1 });
 };
 
-// `bars` overrides the opening window (the lens's side column shows fewer, Fri 17/10/2026).
-export default function TimeframeMainChart({ candles, volumes, box, label, bars = null }) {
+// `bars` overrides the opening window (the lens's side column shows fewer, Fri 17/10/2026);
+// `resetOnly` is the lens's corner button in place of the zoom cluster (Fri 30/10/2026).
+export default function TimeframeMainChart({ candles, volumes, box, label, bars = null, resetOnly = false }) {
   const chartRef = useRef(null);
   const boxR = box?.r;
   const boxS = box?.s;
@@ -127,6 +128,7 @@ export default function TimeframeMainChart({ candles, volumes, box, label, bars 
       <ChartZoomControls
         chartRef={chartRef}
         onHome={() => { if (chartRef.current) homeView(chartRef.current, candles, boxStart, show); }}
+        resetOnly={resetOnly}
       />
     </div>
   );
