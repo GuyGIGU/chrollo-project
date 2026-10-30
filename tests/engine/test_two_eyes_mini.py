@@ -56,7 +56,7 @@ def his_minis() -> list:
         found, days, prepared, cut = _walk_on_his_last_day(setup)
         out.append({"key": setup_key(setup), "setup": setup, "found": found, "days": days, "prepared": prepared,
                     "raw": cut})
-    assert {m["setup"]["ticker"] for m in out} == {"DSGN", "MSGS"}     # the standard's own list, kept there
+    assert {m["setup"]["ticker"] for m in out} == {"DSGN"}     # the standard's own list, kept there (MSGS's mini went with his redraw of Sat 10/10/2026)
     return out
 
 
@@ -78,8 +78,8 @@ def test_the_walk_lists_the_mini_pair_he_drew(his_minis):
     """The plan's first clause for task 13 (*"with YOUR parent lines injected, the same pair functions LIST the
     mini pair YOU DREW"*): on each drawing that carries a mini, the walk's own listing on his last receding day
     holds a pair that became a box, both lines within half the parent's range of his band, both anchors inside
-    his span. DSGN: 10.97 / 9.82 (Tue 27/01 and Fri 30/01/2026), a box on Tue 17/02/2026. MSGS: 345.48 / 325.27
-    (Wed 15/04 and Thu 16/04/2026), a box on Tue 05/05/2026 — the pair the reader shows as the parent."""
+    his span. DSGN: 10.97 / 9.82 (Tue 27/01 and Fri 30/01/2026), a box on Tue 17/02/2026. MSGS's mini (345.48 /
+    325.27, the pair the reader shows as the parent) went with his redraw of Sat 10/10/2026: those lines are his box now."""
     for m in his_minis:
         found, days = m["found"], m["days"]
         assert found.winner is not None, m["key"]
@@ -87,8 +87,6 @@ def test_the_walk_lists_the_mini_pair_he_drew(his_minis):
         assert near, f"{m['key']}: no born pair within half the parent's range of his mini {m['setup']['mini']}"
         if m["setup"]["ticker"] == "DSGN":
             assert any(days[p.birth_bar] == dt.date(2026, 2, 17) and abs(p.S - 9.82) < 0.005 for p in near)
-        if m["setup"]["ticker"] == "MSGS":
-            assert any(p.feet == found.winner.feet for p in near)      # his mini is the box the reader shows
 
 
 # --------------------------------------------------------------------------- #
@@ -157,7 +155,7 @@ def his_40() -> dict:
         out[setup_key(setup)] = {"setup": setup, "found": found, "days": days, "prepared": prepared, "raw": cut,
                                 "high": prepared["High"].to_numpy(dtype=float),
                                 "low": prepared["Low"].to_numpy(dtype=float)}
-    assert len(out) == 40
+    assert len(out) == 52
     return out
 
 
@@ -193,11 +191,17 @@ _MINIS_ON_HIS_40 = {
     "NGL:2026-04-20": (11.94, 11.32), "ORMP:2026-04-13": (3.48, 3.27),
     "SILC:2026-04-13": (20.50, 18.83), "ST:2026-04-17": (35.41, 33.77),
     "VIK:2026-06-11": (86.90, 82.66), "VLO:2026-07-08": (265.61, 253.38),
+    # His drawings since the seal of 40 (the standard of Fri 30/10/2026): on four the mini is the shelf he drew as
+    # THE box (ANET, CLOV, DSGX, CBLL near it); on CLDT, OKTA and VTMX he drew none.
+    "ANET:2026-10-02": (200.68, 187.89), "CBLL:2026-10-28": (25.63, 24.00), "CLDT:2026-10-09": (13.21, 12.79),
+    "CLOV:2026-10-27": (4.68, 4.35), "DSGX:2026-10-08": (79.11, 75.31), "OKTA:2026-09-03": (153.68, 146.65),
+    "VTMX:2026-10-02": (35.23, 33.47),
 }
 _LPS_AGAINST_THE_MINI_ON_HIS_40 = {
     "ALB:2026-04-13": "on", "DSGN:2026-03-31": "in", "FOSL:2026-02-18": "on",
     "NGL:2026-01-20": "on", "ORMP:2026-04-13": "on", "VIK:2026-06-11": "near",
     "VLO:2026-07-08": "in",
+    "ANET:2026-10-02": "near", "CLDT:2026-10-09": "near", "CLOV:2026-10-27": "in", "DSGX:2026-10-08": "on",
 }
 
 
@@ -280,7 +284,7 @@ def test_an_oversized_poke_cannot_block_the_smaller_seventy_percent_rest():
 
 
 def test_the_charts_of_his_40_with_a_mini_are_exactly_these(his_40):
-    """The ratchet: on his last receding day the stage draws a mini on these eleven of his 40 and no other, each
+    """The ratchet: on his last receding day the stage draws a mini on these seventeen of his 52 and no other, each
     with these lines. DSGN is his to the cent at the top; ST is the mini he deleted, back by his ruling on the
     structure; the other nine he never drew (his eye on the pictures). Every candidate opened after the parent
     became a box (the parent's right side)."""
@@ -507,10 +511,10 @@ def test_kwrs_oversized_mini_cannot_rescue_later_days_even_with_the_position_con
 
 
 def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
-    """On his last receding day the LPS is read against the mini on exactly the eight charts whose pullback's low
-    sits in, on or near it, each as pinned; on the three other charts with a mini (NGL, SILC, ST) the low is away,
-    and on the twenty-nine without one, against the parent. Fires on his day are the LPS tests' business (35 of
-    40, unchanged)."""
+    """On his last receding day the LPS is read against the mini on exactly the eleven charts whose pullback's low
+    sits in, on or near it, each as pinned; on the six other charts with a mini (NGL, SILC, ST; CBLL, OKTA and VTMX
+    since Fri 30/10/2026) the low is away, and on the thirty-five without one, against the parent. Fires on his day
+    are the LPS tests' business."""
     from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT, read as read_chart
 
     against = {}
@@ -520,7 +524,8 @@ def test_the_lps_names_the_mini_on_every_chart_of_his_40_that_has_one(his_40):
             against[key] = (read.lps.read_against, read.lps.how)
     named = {t: how for t, (role, how) in against.items() if role == ROLE_MINI}
     assert named == _LPS_AGAINST_THE_MINI_ON_HIS_40, sorted(named.items())
-    assert set(named) < set(_MINIS_ON_HIS_40) and set(_MINIS_ON_HIS_40) - set(named) == {"NGL:2026-04-20", "SILC:2026-04-13", "ST:2026-04-17"}
+    assert set(named) < set(_MINIS_ON_HIS_40) and set(_MINIS_ON_HIS_40) - set(named) == {
+        "NGL:2026-04-20", "SILC:2026-04-13", "ST:2026-04-17", "CBLL:2026-10-28", "OKTA:2026-09-03", "VTMX:2026-10-02"}
     assert against["DSGN:2026-03-31"] == (ROLE_MINI, "in")
     assert all(how is None for role, how in against.values() if role == ROLE_PARENT)
 

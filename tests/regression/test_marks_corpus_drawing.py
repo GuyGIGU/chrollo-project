@@ -40,7 +40,7 @@ _CORPUS = os.path.join(_ROOT, "docs", "marks", "guided_list_2026-07.json")
 # ST's mini was in the standard for one export and he deleted it the same
 # evening, together with ST's spring test. ROIV's went on Thu 01/10/2026, when
 # he redrew its box ("Sorry Roiv was wrong": support 27.92 for 27.12).
-_MINI_CHARTS = {"DSGN", "MSGS"}
+_MINI_CHARTS = {"DSGN"}   # MSGS's mini went with his redraw of Sat 10/10/2026
 
 #: Removes a key, where None would SET it (a null trigger is a real value).
 _DROP = object()
@@ -169,9 +169,9 @@ def test_the_minis_he_drew_ride_the_standard():
         # shape twice ("a mini consolidation that rests on the resistance",
         # Sat 29/08/2026; a rest above R "evolves to be a mini consolidation",
         # Sun 13/09/2026), so our rule must never refuse his drawing. Measured
-        # on the two he stands behind today: DSGN's bottom 9.90 sits 0.41 under
-        # his resistance 10.31, MSGS's 325.50 sits 19.96 under 345.46; both
-        # above his support.
+        # on the one he stands behind today (MSGS's mini went with his redraw of
+        # Sat 10/10/2026): DSGN's bottom 9.90 sits 0.41 under his resistance
+        # 10.31, above his support.
         R, S = s["rails_drawn"]["R"], s["rails_drawn"]["S"]
         where = ("inside his rails" if S < lo < R else
                  "above his resistance" if lo >= R else "under his support")
@@ -281,11 +281,11 @@ def test_carrying_his_drawing_does_not_void_a_pinned_verdict():
 # --------------------------------------------------------------------------- #
 # His drawn events (task 12b, Fri 02/10/2026)                                 #
 # --------------------------------------------------------------------------- #
-#: What he had drawn beside the LPS and the mini when the standard was last exported (Fri 02/10/2026, 22:18
-#: local): the spans, and the setups that carry at least one. A written-down expectation, not a live read: when
+#: What he had drawn beside the LPS and the mini when the standard was last exported (Fri 30/10/2026, his 52
+#: drawings): the spans, and the setups that carry at least one. A written-down expectation, not a live read: when
 #: he draws or deletes an event these move in the SAME change as the re-export. A drawn event is a kind and a
 #: span of days and nothing else; a setup without one is not his "no".
-_HIS_DRAWN_EVENTS = {"sos": (29, 28), "phase_c": (11, 11), "spring_test": (5, 4), "last_supper": (8, 8)}
+_HIS_DRAWN_EVENTS = {"sos": (38, 37), "phase_c": (12, 12), "spring_test": (4, 4), "last_supper": (10, 10)}
 
 
 def test_his_drawn_events_ride_the_standard():
@@ -305,5 +305,6 @@ def test_his_drawn_events_ride_the_standard():
     assert by["VIK:2026-06-11"]["sos"] == [["2026-05-21", "2026-05-28"]]
     assert by["VIK:2026-06-11"]["last_supper"] == [["2026-05-29", "2026-06-03"]]
     assert by["PBT:2026-05-11"]["sos"] == [["2026-05-01", "2026-05-05"]]
-    # He draws two of a kind on one chart: two SOS on EWTX, two spring tests on BODI.
-    assert len(by["EWTX:2026-03-31"]["sos"]) == 2 and len(by["BODI:2026-04-21"]["spring_test"]) == 2
+    # He draws two of a kind on one chart: two SOS on EWTX (BODI's two spring tests went with his redraw,
+    # which carries no event at all).
+    assert len(by["EWTX:2026-03-31"]["sos"]) == 2 and "spring_test" not in by["BODI:2026-04-21"]

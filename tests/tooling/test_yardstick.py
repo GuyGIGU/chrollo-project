@@ -381,7 +381,7 @@ _HIS_LINES = {
     "SYRE": (35.31, 32.26, "2025-12-11"),
     "ALB": (179.10, 160.02, "2026-01-15"),
     "FOSL": (4.00, 3.61, "2025-12-26"),
-    "MSGS": (345.46, 320.70, "2026-02-18"),
+    "MSGS": (345.48, 325.27, "2026-04-15"),   # redrawn by him on Sat 10/10/2026 (was 345.46 / 320.70 from 18/02)
     "ROIV": (30.33, 27.92, "2026-03-11"),     # redrawn by him on Thu 01/10/2026 (support was 27.12)
 }
 
@@ -412,14 +412,23 @@ def test_his_buy_is_the_day_after_his_last_receding_day_priced_off_it():
         sessions = [d.date() for d in raw.index]
         last_receding = his_last_lps_day(setup)
         buy = _d(setup["trigger"])
-        assert sessions.index(buy) - sessions.index(last_receding) == 1, (
-            f"{setup_key(setup)}: his buy is not the session after his last "
-            "receding day")
+        if buy not in sessions:
+            # A mark drawn on its last receding day (the scan day) is frozen on a
+            # frame that ends there; his buy is the next session, past the frame
+            # (CBLL and CLOV, drawn Fri 30/10/2026).
+            assert last_receding == sessions[-1] < buy, (
+                f"{setup_key(setup)}: his buy is not the session after his last "
+                "receding day")
+        else:
+            assert sessions.index(buy) - sessions.index(last_receding) == 1, (
+                f"{setup_key(setup)}: his buy is not the session after his last "
+                "receding day")
         high = float(raw.iloc[sessions.index(last_receding)]["High"])
         assert abs(high - float(setup["trigger_price"])) < 0.005, (
             f"{setup_key(setup)}: his trigger price is not that day's high")
         checked += 1
-    assert checked == len(setups) >= 37, f"checked {checked} drawings of {len(setups)}"
+    with_a_buy = sum(1 for s in setups if s.get("trigger") is not None)
+    assert checked == with_a_buy >= 37, f"checked {checked} drawings of {with_a_buy} with a buy"
 
 
 #: The named charts, and the stage of the rewrite that has to turn each green.
@@ -446,8 +455,8 @@ _STAGE_OF = {
            "called option 1 (the climax of the rise and its reaction, the clean chop from "
            "January kept); the shorter box he drew before is his option 2, acceptable",
     "FOSL": "stage 10 — the election order (one of the four it decides)",
-    "MSGS": "stage 10 — the election order; he also blessed a shorter base "
-            "that skips the dead space, so his marked box is not the only pass",
+    "MSGS": "stage 10 — the election order; redrawn on Sat 10/10/2026 to the shorter "
+            "base that skips the dead space (the one he had blessed beside his first)",
     "ROIV": "stage 10 — the election order (one of the four it decides)",
 }
 

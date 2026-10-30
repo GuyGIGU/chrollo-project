@@ -528,13 +528,14 @@ def his_windows() -> list:
                         "span": (_date(span[0]), _date(span[1])), "days": days, "high": high, "low": low,
                         "on_his_lines": on_his_lines, "raw": raw,
                         "read": two_eyes.read(setup["ticker"], cut)})
-    assert len(out) == 43      # 40 drawings, three of them with two windows (ALB, PBT, SYRE)
+    assert len(out) == 56      # 52 drawings, four of them with two windows (ALB, ANET, PBT, SYRE)
     return out
 
 
 #: The one drawn window whose last day does not recede: Fri 15/05/2026 made a higher high and a higher low than
 #: Thu 14/05, so by his own MRK answer it crossed Thursday's high — the reader's pullback ends on Thursday.
-_LAST_DAY_ADVANCES = ("YPF:2026-05-18",)
+#: EXPD (drawn Fri 30/10/2026) is the second: Thu 08/10/2026 crossed the trigger 192.65, the high of Wed 07/10.
+_LAST_DAY_ADVANCES = ("EXPD:2026-10-09", "YPF:2026-05-18")
 
 
 def test_on_his_last_receding_day_the_pullback_ends_that_day_at_his_trigger(his_windows):
@@ -547,14 +548,20 @@ def test_on_his_last_receding_day_the_pullback_ends_that_day_at_his_trigger(his_
             continue
         assert row["days"][got.end_bar] == his_end and got.crossed_bar is None, row["key"]
         assert got.trigger == pytest.approx(float(row["high"][-1])), row["key"]
-        if row["last"]:
+        if row["last"] and row["setup"].get("trigger_price") is not None:     # CLDT carries no buy
             assert got.trigger == pytest.approx(float(row["setup"]["trigger_price"]), abs=0.005), row["key"]
     assert tuple(seen) == _LAST_DAY_ADVANCES
 
 
+#: His one window refused on HIS OWN lines (drawn Fri 30/10/2026): VTMX's rest of Mon 31/08 to Wed 02/09/2026 sits
+#: 2.79 daily ranges under the spike of Fri 21/08/2026 (his last supper), over the ceiling he set at 2.75 on his
+#: STGW (Fri 23/10/2026), by 0.04. His word owed.
+_REFUSED_ON_HIS_OWN_LINES = {"VTMX:2026-10-02": ("a slice of a bigger swing down",)}
+
+
 def test_none_of_his_windows_is_refused_by_any_of_his_four_sentences_on_his_own_lines(his_windows):
     refused = {row["key"]: row["on_his_lines"].refused for row in his_windows if row["on_his_lines"].refused}
-    assert refused == {}
+    assert refused == _REFUSED_ON_HIS_OWN_LINES
 
 
 def test_the_window_opens_where_he_shades_it_on_most_of_his_windows(his_windows):
@@ -566,8 +573,9 @@ def test_the_window_opens_where_he_shades_it_on_most_of_his_windows(his_windows)
     same = [row["key"] for row in his
             if row["span"][0] in (row["days"][row["on_his_lines"].top_bar], row["days"][row["on_his_lines"].start_bar])]
     other = sorted(set(row["key"] for row in his) - set(same))
-    assert other == ["FOSL:2026-02-18", "MRK:2026-08-10", "MS:2026-06-04", "MSGS:2026-05-22", "ORMP:2026-04-13",
-                     "SILC:2026-04-13", "WAT:2026-09-24"], other
+    # DDI's first and VTMX (Fri 30/10/2026) carry a bounce day inside his shading too.
+    assert other == ["DDI:2026-08-10", "FOSL:2026-02-18", "MRK:2026-08-10", "MS:2026-06-04", "MSGS:2026-05-22",
+                     "ORMP:2026-04-13", "SILC:2026-04-13", "VTMX:2026-10-02", "WAT:2026-09-24"], other
     # JAZZ, the run he trimmed: six receding days, read on the last five bars, open where he opens it.
     jazz = next(row for row in his if row["key"] == "JAZZ:2026-02-24")
     assert jazz["days"][jazz["on_his_lines"].start_bar] == dt.date(2026, 2, 6) == jazz["span"][0]
@@ -578,33 +586,42 @@ def test_the_numbers_are_re_derived_from_his_marks_in_the_unit_the_reader_uses(h
     redraws, this is the test that says a number no longer covers his marks."""
     from engine_alpha import two_eyes_numbers as M
 
-    got = [row["on_his_lines"] for row in his_windows if row["key"] not in _LAST_DAY_ADVANCES]
+    # VTMX, refused on his own lines (2.79 ranges under the spike of Fri 21/08/2026), is read beside, not in, the set.
+    got = [row["on_his_lines"] for row in his_windows
+           if row["key"] not in _LAST_DAY_ADVANCES and row["key"] not in _REFUSED_ON_HIS_OWN_LINES]
     over = {row["key"]: round(row["on_his_lines"].over_resistance, 2) for row in his_windows
             if row["key"] not in _LAST_DAY_ADVANCES and row["on_his_lines"].over_resistance > 0}
     # The ruling's six (Thu 10/09/2026): WTS 0.12, VLO 0.27, NGL 0.29, VIK 0.33, UNF 0.45, ST 1.30 — to the cent in
     # this unit. SILC's low sits on his resistance. MTLS joined them when he drew it (Sun 27/09/2026).
     assert over == {"MTLS:2026-09-04": 0.63, "NGL:2026-04-20": 0.29, "SILC:2026-04-13": 0.01, "ST:2026-04-17": 1.30,
-                    "UNF:2026-07-10": 0.45, "VIK:2026-06-11": 0.33, "VLO:2026-07-08": 0.27, "WTS:2026-06-12": 0.12}
+                    "UNF:2026-07-10": 0.45, "VIK:2026-06-11": 0.33, "VLO:2026-07-08": 0.27, "WTS:2026-06-12": 0.12,
+                    # his 52 (Fri 30/10/2026): three more rest over their resistance, none near the ceiling
+                    "ANET:2026-10-02": 0.25, "CBLL:2026-10-28": 0.65, "OKTA:2026-09-03": 0.66}
     assert max(over.values()) < M.LPS_CEILING_RANGES < max(over.values()) + 0.1
     # His deepest pullback in the sealed drawings, top to low (R8's research, Tue 08/09/2026: min 0.80, median
     # 1.23, max 2.43). The ceiling sat 0.07 over it until his STGW (Fri 23/10/2026): the rest of 19 to 21/10 on the
     # box's top, 2.62 ranges under the spike of 13/10, drawn as his LPS on a screenshot (no mark in the journal), so
     # the ceiling moved to 2.75, over that; the sealed set's deepest stays under it by more than the old margin.
-    deepest = max(p.depth for p in got)
-    assert deepest == pytest.approx(2.43, abs=0.005)
+    kept = [row for row in his_windows
+            if row["key"] not in _LAST_DAY_ADVANCES and row["key"] not in _REFUSED_ON_HIS_OWN_LINES]
+    deepest, who = max((row["on_his_lines"].depth, row["key"]) for row in kept)
+    assert deepest == pytest.approx(2.49, abs=0.005), who     # his 52 (Fri 30/10/2026); 2.43 on the sealed 40
     assert deepest < 2.62 < M.LPS_DEPTH_MAX_RANGES < 2.62 + 0.15
     # Most of the move above the support area: his worst is JAZZ's poke.
     assert max(p.under_support for p in got) < 0.05 < M.LPS_UNDER_SUPPORT_SHARE
     # "2 - 5 bars": every window he drew, the top day and the receding days.
     drawn = [len([d for d in row["days"] if row["span"][0] <= d <= row["span"][1]]) for row in his_windows]
-    assert (min(drawn), max(drawn)) == (2, M.LPS_MAX_BARS)
+    # TWLO (Fri 30/10/2026) shades one receding day alone, the top day left out: a one-bar window.
+    assert (min(drawn), max(drawn)) == (1, M.LPS_MAX_BARS)
     assert max(p.end_bar - p.top_bar + 1 for p in got) <= M.LPS_MAX_BARS
 
 
-#: Where the reader's OWN box refuses his window. On the box of tasks 10 and 11 sentence four refused three (MS,
-#: ROIV, SILC: its resistance sat 1.4 to 3.3 ranges under his LPS). On the box of the rule he settled (Thu
-#: 01/10/2026) none of his windows is refused.
-_REFUSED_ON_THE_READERS_BOX = {}
+#: Where the reader's OWN box refuses his window, and the sentence. On the box of tasks 10 and 11 sentence four
+#: refused three (MS, ROIV, SILC: its resistance sat 1.4 to 3.3 ranges under his LPS). On the box of the rule he
+#: settled (Thu 01/10/2026) none of his 40 was refused. Of his 52 (Fri 30/10/2026) two are: DDI's first, whose rest
+#: sits more than 1.35 ranges over the reader's box (11.60 / 11.27, a range under his), and VTMX, a slice of a
+#: bigger swing down on the reader's box as on his own lines.
+_REFUSED_ON_THE_READERS_BOX = {"DDI:2026-08-10": "over resistance", "VTMX:2026-10-02": "a slice of a bigger swing down"}
 
 
 def test_the_reader_fires_on_his_last_receding_day_at_his_trigger_on_its_own_box(his_windows):
@@ -623,9 +640,9 @@ def test_the_reader_fires_on_his_last_receding_day_at_his_trigger_on_its_own_box
             assert read.lps is None
             silent[row["key"]] = next(s.saying for s in read.trail if s.stage == "LPS")
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
-    for key in _REFUSED_ON_THE_READERS_BOX:
-        assert lps.OVER_RESISTANCE in silent[key], silent[key]
-    assert len(fired) == 42       # of his 43 windows: all but YPF, whose last day advances
+    for key, sentence in _REFUSED_ON_THE_READERS_BOX.items():
+        assert sentence in silent[key], silent[key]
+    assert len(fired) == 52       # of his 56 windows: all but the two refused and the two whose last day advances
 
 
 #: His buy days that made a lower low as well as crossing his trigger: the cross was his buy, and the pullback
@@ -640,9 +657,11 @@ def test_on_his_buy_day_the_read_says_crossed_and_shows_no_fire(his_windows):
 
     crossed, goes_on = [], []
     for row in his_windows:
-        if not row["last"] or not row["read"].fired:
+        if not row["last"] or not row["read"].fired or not row["setup"].get("trigger"):     # CLDT carries no buy
             continue
         buy = _date(row["setup"]["trigger"])
+        if pd.Timestamp(buy) > row["raw"].index[-1]:     # drawn on the last receding day: the buy is past the frozen frame (CBLL, CLOV)
+            continue
         read = two_eyes.read(row["setup"]["ticker"], row["raw"].loc[:pd.Timestamp(buy)])
         assert read.as_of == buy and read.failed is False, row["key"]
         said = next(s.saying for s in read.trail if s.stage == "LPS")
@@ -653,7 +672,7 @@ def test_on_his_buy_day_the_read_says_crossed_and_shows_no_fire(his_windows):
             continue
         assert read.state == lps.CROSSED and read.fired is False and read.lps is None, f"{row['key']}: {read.state}"
         crossed.append(row["key"])
-    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 32
+    assert tuple(goes_on) == _BUY_DAY_RECEDES and len(crossed) == 38     # his 52 (Fri 30/10/2026)
 
 
 # --------------------------------------------------------------------------- #
@@ -854,14 +873,15 @@ def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_or_is_named
                 not_scanned[row["key"]] = watch["why"]
             elif isinstance(result, dict):
                 assert result["_lps_zone_end_date"] == row["span"][1].isoformat(), row["key"]
-                assert result["_trigger_price"] == pytest.approx(float(row["setup"]["trigger_price"]), abs=0.005)
+                if row["setup"].get("trigger_price") is not None:     # CLDT carries no buy
+                    assert result["_trigger_price"] == pytest.approx(float(row["setup"]["trigger_price"]), abs=0.005)
                 fired.append(row["key"])
             else:
                 assert result is None
                 silent.append(row["key"])
     assert not_scanned == _THE_DOOR_REFUSES
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
-    assert len(fired) == 35 and len(fired) + len(silent) + len(not_scanned) == 40
+    assert len(fired) == 44 and len(fired) + len(silent) + len(not_scanned) == 52     # his 52 (Fri 30/10/2026)
 
 
 def test_the_universe_door_stands_before_the_read_and_a_refused_chart_is_not_scanned():

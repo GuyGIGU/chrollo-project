@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-10-02T19:22:41+00:00",
+  "captured_at": "2026-10-30T14:22:38+00:00",
   "breadth_pct": 0.5,
-  "corpus_sha256": "a0026da7f6486c03011445c858f45cf4945993274f56de6b29050021e20bef67",
+  "corpus_sha256": "6af20f545e9bd359533fe769e9a8397578751258e07259b0abc4ab5f4af1e2dd",
   "population": "guided-list",
-  "marks_fingerprint": "ebfe0f0191269ee29d6b80e9d17ff24a34feae53da985ab6d71aa898c8e438b8",
+  "marks_fingerprint": "4af116adee2b6035f12e9afe663e2a8f99a197b273b880463dbcad584de53086",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c",
+  "engine_config_version": "8b7858f2725c1004b042d8fd122ae700b71b550e29d61876427dde0fa2f44abf",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -26,6 +26,38 @@
       "spy_6m_return": 0.0,
       "bars": 616,
       "first_fire": "2026-03-30",
+      "tier": "A"
+    },
+    {
+      "key": "ANET:2026-09-25",
+      "ticker": "ANET",
+      "status": "hit",
+      "setup_digest": "47bd318693ceb32de18c1cfc085aa5e3b32cff4401e27d6bc97aae1fb36a6c8e",
+      "windows": [
+        [
+          "2026-09-14",
+          "2026-09-25"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 620,
+      "first_fire": "2026-09-24",
+      "tier": "A"
+    },
+    {
+      "key": "ANET:2026-10-02",
+      "ticker": "ANET",
+      "status": "hit",
+      "setup_digest": "431bacb0e44c624ee8780b63f0d6bc0e2b1acb50b07732d824549464d62735dd",
+      "windows": [
+        [
+          "2026-09-21",
+          "2026-10-02"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 620,
+      "first_fire": "2026-09-24",
       "tier": "A"
     },
     {
@@ -64,7 +96,7 @@
       "key": "BODI:2026-04-21",
       "ticker": "BODI",
       "status": "hit",
-      "setup_digest": "8d7cba03abd0f123afb3b58f3ffed6f13c467f63bb873b7b1547b0b572b83039",
+      "setup_digest": "18cfd59015994becb86b6cebfdd3b936ab1dbca964f7a16f1c8a0dbd7f8dc346",
       "windows": [
         [
           "2026-04-08",
@@ -91,6 +123,84 @@
       "bars": 616,
       "first_fire": "2026-04-27",
       "tier": "B"
+    },
+    {
+      "key": "CBLL:2026-10-28",
+      "ticker": "CBLL",
+      "status": "miss",
+      "setup_digest": "e1bb8e2314f72b62766413fb0a344af2cb25697ffaf926639633ff58c58330e4",
+      "windows": [
+        [
+          "2026-10-19",
+          "2026-10-28"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 513,
+      "window_clamp": "walked 8/10 sessions \u2014 the frozen frame's lead-in cannot reproduce the live 2y basis before 2026-10-19",
+      "stage": "unreviewed-new-mark"
+    },
+    {
+      "key": "CLDT:2026-10-09",
+      "ticker": "CLDT",
+      "status": "hit",
+      "setup_digest": "33ece84ea195c54585514a1b44f3377137f869c15059344e3e743e181d35403e",
+      "windows": [
+        [
+          "2026-09-28",
+          "2026-10-09"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 620,
+      "first_fire": "2026-10-08",
+      "tier": "B"
+    },
+    {
+      "key": "CLOV:2026-10-27",
+      "ticker": "CLOV",
+      "status": "hit",
+      "setup_digest": "9401a73d7a0fa17029aabbe304b714625896fc520df06f49a774572b826a31d5",
+      "windows": [
+        [
+          "2026-10-14",
+          "2026-10-27"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "first_fire": "2026-10-16",
+      "tier": "B"
+    },
+    {
+      "key": "DDI:2026-08-10",
+      "ticker": "DDI",
+      "status": "miss",
+      "setup_digest": "f8cb0a51b4f8c452683ae9754ea5cb277ae4d0edffe857e9cbc36473449e0ad2",
+      "windows": [
+        [
+          "2026-07-28",
+          "2026-08-10"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "stage": "unreviewed-new-mark"
+    },
+    {
+      "key": "DDI:2026-09-30",
+      "ticker": "DDI",
+      "status": "miss",
+      "setup_digest": "4385957fb6a82b95626d9bcfb9d6f5856b7ff7267e54d9ce26554db3315ef3ec",
+      "windows": [
+        [
+          "2026-09-17",
+          "2026-09-30"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "stage": "unreviewed-new-mark"
     },
     {
       "key": "DLX:2026-04-13",
@@ -141,6 +251,22 @@
       "tier": "A"
     },
     {
+      "key": "DSGX:2026-10-08",
+      "ticker": "DSGX",
+      "status": "hit",
+      "setup_digest": "ac92efac9214fd4adf34aa2f51da721741d04c26eef8546c2793e808e6442a92",
+      "windows": [
+        [
+          "2026-09-25",
+          "2026-10-08"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "first_fire": "2026-09-25",
+      "tier": "C"
+    },
+    {
       "key": "EGBN:2026-01-15",
       "ticker": "EGBN",
       "status": "miss",
@@ -169,6 +295,22 @@
       "spy_6m_return": 0.0,
       "bars": 617,
       "first_fire": "2026-03-19",
+      "tier": "S"
+    },
+    {
+      "key": "EXPD:2026-10-09",
+      "ticker": "EXPD",
+      "status": "hit",
+      "setup_digest": "ce5edcaea00ad3dfdc652137227d9861c8fa28da4d0c0d01c41fb131c5f1ad01",
+      "windows": [
+        [
+          "2026-09-28",
+          "2026-10-09"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 620,
+      "first_fire": "2026-10-01",
       "tier": "S"
     },
     {
@@ -270,7 +412,7 @@
       "key": "MSGS:2026-05-22",
       "ticker": "MSGS",
       "status": "hit",
-      "setup_digest": "74d678aa3036fc2b856ff6a33c7d33ce74b19c5a5527d36032053460faa27e60",
+      "setup_digest": "3e8c697efb1fdb655938641ee979dc932b59020223d83c2b053768388acb0b5e",
       "windows": [
         [
           "2026-05-11",
@@ -392,6 +534,21 @@
       "bars": 617,
       "first_fire": "2026-03-02",
       "tier": "A"
+    },
+    {
+      "key": "OKTA:2026-09-03",
+      "ticker": "OKTA",
+      "status": "miss",
+      "setup_digest": "0c28e5a7c1ab76a8527a8a6f03d64bb286ac06ae0a2f3dc1fe97cbe45ab9a90a",
+      "windows": [
+        [
+          "2026-08-21",
+          "2026-09-03"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "stage": "unreviewed-new-mark"
     },
     {
       "key": "ORMP:2026-04-13",
@@ -552,6 +709,21 @@
       "tier": "B"
     },
     {
+      "key": "TWLO:2026-09-21",
+      "ticker": "TWLO",
+      "status": "miss",
+      "setup_digest": "8177c5670182f84d6c341ca2b3bef3a35a1d160dc7840439d021fb726f17b0b8",
+      "windows": [
+        [
+          "2026-09-08",
+          "2026-09-21"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 618,
+      "stage": "unreviewed-new-mark"
+    },
+    {
       "key": "UNF:2026-07-10",
       "ticker": "UNF",
       "status": "hit",
@@ -598,6 +770,22 @@
       "bars": 617,
       "first_fire": "2026-07-07",
       "tier": "A"
+    },
+    {
+      "key": "VTMX:2026-10-02",
+      "ticker": "VTMX",
+      "status": "hit",
+      "setup_digest": "e03107ac08bbc64f6658cfd41357ca82df5468c45ee003a331d34ec653ef340d",
+      "windows": [
+        [
+          "2026-08-31",
+          "2026-10-02"
+        ]
+      ],
+      "spy_6m_return": 0.0,
+      "bars": 619,
+      "first_fire": "2026-08-31",
+      "tier": "S"
     },
     {
       "key": "WAT:2026-09-24",

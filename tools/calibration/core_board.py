@@ -151,7 +151,8 @@ def score_setup(setup: dict, raw) -> dict:
         second = max(pd.Timestamp(setup["anchors"]["R"]), pd.Timestamp(setup["anchors"]["S"]))
         unit = float(prepared[two_eyes.DAILY_RANGE].loc[second])
     read = on_last["read"]
-    his_trigger = on_last["fired"] and read.lps.end_day == last and \
+    # A mark carried with no buy (CLDT, Fri 09/10/2026) is scored on its lines and its pullback, never on a trigger.
+    his_trigger = on_last["fired"] and read.lps.end_day == last and setup.get("trigger_price") is not None and \
         abs(read.lps.trigger_price - float(setup["trigger_price"])) < 0.005
     return {"key": setup_key(setup), "ticker": setup["ticker"], "setup": setup, "raw": raw, "last": last, "buy": buy,
             "on_last": on_last, "on_buy": on_buy, "unit": unit,

@@ -18,7 +18,8 @@ from core.calibration.replay import load_sealed_fixture
 _RULING_RECORD_BELOW_R = {
     "DSGN:2026-03-31": -0.010,
     "MATX:2026-07-01": -0.087,
-    "MSGS:2026-05-22": -0.148,
+    # MSGS:2026-05-22 (-0.148) was in the record too; he redrew MSGS on Sat 10/10/2026 (345.48 / 325.27 from
+    # 15/04, no mini) and the new drawing measures -0.149: a different drawing, not a moved basis.
 }
 
 

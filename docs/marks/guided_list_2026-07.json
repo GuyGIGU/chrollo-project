@@ -1,12 +1,12 @@
 {
-  "_about": "The Guided List \u2014 the operator's curated engine-test standard (40 setups / 39 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
+  "_about": "The Guided List \u2014 the operator's curated engine-test standard (52 setups / 49 tickers), regenerated from the editable calibration-marks DB (EC-9). The population TRACKS his drawings by his 2026-09-08 ruling: a mark he deletes leaves this file, a mark he draws joins it. Dates ISO. Each setup carries the frozen-frame digest it was drawn on; the ratchet fixture freezes THOSE bars (as-drawn basis), never a live re-fetch. Supersedes the seed corpus dates and docs/marks/part2_2026-07.json as the gate population (operator ruling 2026-07-24: names kept, old dates retired; part2 stays on disk as EC-7 history).",
   "_provenance": {
     "population": "guided-list",
-    "marks_fingerprint": "ebfe0f0191269ee29d6b80e9d17ff24a34feae53da985ab6d71aa898c8e438b8",
-    "engine_config_version": "d22a4760271fda6c58a4e847fb6c043ced74bcdb293edea1385c64314478aa06",
+    "marks_fingerprint": "4af116adee2b6035f12e9afe663e2a8f99a197b273b880463dbcad584de53086",
+    "engine_config_version": "8b7858f2725c1004b042d8fd122ae700b71b550e29d61876427dde0fa2f44abf",
     "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-    "exported_at": "2026-10-02T19:20:26+00:00",
-    "n_setups": 40
+    "exported_at": "2026-10-30T14:19:11+00:00",
+    "n_setups": 52
   },
   "setups": [
     {
@@ -43,6 +43,74 @@
       "lps2": [
         "2026-04-09",
         "2026-04-10"
+      ]
+    },
+    {
+      "ticker": "ANET",
+      "setup": "2026-09-25",
+      "source": "operator",
+      "as_of": "2026-09-25",
+      "frame_digest": "c3590e66b4c9ed1487380ad7393080874a4775bc99bd1d08b4ec6d90305e3c95",
+      "box": [
+        "2026-08-10",
+        "2026-09-25"
+      ],
+      "anchors": {
+        "R": "2026-08-11",
+        "S": "2026-08-10"
+      },
+      "first_rail": "support",
+      "lps": [
+        "2026-09-23",
+        "2026-09-24"
+      ],
+      "trigger": "2026-09-25",
+      "trigger_price": 206.54,
+      "rails_drawn": {
+        "R": 198.9199981689453,
+        "S": 187.02999877929688
+      },
+      "sos": [
+        [
+          "2026-09-15",
+          "2026-09-22"
+        ]
+      ]
+    },
+    {
+      "ticker": "ANET",
+      "setup": "2026-10-02",
+      "source": "operator",
+      "as_of": "2026-10-02",
+      "frame_digest": "75ff2cdb7c25b09e2e355d31c4cdaa1b74ff33c32bf247ea24cd4065c4ef6d39",
+      "box": [
+        "2026-08-10",
+        "2026-10-01"
+      ],
+      "anchors": {
+        "R": "2026-08-11",
+        "S": "2026-08-10"
+      },
+      "first_rail": "support",
+      "lps": [
+        "2026-09-23",
+        "2026-09-24"
+      ],
+      "trigger": "2026-10-02",
+      "trigger_price": 206.35,
+      "rails_drawn": {
+        "R": 198.9199981689453,
+        "S": 187.02999877929688
+      },
+      "sos": [
+        [
+          "2026-09-15",
+          "2026-09-22"
+        ]
+      ],
+      "lps2": [
+        "2026-09-28",
+        "2026-10-01"
       ]
     },
     {
@@ -110,12 +178,12 @@
       "as_of": "2026-04-21",
       "frame_digest": "48974660c35ba83f4718cf8677f5d14d49535514b313aa1098b22d602b6b518d",
       "box": [
-        "2025-12-12",
+        "2026-03-17",
         "2026-04-20"
       ],
       "anchors": {
-        "R": "2025-12-12",
-        "S": "2025-12-15"
+        "R": "2026-03-17",
+        "S": "2026-03-20"
       },
       "first_rail": "resistance",
       "lps": [
@@ -125,31 +193,9 @@
       "trigger": "2026-04-17",
       "trigger_price": 11.1,
       "rails_drawn": {
-        "R": 12.329999923706055,
-        "S": 10.180000305175781
-      },
-      "sos": [
-        [
-          "2026-04-10",
-          "2026-04-14"
-        ]
-      ],
-      "phase_c": [
-        [
-          "2026-02-03",
-          "2026-02-27"
-        ]
-      ],
-      "spring_test": [
-        [
-          "2026-03-06",
-          "2026-03-09"
-        ],
-        [
-          "2026-03-12",
-          "2026-03-13"
-        ]
-      ]
+        "R": 12.649999618530273,
+        "S": 10.300000190734863
+      }
     },
     {
       "ticker": "BWA",
@@ -180,6 +226,172 @@
         [
           "2026-04-30",
           "2026-04-30"
+        ]
+      ]
+    },
+    {
+      "ticker": "CBLL",
+      "setup": "2026-10-28",
+      "source": "operator",
+      "as_of": "2026-10-28",
+      "frame_digest": "460402152ddb664e99c48c3d20f3e3a3ee6d06f30850957fd904d146826e6633",
+      "box": [
+        "2026-08-19",
+        "2026-10-28"
+      ],
+      "anchors": {
+        "R": "2026-08-19",
+        "S": "2026-08-24"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-10-22",
+        "2026-10-28"
+      ],
+      "trigger": "2026-10-29",
+      "trigger_price": 27.6,
+      "rails_drawn": {
+        "R": 25.329999923706055,
+        "S": 23.649999618530273
+      },
+      "sos": [
+        [
+          "2026-10-12",
+          "2026-10-15"
+        ]
+      ],
+      "last_supper": [
+        [
+          "2026-10-16",
+          "2026-10-19"
+        ]
+      ]
+    },
+    {
+      "ticker": "CLDT",
+      "setup": "2026-10-09",
+      "source": "operator",
+      "as_of": "2026-10-09",
+      "frame_digest": "4f32f18adcfa79aec2a376120dce82a315899ea0e35886abf1937fe81c7c052c",
+      "box": [
+        "2026-06-23",
+        "2026-10-09"
+      ],
+      "anchors": {
+        "R": "2026-06-23",
+        "S": "2026-06-25"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-10-06",
+        "2026-10-08"
+      ],
+      "trigger": null,
+      "trigger_price": null,
+      "rails_drawn": {
+        "R": 13.640000343322754,
+        "S": 12.970000267028809
+      },
+      "phase_c": [
+        [
+          "2026-08-07",
+          "2026-08-10"
+        ]
+      ],
+      "spring_test": [
+        [
+          "2026-08-14",
+          "2026-08-17"
+        ]
+      ]
+    },
+    {
+      "ticker": "CLOV",
+      "setup": "2026-10-27",
+      "source": "operator",
+      "as_of": "2026-10-27",
+      "frame_digest": "533697b83f521b3d50615340a3492a6a652f38ef897a6004ffc0d4b1edf34156",
+      "box": [
+        "2026-07-10",
+        "2026-10-27"
+      ],
+      "anchors": {
+        "R": "2026-07-14",
+        "S": "2026-07-10"
+      },
+      "first_rail": "support",
+      "lps": [
+        "2026-10-22",
+        "2026-10-27"
+      ],
+      "trigger": "2026-10-28",
+      "trigger_price": 4.64,
+      "rails_drawn": {
+        "R": 4.829999923706055,
+        "S": 4.349999904632568
+      }
+    },
+    {
+      "ticker": "DDI",
+      "setup": "2026-08-10",
+      "source": "operator",
+      "as_of": "2026-08-10",
+      "frame_digest": "8ff9ec38b43c7c1d1b22f8d073619e41504e7f69031bcebefe1aacdce2940e30",
+      "box": [
+        "2026-06-04",
+        "2026-08-10"
+      ],
+      "anchors": {
+        "R": "2026-06-04",
+        "S": "2026-06-04"
+      },
+      "first_rail": "support",
+      "lps": [
+        "2026-08-05",
+        "2026-08-07"
+      ],
+      "trigger": "2026-08-10",
+      "trigger_price": 11.995,
+      "rails_drawn": {
+        "R": 11.864999771118164,
+        "S": 11.322999954223633
+      },
+      "sos": [
+        [
+          "2026-08-03",
+          "2026-08-04"
+        ]
+      ]
+    },
+    {
+      "ticker": "DDI",
+      "setup": "2026-09-30",
+      "source": "operator",
+      "as_of": "2026-09-30",
+      "frame_digest": "8497a3c72d4738947785a3df2fddb8045b9d8303f34b8c1b7788a87af3a79192",
+      "box": [
+        "2026-08-14",
+        "2026-09-30"
+      ],
+      "anchors": {
+        "R": "2026-08-14",
+        "S": "2026-08-14"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-09-23",
+        "2026-09-29"
+      ],
+      "trigger": "2026-09-30",
+      "trigger_price": 13.138,
+      "rails_drawn": {
+        "R": 13.050000190734863,
+        "S": 12.579999923706055
+      },
+      "sos": [
+        [
+          "2026-09-18",
+          "2026-09-22"
         ]
       ]
     },
@@ -302,6 +514,44 @@
       ]
     },
     {
+      "ticker": "DSGX",
+      "setup": "2026-10-08",
+      "source": "operator",
+      "as_of": "2026-10-08",
+      "frame_digest": "731804c12a4d845b0ea3a2559ff8b68f78f847e44b342096cf535cd1a47d9d13",
+      "box": [
+        "2026-08-03",
+        "2026-10-08"
+      ],
+      "anchors": {
+        "R": "2026-08-03",
+        "S": "2026-08-04"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-10-02",
+        "2026-10-07"
+      ],
+      "trigger": "2026-10-08",
+      "trigger_price": 81.08,
+      "rails_drawn": {
+        "R": 79.11000061035156,
+        "S": 75.30999755859375
+      },
+      "sos": [
+        [
+          "2026-09-28",
+          "2026-10-01"
+        ]
+      ],
+      "phase_c": [
+        [
+          "2026-09-04",
+          "2026-09-10"
+        ]
+      ]
+    },
+    {
       "ticker": "EGBN",
       "setup": "2026-01-15",
       "source": "operator",
@@ -366,6 +616,38 @@
         [
           "2026-03-17",
           "2026-03-20"
+        ]
+      ]
+    },
+    {
+      "ticker": "EXPD",
+      "setup": "2026-10-09",
+      "source": "operator",
+      "as_of": "2026-10-09",
+      "frame_digest": "79346f707d5d793ce56f4f1152ee4d6475dc48b6c9d8a58f1084dc360a46b29f",
+      "box": [
+        "2026-08-17",
+        "2026-10-09"
+      ],
+      "anchors": {
+        "R": "2026-08-17",
+        "S": "2026-08-20"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-10-06",
+        "2026-10-08"
+      ],
+      "trigger": "2026-10-09",
+      "trigger_price": 195.05,
+      "rails_drawn": {
+        "R": 189.99000549316406,
+        "S": 185.02000427246094
+      },
+      "sos": [
+        [
+          "2026-10-01",
+          "2026-10-05"
         ]
       ]
     },
@@ -574,12 +856,12 @@
       "as_of": "2026-05-22",
       "frame_digest": "ac14a4e0c6952ae27e6a106b67c879c4e9db7691f83d60a038b8b4d9b21712fe",
       "box": [
-        "2026-02-18",
+        "2026-04-15",
         "2026-05-22"
       ],
       "anchors": {
-        "R": "2026-02-18",
-        "S": "2026-02-18"
+        "R": "2026-04-15",
+        "S": "2026-04-16"
       },
       "first_rail": "resistance",
       "lps": [
@@ -589,19 +871,15 @@
       "trigger": "2026-05-22",
       "trigger_price": 352.61,
       "rails_drawn": {
-        "R": 345.4599914550781,
-        "S": 320.7049865722656
+        "R": 345.4800109863281,
+        "S": 325.2699890136719
       },
-      "mini": {
-        "band": {
-          "R": 345.4800109863281,
-          "S": 325.5
-        },
-        "span": [
-          "2026-04-15",
-          "2026-05-13"
+      "sos": [
+        [
+          "2026-05-13",
+          "2026-05-14"
         ]
-      }
+      ]
     },
     {
       "ticker": "MTLS",
@@ -854,6 +1132,38 @@
         [
           "2026-02-20",
           "2026-02-23"
+        ]
+      ]
+    },
+    {
+      "ticker": "OKTA",
+      "setup": "2026-09-03",
+      "source": "operator",
+      "as_of": "2026-09-03",
+      "frame_digest": "62507a55ae675b487e337b9e8334f6aeaa1863a2f43ddc8510de978692bcae71",
+      "box": [
+        "2026-07-07",
+        "2026-09-02"
+      ],
+      "anchors": {
+        "R": "2026-07-07",
+        "S": "2026-07-13"
+      },
+      "first_rail": "resistance",
+      "lps": [
+        "2026-08-28",
+        "2026-09-02"
+      ],
+      "trigger": "2026-09-03",
+      "trigger_price": 168.0,
+      "rails_drawn": {
+        "R": 153.1999969482422,
+        "S": 134.3699951171875
+      },
+      "sos": [
+        [
+          "2026-08-26",
+          "2026-08-27"
         ]
       ]
     },
@@ -1192,6 +1502,38 @@
       ]
     },
     {
+      "ticker": "TWLO",
+      "setup": "2026-09-21",
+      "source": "operator",
+      "as_of": "2026-09-21",
+      "frame_digest": "dc4de9eab4794b7495926b47332f892ac6b8cfec6a7f465c2ca2736774adbfaf",
+      "box": [
+        "2026-08-28",
+        "2026-09-17"
+      ],
+      "anchors": {
+        "R": "2026-08-28",
+        "S": "2026-09-02"
+      },
+      "first_rail": "support",
+      "lps": [
+        "2026-09-16",
+        "2026-09-16"
+      ],
+      "trigger": "2026-09-17",
+      "trigger_price": 243.95,
+      "rails_drawn": {
+        "R": 243.97999572753906,
+        "S": 222.9250030517578
+      },
+      "sos": [
+        [
+          "2026-09-15",
+          "2026-09-15"
+        ]
+      ]
+    },
+    {
       "ticker": "UNF",
       "setup": "2026-07-10",
       "source": "operator",
@@ -1290,6 +1632,38 @@
         [
           "2026-06-25",
           "2026-06-29"
+        ]
+      ]
+    },
+    {
+      "ticker": "VTMX",
+      "setup": "2026-10-02",
+      "source": "operator",
+      "as_of": "2026-10-02",
+      "frame_digest": "7582768623a943aac7a72dfbc04b8c86b1e07470d2511253508e07ccfd6c47e4",
+      "box": [
+        "2026-05-19",
+        "2026-09-04"
+      ],
+      "anchors": {
+        "R": "2026-05-20",
+        "S": "2026-05-19"
+      },
+      "first_rail": "support",
+      "lps": [
+        "2026-08-31",
+        "2026-09-02"
+      ],
+      "trigger": "2026-09-03",
+      "trigger_price": 34.59,
+      "rails_drawn": {
+        "R": 34.77000045776367,
+        "S": 33.790000915527344
+      },
+      "last_supper": [
+        [
+          "2026-08-24",
+          "2026-08-28"
         ]
       ]
     },

@@ -237,7 +237,11 @@ _HIS_UPTHRUSTS = {"ALB": dt.date(2026, 2, 25), "UNF": dt.date(2026, 6, 11), "VIK
 #: Where he said there is none: "I can agree that no UP thrust is also valid" (Thu 17/09/2026).
 _NO_UPTHRUST_BY_HIS_WORD = ("EWTX", "JAZZ", "NOK")
 #: Named by the rule on his rails and NOT yet seen by him: they go to him as pictures, never as a count of hits.
-_UPTHRUSTS_HE_HAS_NOT_SEEN = {"DRTS": dt.date(2026, 2, 25), "MTLS": dt.date(2026, 7, 1), "ST": dt.date(2026, 2, 24)}
+_UPTHRUSTS_HE_HAS_NOT_SEEN = {"DRTS": dt.date(2026, 2, 25), "MTLS": dt.date(2026, 7, 1), "ST": dt.date(2026, 2, 24),
+                              "CLOV": dt.date(2026, 8, 6)}
+#: Named in the placed unit only (his drawings of Fri 30/10/2026): on VTMX he drew a last supper over those days
+#: (Mon 24/08 to Fri 28/08/2026), not an upthrust. Pictures for his eye.
+_UPTHRUSTS_HE_HAS_NOT_SEEN_PLACED_ONLY = {"DSGX": dt.date(2026, 8, 31), "VTMX": dt.date(2026, 8, 21)}
 
 
 @pytest.mark.parametrize("unit", UNITS)
@@ -275,7 +279,8 @@ def test_no_upthrust_where_he_agreed_there_is_none_and_no_new_name_appears_unsee
              if _upthrust_day(key, unit) is not None}
     for ticker in _NO_UPTHRUST_BY_HIS_WORD:
         assert ticker not in named, (ticker, unit)
-    assert named == {**_HIS_UPTHRUSTS, **_UPTHRUSTS_HE_HAS_NOT_SEEN}, unit
+    placed_only = _UPTHRUSTS_HE_HAS_NOT_SEEN_PLACED_ONLY if unit == "placed" else {}
+    assert named == {**_HIS_UPTHRUSTS, **_UPTHRUSTS_HE_HAS_NOT_SEEN, **placed_only}, unit
 
 
 def test_crashing_back_may_take_more_than_one_swing():
@@ -341,7 +346,7 @@ def his_last_receding_day() -> dict:
     for key, (s, raw) in _standard().items():
         day = (s.get("lps2") or s["lps"])[1]
         out[key] = two_eyes.read(s["ticker"], raw.loc[:pd.Timestamp(day)])
-    assert len(out) == 40
+    assert len(out) == 52
     return out
 
 
@@ -436,7 +441,7 @@ def test_a_push_covers_no_more_ground_than_his_smallest_drawn_sos():
     neumeric gap" (Sat 12/09/2026). In the box's own range his smallest drawn SOS covers 1.33 ranges (SGHT, Mon
     21/09 to Tue 22/09/2026); the floor sits a fifth of a range on his side of it."""
     grounds = [g for g in _drawn_in_the_boxs_range("sos") if g[2] not in _SET_ASIDE]
-    assert len(grounds) == 27
+    assert len(grounds) == 37      # his 52 drawings (Fri 30/10/2026); the smallest is still SGHT
     smallest = grounds[0]
     assert smallest[2] == "SGHT" and smallest[0] == pytest.approx(1.33, abs=0.01)
     assert M.LINE_WORD_SOS_MIN_GROUND_ATR <= smallest[0] - 0.195
@@ -444,7 +449,7 @@ def test_a_push_covers_no_more_ground_than_his_smallest_drawn_sos():
 
 def test_a_last_supper_digs_no_deeper_and_lasts_no_longer_than_his_own():
     suppers = _drawn_in_the_boxs_range("last_supper")
-    assert len(suppers) == 8
+    assert len(suppers) == 10      # his 52 drawings (Fri 30/10/2026); the shallowest is still SILC
     shallowest = suppers[0]
     assert shallowest[2] == "SILC" and shallowest[0] == pytest.approx(1.52, abs=0.01)
     assert M.LINE_WORD_SUPPER_DIG_ATR <= shallowest[0] - 0.2
@@ -452,7 +457,7 @@ def test_a_last_supper_digs_no_deeper_and_lasts_no_longer_than_his_own():
     # shallowest, less the margin the floors keep — 1.32. The push-ending floor above stays where his PBT push needs it.
     assert M.LINE_WORD_SUPPER_NAMED_DIG_ATR == pytest.approx(shallowest[0] - 0.2, abs=0.01)
     assert M.LINE_WORD_SUPPER_NAMED_DIG_ATR > M.LINE_WORD_SUPPER_DIG_ATR
-    assert max(days for _, days, _ in suppers) == 4 == M.LINE_WORD_SUPPER_MAX_DAYS, "his longest: MATX, four days"
+    assert max(days for _, days, _ in suppers) == 4 == M.LINE_WORD_SUPPER_MAX_DAYS, "his longest: MATX and VTMX, four days"
 
 
 def test_the_upthrust_floor_sits_between_the_breach_he_crossed_out_and_the_smallest_he_named():
@@ -548,7 +553,11 @@ def test_the_named_charts_read_his_words_on_his_days(his_last_receding_day):
 #: charged to the box (the reader's box is not his), to the word (the rule), or to his own setting aside.
 _SOS_MISSES = {
     "ALB": "the box: the reader's box is 182.80 / 156.04 for his 179.10 / 160.02",
-    "BODI": "the box, set aside by him",
+    # BODI's miss went with his redraw of Sat 10/10/2026, which carries no event. His drawings of Fri 30/10/2026:
+    "ANET": "the box: on his drawing of Fri 02/10/2026 the reader's SOS tops Fri 25/09/2026 for his Tue 22/09/2026 "
+            "(on his drawing of Fri 25/09/2026 it lands); its box is 214.89 / 187.03 for his 198.92 / 187.03",
+    "TWLO": "the box: the reader's box is the June bar, 238.48 / 222.62, and its SOS Mon 10/08/2026; his box opens "
+            "Fri 28/08/2026 and his SOS is Tue 15/09/2026",
     "DSGN": 'his word: "Ignore the DSGN SOS markings"',
     "MATX": "the box (the reader shows the shelf on his resistance) AND the word: on his own lines the rule "
             "names Tue 09/06/2026 for his Fri 12/06/2026, his half-range area keeping the earlier top",
@@ -559,13 +568,19 @@ _SPRING_MISSES = {
     "ORMP": "the box: 3.67 / 3.32 for his 3.71 / 3.35, and an earlier dip takes the word",
     "ST": "the word: his rail area (half a range) in the box's range leaves the top of Wed 11/03/2026 outside it",
 }
-_LAST_SUPPER_MISSES = {"MATX": "the box"}
+_LAST_SUPPER_MISSES = {
+    "MATX": "the box",
+    # His drawings of Fri 30/10/2026:
+    "CBLL": "the word: the reader's one last supper tops Wed 21/10/2026; he shaded Fri 16/10 to Mon 19/10/2026",
+    "VTMX": "the box: on 35.02 / 32.01 the reader names no last supper; the spike of Fri 21/08/2026 (36.05) is an "
+            "upthrust in the placed unit",
+}
 
 
 def test_the_reader_lands_his_drawn_words_and_every_miss_is_named(his_last_receding_day):
-    """The ratchet, on the reader's OWN read: THE SOS on 22 of his 28, the spring on 9 of his 11, the last supper
-    on 7 of his 8. A word landed today may not be lost tomorrow; a miss that starts landing is taken off the
-    list on purpose. The spring test is listed, never scored (5 drawn, two on BODI)."""
+    """The ratchet, on the reader's OWN read: THE SOS on 30 of his 37, the spring on 10 of his 12, the last supper
+    on 7 of his 10 (his 52, Fri 30/10/2026). A word landed today may not be lost tomorrow; a miss that starts
+    landing is taken off the list on purpose. The spring test is listed, never scored (4 drawn)."""
     missed = {"sos": [], "phase_c": [], "last_supper": [], "spring_test": []}
     count = {"sos": 0, "phase_c": 0, "last_supper": 0, "spring_test": 0}
     for key, read in his_last_receding_day.items():
@@ -573,7 +588,7 @@ def test_the_reader_lands_his_drawn_words_and_every_miss_is_named(his_last_reced
             count[kind] += 1
             if not hit:
                 missed[kind].append(key.split(":")[0])
-    assert count == {"sos": 28, "phase_c": 11, "last_supper": 8, "spring_test": 5}
+    assert count == {"sos": 37, "phase_c": 12, "last_supper": 10, "spring_test": 4}     # his 52 (Fri 30/10/2026)
     assert sorted(missed["sos"]) == sorted(_SOS_MISSES)
     assert sorted(missed["phase_c"]) == sorted(_SPRING_MISSES)
     assert sorted(missed["last_supper"]) == sorted(_LAST_SUPPER_MISSES)
@@ -590,13 +605,14 @@ _HIS_LAST_SUPPERS_NAMED = {"EWTX": "2026-03-17", "MRK": "2026-07-28", "NGL": "20
 def test_a_box_carries_one_last_supper_and_on_his_charts_it_is_his(his_last_receding_day):
     """HIS, Sat 03/10/2026: "you mark LS to every pull back above resistance in phase D which is in correct, a last
     supper is a noticeable deep correction that happens *usually only once either pre or post break out." On his
-    last receding day no chart of his 40 carries two; where he drew one and the reader lands it, the one named is
+    last receding day no chart of his 52 carries two; where he drew one and the reader lands it, the one named is
     his, or THE SOS's top of the same correction one trading day before his (SILC). As built the reader named 60 on
-    26 charts (six on DSGN and VLO); once, 26 on the same 26; once and as deep as his shallowest less the margin
-    (1.32 ranges), 23 — 16 where he drew none, the pictures for his eye."""
+    26 of his 40 (six on DSGN and VLO); once, 26 on the same 26; once and as deep as his shallowest less the margin
+    (1.32 ranges), 23 — 16 where he drew none, the pictures for his eye. On his 52 (Fri 30/10/2026): 29, on 29
+    charts, 22 where he drew none."""
     per_chart = {key: _named(read, record.LAST_SUPPER) for key, read in his_last_receding_day.items()}
     assert max(len(v) for v in per_chart.values()) == 1, sorted(k for k, v in per_chart.items() if len(v) > 1)
-    assert sum(len(v) for v in per_chart.values()) == 23
+    assert sum(len(v) for v in per_chart.values()) == 29
     assert min(e.size for v in per_chart.values() for e in v) >= M.LINE_WORD_SUPPER_NAMED_DIG_ATR
     named = {key.split(":")[0]: str(v[0].day) for key, v in per_chart.items()
              if v and key.split(":")[0] in _HIS_LAST_SUPPERS_NAMED}
@@ -798,8 +814,10 @@ def test_every_read_of_his_40_carries_one_of_the_ten_words(his_last_receding_day
         assert read.state in record.STATE_WORDS, (key, read.state)
         assert (read.state_days is not None) == (read.state in (record.FORMING, record.BEYOND_R, record.UNDER_S)), key
         tally[read.state] = tally.get(read.state, 0) + 1
-    # On his last receding day the bare read fires on 39 of his 40; YPF's last day advances (it crossed).
-    assert tally == {record.FIRED: 39, record.CROSSED: 1}, tally
+    # On his last receding day the bare read fires on 48 of his 52; YPF's and EXPD's last days advance (they
+    # crossed); DDI's rest of Fri 07/08/2026 is refused as more than 1.35 ranges over the box's top, and VTMX's of
+    # Wed 02/09/2026 as a slice of a bigger swing down (his drawings of Fri 30/10/2026).
+    assert tally == {record.FIRED: 48, record.CROSSED: 2, record.BEYOND_R: 1, record.LINES_NO_LPS: 1}, tally
 
 
 def test_a_state_word_that_cannot_be_decided_costs_no_fire(monkeypatch):
@@ -916,7 +934,7 @@ def test_on_his_buy_day_the_words_of_the_fire_day_are_still_told(his_last_recedi
             kept += 1
         else:
             moved[key] = {e.kind: e.day for e in buy.events if e.kind in (record.SOS, record.SPRING)}
-    assert (checked, kept) == (31, 30), (checked, kept, sorted(moved))
+    assert (checked, kept) == (37, 36), (checked, kept, sorted(moved))     # his 52 (Fri 30/10/2026)
     assert moved == {"ORMP:2026-04-13": {record.SPRING: dt.date(2026, 3, 9), record.SOS: dt.date(2026, 3, 17)}}
 
 

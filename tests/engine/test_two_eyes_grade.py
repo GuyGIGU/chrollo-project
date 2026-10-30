@@ -205,7 +205,11 @@ def test_his_setups_grade_s(key):
 #: The one of his 40 the grade does not read as he ruled: BODI's base reads C (11) on the reader's box, B 48 to A 51
 #: on his own (his February under the support). On his sitting list; pinned here so a change that moves it, either
 #: way, is seen.
-HIS_KNOWN_MISS = {"BODI:2026-04-21": "C"}
+HIS_KNOWN_MISS = {"BODI:2026-04-21": "C",
+                  # Drawn after his ruling (the standard of Fri 30/10/2026), graded on the reader's own box, for his
+                  # sitting: TWLO reads C on 238.48 / 222.62 (his 243.98 / 222.93); DSGX reads A on the parent
+                  # 79.92 / 73.73 while his lines (79.11 / 75.31) are the mini the LPS was read against.
+                  "DSGX:2026-10-08": "A", "TWLO:2026-09-21": "C"}
 
 
 def test_all_40_of_his_setups_carry_his_letter_by_name():
@@ -213,7 +217,7 @@ def test_all_40_of_his_setups_carry_his_letter_by_name():
     the only ones pinned; the other 33 had no guard, and the approval pack's "S 39 · C 1" was a count its test fed
     in by hand (council review 2026-10-09, finding 11). Every one is read here on his last receding day, by name."""
     setups = load_corpus()
-    assert len(setups) == 40, f"his standard holds {len(setups)} drawings; re-read this pin against the new ones"
+    assert len(setups) == 52, f"his standard holds {len(setups)} drawings; re-read this pin against the new ones"
     wrong = {}
     for setup in setups:
         key = setup_key(setup)
