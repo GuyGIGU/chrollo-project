@@ -48,9 +48,6 @@ from typing import Any, Dict
 # frozen contract, add its name here (and accept the new hash + re-baseline).
 # ─────────────────────────────────────────────────────────────────────────────
 ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
-    "CLARITY_SWING_FULL_SHARE",
-    "CLARITY_RAIL_FULL_ERROR",
-    "CLARITY_RAIL_ZERO_ERROR",
     # Phase 0 — price-series regime (every read's provenance)
     "DATA_DIVIDEND_ADJUSTED",
     # Phase 1 — universe baseline filters

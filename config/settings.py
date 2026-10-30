@@ -7,11 +7,20 @@ Broker configuration remains in webapp/backend/broker_config.py; it has its own
 manual connection safety contract.
 """
 
-from .engine import (
+from .universe import (
     MIN_PRICE,
     MIN_VOLUME_50D,
     MIN_YEARLY_RETURN,
     MIN_MARKET_CAP,
+)
+
+from .reader import (
+    TWO_EYES_RULESET,
+    DAILY_STRUCTURE_PERIOD,
+    ADR_WINDOW,
+)
+
+from .engine import (
     SMA50_DIP_EXCEPTION_ENABLED,
     SMA50_DIP_MAX_SESSIONS,
     SMA50_DIP_MAX_ATR,
@@ -77,7 +86,6 @@ from .engine import (
     STORY_POOL_ENABLED,
     CONTRACTION_RESCUE_ENABLED,
     TWO_EYES_READER_ENABLED,
-    TWO_EYES_RULESET,
     POWER_PLAY_STORY_FORM_ENABLED,
     BAR_POSTURE_RESCUE_ENABLED,
     SENTENCE_ARCHIVE_ENABLED,
@@ -179,21 +187,13 @@ from .engine import (
     LPS_SPREAD_MUST_DECLINE,
     LPS_VOL_CONTRACTION_MAX,
     HTF_CONTEXT_ENABLED,
-    DAILY_STRUCTURE_PERIOD,
     HTF_STAGE_MA,
     HTF_STAGE_MA_SLOPE_BARS,
     HTF_WEEKLY_WINDOWS,
     HTF_MONTHLY_WINDOWS,
-    STAGE_MA_WEEKS,
-    STAGE_SLOPE_WEEKS,
-    STAGE_OFF_LOW_MIN,
-    STAGE_LOW_WEEKS,
 )
 
 from .scoring import (
-    CLARITY_SWING_FULL_SHARE,
-    CLARITY_RAIL_FULL_ERROR,
-    CLARITY_RAIL_ZERO_ERROR,
     TIER_S_STRUCT,
     TIER_A_STRUCT,
     TIER_B_STRUCT,
@@ -256,7 +256,6 @@ from .scoring import (
     MAX_STRONG_YEARLY_RETURN,
     SCORE_UPTREND_BONUS,
     SCORE_RS_BONUS,
-    RS_LOOKBACK_BARS,
     RS_MAX_EXCESS_RETURN,
     SCORE_52W_HIGH_PROXIMITY,
     HIGH_PROXIMITY_FULL_PCT,
@@ -271,7 +270,6 @@ from .scoring import (
     CONTRACTION_FINAL_LOOSE_PCT,
     SCORE_ASCENDING_SUPPORT,
     ASCENDING_SUPPORT_FULL_SLOPE,
-    ADR_WINDOW,
     SCORE_ADR,
     ADR_FULL_PCT,
     TOUCH_BONUS_INDIVIDUAL,
@@ -384,6 +382,7 @@ from .market_context import (
     HEALTH_BOARD_ENABLED,
     HEALTH_DEEP_CORRECTION_DRAWDOWN,
     HEALTH_MIN_BARS,
+    RS_LOOKBACK_BARS,
 )
 
 from .runtime import (

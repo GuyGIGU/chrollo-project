@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from config import settings
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.stage_read import STAGE_FACTS, advance_start, completed_weeks, read_stage, stages
 
 
@@ -171,7 +171,7 @@ def test_the_advance_begins_the_week_after_the_last_close_under_an_average_that_
 def test_a_close_under_a_rising_average_is_no_restart_of_the_advance(monkeypatch):
     """The count rule asks for an average that is NOT rising: with a 3-week average, week 3 ($90 under $96.67, the average
     down from $100) restarts the count; week 7 ($114 under $114.67, the average up from $110) does not."""
-    monkeypatch.setattr(settings, "STAGE_MA_WEEKS", 3)
+    monkeypatch.setattr(M, "STAGE_MA_WEEKS", 3)
     weeks = _weeks([100, 100, 100, 90, 100, 110, 120, 114, 130])
     assert advance_start(weeks, len(weeks) - 1) == 4
 

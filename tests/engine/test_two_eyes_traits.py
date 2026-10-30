@@ -5,7 +5,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from engine_alpha import two_eyes_numbers as M
-from engine_alpha.scoring.clarity import compose_grade
+from engine_alpha.two_eyes.traits import compose_grade
 from engine_alpha.two_eyes.grade import whole_points
 from engine_alpha.two_eyes.clarity import measure
 from engine_alpha.two_eyes.record import Event, Grade, SPRING
@@ -164,8 +164,7 @@ def test_the_adapter_composes_once_and_archives_the_same_breakdown_without_movin
 
 
 def test_a_clarity_score_that_falls_over_keeps_the_integrity_grade_and_the_fire(monkeypatch):
-    from config import settings
-    from engine_alpha.evaluation import EVAL_ERROR
+    from engine_alpha.sentinels import EVAL_ERROR
     from engine_alpha.two_eyes.record import Box, Line, Lps, Read, Step
     from engine_alpha.two_eyes_adapter import graded_read, to_result
 
@@ -174,7 +173,7 @@ def test_a_clarity_score_that_falls_over_keeps_the_integrity_grade_and_the_fire(
                 clarity={'facts': {'main_swing_share': .2, 'rail_alignment_error': .5}})
     read = Read('TEST', day, boxes=(Box(Line(100, day), Line(90, day), day),), lps=Lps(day, day, 'parent', 99),
                 state='fired', close=98, grade=old, trail=(Step('grade', 'the grade: S (100)'),))
-    monkeypatch.setattr(settings, 'CLARITY_SWING_FULL_SHARE', 0)
+    monkeypatch.setattr(M, 'CLARITY_SWING_FULL_SHARE', 0)
     kept = graded_read(read)
     assert (kept.grade.score, kept.grade.letter, kept.grade.clarity) == (100, 'S', None)
     assert 'could not be composed (ZeroDivisionError' in kept.trail[-1].saying
@@ -183,11 +182,10 @@ def test_a_clarity_score_that_falls_over_keeps_the_integrity_grade_and_the_fire(
 
 
 def test_each_scoring_control_rotates_the_engine_identity(monkeypatch):
-    from config import settings
     from engine_alpha.freeze.manifest import manifest_hash
 
     before = manifest_hash()
     for name in ['CLARITY_SWING_FULL_SHARE', 'CLARITY_RAIL_FULL_ERROR', 'CLARITY_RAIL_ZERO_ERROR']:
         with monkeypatch.context() as patch:
-            patch.setattr(settings, name, getattr(settings, name) + .01)
+            patch.setattr(M, name, getattr(M, name) + .01)
             assert manifest_hash() != before

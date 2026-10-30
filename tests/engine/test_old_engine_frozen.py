@@ -118,10 +118,11 @@ def test_the_knob_guard_sees_a_moved_knob(monkeypatch):
 
 
 def test_the_new_readers_clarity_settings_do_not_move_the_old_readers_identity(monkeypatch):
-    from config import settings
+    # The three scales live in two_eyes_numbers since Fri 30/10/2026 (the TWO_EYES block, left out above).
+    from engine_alpha import two_eyes_numbers
 
     before = _old_reader_settings_digest()
     for name in _NEW_READER_SETTINGS:
         with monkeypatch.context() as patch:
-            patch.setattr(settings, name, getattr(settings, name) + .01)
+            patch.setattr(two_eyes_numbers, name, getattr(two_eyes_numbers, name) + .01)
             assert _old_reader_settings_digest() == before, name

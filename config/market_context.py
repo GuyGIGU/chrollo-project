@@ -55,3 +55,6 @@ HEALTH_MIN_BARS = 200
 # TRAVERSAL_HIGH_ZONE) and the touch band (TOUCH_TOLERANCE_ATR) — no new
 # geometry knobs — so "near a rail" is expressed in the same scale-invariant
 # fraction-of-box / ATR units the firing engine already uses.
+
+# Relative strength against SPY: the lookback of the excess-return read (~6 months of trading days).
+RS_LOOKBACK_BARS = 126

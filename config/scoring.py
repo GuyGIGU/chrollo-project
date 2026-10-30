@@ -7,14 +7,6 @@ and existing monkeypatches continue to share one settings namespace.
 # ============================================================
 # 6. SCORING & TIERS
 # ============================================================
-# Experimental clarity grade, authorized 2026-10-22. Equal starting budgets;
-# set both to zero to retain the prior integrity grade. Letter cuts are unchanged.
-# Initial reference scales: main share .45 is the current 48's lower quartile;
-# rail error .25 is their median, rounded. Training anchors, not validated edge.
-CLARITY_SWING_FULL_SHARE = 0.45
-CLARITY_RAIL_FULL_ERROR = 0.25
-CLARITY_RAIL_ZERO_ERROR = 1.0
-
 # Tier thresholds — calibrated against the live archive distribution
 # (avg ~95, max ~126 under prior weights). With the 52w-high proximity
 # bonus added, S sits at roughly the top quartile rather than catching
@@ -271,7 +263,6 @@ SCORE_UPTREND_BONUS = 0           # was 15 until 2026-07-25
 # on both edge reads (corr −0.22 at n=1977 — the worst term in the book). Raw
 # signal stays archived (excess_return_6m column).
 SCORE_RS_BONUS = 0                # was 15 until 2026-07-25
-RS_LOOKBACK_BARS = 126            # ~6 months of trading days
 RS_MAX_EXCESS_RETURN = 0.30       # Stock 6m − SPY 6m saturation
 
 # 52-week high proximity bonus — Wyckoff bases that consolidate near recent
@@ -311,7 +302,6 @@ ASCENDING_SUPPORT_FULL_SLOPE = 0.10  # valley lows rising ≥ 0.10 ATR/bar → f
 
 # ADR% absolute volatility (Qullamaggie "mover" character): does the stock
 # travel enough each day to be worth trading? Bonus-only, measure-first.
-ADR_WINDOW = 20        # bars used for the Average Daily Range %
 SCORE_ADR = 8          # cap for the ADR sub-score
 ADR_FULL_PCT = 5.0     # ADR% >= 5.0 earns full credit (~5% mover threshold)
 

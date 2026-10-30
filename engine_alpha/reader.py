@@ -140,8 +140,8 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
     a package it does not use, and so a broken new reader cannot stop the old
     one from loading.
 
-    The universe door stands BEFORE the read, and it is the old engine's own
-    (one implementation of a ruled judgment): a chart it refuses is "not
+    The universe door stands BEFORE the read, and it is the one door
+    (``engine_alpha/universe_door.py``, one implementation of a ruled judgment): a chart it refuses is "not
     scanned", with the leg named, and is never read. It is one of the few
     hard things in his method, and a fire that ignored it would not be a fire
     the scan could ever show. The frame contract comes before the door: a
@@ -153,12 +153,12 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
     (``two_eyes_adapter.to_result``'s ``frame``).
     Returns ``(read, result)``; both None when the door refused.
     """
-    from engine_alpha import evaluation, two_eyes, two_eyes_adapter
+    from engine_alpha import two_eyes, two_eyes_adapter, universe_door
 
     refused = None
     try:
         two_eyes.check_frame(df)
-        admitted, reason = evaluation.apply_baseline_filters_with_reason(df)
+        admitted, reason = universe_door.apply_baseline_filters_with_reason(df)
     except two_eyes.FrameRefused as refusal:
         refused, admitted = refusal, None   # not a chart: the read below refuses it by name
     except Exception as exc:            # a chart the door cannot ask about: a counted failure too

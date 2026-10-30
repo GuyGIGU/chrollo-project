@@ -39,7 +39,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from config import settings
+from engine_alpha import two_eyes_numbers as M
 from engine_alpha.market_sessions import NYSE_BUSINESS_DAY
 
 #: The facts this read gives, under the archive's names, each empty when not measured.
@@ -74,11 +74,11 @@ def completed_weeks(daily: pd.DataFrame) -> pd.DataFrame:
 def stages(weeks: pd.DataFrame) -> list:
     """The stage of every completed week (1 to 4), None where the average or its month-back value is not there
     yet. A week's stage reads that week and the last advance or decline week before it, never a later week."""
-    span, slope = int(settings.STAGE_MA_WEEKS), int(settings.STAGE_SLOPE_WEEKS)
+    span, slope = int(M.STAGE_MA_WEEKS), int(M.STAGE_SLOPE_WEEKS)
     close = weeks["Close"].to_numpy(float)
     average = weeks["Close"].rolling(span).mean().to_numpy(float)
-    low_52 = weeks["Low"].rolling(int(settings.STAGE_LOW_WEEKS), min_periods=1).min().to_numpy(float)
-    off_low = 1.0 + float(settings.STAGE_OFF_LOW_MIN)
+    low_52 = weeks["Low"].rolling(int(M.STAGE_LOW_WEEKS), min_periods=1).min().to_numpy(float)
+    off_low = 1.0 + float(M.STAGE_OFF_LOW_MIN)
     out, last = [None] * len(weeks), None
     for i in range(slope, len(weeks)):
         now, before = average[i], average[i - slope]
@@ -103,7 +103,7 @@ def advance_start(weeks: pd.DataFrame, upto: int):
     weekly close under a 40-week average that is not rising (the count rule of 12/10/2026). None when no such
     close sits in the weeks read; ``upto + 1`` when the week read itself closed under one (no advance yet)."""
     close = weeks["Close"].to_numpy(float)
-    average = weeks["Close"].rolling(int(settings.STAGE_MA_WEEKS)).mean().to_numpy(float)
+    average = weeks["Close"].rolling(int(M.STAGE_MA_WEEKS)).mean().to_numpy(float)
     start = None
     for i in range(1, upto + 1):
         if np.isfinite(average[i]) and np.isfinite(average[i - 1]) \
@@ -121,7 +121,7 @@ def read_stage(daily: pd.DataFrame) -> dict:
     out = _empty()
     try:
         weeks = completed_weeks(daily)
-        if len(weeks) <= int(settings.STAGE_MA_WEEKS):
+        if len(weeks) <= int(M.STAGE_MA_WEEKS):
             return out
         stage = stages(weeks)[-1]
         out["cycle_stage"] = stage

@@ -38,7 +38,7 @@ except ImportError:  # invoked as a script from the repo root
 _ROOT = configure_path(backend=True)
 
 from engine_alpha import two_eyes  # noqa: E402
-from engine_alpha.evaluation import apply_baseline_filters_with_reason  # noqa: E402
+from engine_alpha.universe_door import apply_baseline_filters_with_reason  # noqa: E402
 from engine_alpha.two_eyes import lps, mini, walk  # noqa: E402
 from engine_alpha.two_eyes_adapter import graded_read  # noqa: E402
 from engine_alpha import two_eyes_numbers as M  # noqa: E402

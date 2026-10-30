@@ -233,3 +233,20 @@ RESPECT_WINDOW_DAYS = 30
 #: trigger the same 43 fires, the same boxes, the same triggers; the junk's 47 fire days unchanged; the reader pin
 #: zero-diff. The stage is kept whole behind the switch.
 MINI_ENABLED = False
+
+# --- The grade's trait scales and the stage read (moved from config on Fri 30/10/2026, values unchanged) ---
+
+#: Clean swings: the main zigzag's share of the line's travel that earns full marks (the current 48's lower quartile).
+CLARITY_SWING_FULL_SHARE = 0.45
+#: Rails the turns sit on: the major turns' mean distance from their rail, in box heights, at full marks ...
+CLARITY_RAIL_FULL_ERROR = 0.25
+#: ... and at none.
+CLARITY_RAIL_ZERO_ERROR = 1.0
+#: The stage read's average: the 40-week average of the weekly closes (Minervini's 200-day).
+STAGE_MA_WEEKS = 40
+#: Rising or falling: the average against itself this many weeks earlier.
+STAGE_SLOPE_WEEKS = 4
+#: An advance week closes at least this far over the 52-week low.
+STAGE_OFF_LOW_MIN = 0.30
+#: The 52-week low, in weeks.
+STAGE_LOW_WEEKS = 52

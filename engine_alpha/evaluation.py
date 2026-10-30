@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import math
 import sys
-from enum import Enum
 from typing import Optional
 
 import pandas as pd
@@ -50,28 +49,15 @@ from engine_alpha.structure.phases.phase_d import (
     support_test_evidence_starts,
 )
 from engine_alpha.frames import _trim_to_period
+from engine_alpha.sentinels import EVAL_ERROR, WATCH_WIRE_STATES  # noqa: F401  (the scan's sentinels live there)
+from engine_alpha.universe_door import (  # noqa: F401  (the door lives there; old import paths still resolve)
+    apply_baseline_filters,
+    apply_baseline_filters_with_reason,
+)
 
 
-# Distinct return sentinel for the skip-guard's caught-exception branch. A plain
-# ``None`` return means a *legitimate structural reject* (the engine looked and
-# saw no setup); ``EVAL_ERROR`` means the eval chain *threw* and was swallowed —
-# a fundamentally different, alert-worthy event (a regression that raises on a
-# SUBSET of tickers silently drops real winners on an otherwise-green build).
-# The consumer (``screener._evaluate_frames``) counts these separately and never
-# appends them to results (same drop behaviour as ``None``), so the flags-OFF
-# scoring path stays byte-identical — this only makes the two skips DISTINGUISHABLE.
-#
-# It MUST be an Enum member, not a bare ``object()``: ``_evaluate_ticker`` runs in
-# a ProcessPoolExecutor worker and its return value crosses the process boundary
-# via pickle. A bare ``object()`` unpickles to a NEW instance, so ``is`` identity
-# would fail in the parent and the count would silently stay 0. Enum members
-# pickle by qualified name and round-trip to the SAME singleton, so ``result is
-# EVAL_ERROR`` holds across processes.
-class _EvalSkip(Enum):
-    ERROR = "error"
-
-
-EVAL_ERROR = _EvalSkip.ERROR
+# ``EVAL_ERROR`` (a swallowed crash, never a structural reject) and ``WATCH_WIRE_STATES`` are imported from
+# engine_alpha/sentinels.py above; the pickling identity ``result is EVAL_ERROR`` rides that module's Enum.
 
 # The sentence family's dedicated drop counter (EC-20's "loud dedicated
 # counter", per process). The family raises BY DESIGN — the write-time
@@ -82,106 +68,6 @@ EVAL_ERROR = _EvalSkip.ERROR
 # distinguishable from an honest refusal (both archive NULL). Never a gate,
 # never archived.
 SENTENCE_DROPS = {"count": 0}
-
-
-def _sma50_dip_admits(df: pd.DataFrame) -> bool:
-    """The 50-day dip exception (``SMA50_DIP_EXCEPTION_ENABLED``, dark —
-    miss program 2026-08-28). Consulted ONLY on the sma50-refusal branch:
-    admit the refusal into chart reading when the dip under the 50-day is a
-    bounded, recent event that has already recovered to the rail — the last
-    close at/above SMA_50 printed within ``SMA50_DIP_MAX_SESSIONS``, and the
-    close now sits within ``SMA50_DIP_MAX_ATR`` ATR_10 below it (the ATR is
-    the operator's ruler; a percent here would re-invent a second yardstick).
-    The SMA_200 and YoY legs still gate behind it, so a downtrend can never
-    enter through a dip. Flag off -> False, byte-identical."""
-    if not settings.SMA50_DIP_EXCEPTION_ENABLED:
-        return False
-    above = (df['Close'] >= df['SMA_50']).values
-    hits = above.nonzero()[0]
-    if not len(hits):
-        return False                      # never above the 50-day: not a dip
-    if (len(above) - 1 - int(hits[-1])) > settings.SMA50_DIP_MAX_SESSIONS:
-        return False
-    atr = calculate_atr(df, 10).iloc[-1]
-    if pd.isna(atr) or float(atr) <= 0:
-        return False
-    gap = float(df['SMA_50'].iloc[-1]) - float(df['Close'].iloc[-1])
-    return gap <= settings.SMA50_DIP_MAX_ATR * float(atr)
-
-
-def apply_baseline_filters_with_reason(
-    df: pd.DataFrame,
-) -> tuple[Optional[tuple[pd.DataFrame, float]], Optional[tuple[str, dict]]]:
-    """The universe baseline gate, reasoned — ONE implementation of the gate.
-
-    Returns ``((df, yearly_return), None)`` on pass, or ``(None, (gate,
-    samples))`` naming the FIRST failing gate with the sampled values. Gate
-    order price -> Vol_50 -> SMA50 -> SMA200 -> YoY is the contract: first-fail
-    names the reason. Comparison forms are verbatim doctrine — a NaN sample
-    passes its ``<`` gate (never add isfinite hardening here).
-
-    The price floor runs BEFORE the rolling enrichment: Close at the latest bar
-    reads off the raw frame, so a sub-``MIN_PRICE`` ticker skips the copy and
-    the three rolling windows entirely. Its reject samples therefore carry only
-    ``close`` — the one value that exists (and the one its consumer reads).
-    """
-    if len(df) < 200:
-        return None, ("bars", {"bars": len(df)})
-
-    close = df['Close'].iloc[-1]
-    if close < settings.MIN_PRICE:
-        return None, ("price", {"close": close})
-
-    df = df.copy()
-    df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    df['SMA_200'] = df['Close'].rolling(window=200).mean()
-    df['Vol_50'] = df['Volume'].rolling(window=50).mean()
-
-    df['Spread'] = df['High'] - df['Low']
-
-    latest = df.iloc[-1]
-    one_year_ago_idx = max(0, len(df) - 252)
-    one_year_ago = df.iloc[one_year_ago_idx]
-
-    yearly_return = (latest['Close'] - one_year_ago['Close']) / one_year_ago['Close']
-
-    samples = {"close": latest['Close'], "vol_50": latest['Vol_50'],
-               "sma_50": latest['SMA_50'], "sma_200": latest['SMA_200'],
-               "yearly_return": yearly_return}
-    if latest['Vol_50'] < settings.MIN_VOLUME_50D: return None, ("vol50", samples)
-    if latest['Close'] < latest['SMA_50'] and not _sma50_dip_admits(df):
-        return None, ("sma50", samples)
-    # The bottoming-base lane (BOTTOMING_BASE_LANE_ENABLED, dark — operator
-    # ruling 2026-08-29, MDT): an sma200 refusal enters chart reading when
-    # the 50-day is reclaimed. The lane's second half opens the anchor
-    # seeding gate under the same flag+condition (collect_root_anchors).
-    # NaN SMA_50 fails the >= closed — the exception never rides missing data.
-    if latest['Close'] < latest['SMA_200'] and not (
-            settings.BOTTOMING_BASE_LANE_ENABLED
-            and latest['Close'] >= latest['SMA_50']):
-        return None, ("sma200", samples)
-    if yearly_return < settings.MIN_YEARLY_RETURN: return None, ("yoy", samples)
-
-    return (df, float(yearly_return)), None
-
-
-def apply_baseline_filters(df: pd.DataFrame) -> Optional[tuple[pd.DataFrame, float]]:
-    """
-    Enrich the DataFrame with rolling indicators and apply universe-level
-    filters (price, volume, trend, yearly return).
-
-    Returns ``(df, yearly_return)`` if the ticker passes, or ``None`` if
-    filtered out. yearly_return is returned (not recomputed downstream) so
-    the scorer reuses the exact same value the gate used.
-
-    Vol_50 sample timing: this gate samples Vol_50 at the latest bar, while
-    `detect_lps` re-samples at `eval_idx` (offsets 0 to
-    LPS_SCAN_OFFSET_MAX - 1 bars back). The values can diverge for
-    low-liquidity tickers; that's intentional so each gate has its own
-    consistent denominator.
-    """
-    result, _ = apply_baseline_filters_with_reason(df)
-    return result
 
 
 def _structure_to_boxes(s, n: int) -> dict:
@@ -1459,9 +1345,7 @@ def evaluate_ticker_with_near_miss(ticker: str, df: pd.DataFrame,
 # (the state table of docs/final_method_2026-09.md point 22, and precedence row 5 of point 6 for the open
 # right edge); the wire carries them verbatim, never a slug the frontend must translate. Two are step 11's
 # ("root candidate, unconfirmed", "broke down"): on the table, never typed before the hand-over exists.
-WATCH_WIRE_STATES = ("fired", "crossed", "lines, no LPS yet", "forming N of 15",
-                     "root candidate, unconfirmed", "beyond R, undetermined",
-                     "under S, undetermined", "broke down", "not scanned", "no lines")
+# WATCH_WIRE_STATES: the table itself is engine_alpha/sentinels.py's (imported at the top of this module).
 # The states whose chart the lane shows: lines and no fire.
 WATCH_LANE_STATES = ("lines, no LPS yet", "forming N of 15", "beyond R, undetermined",
                      "under S, undetermined")

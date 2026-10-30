@@ -1,4 +1,6 @@
-"""Indicator NaN contract — one bad price cell may not delete a whole read.
+"""The shared metrics (engine_alpha/metrics.py): the ATR family's NaN contract and the trend template.
+
+Indicator NaN contract — one bad price cell may not delete a whole read.
 
 Council review 2026-09-07, finding 14: ``_fast_ewm`` masked only a LEADING NaN
 run; an interior NaN entered the recursive filter and propagated to every later
@@ -11,7 +13,8 @@ These guards pin the contract:
 1. an interior NaN is LOCAL — NaN at that bar, finite after it;
 2. the leading-pad case, and the no-NaN case, stay BYTE-identical to the
    pre-fix read (the fix must be a strict superset, never a re-calibration);
-3. ``calculate_atr`` and ``calculate_adx``, which share the helper, inherit it.
+3. ``calculate_atr`` and ``calculate_adx`` (still the old engine's, in ``structure/metrics/indicators.py``),
+   which share the helper, inherit it.
 """
 from __future__ import annotations
 
@@ -23,12 +26,8 @@ import pandas as pd
 from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from engine_alpha.structure.metrics.indicators import (  # noqa: E402
-    _fast_ewm,
-    _fast_ewm_valid,
-    calculate_adx,
-    calculate_atr,
-)
+from engine_alpha.metrics import _fast_ewm, _fast_ewm_valid, calculate_atr, trend_template  # noqa: E402
+from engine_alpha.structure.metrics.indicators import calculate_adx  # noqa: E402
 
 
 def _ramp(n=40, start=100.0, step=0.7):
@@ -144,3 +143,32 @@ def test_clean_frames_read_identically_through_both_indicators():
     # index 0 is the shifted-Close / diff pad in both series (unchanged).
     assert np.isfinite(atr[1:]).all()
     assert np.isfinite(adx[1:]).all()
+
+
+# --- 4. the trend template (moved here from tests/scoring/test_scoring.py) --
+
+def test_trend_template_full_pass_on_clean_uptrend():
+    n = 252
+    df = pd.DataFrame([
+        {"Open": 10 + 0.36 * i, "High": (10 + 0.36 * i) * 1.01,
+         "Low": (10 + 0.36 * i) * 0.99, "Close": 10 + 0.36 * i, "Volume": 1000}
+        for i in range(n)
+    ])
+    t = trend_template(df, dist_52w_high_pct=-0.01)
+    assert t["stage2_trend_pass"] is True
+    assert t["stage2_trend_pass_count"] == 7
+    assert t["stage2_ma_stack_pass"] is True
+    assert t["stage2_ma200_slope_1m_pct"] > 0
+    assert t["stage2_52w_low_pct"] > 0.30
+
+
+def test_trend_template_insufficient_history_degrades():
+    df = pd.DataFrame([
+        {"Open": 100, "High": 101, "Low": 99, "Close": 100, "Volume": 1000}
+        for _ in range(150)        # < 200 bars
+    ])
+    t = trend_template(df, dist_52w_high_pct=-0.01)
+    assert t["stage2_trend_pass"] is False
+    assert t["stage2_trend_pass_count"] == 0
+    assert t["stage2_ma200_slope_1m_pct"] is None
+    assert t["stage2_ma_stack_pass"] is False

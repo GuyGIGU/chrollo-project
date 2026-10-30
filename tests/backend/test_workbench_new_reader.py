@@ -92,9 +92,9 @@ def test_a_chart_the_new_reader_refused_is_a_failed_read_never_no_box(new_reader
 
 
 def test_a_chart_the_universe_door_refused_is_not_scanned_never_no_box(new_reader, monkeypatch):
-    from engine_alpha import evaluation
+    from engine_alpha import universe_door
 
-    monkeypatch.setattr(evaluation, "apply_baseline_filters_with_reason",
+    monkeypatch.setattr(universe_door, "apply_baseline_filters_with_reason",
                         lambda df: (None, ("sma200", "under its 200-day average")))
     ticker, as_of = MISSED
     reason = fired._miss_reason(_mark(ticker, as_of), frame_loader=_loader(_frame(ticker, as_of)))

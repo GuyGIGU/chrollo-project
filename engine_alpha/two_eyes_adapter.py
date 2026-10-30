@@ -13,7 +13,7 @@ from dataclasses import replace
 from typing import Optional
 
 from config import settings
-from engine_alpha.evaluation import EVAL_ERROR, WATCH_WIRE_STATES
+from engine_alpha.sentinels import EVAL_ERROR, WATCH_WIRE_STATES
 from engine_alpha.two_eyes.record import NO_LINES, READ_FAILED, SPRING, Read, Step
 from engine_alpha.two_eyes_archive import SCREEN_KEY, two_eyes_archive_values, two_eyes_screen_boxes, volume_vs_50d
 
@@ -83,7 +83,7 @@ def stock_trend(frame) -> dict:
     its last close, then ``trend_template``. Under the archive's names (``_stage2_*``), exactly the old row's keys.
     """
     from engine_alpha.frames import _trim_to_period
-    from engine_alpha.structure.metrics.indicators import distance_to_52w_high_pct, trend_template
+    from engine_alpha.metrics import distance_to_52w_high_pct, trend_template
 
     daily = _trim_to_period(frame, settings.DAILY_STRUCTURE_PERIOD)
     if daily.empty:
@@ -101,7 +101,7 @@ def stock_adr(frame) -> dict:
     ADR, under the old row's key (``_adr_pct``). Carried, never graded: the new reader's grade reads no ADR.
     """
     from engine_alpha.frames import _trim_to_period
-    from engine_alpha.structure.metrics.indicators import adr_pct
+    from engine_alpha.metrics import adr_pct
 
     daily = _trim_to_period(frame, settings.DAILY_STRUCTURE_PERIOD)
     return {"_adr_pct": adr_pct(daily, settings.ADR_WINDOW)}
@@ -125,7 +125,7 @@ def _spring_day(read: Read) -> Optional[str]:
 
 def graded_read(read: Read, frame=None, stage=None) -> Read:
     """Compose the trait grade once, outside the chart-reading leaf: the letter the integrity grade's, the score
-    placed within the letter by his traits (`engine_alpha/scoring/clarity.py`). The weekly stage is one of them:
+    placed within the letter by his traits (`engine_alpha/two_eyes/traits.py`). The weekly stage is one of them:
     given as ``stage`` (the row's own read), else read off the stock's whole ``frame``; a stage that cannot be read
     leaves its row unmeasured and costs no other trait.
 
@@ -134,7 +134,7 @@ def graded_read(read: Read, frame=None, stage=None) -> Read:
     grade = read.grade
     if grade is None or not grade.clarity or grade.clarity.get("method"):
         return read
-    from engine_alpha.scoring.clarity import compose_grade
+    from engine_alpha.two_eyes.traits import compose_grade
 
     if stage is None and frame is not None:
         try:

@@ -16,39 +16,11 @@ BACKEND_DIR = ROOT / "webapp" / "backend"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(1, str(BACKEND_DIR))
 
-from engine_alpha.structure.metrics.indicators import trend_template
 from core.archive.analyze import derive_outcomes, safe_rank_corr, signal_edge
 
 # Written for the OLD reader: since the flip it keeps testing it (the switch back
 # is the first undo). tests/conftest.py, old_reader.
 pytestmark = pytest.mark.usefixtures("old_reader")
-
-
-def test_trend_template_full_pass_on_clean_uptrend():
-    n = 252
-    df = pd.DataFrame([
-        {"Open": 10 + 0.36 * i, "High": (10 + 0.36 * i) * 1.01,
-         "Low": (10 + 0.36 * i) * 0.99, "Close": 10 + 0.36 * i, "Volume": 1000}
-        for i in range(n)
-    ])
-    t = trend_template(df, dist_52w_high_pct=-0.01)
-    assert t["stage2_trend_pass"] is True
-    assert t["stage2_trend_pass_count"] == 7
-    assert t["stage2_ma_stack_pass"] is True
-    assert t["stage2_ma200_slope_1m_pct"] > 0
-    assert t["stage2_52w_low_pct"] > 0.30
-
-
-def test_trend_template_insufficient_history_degrades():
-    df = pd.DataFrame([
-        {"Open": 100, "High": 101, "Low": 99, "Close": 100, "Volume": 1000}
-        for _ in range(150)        # < 200 bars
-    ])
-    t = trend_template(df, dist_52w_high_pct=-0.01)
-    assert t["stage2_trend_pass"] is False
-    assert t["stage2_trend_pass_count"] == 0
-    assert t["stage2_ma200_slope_1m_pct"] is None
-    assert t["stage2_ma_stack_pass"] is False
 
 
 def test_derive_outcomes_maps_barrier_label_to_win_binary():

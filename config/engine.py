@@ -4,12 +4,6 @@ Edit defaults here; runtime consumers use config.settings so scoped overrides
 and existing monkeypatches continue to share one settings namespace.
 """
 
-MIN_PRICE = 3.0
-MIN_VOLUME_50D = 50_000          # 50-day average daily volume floor
-MIN_YEARLY_RETURN = -0.20        # Allows modest drawdowns (v1 used +0.30)
-MIN_MARKET_CAP = 300_000_000     # Dollars; checked on the FIRES after the read (operator 2026-10-03),
-                                 # core/pipeline/screening/market_cap_floor.py
-
 # --- The 50-day dip exception (miss program 2026-08-28; DARK) ---------------
 # The universe door's sma50 leg refuses a chart whose own drawn story dragged
 # price under the 50-day — SKYT's deep spring held it below for ~4 weeks and
@@ -976,14 +970,6 @@ LPS_VOL_CONTRACTION_MAX = 0.87   # LPS avg volume must be <= 87% of 50d avg. Mov
 # monthly) and a calibration target — eyeball + tune via tools/audits/htf_audit.py.
 HTF_CONTEXT_ENABLED = True        # compute + archive + chip HTF context on FIRING setups; never gates
 
-# The daily read is sliced to this trailing window before read_structure, so the
-# 5y cache (needed for HTF resampling) does NOT feed the daily oldest-first root
-# walk extra history and drift it (the FOSL _MAX_ANCHORS sensitivity). Keeps daily
-# byte-identical; validate with tools.regression.shadow_diff once real 5y data is present.
-# FROZEN-CONFIG MANIFEST (Lane A): the daily read window is part of the frozen
-# engine contract — changing it is a new engine_config_version (re-baseline).
-DAILY_STRUCTURE_PERIOD = "2y"
-
 HTF_STAGE_MA = 30                 # HTF Stage-2 trend MA (Weinstein weekly MA-30 ~ daily MA-150/200)
 HTF_STAGE_MA_SLOPE_BARS = 4       # the stage MA must be rising over this many HTF bars
 
@@ -1040,16 +1026,6 @@ HTF_MONTHLY_WINDOWS = {
     "BOTTOMING_BASE_LANE_ENABLED": False,
 }
 
-# --- The stage read (the stock's life cycle on its weekly chart; built Fri 16/10/2026) -----------
-# MEASURE-ONLY: shown and archived on every new-reader fire, never a gate, a score or a tier, and no
-# reader reads it (engine_alpha/stage_read.py; docs/strategy_alpha.md "Reading the stage"). Not on
-# the engine's version stamp: it moves no fire. The numbers are the book's own stage-2 checks as the
-# trend template already reads them, on weekly bars (ours).
-STAGE_MA_WEEKS = 40               # the 40-week average (Minervini's 200-day; the base-count rule of 12/10/2026)
-STAGE_SLOPE_WEEKS = 4             # rising / falling: the average against itself this many weeks earlier
-STAGE_OFF_LOW_MIN = 0.30          # an advance week closes at least this far over the 52-week low
-STAGE_LOW_WEEKS = 52              # the 52-week low, in weeks
-
 # ---------------------------------------------------------------------------
 # THE TWO-EYES READER (the rewrite, 2026-09-20) - DARK
 # ---------------------------------------------------------------------------
@@ -1069,13 +1045,3 @@ STAGE_LOW_WEEKS = 52              # the 52-week low, in weeks
 # its rows carry the stamp cdb7ee2d (docs/flag_ledger.md, "The engine stamps of
 # the flip"). The undo is the checklist in docs/deploy.md, "The Flip".
 TWO_EYES_READER_ENABLED = True
-
-# The new reader's ruleset version, BUMPED BY HAND with every change to how
-# it reads. The engine's version stamp hashes the listed settings, their
-# names and the scoring registry - but NO reader code, so without this two
-# different builds of the new reader would stamp the same version and an
-# archive row could not say which one wrote it. A string once used is SPENT:
-# a bump appends its new string to SPENT_RULESETS in
-# tests/engine/test_two_eyes_adapter.py, and a re-flip after an undo always
-# bumps (docs/flag_ledger.md, "The engine stamps of the flip").
-TWO_EYES_RULESET = "two-eyes-0.11.0-wrap-and-traits"

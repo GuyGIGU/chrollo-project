@@ -30,10 +30,9 @@ import numpy as np
 import pandas as pd
 
 from config import settings
+from engine_alpha.metrics import resample_ohlc  # noqa: F401  (moved; the old import path still resolves)
 from engine_alpha.structure.metrics.indicators import calculate_atr
 
-_AGG = {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
-_RULE = {"weekly": "W-FRI", "monthly": "ME"}
 _PREFIX = {"weekly": "htf_w_", "monthly": "htf_m_"}
 
 # Every context dict carries this full key set (with the timeframe prefix) so the
@@ -87,39 +86,6 @@ def htf_archive_values(get, *, prefixed: bool) -> dict:
         out[col] = (int(bool(value)) if value is not None else None) \
             if col in HTF_BOOL_COLUMNS else value
     return out
-
-
-def resample_ohlc(df: pd.DataFrame, tf: str) -> Optional[pd.DataFrame]:
-    """Resample a daily OHLCV frame to weekly (``W-FRI``) or monthly (``ME``).
-
-    Keeps the latest (still-forming) period as the final bar — the structure
-    detectors reserve it via ``STRUCTURE_EDGE_SKIP_BARS`` exactly as on daily.
-    Returns None on an unusable frame.
-    """
-    rule = _RULE.get(tf)
-    if rule is None:
-        raise ValueError(f"unknown timeframe {tf!r}")
-    if df is None or len(df) == 0:
-        return None
-    if not isinstance(df.index, pd.DatetimeIndex):
-        # Only coerce a genuinely date-like (string/object) index. A numeric index
-        # would be silently epoch-coerced into 1970 and collapse every bar — skip it.
-        if df.index.dtype != object:
-            return None
-        try:
-            df = df.set_index(pd.to_datetime(df.index))
-        except (ValueError, TypeError):
-            return None
-    cols = {c: how for c, how in _AGG.items() if c in df.columns}
-    if not {"High", "Low", "Close"} <= set(cols):
-        return None
-    try:
-        out = df.resample(rule).agg(cols)
-    except (ValueError, KeyError):
-        # Older pandas: 'ME'/'W-FRI' alias fallback.
-        out = df.resample("M" if tf == "monthly" else "W").agg(cols)
-    out = out.dropna(subset=["High", "Low", "Close"])
-    return out if len(out) else None
 
 
 @contextlib.contextmanager
