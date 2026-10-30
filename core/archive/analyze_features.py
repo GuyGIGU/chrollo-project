@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from engine_alpha.scoring import taxonomy
-
 # Structural features (the "picture" - produced by the Visual Structure Engine).
 STRUCTURAL_FEATURES = [
     "box_width", "base_length", "touches", "r_touches", "s_touches",
@@ -60,7 +58,7 @@ STRUCTURAL_FEATURES = [
     "htf_m_stage2", "htf_m_in_consol", "htf_m_reaccum", "htf_m_daily_nested", "htf_m_box_width",
 ]
 
-# The two-axis read — mirrors engine_alpha.structure.Structure.horizontal / .vertical.
+# The two-axis read of the old engine's rows (its Structure.horizontal / .vertical).
 # A daily chart is read along two axes; splitting the fingerprint by axis lets the
 # edge analysis ask WHICH ONE separates winners from losers (the validation
 # question). Every column here is already archived (core/archive/writer.py) — these
@@ -89,10 +87,18 @@ VERTICAL_FEATURES = [
     "final_contraction_depth", "bin_d_vs_b_range_ratio",
 ]
 
-# Sub-scores (the Scoring Engine decomposition) — sourced from the ONE registry
-# (engine_alpha/scoring/taxonomy.py) so a new/renamed/dropped sub-score can't silently
-# drift out of the correlation + signal-edge analysis. Same 14 columns, same order.
-SUB_SCORES = taxonomy.archive_columns()
+# Sub-scores: the old engine's per-term decomposition, in the registry's order
+# at its retirement (Fri 30/10/2026). The columns stay on the rows the old
+# reader wrote; the new reader writes none of them.
+SUB_SCORES = [
+    "score_box_tightness", "score_touch_density", "score_traversal_quality",
+    "score_atr_squeeze", "score_lps_tightness", "score_vol_contraction",
+    "score_base_age", "score_uptrend_bonus", "score_rs_bonus",
+    "score_high_proximity", "score_breadth_bonus", "score_contraction",
+    "score_ascending_support", "score_adr", "score_setup_quality",
+    "score_spring", "score_story_s_tests", "score_story_r_rejections",
+    "score_story_alternations", "score_story_terminal_posture",
+]
 
 # Outcome targets (filled by update_forward_returns).
 OUTCOME_TARGETS = ["fwd_return_20d", "fwd_return_60d", "r_multiple_20d"]

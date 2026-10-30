@@ -8,7 +8,7 @@ import pytest
 from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from engine_alpha.election_identity import rails_match, same_election
+from core.calibration.agreement import rails_match
 from core.calibration.agreement import (
     OUTCOMES,
     fired_inside_window,
@@ -143,14 +143,10 @@ def test_tally_headline_is_concordance_not_replication():
     assert t["match_over_scored"] == pytest.approx(1 / 3)
 
 
-def test_same_election_identity():
-    a = dict(R=93.70, S=85.53, box_start_date="2025-07-10")
-    assert same_election(a, dict(a))
-    # Epsilon wobble within 10% of box height: the SAME reading.
-    assert same_election(a, {**a, "R": 93.90})
-    # A different box start DATE is a different reading, however close.
-    assert not same_election(a, {**a, "box_start_date": "2025-07-11"})
-    assert not same_election(a, {**a, "S": 60.0})
+def test_rails_match_is_loud_on_a_non_finite_rail():
+    # Epsilon wobble within 10% of box height: the SAME rails.
+    assert rails_match(93.70, 85.53, 93.90, 85.53)
+    assert not rails_match(93.70, 85.53, 93.70, 60.0)
     with pytest.raises(ValueError):
         rails_match(float("inf"), 85.0, 93.0, 85.0)
 

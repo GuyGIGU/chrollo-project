@@ -724,7 +724,7 @@ def render_sheet(charts: list, out_dir: str, rank_by: str, graded: bool, third: 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from tools.calibration.core_board import _render, _words
-    from tools.research.full_package_render import _draw_bars
+    from tools.calibration.draw import _draw_bars
 
     os.makedirs(out_dir, exist_ok=True)
     sign = dict(MEASURES + SECOND)[rank_by] if not graded else -1

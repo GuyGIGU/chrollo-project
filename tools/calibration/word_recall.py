@@ -8,17 +8,15 @@ the story runs (``line_words.assemble``; council review of Fri 09/10/2026, findi
 re-types a rule (EC-18). Read-only: the marks DB is opened ``mode=ro&immutable=1``, so no pragma, no WAL write and
 no commit can reach it. Not in pytest: CI has no marks DB.
 
-It imports no piece of the old chart reader directly. The words, the line and the daily range are the new
-reader's copies, which change on purpose from here, so this is the instrument that says when they first read
-differently. The engine basis takes the OLD engine's election through the door, ``engine_alpha.reader`` (its
-box-only read refuses the new reader, so this basis runs with the switch off; on, it is reported "not read"), fed the old engine's own daily range
-through the shared instrument enrichment, so a change to the daily-range copy never moves the box it reports. The words and the line it reads
-on that box are the copies', as on his rails: a copy that changes on purpose moves both bases' words.
+The engine basis is the reader's own record of the chart on his fire day (``engine_alpha.reader.read_record``):
+its parent box, its LPS and its mini, in the box's own daily range. The words and the line it reads on that
+box are the same rules as on his rails. (Until 31/10/2026 this basis was the old engine's election; the old
+engine is retired.)
 
 Two bases, reported side by side:
   his rails  the reader on HIS rails, fed HIS drawn LPS windows: the word rule alone, without the election.
-  engine     the words read on the engine's own election at his fire day (the box from the door, on the old
-             engine's daily range): scored only where the engine draws a box.
+  engine     the words read on the reader's own box at his fire day (the record from the door, in the box's
+             own daily range): scored only where the reader draws a box.
 
 A hit is the same word within one trading day of the bar his drawing points at. Beside every hit rate: the exact
 day, and CHANCE, the same score with his day moved three trading days either way (a word that fires on most days
@@ -63,12 +61,12 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import database  # noqa: E402
-from engine_alpha import reader  # noqa: E402  (the door: the old engine's election, never imported directly)
+from engine_alpha import reader  # noqa: E402  (the door: the reader's own record)
 from engine_alpha.two_eyes import line_words  # noqa: E402
 from engine_alpha.two_eyes.line import build as build_line  # noqa: E402
 from engine_alpha.two_eyes.daily_range import calculate_atr  # noqa: E402
 from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
-from core.calibration.replay import MARK_ATR_OFFSET, enrich_marked_frame, session_pos  # noqa: E402
+from core.calibration.replay import session_pos  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
 
 WORDS = ("sos", "sos strict", "the_sos", "the_sos strict", "last_supper", "phase_c", "spring_test",
@@ -77,22 +75,13 @@ SHIFT = 3
 
 
 def _enriched(frame):
-    """The columns the readers expect, computed with the NEW reader's daily range: the same four
-    `core.calibration.replay.enrich_marked_frame` stamps, whose daily range is the old engine's original. The shared helper
-    is left alone — the old engine's own pin uses it, and so does the engine basis here."""
+    """The columns the word rules expect, computed with the reader's daily range."""
     frame = frame.copy()
     frame["ATR_10"] = calculate_atr(frame, 10)
     frame["ATR_50"] = calculate_atr(frame, 50)
     frame["Vol_50"] = frame["Volume"].rolling(50).mean()
     frame["Spread"] = frame["High"] - frame["Low"]
     return frame
-
-
-def _frames(raw):
-    """(his-rails frame, engine frame) for one mark. His-rails basis reads the copies, so it gets the copy's daily
-    range; the engine basis measures the OLD engine's election, so it gets the old engine's own, the one it reads
-    in the scan."""
-    return _enriched(raw), enrich_marked_frame(raw)
 
 
 def _read_only_session():
@@ -105,6 +94,15 @@ def _line(frame):
     the words' form."""
     return [(int(t.bar), t.kind, float(t.price), None if t.knowable_bar is None else int(t.knowable_bar))
             for t in build_line(frame).turns]
+
+
+def _reader_box(idx, box, read_bar: int):
+    """The reader's box (``engine_alpha.two_eyes.record.Box``) in the words' shape: bars of ``idx``."""
+    start = session_pos(idx, box.opened_day.isoformat())
+    R, S = float(box.resistance.price), float(box.support.price)
+    return SimpleNamespace(start_bar=start, base_len=read_bar - start + 1, R=R, S=S, box_width=(R - S) / S,
+                           r_anchor_bar=session_pos(idx, box.resistance.anchor_day.isoformat()),
+                           s_anchor_bar=session_pos(idx, box.support.anchor_day.isoformat()))
 
 
 def _box_unit(frame, box) -> float:
@@ -175,7 +173,8 @@ def _score(key, rec, evs, span, tip, hi, lo, a, b, day, lps_windows, sos_windows
 def read_mark(mk):
     """(his-rails rows, engine rows, facts) for one mark."""
     key = f"{mk.ticker}:{mk.as_of_date}"
-    fr, old = _frames(frame_store.load_frame(mk.ticker, mk.as_of_date, digest=mk.frame_digest))
+    raw = frame_store.load_frame(mk.ticker, mk.as_of_date, digest=mk.frame_digest)
+    fr = _enriched(raw)
     idx = fr.index
     a = session_pos(idx, mk.box_start_date)
     b = session_pos(idx, mk.as_of_date, boundary="end")
@@ -207,24 +206,29 @@ def read_mark(mk):
                   line=line, box_start=a, read_bar=b)
 
     # The engine basis reads on HIS fire day, the last day of his last LPS window: his read day is often the buy
-    # day or later, where no LPS is live and the engine returns nothing. Only words he drew by then are scored.
-    eng_rows, eng, structure = [], None, None
-    # The engine basis is the OLD reader's box read: under the new reader it is not read (the door refuses it by
-    # name), and the facts say "not read" (None), never "no box" (go-live plan, task 5).
-    old_basis = reader.which_reader() == reader.READER_OLD
-    if last and old_basis:
+    # day or later, where no LPS is live and the reader returns nothing. Only words he drew by then are scored.
+    eng_rows, eng, eng_box = [], None, None
+    if last:
         fire = last[1]
-        wf = old.iloc[:fire + 1]
-        uf = float(wf["ATR_10"].iloc[-MARK_ATR_OFFSET])
-        structure = reader.read_box(wf, uf)
-        if structure is not None:
-            eng = line_words.read_line_words(wf, structure.box, uf, lps=structure.lps, inner=structure.inner,
-                                             line=_line(wf))
-            eng_lps = [(int(structure.lps.start_bar), int(structure.lps.end_bar), int(structure.lps.low_bar))]
+        wf = work.iloc[:fire + 1]
+        record = reader.read_record(mk.ticker, raw.iloc[:fire + 1])
+        box = None if record is None or record.failed else record.parent
+        if box is not None:
+            eng_box = _reader_box(idx, box, fire)
+            uf = float(box.daily_range) if box.daily_range else _box_unit(wf, eng_box)
+            eng_lps, eng_lps_ns = [], None
+            if record.lps is not None:
+                l0 = session_pos(idx, record.lps.start_day.isoformat())
+                l1 = session_pos(idx, record.lps.end_day.isoformat(), boundary="end")
+                low_bar = l0 + int(np.argmin(lo[l0:l1 + 1]))
+                eng_lps = [(l0, l1, low_bar)]
+                eng_lps_ns = SimpleNamespace(start_bar=l0, end_bar=l1, low_bar=low_bar, low=float(lo[low_bar]))
+            inner = None if record.mini is None else _reader_box(idx, record.mini, fire)
+            eng = line_words.read_line_words(wf, eng_box, uf, lps=eng_lps_ns, inner=inner, line=_line(wf))
             seen = [e for e in evs if span(e)[1] <= fire]
-            eng_rows = _score(key, eng, seen, span, tip, hi, lo, min(a, int(structure.box.start_bar)), fire, day,
+            eng_rows = _score(key, eng, seen, span, tip, hi, lo, min(a, int(eng_box.start_bar)), fire, day,
                               eng_lps, [w for w in sos_windows if w[1] <= fire], uf, line=_line(wf),
-                              box_start=int(structure.box.start_bar), read_bar=fire)
+                              box_start=int(eng_box.start_bar), read_bar=fire)
 
     facts = {"mark": key, "days": b - a + 1, "thrusts": len(rec["thrusts"]),
              "last_suppers": len(rec["last_suppers"]), "spring_tests": len(rec["spring_tests"]),
@@ -232,7 +236,7 @@ def read_mark(mk):
              "upthrust": (None if rec["the_upthrust"] is None else
                           f"{day(rec['the_upthrust']['swing_bar'])} -> {day(rec['the_upthrust']['top_bar'])} "
                           f"+{rec['the_upthrust']['poke_ranges']:.2f} over R"),
-             "engine_box": (structure is not None) if old_basis else None}
+             "engine_box": (eng_box is not None) if last else None}
     if lps_windows:
         his_first = min([lps_windows[0][0]] + [s0 for (s0, _) in sos_windows])
         pcs = [e for e in evs if e.event_type == "phase_c"]

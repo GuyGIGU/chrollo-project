@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  engineLine,
-  engineTitle,
   failureNotice,
   paneBody,
   paneTitle,
@@ -47,37 +45,6 @@ test('failureNotice: a rate-limit reads as busy, never as failed', () => {
     + 'chart stays up; wait a few seconds and retry.');
   assert.equal(failureNotice(failure('bad_ticker', 'ticker rejected')),
     'Lookup failed — bad_ticker. ticker rejected. Tickers are 1-10 chars: A-Z, 0-9, dot or dash.');
-});
-
-test('engineLine: status first, then the plain verdict', () => {
-  assert.equal(engineLine(null, 'loading'), 'engine: reading…');
-  assert.equal(engineLine({ elected: true }, 'engine read failed — backend unreachable'),
-    'engine: engine read failed — backend unreachable');
-  assert.equal(engineLine(null, null), 'engine: —');
-  assert.equal(engineLine({ elected: false, reason: 'no structure' }, null),
-    'engine: does NOT confirm your box here');
-});
-
-test('engineLine: an elected box names its rails, span and snap', () => {
-  const read = { elected: true, R: 104.5, S: 95.25, box_start_date: '2025-02-03',
-                 eval_session: '2025-06-20', snapped: 2 };
-  assert.equal(engineLine(read, null),
-    'engine finds a box — R 104.50 / S 95.25 · from 2025-02-03 @ 2025-06-20 (snapped −2)');
-  assert.equal(engineLine({ ...read, snapped: 0 }, null),
-    'engine finds a box — R 104.50 / S 95.25 · from 2025-02-03 @ 2025-06-20');
-});
-
-test('engineLine: a missing rail renders the null guard, never NaN', () => {
-  const read = { elected: true, R: null, S: undefined, box_start_date: 'a', eval_session: 'b' };
-  assert.equal(engineLine(read, null), 'engine finds a box — R — / S — · from a @ b');
-});
-
-test('engineTitle: the raw detector reason only when the engine refused', () => {
-  assert.equal(engineTitle({ elected: false, reason: 'no structure elects' }),
-    'engine detail: no structure elects');
-  assert.equal(engineTitle({ elected: false }), undefined);
-  assert.equal(engineTitle({ elected: true, reason: 'x' }), undefined);
-  assert.equal(engineTitle(null), undefined);
 });
 
 test('provenanceLine: ticker, session, close, bar count and regime; a missing close is the guard', () => {

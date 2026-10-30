@@ -12,8 +12,7 @@ import { initialVisibleRange } from '../model/calibrationChartUtils';
 // `framing` is the saved setup's {boxStart, triggerDate} for the loaded frame
 // (or null): read ONCE, when a new frame opens.
 export default function useCalibrationCanvas({
-  chartData, marking, savedForFrame, engineOn, engineRead,
-  dispatchMarking, setPlaceNotice, framing,
+  chartData, marking, savedForFrame, dispatchMarking, setPlaceNotice, framing,
 }) {
   const chartApiRef = useRef(null);
   const markingRef = useRef(marking);
@@ -48,7 +47,6 @@ export default function useCalibrationCanvas({
       spanAnchor: marking.spanAnchor,
       committed: marking.editingId != null,
       saved: savedForFrame,
-      engine: engineOn ? engineRead : null,
       candles: chartData?.candles ?? [],
     });
     api.hover.setArmed(marking.tool !== 'idle');

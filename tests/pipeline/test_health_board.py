@@ -1,11 +1,11 @@
 """Classifier tripwire for the Market & Sector Health Board.
 
-The byte-parity gates (``tools.regression.shadow_diff`` / ``core.archive.seed_recall``) prove
-ONLY that ``us_equities`` is untouched — they do NOT watch the classifier's own
-output. These synthetic-frame tests are therefore the load-bearing tripwire on the
-health path: they pin each state, the precedence ladder's totality + exclusivity
-(exactly one closed-set state per member), the as-of-bar / degenerate-input guards,
-and frame isolation.
+The regression ratchets prove ONLY that the fires are untouched — they do NOT watch the
+classifier's own output. These tests are therefore the load-bearing tripwire on the health
+path: they pin each state (the box states on his own sealed charts, read through the reader
+door — decision B of the retirement, Fri 30/10/2026), the precedence ladder's totality +
+exclusivity (exactly one closed-set state per member), the degenerate-input guards, and
+frame isolation.
 """
 from __future__ import annotations
 
@@ -42,9 +42,9 @@ def _frame(closes, band=0.6, start="2023-01-02"):
 
 def _worked_box(tail=None, tail_bars=6, S=113.0, R=125.0, n_pre=170,
                 markup_bars=40, ar_bars=8, osc_cycles=8, osc_bars=6):
-    """Background uptrend -> markup leg -> automatic reaction -> a worked box that
-    oscillates rail-to-rail, then a flat ``tail`` (the as-of region). ``find_outer_box``
-    detects R~125 / S~113; ``tail`` places the as-of close within/above the box."""
+    """Background uptrend -> markup leg -> automatic reaction -> a range that oscillates
+    113-125 rail-to-rail, then a flat ``tail``. The universe door refuses this frame (the
+    last close sits under its 50-day average), so it reads as the boxless fallback."""
     closes = list(np.linspace(50, 95, n_pre))              # background trend (builds SMA200)
     closes += list(np.linspace(95, 128, markup_bars))       # markup leg to the climax
     closes += list(np.linspace(128, 113, ar_bars))          # automatic reaction
@@ -67,33 +67,50 @@ def test_state_set_is_exactly_seven_in_decision_proximity_order():
     )
     # The str mixin makes each member its own JSON-safe wire string.
     assert HealthState.NEAR_RESISTANCE == "near_resistance"
-
-
 # --------------------------------------------------------------------------
-# Each state is reachable
+# Each state is reachable: the box states on his own sealed charts (the reader's
+# parent box through the door), the boxless states on synthetic frames
 # --------------------------------------------------------------------------
 
-def test_box_states_off_one_worked_frame_by_tail_position():
-    # One worked-box frame; the as-of close position picks the box state.
-    assert classify_member(_worked_box(tail=119.0)).state is HealthState.CONSOLIDATING
-    assert classify_member(_worked_box(tail=124.3)).state is HealthState.NEAR_RESISTANCE
-    assert classify_member(_worked_box(tail=113.8)).state is HealthState.NEAR_SUPPORT
-    assert classify_member(_worked_box(tail=131.0)).state is HealthState.POST_BREAKOUT_MARKUP
+def _sealed(key, cut=0):
+    """One sealed chart (tests/baselines/marks_corpus.parquet), its last ``cut`` days removed."""
+    from core.calibration.replay import load_sealed_fixture
+
+    frames, _ = load_sealed_fixture()
+    df = frames[key]
+    return df.iloc[:-cut] if cut else df
 
 
-def test_consolidating_carries_box_geometry_no_breakout_extension():
-    mh = classify_member(_worked_box(tail=119.0))
-    assert mh.R is not None and mh.S is not None and mh.R > mh.S
-    assert mh.base_len > 0
-    assert 0.30 < mh.box_pos < 0.70
-    assert mh.breakout_extension is None
+def test_near_resistance_his_alb_closes_within_a_line_area_of_r():
+    # ALB to Mon 13/04/2026: the parent 182.80 / 156.04, the last close 185.43 — over R, but by less
+    # than half a daily range, so the member is coiled AT the ceiling, not through it.
+    mh = classify_member(_sealed("ALB:2026-04-13"))
+    assert mh.state is HealthState.NEAR_RESISTANCE
+    assert (mh.R, mh.S, mh.base_len) == (182.8, 156.04, 46)
+    assert mh.box_pos == 1.0983 and mh.breakout_extension is None
+    assert mh.distance_to_high_pct == -0.0999
 
 
-def test_post_breakout_markup_reports_extension_above_R():
-    mh = classify_member(_worked_box(tail=131.0))
+def test_consolidating_his_anet_closes_inside_the_rails():
+    mh = classify_member(_sealed("ANET:2026-09-25"))
+    assert mh.state is HealthState.CONSOLIDATING
+    assert (mh.R, mh.S, mh.base_len) == (214.89, 187.03, 37)
+    assert 0.30 < mh.box_pos < 0.80 and mh.breakout_extension is None
+
+
+def test_near_support_his_clov_a_day_earlier_sits_on_the_floor():
+    # CLOV cut to Mon 26/10/2026: the close 4.56 against S 4.50 — within a line area of the floor.
+    mh = classify_member(_sealed("CLOV:2026-10-27", cut=1))
+    assert mh.state is HealthState.NEAR_SUPPORT
+    assert (mh.R, mh.S) == (5.18, 4.5)
+    assert mh.box_pos == 0.0882 and mh.breakout_extension is None
+
+
+def test_post_breakout_markup_his_dsgn_reports_the_extension_above_r():
+    mh = classify_member(_sealed("DSGN:2026-03-31"))
     assert mh.state is HealthState.POST_BREAKOUT_MARKUP
-    assert mh.breakout_extension is not None and mh.breakout_extension > 0
-    assert mh.box_pos > 1.0
+    assert (mh.R, mh.S, mh.base_len) == (10.31, 9.0, 79)
+    assert mh.breakout_extension == 0.0324 and mh.box_pos == 1.2557
 
 
 def test_trending_is_clean_uptrend_with_no_box():
@@ -110,51 +127,81 @@ def test_deep_correction_from_large_drawdown():
 
 
 def test_no_structure_is_the_total_fallback():
-    # Mild decline then flat chop: below its own SMA200, not trending, no worked
-    # box, and not deep enough to be a correction -> the fallback.
-    closes = list(np.linspace(120, 100, 150)) + list(100 + np.sin(np.linspace(0, 20, 150)) * 2)
-    mh = classify_member(_frame(closes))
+    # A member the universe door refuses (the last close under its 50-day average) that
+    # is neither deep in correction nor trending: no box is read, the fallback.
+    frame = _worked_box(tail=119.0)
+    mh = classify_member(frame)
     assert mh.state is HealthState.NO_STRUCTURE
+    assert mh.R is None and mh.S is None and mh.base_len == 0
     assert mh.distance_to_high_pct is not None and mh.distance_to_high_pct > -0.30
 
 
 # --------------------------------------------------------------------------
-# Precedence ladder: drawdown-first, exclusivity, the as-of bar
+# Precedence ladder: drawdown-first, exclusivity, the box through the door
 # --------------------------------------------------------------------------
 
 def test_drawdown_is_classified_before_the_box(monkeypatch):
-    # A worked box sits ~7% below its climax high. Tighten the deep-correction
-    # floor so that drawdown alone should dominate — proving drawdown is checked
-    # BEFORE the box read (the box would otherwise say consolidating).
-    plain = classify_member(_worked_box(tail=119.0))
+    # His ANET holds a box and sits ~4% below its high. Tighten the deep-correction floor so
+    # that drawdown alone dominates — proving drawdown is checked BEFORE the box read.
+    plain = classify_member(_sealed("ANET:2026-09-25"))
     assert plain.state is HealthState.CONSOLIDATING
-    monkeypatch.setattr(settings, "HEALTH_DEEP_CORRECTION_DRAWDOWN", -0.05)
-    deep = classify_member(_worked_box(tail=119.0))
+    monkeypatch.setattr(settings, "HEALTH_DEEP_CORRECTION_DRAWDOWN", -0.02)
+    deep = classify_member(_sealed("ANET:2026-09-25"))
     assert deep.state is HealthState.DEEP_CORRECTION
 
 
-def test_state_never_leads_its_geometry_reads_the_as_of_bar():
-    # The as-of bar is df[-6]; the last 5 (edge) bars are reserved. A spike above R
-    # confined to those edge bars must NOT flip the state to post_breakout — the
-    # as-of bar still sits mid-box, so it reads consolidating.
-    box = _worked_box(tail=119.0)
-    box.iloc[-settings.STRUCTURE_EDGE_SKIP_BARS:, box.columns.get_loc("Close")] = 140.0
-    box.iloc[-settings.STRUCTURE_EDGE_SKIP_BARS:, box.columns.get_loc("High")] = 141.0
-    mh = classify_member(box)
-    assert mh.state is HealthState.CONSOLIDATING
+def test_the_box_is_the_readers_parent_through_the_door(monkeypatch):
+    """The board reads the reader's own record: what read_record holds as the parent is the box."""
+    from engine_alpha import reader
+
+    seen = {}
+    real = reader.read_record
+
+    def spy(ticker, df, **kwargs):
+        read = real(ticker, df, **kwargs)
+        seen["parent"] = read.parent
+        return read
+
+    monkeypatch.setattr(reader, "read_record", spy)
+    mh = classify_member(_sealed("ANET:2026-09-25"))
+    parent = seen["parent"]
+    assert (mh.R, mh.S) == (round(parent.resistance.price, 2), round(parent.support.price, 2))
+
+
+def test_a_member_the_door_refuses_has_no_box(monkeypatch):
+    from engine_alpha import reader
+
+    monkeypatch.setattr(reader, "read_record", lambda ticker, df, **k: None)
+    mh = classify_member(_sealed("ANET:2026-09-25"))
+    assert mh.state in (HealthState.TRENDING, HealthState.NO_STRUCTURE)
+    assert mh.R is None and mh.S is None and mh.base_len == 0
+
+
+def test_the_line_area_is_half_a_daily_range(monkeypatch):
+    """near_resistance / near_support = the last close within LINE_WORD_AREA_ATR daily ranges of R or S:
+    with no area at all his ALB (closing OVER R) reads as broken out, not coiled."""
+    from engine_alpha import two_eyes_numbers as M
+
+    monkeypatch.setattr(M, "LINE_WORD_AREA_ATR", 0.0)
+    assert classify_member(_sealed("ALB:2026-04-13")).state is HealthState.POST_BREAKOUT_MARKUP
+    monkeypatch.setattr(M, "LINE_WORD_AREA_ATR", 0.5)
+    assert classify_member(_sealed("ALB:2026-04-13")).state is HealthState.NEAR_RESISTANCE
 
 
 def test_every_state_is_a_single_valid_closed_set_member():
     frames = [
-        _worked_box(tail=119.0), _worked_box(tail=124.3), _worked_box(tail=113.8),
-        _worked_box(tail=131.0), _frame(list(np.linspace(50, 150, 300))),
+        _sealed("ALB:2026-04-13"), _sealed("ANET:2026-09-25"), _sealed("CLOV:2026-10-27", cut=1),
+        _sealed("DSGN:2026-03-31"), _frame(list(np.linspace(50, 150, 300))),
         _frame(list(np.linspace(50, 150, 200)) + list(np.linspace(150, 90, 100))),
-        _frame(list(np.linspace(120, 100, 150)) + list(100 + np.sin(np.linspace(0, 20, 150)) * 2)),
+        _worked_box(tail=119.0),
     ]
+    states = set()
     for df in frames:
         mh = classify_member(df)
         assert isinstance(mh, MemberHealth)
         assert isinstance(mh.state, HealthState)  # exactly one, from the closed set
+        states.add(mh.state)
+    assert states == set(HealthState), "every state of the closed set is reached once"
 
 
 # --------------------------------------------------------------------------
@@ -166,31 +213,18 @@ def test_short_history_raises_insufficient_history():
         classify_member(_frame(list(np.linspace(50, 60, 150))))  # < 200 bars
 
 
-def test_as_of_frame_below_floor_raises_even_when_raw_len_ok(monkeypatch):
-    # 202 raw bars: after reserving the 5 edge bars the as-of frame is 197 < 200.
-    monkeypatch.setattr(settings, "HEALTH_MIN_BARS", 200)
-    with pytest.raises(InsufficientHistoryError):
-        classify_member(_frame(list(np.linspace(50, 70, 202))))
-
-
 def test_non_finite_prices_never_crash_and_stay_in_the_closed_set():
-    # The classifier reads the AS-OF bar at df[-STRUCTURE_ATR_SAMPLE_OFFSET] (i.e.
-    # daily_df[-6]); the last STRUCTURE_EDGE_SKIP_BARS edge bars are RESERVED and
-    # never read, so a poison there is inert (the isfinite guard never fires). Inject
-    # inf onto the as-of Close itself, on a frame that DOES form a worked box, so the
-    # ``math.isfinite(as_of_close)`` guard genuinely fires instead of letting a
-    # non-finite value poison the box_pos math downstream.
-    box = _worked_box(tail=119.0)  # forms a box; as-of close would otherwise be mid-box
-    as_of = -settings.STRUCTURE_ATR_SAMPLE_OFFSET  # -6: the bar the classifier reads
-    box.iloc[as_of, box.columns.get_loc("Close")] = np.inf
-    mh = classify_member(box)  # must not raise
-    assert isinstance(mh.state, HealthState)  # a valid closed-set state, not a crash
+    # The classifier reads the LAST close; inf there must take the isfinite guard,
+    # not poison the box_pos math downstream.
+    frame = _sealed("ANET:2026-09-25")
+    frame.iloc[-1, frame.columns.get_loc("Close")] = np.inf
+    mh = classify_member(frame)  # must not raise
     assert mh.state is HealthState.NO_STRUCTURE  # degraded gracefully off the guard
     assert mh.box_pos is None
 
 
 def test_classify_member_does_not_mutate_the_caller_frame():
-    df = _worked_box(tail=119.0)
+    df = _sealed("ANET:2026-09-25")
     cols_before = list(df.columns)
     snapshot = df.copy(deep=True)
     classify_member(df)
@@ -209,11 +243,11 @@ class _FakeUniverse:
 
 
 def test_classify_universe_members_isolates_failures(monkeypatch):
-    box = _worked_box(tail=119.0)                       # AAA: classifies
-    short = _frame(list(np.linspace(50, 60, 150)))      # BBB: short history
+    box = _sealed("ANET:2026-09-25")                    # AAA: classifies (a box)
+    short = _frame(list(np.linspace(50, 60, 150)), start=str(box.index[0].date()))  # BBB: short history
     # Concatenate into a MultiIndex panel keyed by ticker; the shorter frame pads
     # with NaN beyond its length and is dropped back to 150 bars by the reader.
-    panel = pd.concat({"AAA": box, "BBB": short}, axis=1)
+    panel = pd.concat({"AAA": box, "BBB": short}, axis=1, sort=True)
 
     monkeypatch.setattr(
         "core.pipeline.universe.tickers.get_cached_tickers",
@@ -245,7 +279,7 @@ def _fake_universe_at(path):
 def test_build_health_payload_shape_carries_no_buy_language():
     from core.pipeline.screening.dashboard import build_health_payload
 
-    box = _worked_box(tail=124.3)  # near_resistance, has a box
+    box = _sealed("ALB:2026-04-13")  # near_resistance, has a box
     panel = pd.concat({"XLE": box}, axis=1)
     members = {"XLE": classify_member(box)}
     payload = build_health_payload(members, [{"ticker": "ZZZ", "reason": "short_history"}], panel, _FakeUniverse())
@@ -286,7 +320,7 @@ def test_generate_dashboard_rides_health_board_into_same_artifact(tmp_path, monk
     out = tmp_path / "screener_data_us_sectors.json"
     monkeypatch.setattr(dash, "resolve_universe", lambda _u: _fake_universe_at(out))
 
-    box = _worked_box(tail=119.0)
+    box = _sealed("ANET:2026-09-25")
     panel = pd.concat({"XLE": box}, axis=1)
     payload = build_health_payload({"XLE": classify_member(box)}, [], panel, _FakeUniverse())
 

@@ -173,7 +173,7 @@ def test_every_archive_door_now_resolves_through_the_one_home():
 
 
 def test_the_five_writer_side_doors_ask_the_shared_home_at_call_time():
-    """``writer``/``purge``/``seed``/``forward_returns``/``near_miss_outcomes``
+    """``writer``/``purge``/``seed``/``forward_returns``/``calibration_outcomes``
     resolve inside their functions, so the override must be read at CALL time —
     a constant captured at import would miss a variable set afterwards."""
     import core.archive.db_path as db_path

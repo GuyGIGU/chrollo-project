@@ -1,8 +1,8 @@
 """Adapter: canonical live-evaluation result -> seed/archive-writer key shape.
 
-The live path (`engine_alpha.evaluation._build_live_result`) is the single source of
-truth for an evaluation result. It emits a dict whose internal fields are `_`-prefixed
-(e.g. ``_lps_descent_frac``, ``_bin_a_bars``) plus a few display-named fields
+The live path (the reader door, ``engine_alpha.reader``, through ``two_eyes_adapter.to_result``)
+is the single source of truth for an evaluation result. It emits a dict whose internal fields
+are `_`-prefixed (e.g. ``_R``, ``_two_eyes_parent_r_price``) plus a few display-named fields
 (``Setup``, ``Score``, ``Current Price`` ...).
 
 The seed archive writer (`core.archive.seed`) historically consumed a *separate*,
@@ -15,8 +15,8 @@ Pure function, no I/O. The only new surface introduced by the live/seed unificat
 
 Rule:
   * Most fields: strip a single leading underscore (``_eq_r_touches`` -> ``eq_r_touches``,
-    ``_bin_a_bars`` -> ``bin_a_bars``, ``_stage2_trend_pass`` -> ``stage2_trend_pass``,
-    ``_htf_w_*`` -> ``htf_w_*`` which ``htf_archive_values(..., prefixed=False)`` then reads).
+    ``_stage2_trend_pass`` -> ``stage2_trend_pass``, ``_two_eyes_*`` -> ``two_eyes_*`` which
+    ``two_eyes_archive_values(..., prefixed=False)`` then reads).
   * A small set of fields are renamed, not just unprefixed (display names and a handful of
     anchor/length fields). Those are listed in ``_CANONICAL_TO_SEED`` and applied last so
     they win over the strip pass.

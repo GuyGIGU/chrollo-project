@@ -576,23 +576,3 @@ def test_the_real_terminal_table_meeting_a_rotten_row_does_not_cost_the_night(
 
     assert archived["tickers"] == ["AAA", "ROTTEN"], \
         "the archive, with its own per-row guard, must be reached"
-
-
-def test_a_lane_failure_after_the_archive_still_carries_the_refused_rows(
-        tmp_path, monkeypatch):
-    """The near-miss lane runs after the fires are archived, and a failure
-    there fails the run. The rows the archive refused tonight used to leave
-    with that exception — the run failed with no count on its line."""
-    expected = _wire_scanjob(tmp_path, monkeypatch)
-    panel = _panel(["AAA", "BBB", "SPY", "QQQ"], expected)
-    results = pd.DataFrame([{"Ticker": "AAA", "Score": 10.0}, {"Ticker": "BBB", "Score": 9.0}])
-    _wire_scan_io(monkeypatch, results, panel, ["AAA", "BBB"])
-    monkeypatch.setattr(scan_job_module, "archive_scan_results", _archive_refusing({"BBB"}))
-
-    def lane_breaks(sink, uni):
-        raise ValueError("a near-miss row the lane cannot store")
-
-    monkeypatch.setattr(scan_job_module, "_archive_near_misses", lane_breaks)
-    with pytest.raises(ValueError) as failure:
-        scan_job_module.run_scan_and_export(mode="download")
-    assert failure.value.n_refused == 1

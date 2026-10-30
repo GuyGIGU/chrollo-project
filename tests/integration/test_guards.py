@@ -345,11 +345,14 @@ def test_shadow_guard_fails_when_ticker_drops_out():
     assert any("BBB" in line for line in lines)
 
 
-@pytest.mark.parametrize("engine_dir", ["scoring", "structure"])
-def test_engines_do_not_import_archive(engine_dir):
+@pytest.mark.parametrize("engine_dir, pattern", [
+    ("two_eyes", "**/*.py"),   # the reader's package
+    ("", "*.py"),              # the door, the adapter, the archive family, the metrics, the sentinels
+])
+def test_engines_do_not_import_archive(engine_dir, pattern):
     base = ROOT / "engine_alpha" / engine_dir
-    files = sorted(base.rglob("*.py"))
-    assert files, f"no engine files under {base}"  # the old core/ path scanned nothing
+    files = sorted(base.glob(pattern))
+    assert files, f"no engine files under {base}"  # a moved package scans nothing
     offenders = []
     for py in files:
         text = py.read_text(encoding="utf-8")
@@ -358,6 +361,6 @@ def test_engines_do_not_import_archive(engine_dir):
             if stripped.startswith(("import ", "from ")) and "core.archive" in stripped:
                 offenders.append(f"{py.name}: {stripped}")
     assert not offenders, (
-        "engine_alpha/{} must not import core.archive (scoring/structure judge facts, "
-        "they never read outcomes): {}".format(engine_dir, offenders)
+        "engine_alpha/{} must not import core.archive (the reader measures and judges facts, "
+        "it never reads outcomes): {}".format(engine_dir, offenders)
     )

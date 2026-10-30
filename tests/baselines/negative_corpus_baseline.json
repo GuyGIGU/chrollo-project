@@ -1,44 +1,89 @@
 {
-  "captured_at": "2026-09-13T17:44:21+00:00",
-  "engine_config_version": "8cae6fd9415f92220ee5d7cb0b7e98dfd9a576fe49dadcac535f0f08f2482e6c",
+  "captured_at": "2026-10-30T22:32:39+00:00",
+  "engine_config_version": "8d66938a7b2f8f18ffebd9057f5532a26ab74731a0e78fadfb50f3943c66b999",
   "fired_policy": {
     "window_sessions": 10,
     "max_walk_sessions": 40
   },
-  "note": "Early-window fires of labeled junk under the engine of the capture day, pinned so the gate reds only on NEW fire days; each pinned day awaits the operator's eye.",
+  "note": "The fire days of the labeled junk charts under the reader of the capture day, every case, pinned so the gate reds only on a NEW fire day (or a crash, or a missing frame); a silent chart carries an empty list.",
   "known_fires": {
+    "DGII": [
+      "2026-06-23",
+      "2026-06-25",
+      "2026-07-02"
+    ],
     "BMRN": [
-      "2026-06-22"
+      "2026-06-25",
+      "2026-06-29",
+      "2026-06-30"
     ],
     "FRPH": [
       "2026-06-18",
-      "2026-06-22"
+      "2026-06-22",
+      "2026-06-25",
+      "2026-06-30",
+      "2026-07-01",
+      "2026-07-02"
     ],
     "OHI": [
-      "2026-06-30",
+      "2026-06-29",
       "2026-07-01"
     ],
     "AEF": [
-      "2026-06-04"
+      "2026-06-03"
     ],
     "SPCB": [
+      "2026-06-18",
       "2026-06-24",
       "2026-06-25",
-      "2026-06-26",
-      "2026-06-29"
+      "2026-06-29",
+      "2026-07-02"
+    ],
+    "KWR": [
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24"
+    ],
+    "DBD": [
+      "2026-06-03",
+      "2026-06-05"
+    ],
+    "RLGT": [
+      "2026-06-23",
+      "2026-06-24",
+      "2026-06-30"
+    ],
+    "FLG": [
+      "2026-06-18",
+      "2026-06-29",
+      "2026-06-30",
+      "2026-07-02"
+    ],
+    "BBVA": [
+      "2026-06-18",
+      "2026-06-24",
+      "2026-06-26"
     ],
     "ABEV": [
       "2026-06-03",
       "2026-06-04",
       "2026-06-05",
-      "2026-06-09",
       "2026-06-10"
     ],
+    "COLM": [
+      "2026-06-22",
+      "2026-06-23"
+    ],
+    "GOOD": [],
     "ENIC": [
-      "2026-06-26"
+      "2026-06-23"
     ],
     "BBVA@2026-06-05": [
-      "2026-06-04"
+      "2026-05-22",
+      "2026-06-01",
+      "2026-06-03",
+      "2026-06-04",
+      "2026-06-05"
     ]
   }
 }

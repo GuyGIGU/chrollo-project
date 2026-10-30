@@ -28,7 +28,7 @@ import pytest
 from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
-from core.fundamentals import advisory, post_pass
+from core.fundamentals import post_pass
 from core.regime import scan_context
 
 
@@ -288,19 +288,3 @@ def test_sector_rank_fields_unknown_etf_is_empty():
 
 
 # ── the assembly has ONE home ────────────────────────────────────────────────
-def test_evaluate_ticker_attaches_nothing_in_worker(monkeypatch):
-    """The in-worker attach point is gone — with flags off OR on, the eval
-    worker adds no advisory keys (the conductor post-pass is the one
-    assembly; EC-3, 2026-08-17 review)."""
-    from engine_alpha import evaluation
-
-    sentinel = {"Ticker": "AAA", "Score": 100.0, "Tier": "S"}
-    monkeypatch.setattr(evaluation, "_run_eval_chain", lambda *a, **k: dict(sentinel))
-
-    from config import settings
-    monkeypatch.setattr(settings, "FUNDAMENTALS_ENABLED", True, raising=False)
-    monkeypatch.setattr(settings, "RS_LINE_ENABLED", True, raising=False)
-
-    out = evaluation._evaluate_ticker("AAA", _price_df([1.0] * 300))
-    assert out == sentinel  # flags ON and still no in-worker advisory keys
-    assert not hasattr(advisory, "per_ticker_advisory")  # retired, not dormant

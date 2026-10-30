@@ -35,16 +35,8 @@ from engine_alpha import reader
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
-from engine_alpha.scoring.scoring import (
-    sub_score_archive_values,
-    ta_grade_archive_values,
-)
-from engine_alpha.structure.events.event_map import event_map_archive_values
-from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
-from engine_alpha.structure.context.htf import htf_archive_values
-from engine_alpha.structure.context.strategy_read import strategy_archive_values
+from core.archive.writer import retired_columns_null
 from engine_alpha.two_eyes_archive import two_eyes_archive_values
-from engine_alpha.structure.box.trace_export import election_trace_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -423,8 +415,6 @@ def seed_archive(
             sector_cache[ticker] = (etf, trend)
         sector_etf, sector_trend = sector_cache[ticker]
 
-        sub = best_result.get("sub_scores", {})
-
         # Build the row via the model-driven mapper (domains.archive.queries.
         # archive_row_from_result) — the SAME single-source assembler the manual-
         # add route uses. It iterates SetupArchive.__table__ and fills every flat
@@ -460,12 +450,8 @@ def seed_archive(
             breach_days=best_result["breach_days"],
             vol_contraction=best_result["vol_contraction"],
             tightness_ratio=best_result["tightness_ratio"],
-            # Per-term sub-score columns — ONE registry-driven producer (task
-            # 6 fold; byte-identical to the former literals; reads the NESTED
-            # sub dict directly, so the auto-mapper's silent-None failure mode
-            # is structurally dead). Flag-gated term points ride the ta_grade
-            # family splat below (flat archive-ready names on the result).
-            **sub_score_archive_values(sub),
+            # The 0-100 grade the election ranked by (the re-keyed row's name)
+            ta_grade=best_result.get("ta_grade"),
             # int(bool(...)) coercions (nullable 0/1)
             bin_c_present=(int(bool(best_result.get("bin_c_present")))
                            if best_result.get("bin_c_present") is not None else None),
@@ -504,23 +490,9 @@ def seed_archive(
             # Labels
             source="seed",
             quality_label="perfect",
-            # HTF (higher-timeframe) context — same engine on weekly/monthly bars
-            **htf_archive_values(best_result.get, prefixed=False),
-            # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
-            **event_map_archive_values(best_result.get, prefixed=False),
-            # Sentence-token family (consolidation-method Task 8) — NULL
-            # until the sentence measurement flag flips
-            **sentence_archive_values(best_result.get, prefixed=False),
-            # TA-grade family: the grade pair (always emitted since the
-            # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
-            # + the three setup grades (NULL when the narrative abstained)
-            **ta_grade_archive_values(best_result.get, prefixed=False),
-            # Election-trace evidence — NULL when the export flag is off
-            **election_trace_archive_values(best_result.get, prefixed=False),
-            # Strategy read (held-through-correction) — NULL when dark
-            **strategy_archive_values(best_result.get, prefixed=False),
-            # The two-eyes reader's family — NULL for every seeded row
-            # until the reader that fills it is the one being replayed.
+            # The old engine's families, emptied on every write
+            **retired_columns_null(),
+            # The reader's two boxes and their anchor DAYS
             **two_eyes_archive_values(best_result.get, prefixed=False),
             # Forward returns (computed above for this historical date)
             **fwd_returns,

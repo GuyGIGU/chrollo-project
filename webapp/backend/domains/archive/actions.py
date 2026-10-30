@@ -49,16 +49,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
     from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
     from engine_alpha.freeze.manifest import manifest_hash
-    from engine_alpha.scoring.scoring import (
-        sub_score_archive_values,
-        ta_grade_archive_values,
-    )
-    from engine_alpha.structure.context.htf import htf_archive_values
-    from engine_alpha.structure.events.event_map import event_map_archive_values
-    from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
-    from engine_alpha.structure.context.strategy_read import strategy_archive_values
     from engine_alpha.two_eyes_archive import two_eyes_archive_values
-    from engine_alpha.structure.box.trace_export import election_trace_archive_values
     from archive_models import (
         SetupArchive,
         get_market_context,
@@ -151,7 +142,6 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     market_ctx = get_market_context(scan_dt)
     sector_etf = get_sector_etf(ticker)
     sector_trend = get_sector_trend(sector_etf, scan_dt) if sector_etf else None
-    sub = result.get("sub_scores", {}) or {}
 
     # RS vs sector: stock base return − sector ETF base return, same window.
     rs_vs_sector = None
@@ -173,11 +163,13 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
             rs_vs_sector = None
 
     # Special-cased columns: identity, required fields (KeyError if the eval
-    # result lacks them), sub-score remaps, the three int(bool(...)) coercions,
-    # market-context enrichment, and the HTF / forward-return splats. Everything
-    # else is a flat result.get(col) pass-through that archive_row_from_result
-    # fills by iterating SetupArchive.__table__ — so a new flat model column needs
-    # no edit here.
+    # result lacks them), the grade, the three int(bool(...)) coercions,
+    # market-context enrichment, and the two-eyes / forward-return splats.
+    # Everything else is a flat result.get(col) pass-through that
+    # archive_row_from_result fills by iterating SetupArchive.__table__ — so a
+    # new flat model column needs no edit here. The old engine's families (sub-
+    # scores, HTF, event map, sentence, trace, strategy) are history: their
+    # columns stay NULL on every row written from here on.
     overrides = {
         "ticker": ticker,
         "scan_date": scan_dt,
@@ -199,17 +191,10 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         "breach_days": result["breach_days"],
         "vol_contraction": result["vol_contraction"],
         "tightness_ratio": result["tightness_ratio"],
-        # Per-term sub-score columns — the ONE registry-driven producer (task
-        # 6 fold). The manual path's deliberate NULL (score_traversal_quality,
-        # also frozen in _MANUAL_UNMAPPED_COLUMNS) is a DECLARED exclusion,
-        # never a hand-omission.
-        **sub_score_archive_values(
-            sub, exclude=frozenset({"score_traversal_quality"})),
-        # TA-grade family — the SAME single stamping point the live and seed
-        # writers use (council review 2026-08-08, finding 1: the raw model
-        # pass would bind resolve_fired_tags' Python LIST into the TEXT
-        # column and skip every EC-19 closed-set refusal + the EC-2 scrub).
-        **ta_grade_archive_values(result.get, prefixed=False),
+        # The grade: the reader's one number, NaN-scrubbed at the pandas
+        # boundary (EC-2) the way every archive writer stamps it; a missing or
+        # scrubbed cell stays NULL ("not measured"). The seed result is unprefixed.
+        "ta_grade": _ta_grade_cell(result.get("ta_grade")),
         # Coercions (nullable 0/1)
         "bin_c_present": (int(bool(result.get("bin_c_present")))
                           if result.get("bin_c_present") is not None else None),
@@ -228,18 +213,6 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         "engine_config_version": manifest_hash(),
         "quality_label": payload.quality_label,
         "notes": payload.notes,
-        # HTF (higher-timeframe) context splat — seed result, unprefixed keys
-        **htf_archive_values(result.get, prefixed=False),
-        # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off (EC-30:
-        # the family producer rides EVERY writer, same shape as the seed path)
-        **event_map_archive_values(result.get, prefixed=False),
-        # Sentence-token family (consolidation-method Task 8) — NULL until
-        # the sentence measurement flag flips (EC-30, same shape)
-        **sentence_archive_values(result.get, prefixed=False),
-        # Election-trace evidence — NULL when the export flag is off
-        **election_trace_archive_values(result.get, prefixed=False),
-        # Strategy read (held-through-correction) — NULL when dark
-        **strategy_archive_values(result.get, prefixed=False),
         # EC-30: the family rides EVERY writer through the one producer,
         # so the closed-set refusal guards this route too.
         **two_eyes_archive_values(result.get, prefixed=False),
@@ -251,6 +224,18 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return row
+
+
+def _ta_grade_cell(value):
+    """A REAL archive cell from a result value: NaN becomes NULL, None stays NULL."""
+    if value is None:
+        return None
+    try:
+        if value != value:  # NaN is the one value unequal to itself
+            return None
+    except (TypeError, ValueError):
+        pass
+    return value
 
 
 _ANALYSIS_CACHE: Dict[str, Any] = {"report": None, "ts": 0.0}

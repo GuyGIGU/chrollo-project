@@ -19,8 +19,8 @@ test('HOTKEY_TOOLS: every event key arms an event type the reducer knows', () =>
   }
 });
 
-test('HOTKEY_TOOLS: e, Enter and Escape are not tools (engine peek, save, disarm)', () => {
-  for (const k of ['e', 'enter', 'escape']) assert.equal(HOTKEY_TOOLS[k], undefined, k);
+test('HOTKEY_TOOLS: Enter and Escape are not tools (save, disarm)', () => {
+  for (const k of ['enter', 'escape']) assert.equal(HOTKEY_TOOLS[k], undefined, k);
 });
 
 const press = (over = {}) => ({ key: 'r', target: { tagName: 'DIV' },

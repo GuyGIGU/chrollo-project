@@ -29,9 +29,7 @@ from domains.calibration import router as calibration  # noqa: E402
 from domains.calibration.router import (  # noqa: E402
     MarkIn,
     MarkOut,
-    calibration_agreement,
     calibration_chart,
-    calibration_engine_read,
     calibration_fired,
     calibration_frame_thumb,
     calibration_trigger_grade,
@@ -354,14 +352,15 @@ def test_same_app_guard_rejects_foreign_and_missing_header():
 
 def test_every_side_effectful_route_declares_the_guard():
     # Every mutating route AND the expensive GETs: /chart spends the vendor
-    # bucket and freezes frames (Council finding 11); /engine-read and
-    # /agreement each run a full structure read per frame. Guarded, drive-by
-    # pages excluded.
-    guarded_gets = {"/calibration/chart", "/calibration/engine-read",
-                    "/calibration/agreement", "/calibration/frame-thumb",
+    # bucket and freezes frames (Council finding 11); /fired and /trigger-grade
+    # run the full read per mark. Guarded, drive-by pages excluded.
+    guarded_gets = {"/calibration/chart", "/calibration/frame-thumb",
                     "/calibration/fired", "/calibration/trigger-grade"}
     seen = {route.path for route in calibration.router.routes}
     assert guarded_gets <= seen  # the pin covers routes that actually exist
+    # The old engine's two reads of a frame are gone with it (retire-old-engine,
+    # Phase 2b): the overlay of its box election and the per-mark concordance chip.
+    assert not {"/calibration/engine-read", "/calibration/agreement"} & seen
     for route in calibration.router.routes:
         methods = getattr(route, "methods", set()) or set()
         side_effectful = bool(methods & {"POST", "PUT", "DELETE", "PATCH"})
@@ -370,87 +369,6 @@ def test_every_side_effectful_route_declares_the_guard():
         if side_effectful:
             deps = [d.call for d in route.dependant.dependencies]
             assert require_same_app in deps, route.path
-
-
-# ── Engine-read overlay ──────────────────────────────────────────────
-
-
-def _fake_structure(r=93.7, s=85.53, start_bar=0):
-    from types import SimpleNamespace
-    return SimpleNamespace(R=r, S=s, box=SimpleNamespace(start_bar=start_bar))
-
-
-@pytest.fixture()
-def engine_reads_isolated(monkeypatch):
-    """Fresh per-test overlay cache (module scope by design in the router)."""
-    monkeypatch.setattr(calibration, "_ENGINE_READS", {})
-
-
-def test_engine_read_refuses_unfrozen_frame(digest, engine_reads_isolated):
-    # Frozen-or-refuse: an overlay for a frame nobody froze must 404, never
-    # fetch — the vendor path does not exist on this endpoint.
-    with pytest.raises(HTTPException) as err:
-        # frame_digest passed explicitly: called directly (no FastAPI layer),
-        # the parameter default would otherwise be the Query sentinel object.
-        calibration_engine_read(ticker="ZZZQ", as_of="2026-04-15",
-                                frame_digest=None)
-    assert err.value.status_code == 404
-    assert err.value.detail["class"] == "unbound_frame"
-
-
-def test_engine_read_projects_through_the_harness_lens(
-        digest, engine_reads_isolated, monkeypatch):
-    import core.calibration.replay as replay
-    df = _bound_frame()
-    calls = []
-
-    def fake_snapped(frozen, span_end, variants, **kw):
-        calls.append((span_end, tuple(variants)))
-        return (df, 1.0, [_fake_structure()]), pd.Timestamp("2026-04-14"), 1
-
-    monkeypatch.setattr(replay, "snapped_election", fake_snapped)
-    body = calibration_engine_read(ticker="bodi", as_of="2026-04-15",
-                                   frame_digest=digest)
-    assert body["elected"] is True
-    assert (body["R"], body["S"]) == (93.7, 85.53)
-    assert body["box_start_date"] == "2026-04-13"  # date-keyed, never a bar index
-    assert body["box_end_date"] == "2026-04-15"    # the frame's right edge
-    assert (body["eval_session"], body["snapped"]) == ("2026-04-14", 1)
-    assert body["snap_back"] == replay.SNAP_BACK_SESSIONS
-    # The harness's own walk: baseline variant only, at the mark's session.
-    assert calls == [("2026-04-15", ({},))]
-
-    # Second hit serves the per-frame cache — never a second structure read
-    # (the pytest.fail patch proves no recompute). The RESPONSE is a fresh
-    # copy of the cached read (consolidation-method Task 15: the drawn-mark
-    # refusal block attaches per request — marks are editable ground truth —
-    # so the cache must hold the pure engine read only, never a diagnosis).
-    monkeypatch.setattr(replay, "snapped_election",
-                        lambda *a, **k: pytest.fail("recomputed a cached read"))
-    again = calibration_engine_read(ticker="BODI", as_of="2026-04-15",
-                                    frame_digest=digest)
-    assert again == body
-    assert again is not body
-
-
-def test_engine_read_reports_no_read_honestly(
-        digest, engine_reads_isolated, monkeypatch):
-    import core.calibration.replay as replay
-    df = _bound_frame()
-    monkeypatch.setattr(
-        replay, "snapped_election",
-        lambda *a, **k: ((df, 1.0, [None]), pd.Timestamp("2026-04-15"), 0))
-    body = calibration_engine_read(ticker="BODI", as_of="2026-04-15",
-                                   frame_digest=digest)
-    assert body["elected"] is False
-    assert "no structure elects" in body["reason"]
-
-    calibration._ENGINE_READS.clear()
-    monkeypatch.setattr(replay, "snapped_election", lambda *a, **k: None)
-    body = calibration_engine_read(ticker="BODI", as_of="2026-04-15",
-                                   frame_digest=digest)
-    assert body["elected"] is False
-    assert "prep refuses" in body["reason"]
 
 
 # ── Chart endpoint: offline degraded-outcome list ────────────────────
@@ -689,18 +607,6 @@ def test_chart_freezes_a_loadable_forward_grading_frame(monkeypatch, tmp_path):
     assert frame_store.ohlcv_digest(le) == out["frame_digest"]
 
 
-# ── Engine agreement (v2 ledger "Engine" chip) ───────────────────────
-# The chip reuses the harness's grade_one, so its ELECTION grade is pinned in
-# test_calibration_harness.py; here we pin the SERVICE mapping + the endpoint
-# plumbing with an injected/patched grader (no real engine, no frozen frame).
-import domains.calibration.agreement as agreement_service  # noqa: E402
-from domains.calibration.agreement import (  # noqa: E402
-    _chip_from_fragment,
-    agreement_for_marks,
-    reset_agreement_cache,
-)
-
-
 def _add_mark(db, **overrides):
     from datetime import datetime, timezone
     fields = dict(
@@ -717,120 +623,6 @@ def _add_mark(db, **overrides):
     db.commit()
     db.refresh(mark)
     return mark
-
-
-def test_chip_mapping_covers_the_outcome_taxonomy():
-    # match/disagree are BOTH "surfaced" (the operator's headline) -> green ok;
-    # the kind + rail_delta carry whether the geometry also agrees.
-    ok = _chip_from_fragment({"outcome": "match",
-        "rail_distances": {"r_frac": 0.03, "s_frac": 0.08}, "span_overlap": 0.7})
-    assert ok["state"] == "ok" and ok["kind"] == "match"
-    assert ok["rail_delta"] == 0.08  # max of the two rail fractions
-    differs = _chip_from_fragment({"outcome": "disagree",
-        "rail_distances": {"r_frac": 0.4, "s_frac": 0.1}, "span_overlap": 0.2})
-    assert differs["state"] == "ok" and differs["kind"] == "differs"
-    assert differs["rail_delta"] == 0.4
-    # engine elects nothing at the pick = the real miss -> red
-    miss = _chip_from_fragment({"outcome": "engine_no_read"})
-    assert miss["state"] == "miss" and miss["kind"] == "no_read"
-    # what the engine can't fairly see stays neutral, never a red miss
-    for outcome, kind in (("edge_uncertain", "edge"), ("basis_mismatch", "no_frame")):
-        chip = _chip_from_fragment({"outcome": outcome, "detail": "x"})
-        assert chip["state"] == "untested" and chip["kind"] == kind
-
-
-def test_agreement_non_box_is_untested_without_engine_compute(db):
-    neg = _add_mark(db, verdict="no_structure", resistance=None, support=None,
-                    box_start_date=None, box_end_date=None)
-
-    def forbidden(_mark):
-        raise AssertionError("a negative mark must not run the engine")
-
-    out = agreement_for_marks([neg], grade=forbidden)
-    assert out[neg.id]["state"] == "untested"
-    assert out[neg.id]["kind"] == "negative"
-
-
-def test_agreement_box_maps_the_grader_and_carries_revision(db):
-    box = _add_mark(db, revision=3)
-    out = agreement_for_marks([box], grade=lambda _m: {"outcome": "match",
-        "rail_distances": {"r_frac": 0.0, "s_frac": 0.02}, "span_overlap": 0.9})
-    chip = out[box.id]
-    assert chip["state"] == "ok" and chip["kind"] == "match"
-    assert chip["revision"] == 3
-
-
-def test_agreement_flags_stale_when_the_engine_has_moved(db, monkeypatch):
-    monkeypatch.setattr("engine_alpha.freeze.manifest.manifest_hash", lambda: "LIVE")
-    reset_agreement_cache()
-    fresh = _add_mark(db, engine_config_version="LIVE")
-    old = _add_mark(db, as_of_date="2026-04-14", engine_config_version="OLD",
-                    frame_digest="d1")
-    grade = lambda _m: {"outcome": "match",  # noqa: E731 — one-line test stub
-        "rail_distances": {"r_frac": 0.0, "s_frac": 0.0}, "span_overlap": 1.0}
-    out = agreement_for_marks([fresh, old], grade=grade)
-    assert out[fresh.id]["stale"] is False   # born under the live engine
-    assert out[old.id]["stale"] is True      # predates it — a caveat, not a miss
-
-
-def test_agreement_cache_keys_on_birth_stamp_so_a_reused_rowid_cannot_alias(monkeypatch):
-    # SQLite recycles a deleted rowid and every create starts at revision 1, so
-    # a new mark can land on a deleted mark's (id, revision). created_at is in
-    # the cache key precisely so the new mark is NOT served the deleted chip.
-    from datetime import datetime, timezone
-    from types import SimpleNamespace
-    agreement_service.reset_agreement_cache()
-    monkeypatch.setattr("engine_alpha.freeze.manifest.manifest_hash", lambda: "LIVE")
-    calls = []
-
-    def counting(mark):
-        calls.append(mark.id)
-        return {"outcome": "match", "rail_distances": {"r_frac": 0.0, "s_frac": 0.0},
-                "span_overlap": 1.0}
-
-    monkeypatch.setattr(agreement_service, "_live_grade", counting)
-    common = dict(id=5, revision=1, verdict="box", engine_config_version="LIVE")
-    deleted = SimpleNamespace(created_at=datetime(2026, 1, 1, tzinfo=timezone.utc), **common)
-    reborn = SimpleNamespace(created_at=datetime(2026, 2, 2, tzinfo=timezone.utc), **common)
-    agreement_for_marks([deleted])  # caches under the old birth stamp
-    agreement_for_marks([reborn])   # fresh birth stamp -> distinct key
-    assert calls == [5, 5]          # the reborn mark was re-graded, not served the stale chip
-
-
-def test_agreement_degrades_a_throwing_grade_to_a_named_chip(db):
-    # EC-6: one mark that blows up must not 500 the whole ledger.
-    box = _add_mark(db)
-
-    def boom(_mark):
-        raise RuntimeError("structure read exploded")
-
-    out = agreement_for_marks([box], grade=boom)
-    assert out[box.id]["state"] == "untested"
-    assert out[box.id]["kind"] == "error"
-    assert out[box.id]["outcome"] == "engine_error"
-
-
-def test_agreement_endpoint_filters_to_the_requested_ticker(db, monkeypatch):
-    _add_mark(db, ticker="BODI")
-    _add_mark(db, ticker="KLAC", as_of_date="2025-09-11", frame_digest="d2")
-    seen = {}
-
-    def fake(marks):
-        seen["tickers"] = {m.ticker for m in marks}
-        return {m.id: {"state": "ok"} for m in marks}
-
-    monkeypatch.setattr(agreement_service, "agreement_for_marks", fake)
-    body = calibration_agreement(ticker="bodi", db=db)  # normalized upstream
-    assert body["ticker"] == "BODI"
-    assert seen["tickers"] == {"BODI"}  # never grades another ticker's marks
-    assert len(body["marks"]) == 1
-
-
-def test_agreement_endpoint_rejects_a_bad_ticker(db):
-    with pytest.raises(HTTPException) as err:
-        calibration_agreement(ticker="!!", db=db)
-    assert err.value.status_code == 400
-    assert err.value.detail["class"] == "bad_ticker"
 
 
 # ── Frame thumbnail (v2 ledger mini-chart) ───────────────────────────
@@ -884,7 +676,6 @@ import threading  # noqa: E402
 import domains.calibration.fired as fired_service  # noqa: E402
 from domains.calibration.fired import (  # noqa: E402
     _chip_from_fired,
-    _nearest_reject,
     fired_for_marks,
     reset_fired_cache,
 )
@@ -933,21 +724,6 @@ def test_miss_reason_degrades_to_none_when_the_frame_is_gone():
         {"ticker": "ZZZZ", "as_of_date": "2020-01-01", "resistance": 1.0, "support": 0.0},
         frame_loader=lambda *_a, **_k: None)
     assert reason is None  # no frozen frame -> reasonless 'missed', never a crash
-
-
-def test_nearest_reject_picks_the_candidate_nearest_the_drawn_rails():
-    trace = [{"box_cascade": [
-        {"verdict": "rejected", "stage": "width", "detail": "too wide", "R": 50.0, "S": 5.0},
-        {"verdict": "rejected", "stage": "respect", "detail": "respect 0.71 < 0.80", "R": 12.5, "S": 10.2},
-        {"verdict": "elected", "stage": "selection", "detail": "winner", "R": 20.0, "S": 18.0},
-    ]}]
-    reason = _nearest_reject(trace, 12.4, 10.15)  # his rails ~ the respect candidate
-    assert reason["stage"] == "respect"
-    assert "0.71" in reason["detail"]
-    # no geometry -> the terminal reject stage
-    assert _nearest_reject(trace, None, None)["stage"] == "respect"
-    # no rejects at all -> None (a box elected, or nothing examined)
-    assert _nearest_reject([{"box_cascade": [{"verdict": "elected", "stage": "selection"}]}], 12.4, 10.15) is None
 
 
 def test_fired_non_box_is_untested_without_compute():
@@ -1136,185 +912,3 @@ def test_trigger_grade_endpoint_filters_to_the_requested_ticker(db, monkeypatch)
     body = calibration_trigger_grade(ticker="bodi", db=db)
     assert body["ticker"] == "BODI"
     assert seen["tickers"] == {"BODI"}  # never grades another ticker's marks
-
-
-import threading  # noqa: E402 — used by the pool test above
-
-
-def test_engine_read_names_the_blocking_leg_at_the_drawn_mark(
-        tmp_path, monkeypatch, db):
-    """The tuning loop's refusal naming (consolidation-method Task 15): on a
-    non-election with a drawn box mark, the served ``reason`` becomes the ONE
-    blocking leg at the operator's rails — his value vs the floor, through
-    the one operator-language vocabulary — with the resolved sentence beside
-    it and the structured block riding for later surfaces."""
-    import frame_store
-    import webapp.backend.frame_store as wb_frame_store
-
-    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
-    monkeypatch.setattr(wb_frame_store, "FRAMES_DIR", str(tmp_path))
-    n = 60
-    idx = pd.bdate_range("2026-01-05", periods=n)
-    close = 105.0
-    frame = pd.DataFrame({"Open": [close] * n, "High": [close + 0.5] * n,
-                          "Low": [close - 0.5] * n, "Close": [close] * n,
-                          "Volume": [1_000_000.0] * n}, index=idx)
-    as_of = str(idx[-1].date())
-    d, _ = frame_store.freeze_frame("REFU", as_of, frame)
-
-    db.add(models.CalibrationMark(
-        ticker="REFU", as_of_date=as_of, label="", verdict="box",
-        resistance=110.0, support=100.0,
-        box_start_date=str(idx[15].date()), box_end_date=as_of,
-        frame_digest=d, data_regime="as_traded",
-        engine_config_version="test", anchor_close=close,
-        created_at=datetime(2026, 3, 27), updated_at=datetime(2026, 3, 27)))
-    db.commit()
-
-    import core.calibration.replay as replay
-    monkeypatch.setattr(
-        replay, "snapped_election",
-        lambda *a, **k: ((frame, 1.0, [None]), idx[-1], 0))
-    calibration._ENGINE_READS.clear()
-    body = calibration_engine_read(ticker="REFU", as_of=as_of,
-                                   frame_digest=d, db=db)
-    assert body["elected"] is False
-    assert body["reason"].startswith("at your rails:"), body["reason"]
-    block = body["drawn_mark_refusal"]
-    # The flat mid-box frame passes width/window/respect/crash and never
-    # touches the rails: the FIRST refusing leg in the ladder is r_touches.
-    assert block["blocking_leg"]["leg"] == "r_touches"
-    assert block["blocking_leg"]["measured"] == 0
-    assert "sentence" in block
-    # The hover speaks plain words only (council review 2026-09-01, finding 3):
-    # the raw episode tape rides in the structured block for machine
-    # consumers and NEVER in the served reason, the plain-words episode
-    # clause closes it, and the other short legs are counted so a sitting
-    # cannot rule on one leg a mark three legs short can never satisfy.
-    assert "sentence " not in body["reason"], body["reason"]
-    assert body["reason"].endswith(block["episode_summary"]), body["reason"]
-    assert block["episode_summary"] == "no completed tests yet"
-    others = len(block["refused_legs"]) - 1
-    assert others > 1
-    assert f"— and {others} more legs short —" in body["reason"], body["reason"]
-    # The cache stays pure: a second call re-attaches fresh (mark edits must
-    # never serve a stale diagnosis), and the cached read carries no block.
-    key = next(iter(calibration._ENGINE_READS))
-    assert "drawn_mark_refusal" not in calibration._ENGINE_READS[key]
-
-
-def _freeze_refusal_frame(tmp_path, monkeypatch, ticker, frame):
-    """Freeze one frame into a tmp store (BOTH module instances) and hand back
-    (as_of, digest) — the shared setup for the refusal-naming tests."""
-    import frame_store
-    import webapp.backend.frame_store as wb_frame_store
-    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
-    monkeypatch.setattr(wb_frame_store, "FRAMES_DIR", str(tmp_path))
-    as_of = str(frame.index[-1].date())
-    d, _ = frame_store.freeze_frame(ticker, as_of, frame)
-    return as_of, d
-
-
-def _worked_range_frame(n=60):
-    """A genuinely worked range between 100 and 110 — price zigzags rail to
-    rail across every third, so all fifteen gate legs pass at those rails."""
-    idx = pd.bdate_range("2026-01-05", periods=n)
-    import numpy as np
-    c = 105.0 + 5.0 * np.sin(np.arange(n) % 12 / 12.0 * 2 * np.pi)
-    return pd.DataFrame({"Open": c, "High": c + 0.4, "Low": c - 0.4,
-                         "Close": c, "Volume": [1_000_000.0] * n}, index=idx)
-
-
-def test_engine_read_all_legs_pass_says_the_miss_is_upstream_in_plain_words(
-        tmp_path, monkeypatch, db):
-    """The other branch of the refusal read (council review 2026-09-01,
-    findings 2/3): when the operator's rails clear every gate leg, the served
-    reason must say — in plain words, no engine-internal speak and no raw
-    episode tape — that the engine never proposes this box at all."""
-    frame = _worked_range_frame()
-    as_of, d = _freeze_refusal_frame(tmp_path, monkeypatch, "PASS", frame)
-    db.add(models.CalibrationMark(
-        ticker="PASS", as_of_date=as_of, label="", verdict="box",
-        resistance=110.0, support=100.0,
-        box_start_date=str(frame.index[0].date()), box_end_date=as_of,
-        frame_digest=d, data_regime="as_traded",
-        engine_config_version="test", anchor_close=105.0,
-        created_at=datetime(2026, 3, 27), updated_at=datetime(2026, 3, 27)))
-    db.commit()
-
-    import core.calibration.replay as replay
-    monkeypatch.setattr(
-        replay, "snapped_election",
-        lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
-    calibration._ENGINE_READS.clear()
-    body = calibration_engine_read(ticker="PASS", as_of=as_of,
-                                   frame_digest=d, db=db)
-    block = body["drawn_mark_refusal"]
-    assert block["refused_legs"] == []
-    assert block["blocking_sentence"] is None
-    assert body["reason"] == (
-        "every gate leg passes at your rails — the engine never proposes "
-        f"this box, so the miss is upstream — {block['episode_summary']}")
-    # Real completed history, spoken in trading words — never the tape.
-    assert "completed test" in block["episode_summary"]
-    assert block["sentence"] and block["sentence"] not in body["reason"]
-
-
-def test_engine_read_survives_a_broken_mark_query(
-        tmp_path, monkeypatch, engine_reads_isolated):
-    """The diagnosis is a read-only PASSENGER on an already-computed response
-    (council review 2026-09-01, finding 2): a locked/contended SQLite on a
-    scan evening must degrade to the raw reason, never 500 the overlay — and
-    the catch may not be narrowed to the three exception types the mark read
-    itself happens to raise."""
-    import sqlite3
-
-    frame = _worked_range_frame(n=40)
-    as_of, d = _freeze_refusal_frame(tmp_path, monkeypatch, "LOCK", frame)
-
-    class LockedSession:
-        def query(self, *_a, **_k):
-            raise sqlite3.OperationalError("database is locked")
-
-    import core.calibration.replay as replay
-    monkeypatch.setattr(
-        replay, "snapped_election",
-        lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
-    body = calibration_engine_read(ticker="LOCK", as_of=as_of,
-                                   frame_digest=d, db=LockedSession())
-    assert body["elected"] is False
-    assert body["reason"] == "no structure elects within the snap window"
-    assert "drawn_mark_refusal" not in body
-
-
-def test_engine_read_diagnoses_the_most_recently_edited_box_mark(
-        tmp_path, monkeypatch, db):
-    """A session can hold several box marks — he draws an inner and an outer
-    box. The pick is DECLARED (council review 2026-09-01, finding 15): the
-    most recently edited one, so "at your rails" names the framing he is
-    working on rather than whichever row the database happened to yield."""
-    frame = _worked_range_frame()
-    as_of, d = _freeze_refusal_frame(tmp_path, monkeypatch, "TWIN", frame)
-    common = dict(ticker="TWIN", as_of_date=as_of, verdict="box",
-                  box_start_date=str(frame.index[0].date()),
-                  box_end_date=as_of, frame_digest=d,
-                  data_regime="as_traded", engine_config_version="test",
-                  anchor_close=105.0, created_at=datetime(2026, 3, 27))
-    # Older: the worked rails (every leg passes). Newer: rails far above the
-    # whole window — every bar sits outside, so respect_share blocks.
-    db.add(models.CalibrationMark(label="outer", resistance=110.0,
-                                  support=100.0,
-                                  updated_at=datetime(2026, 3, 27), **common))
-    db.add(models.CalibrationMark(label="inner", resistance=130.0,
-                                  support=120.0,
-                                  updated_at=datetime(2026, 3, 28), **common))
-    db.commit()
-
-    import core.calibration.replay as replay
-    monkeypatch.setattr(
-        replay, "snapped_election",
-        lambda *a, **k: ((frame, 1.0, [None]), frame.index[-1], 0))
-    calibration._ENGINE_READS.clear()
-    body = calibration_engine_read(ticker="TWIN", as_of=as_of,
-                                   frame_digest=d, db=db)
-    assert body["drawn_mark_refusal"]["blocking_leg"]["leg"] == "respect_share"

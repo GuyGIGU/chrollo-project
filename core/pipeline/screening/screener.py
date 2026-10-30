@@ -8,7 +8,7 @@ This is the piece that knows the order of operations for a scan:
     3. broadcast market context to worker processes
     4. evaluate tickers in parallel and rank the passing setups
 
-Per-ticker structure/scoring lives in ``engine_alpha.evaluation``. Display and
+The per-ticker read is the reader door's (``engine_alpha.reader``). Display and
 persistence live further out (``output/`` and ``core.archive``); this module
 just returns the ranked DataFrame plus the raw market data.
 """
@@ -25,19 +25,10 @@ from config import settings
 from core.pipeline.market_data.cache import _cache_paths
 from core.pipeline.data import get_market_context, get_provider, get_tickers
 from engine_alpha import reader
-from engine_alpha.evaluation import (
-    EVAL_ERROR,
-    apply_baseline_filters,
-    # Re-exported, NOT called here: a test that pins the near-miss lane's
-    # flag-off degrade names it by this module. The scan composes its worker
-    # through the door (`reader.scan_worker`), so the one place that decides
-    # which reader answers stays one place. (The watch and rescue twins were
-    # re-exported too, and nothing named them: dropped, finding 14.)
-    evaluate_ticker_with_near_miss,  # noqa: F401
-)
 # The scan's worker under its old name, for the instruments and tests that call
 # it directly. Both names lead to the same door.
 from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
+from engine_alpha.sentinels import EVAL_ERROR
 from core.pipeline.market_data.market_data_health import (
     compute_market_data_health,
     eligible_tickers_for,
@@ -46,12 +37,7 @@ from core.pipeline.telemetry.scan_metrics import ScanTimer, format_scan_metrics,
 from core.pipeline.universe.tickers import get_cached_tickers
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE, resolve_universe
 
-__all__ = ["CachedMarketDataError", "run_screener", "_evaluate_ticker", "apply_baseline_filters"]
-
-
-#: What the night's record says when the live near-miss lane goes quiet under
-#: the new reader (it records the OLD chain's refusals; there is no twin of it).
-NEAR_MISS_OFF_WORDS = "off under the new reader"
+__all__ = ["CachedMarketDataError", "run_screener", "_evaluate_ticker"]
 
 
 class CachedMarketDataError(RuntimeError):
@@ -86,37 +72,20 @@ def _prepare_ticker_frames(tickers: list[str], data: pd.DataFrame,
 def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                      spy_6m_return: float,
                      breadth_pct: float | None,
-                     near_miss_sink: dict | None = None,
-                     watch_sink: dict | None = None,
-                     rescue_sink: dict | None = None,
                      not_read_sink: list | None = None) -> tuple[list[dict], int]:
     """Run per-ticker evaluation across worker processes with progress output.
 
-    ``near_miss_sink``: optional ``{"rows": [], "stats": {}}`` collector for
-    the refusal lane. When given AND ``NEAR_MISS_LANE_ENABLED`` is on (read
-    lazily at call time), workers run the lane-carrying evaluation twin and
-    the deduped ruled rows + counters accumulate here; otherwise the exact
-    legacy submission runs (flag-off stays byte-identical and sink-empty).
+    The worker is the reader door's own ``scan_read`` (module-level, so the pool
+    pickles it by name). The two market arguments are the pool's fixed call; the
+    reader reads neither.
 
-    ``watch_sink``: the watch lane's ``{"rows": [], "stats": {}}`` (build step
-    8, ``LPS_LEAVES_ELECTION_ENABLED``): its twin wraps whatever rung the ladder
-    picked, so the state word is typed off the one paying read.
-
-    ``rescue_sink``: the rescue lanes' attempt rows + counters (consolidation-
-    method Task 10, ``CONTRACTION_RESCUE_ENABLED`` / ``BAR_POSTURE_RESCUE_ENABLED``):
-    its cost twin is the OUTERMOST rung, wrapping the watch twin when both ride.
-
-    All three lanes are old-engine twins: under the new reader the worker is
-    the door's own read, and a lane asked for here is refused by name
-    (``reader.scan_worker``); ``run_screener`` quiets or refuses them first.
-
-    ``not_read_sink``: a list the new reader's refusals land in (go-live plan
-    task 3): a chart whose frame it would not read comes back from its worker
-    as ``reader.NotRead``, by name and reason, and is listed here, never
-    counted as a crash. Without a sink it is counted as one, as before.
+    ``not_read_sink``: a list the reader's refusals land in: a chart whose frame
+    it would not read comes back from its worker as ``reader.NotRead``, by name
+    and reason, and is listed here, never counted as a crash. Without a sink it
+    is counted as one.
 
     Returns ``(results, errored)`` where ``errored`` is the number of tickers
-    whose eval chain THREW (and was swallowed by the skip-guard) — distinct from a
+    whose read THREW (and was swallowed by the skip-guard) — distinct from a
     structural reject (``None``). Both are dropped from ``results`` identically;
     only the error count is tracked separately, returned in-band so there is no
     stale-read hazard across calls.
@@ -125,22 +94,10 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     errored = 0
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
-    lane_on = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
-    watch_on = watch_sink is not None and settings.LPS_LEAVES_ELECTION_ENABLED
-    # The rescue lanes' cost twin (consolidation-method Task 10) is the
-    # OUTERMOST rung: it wraps whatever rung the ladder picked below it (it
-    # wrapped the species twin until that lane was deleted, final method build
-    # step 12), so the unwrap below stays deterministic whatever flips in-worker.
-    rescue_on = (rescue_sink is not None
-                 and (settings.CONTRACTION_RESCUE_ENABLED
-                      or settings.BAR_POSTURE_RESCUE_ENABLED))
-    worker_fn = reader.scan_worker(near_miss_lane=lane_on, watch_lane=watch_on,
-                                   rescue_lane=rescue_on)
-    # The night's reader, named ONCE. The results cross the pool boundary in a
-    # fixed shape, so a per-ticker name would move the worker contract; it does
-    # not need to. The switch is read per process and cannot change mid-scan,
-    # so this one reading describes every ticker below it.
-    print(f"Chart reader: {reader.which_reader()}", flush=True)
+    worker_fn = reader.scan_read
+    # The night's ruleset, named ONCE: the results cross the pool boundary in a
+    # fixed shape, so a per-ticker name would move the worker contract.
+    print(f"Chart reader: {settings.TWO_EYES_RULESET}", flush=True)
 
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
         futures = {
@@ -159,29 +116,8 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 last_reported = pct
 
             result = future.result()
-            if rescue_on:
-                # Outermost unwrap: (inner_base, rescue_row, rescue_stats).
-                result, rescue_row, rescue_stats = result
-                if rescue_row is not None:
-                    rescue_sink.setdefault("rows", []).append(rescue_row)
-                racc = rescue_sink.setdefault("stats", {})
-                for k, v in rescue_stats.items():
-                    racc[k] = racc.get(k, 0) + v
-            if watch_on:
-                result, watch_row, watch_stats = result
-                if watch_row is not None:
-                    watch_sink["rows"].append(watch_row)
-                wstats = watch_sink.setdefault("stats", {})
-                for k, v in watch_stats.items():
-                    wstats[k] = wstats.get(k, 0) + v
-            if lane_on:
-                result, lane_rows, lane_stats = result
-                near_miss_sink["rows"].extend(lane_rows)
-                stats = near_miss_sink.setdefault("stats", {})
-                for k, v in lane_stats.items():
-                    stats[k] = stats.get(k, 0) + v
             if isinstance(result, reader.NotRead) and not_read_sink is not None:
-                # A chart the new reader would not read: named, not a crash.
+                # A chart the reader would not read: named, not a crash.
                 not_read_sink.append(result)
             elif result is EVAL_ERROR or isinstance(result, reader.NotRead):
                 # Swallowed eval crash — NOT a structural reject. Counted, not appended.
@@ -193,10 +129,10 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
 
 
 def _not_read_record(not_read: list | None) -> list[dict]:
-    """The charts the new reader would not read, by name and reason, sorted by
-    ticker (go-live plan task 3), and said once in the log. The night's record
-    carries this list in its market context and its scan metrics; the run's
-    own record words it (``scan_diagnosis``). Empty under the old reader."""
+    """The charts the reader would not read, by name and reason, sorted by
+    ticker, and said once in the log. The night's record carries this list in
+    its market context and its scan metrics; the run's own record words it
+    (``scan_diagnosis``)."""
     record = [{"ticker": n.ticker, "rule": n.rule, "reason": n.reason}
               for n in sorted(not_read or [], key=lambda n: n.ticker)]
     if record:
@@ -260,8 +196,7 @@ def _read_cached_market_data(tickers: list[str], universe=None) -> pd.DataFrame:
 
 
 def run_screener(mode: str = "download",
-                 universe=None,
-                 near_miss_sink: dict | None = None) -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
+                 universe=None) -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
     """
     Execute the full Wyckoff VCP/LPS screening pipeline.
 
@@ -269,18 +204,9 @@ def run_screener(mode: str = "download",
     or ``None`` for US-Stocks). The default resolves to the exact current ticker
     source / cache / index set, so the US-Stocks run is byte-identical.
 
-    ``near_miss_sink``: optional ``{"rows": [], "stats": {}}`` collector the
-    refusal lane fills when ``NEAR_MISS_LANE_ENABLED`` is on (scan_job passes
-    one and hands the rows to the cohort writer behind the SAME archive
-    freshness gate as the fires; no sink or flag off = untouched legacy path).
-
-    Under the new reader (``reader.which_reader()``, go-live plan task 2) the
-    scan's worker is the door's own ``evaluate_ticker`` and no old-engine lane
-    rides: the near-miss lane goes quiet (its sink stays empty, and the night
-    says "near-miss lane: off under the new reader" once in the log, in
-    ``market_context["near_miss_lane"]`` and in the scan metrics' counts), and
-    the dark watch and rescue lanes, if switched on, refuse the scan by name
-    (``reader.LaneRefused``) before a price is fetched.
+    The scan's worker is the reader door's own ``scan_read``. A chart the reader
+    would not read is listed by name and reason (``market_context["not_read"]``
+    and the scan metrics' counts), apart from the crashes.
 
     Returns:
         (results_df, market_data, tickers, market_context)
@@ -292,23 +218,8 @@ def run_screener(mode: str = "download",
     if mode not in {"download", "cache"}:
         raise ValueError(f"unknown screener data mode: {mode}")
 
-    # The night's lanes under the new reader, decided before a price is
-    # fetched (go-live plan, task 2). Every lane beside the read is a twin of
-    # the OLD engine's chain: a dark lane switched on refuses the scan by name,
-    # and the live near-miss lane goes quiet, said once in the log, the market
-    # context and the scan metrics' counts.
-    near_miss_off = False
-    # The new reader's refusals (task 3): listed apart from the crashes.
-    # None under the old reader, whose night stays byte-identical.
-    not_read = None
-    if reader.which_reader() == reader.READER_NEW:
-        not_read = []
-        reader.refuse_old_engine_lanes(
-            watch_lane=settings.LPS_LEAVES_ELECTION_ENABLED,
-            rescue_lane=(settings.CONTRACTION_RESCUE_ENABLED
-                         or settings.BAR_POSTURE_RESCUE_ENABLED))
-        near_miss_off = near_miss_sink is not None and settings.NEAR_MISS_LANE_ENABLED
-        near_miss_sink = None
+    # The reader's refusals: listed apart from the crashes.
+    not_read: list = []
 
     uni = resolve_universe(universe)
 
@@ -342,60 +253,17 @@ def run_screener(mode: str = "download",
 
     print("\nStarting quantitative scans (V2 - Strict Equilibrium Models)...")
     print(f"Evaluating {len(ticker_frames)} tickers across multiple CPU cores...\n")
-    if near_miss_off:
-        print(f"Near-miss lane: {NEAR_MISS_OFF_WORDS}", flush=True)
-        market_context["near_miss_lane"] = NEAR_MISS_OFF_WORDS
 
-    # The rescue lanes' sink (consolidation-method Task 10): attempt rows +
-    # counters for the full-refusal second look. Rows ride the payload through
-    # market_context — the same vehicle as the fires, so they publish only on
-    # a completed scan — never the archive (EC-46 stays intact).
-    rescue_sink = ({"rows": [], "stats": {}}
-                   if (settings.CONTRACTION_RESCUE_ENABLED
-                       or settings.BAR_POSTURE_RESCUE_ENABLED) else None)
-    # The watch lane's sink (build step 8): rows and counts ride the payload
-    # through market_context["watch"]; absent flag-off (byte-identical).
-    watch_sink = ({"rows": [], "stats": {}}
-                  if settings.LPS_LEAVES_ELECTION_ENABLED else None)
     with timer.phase("evaluation"):
-        # Number of tickers whose eval chain THREW and was swallowed (distinct from
-        # a structural reject) is returned in-band alongside the results, so there
+        # Number of tickers whose read THREW and was swallowed (distinct from a
+        # structural reject) is returned in-band alongside the results, so there
         # is no cross-call stale-read hazard.
-        # The watch sink rides as a kwarg only when it exists (flag-on), so an
-        # injected fake without the parameter keeps working flag-off (the
-        # near-miss floor's own rule).
-        watch_kw = {"watch_sink": watch_sink} if watch_sink is not None else {}
-        if not_read is not None:
-            watch_kw["not_read_sink"] = not_read
         results, errored_tickers = _evaluate_frames(ticker_frames, spy_6m_return,
                                                     breadth_pct,
-                                                    near_miss_sink=near_miss_sink,
-                                                    rescue_sink=rescue_sink,
-                                                    **watch_kw)
+                                                    not_read_sink=not_read)
     not_read_record = _not_read_record(not_read)
     if not_read_record:
         market_context["not_read"] = not_read_record
-    if rescue_sink is not None:
-        r_stats = dict(rescue_sink.get("stats") or {})
-        if r_stats or rescue_sink.get("rows"):
-            # The second look's own cost attribution — summed in-worker time
-            # as its own pseudo-phase, present ONLY on nights the lane ran
-            # (a dark scan's persisted metrics stay byte-identical). This is
-            # the instrument both rescue flip rows gate their bound on
-            # (measured upper bound at build: ~1,241 refusals x ~0.25 s
-            # ≈ 5 min single-process, divided across the pool).
-            timer.phases["rescue_lane_worker_s"] = round(
-                float(r_stats.pop("rescue_ms", 0.0)) / 1000.0, 2)
-            market_context["rescue_lane"] = {
-                "attempts": sorted(rescue_sink["rows"],
-                                   key=lambda r: r["ticker"]),
-                "counts": {k: int(v) for k, v in sorted(r_stats.items())},
-            }
-    if watch_sink is not None:
-        market_context["watch"] = {
-            "candidates": sorted(watch_sink["rows"], key=lambda r: r["ticker"]),
-            "counts": {k: int(v) for k, v in sorted(watch_sink["stats"].items())},
-        }
 
     # The market-cap floor (operator 2026-10-03): the one entry rule the price
     # data cannot answer, checked on the fires only, BEFORE the post-passes so
@@ -493,8 +361,6 @@ def run_screener(mode: str = "download",
         # Apart from errored_tickers, which the crash alert reads.
         finish_counts["not_read_tickers"] = len(not_read_record)
         finish_counts["not_read"] = not_read_record
-    if near_miss_off:
-        finish_counts["near_miss_lane"] = NEAR_MISS_OFF_WORDS
     if fundamentals_counts is not None:
         # The attempted-vs-populated alarm rides the health surface: "flag
         # off" = key absent; "attempted, all failed" = populated 0, visibly.

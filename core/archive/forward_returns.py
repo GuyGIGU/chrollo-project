@@ -580,28 +580,10 @@ def update_forward_returns(min_age_days: int = 5, force: bool = False) -> int:
     return updated
 
 
-def run_near_miss_maturation(min_age_days: int = 5, force: bool = False) -> int:
-    """The near-miss lane's maturation pass, CONTAINED: a telemetry passenger
-    must never own the shared maturation run's status — the fires' record
-    stays ok even when the lane's dead-ticker-heavy cohort hits a download
-    pathology (review 2026-07-26 finding 6). Returns rows updated, or -1 on a
-    contained failure (printed + logged, never raised)."""
-    try:
-        from core.archive.near_miss_outcomes import update_near_miss_outcomes
-        n = update_near_miss_outcomes(min_age_days=min_age_days, force=force)
-        print(f"Near-miss outcomes updated: {n} row(s).", flush=True)
-        return n
-    except Exception as exc:  # noqa: BLE001 — passenger isolation
-        log.exception("near-miss maturation failed (fires' run unaffected)")
-        print(f"Near-miss maturation FAILED: {type(exc).__name__}: {exc}",
-              flush=True)
-        return -1
-
-
 def run_calibration_maturation(force: bool = False) -> int:
     """His calibration setups' maturation pass (operator ruling 2026-10-03: a
-    calibration setup is an archived setup too), CONTAINED like the near-miss
-    pass: it never owns the fires' run status. Returns setups measured, or -1 on
+    calibration setup is an archived setup too), CONTAINED: it never owns the
+    fires' run status. Returns setups measured, or -1 on
     a contained failure (printed + logged, never raised)."""
     try:
         from core.archive.calibration_outcomes import update_calibration_outcomes
@@ -639,12 +621,6 @@ if __name__ == "__main__":
         _run_id = None
     try:
         _updated = update_forward_returns(min_age_days=args.min_age, force=args.force)
-        # The near-miss cohort matures inside the SAME registered run (lane
-        # Task 10): one nightly maturation job, one watchdog surface. Its
-        # count is printed, not folded into n_setups (fires stay fires) — and
-        # the call is CONTAINED, so a lane-only failure can never mark the
-        # fires' committed maturation "failed" (review finding 6).
-        run_near_miss_maturation(min_age_days=args.min_age, force=args.force)
         run_calibration_maturation(force=args.force)
         # The R ruler (his rolling LPS rule) rides the same run, contained like
         # the two above; it reads the price cache, never a download.

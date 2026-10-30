@@ -124,7 +124,7 @@ test('the Calibration marking keys and the Watchlist arrows stand down under any
   };
   guardedBefore(read('../../features/calibration/components/CalibrationTab.jsx'),
     'if (!isMarkingKeystroke(e) || dialogOpen()) return;',
-    ["dispatchMarking({ type: 'tool', tool })", 'setEngineOn(', 'keyDeps.current.save()']);
+    ["dispatchMarking({ type: 'tool', tool })", 'keyDeps.current.save()']);
   guardedBefore(read('../../features/watchlist/components/WatchlistPage.jsx'),
     'if (!isPageKeystroke(event)) return;',
     ['event.preventDefault()', 'select(tickers[']);

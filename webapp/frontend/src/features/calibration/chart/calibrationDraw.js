@@ -7,15 +7,13 @@ import { CHART_COLORS } from '../../../shared/charts/chartTheme';
 // this one is RETAINED — attached once in onReady, then updated per state
 // change without rebuilding, so zoom and pan survive every placement click).
 //
-// Three layers, color doctrine (Task 13 + operator feedback 2026-07-11):
+// Two layers, color doctrine (Task 13 + operator feedback 2026-07-11):
 //   draft  — the in-flight mark: mythril while fresh, the reserved operator
 //            hue when a SAVED mark is loaded for correction.
 //   saved  — every banked mark on THIS frame, always in the operator hue.
 //            Before this layer existed, saving and starting the next mark
 //            visually erased everything ("my drawings got removed").
-//   engine — the engine's read through the agreement-harness lens, in the
-//            ENGINE rail color (dashed) — never the operator hue, so ground
-//            truth and machine opinion cannot be confused.
+// (The old engine's dashed overlay of its own box election left with it.)
 //
 // Rails are drawn BOUNDED to the box they belong to (operator feedback
 // 2026-07-21): a boundary that stretches edge-to-edge past where the box lives
@@ -84,7 +82,7 @@ export function attachCalibrationDraw(chart, series) {
   };
 
   const update = ({ draft, draftSpan = null, spanAnchor, committed = false,
-                    saved = [], engine = null, candles = [] }) => {
+                    saved = [], candles = [] }) => {
     const DRAWING = committed ? CHART_COLORS.operator : CHART_COLORS.marking;
     clearDrawn();
     const marks = [];
@@ -125,20 +123,6 @@ export function attachCalibrationDraw(chart, series) {
       if (mark.trigger_date != null && mark.trigger_price != null) {
         marks.push({ time: mark.trigger_date, position: 'aboveBar',
                      shape: 'arrowDown', color: CHART_COLORS.trigger, text: 'B' });
-      }
-    }
-
-    // The engine's read (explicit toggle; harness projection verbatim). Its
-    // box_end_date is the frame end by construction, so the rail runs from the
-    // box start to the last bar, and only the start is marked.
-    if (engine?.elected) {
-      const lastTime = candles.length ? candles[candles.length - 1].time : null;
-      const opts = { color: CHART_COLORS.rail, lineStyle: 2 };
-      rail(candles, engine.box_start_date, lastTime, engine.R, 'eR', opts);
-      rail(candles, engine.box_start_date, lastTime, engine.S, 'eS', opts);
-      if (engine.box_start_date) {
-        marks.push({ time: engine.box_start_date, position: 'belowBar',
-                     shape: 'arrowUp', color: CHART_COLORS.rail, text: 'E[' });
       }
     }
 

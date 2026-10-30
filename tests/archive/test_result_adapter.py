@@ -1,45 +1,25 @@
 """Contract tests for core.archive.result_adapter.seed_row_from_result.
 
-The adapter maps the canonical live-evaluation result (`_build_live_result`, `_`-prefixed)
+The adapter maps the canonical live-evaluation result (the reader door's, `_`-prefixed)
 to the unprefixed key shape the seed archive writer consumes. These tests pin:
 
 1. The mapping RULES (strip leading underscore + explicit renames) — fast, no engine.
-2. The real EQUIVALENCE: on the frozen shadow fixture, the live chain (run with
-   breadth=None, matching the seed path which has no live breadth at replay time) and the
-   seed twin `_evaluate_at_date` produce the same values for every key the writer reads.
-   This is also the pre-check for the A3 "_run_eval_chain" extraction: if live(breadth=None)
-   already equals seed today, collapsing them onto one chain is provably lossless.
-3. The seam's ONE consumer that reads adapter output by name: the seed scan-back election
+2. The seam's ONE consumer that reads adapter output by name: the seed scan-back election
    (`core.archive.seed._election_key`). A rename on either side must fail loudly here
    rather than silently degrade the election.
 """
-import math
-import pytest
-
-# Written for the OLD reader: since the flip it keeps testing it (the switch back
-# is the first undo). tests/conftest.py, old_reader.
-pytestmark = pytest.mark.usefixtures("old_reader")
-
 from core.archive.result_adapter import seed_row_from_result
-
-
-def _close(a, b) -> bool:
-    if isinstance(a, float) and isinstance(b, float):
-        if math.isnan(a) and math.isnan(b):
-            return True
-        return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
-    return a == b
 
 
 def test_adapter_strips_leading_underscore():
     out = seed_row_from_result(
-        {"_lps_descent_frac": 0.42, "_bin_a_bars": 7,
-         "_stage2_trend_pass": 1, "_htf_w_ma30": 1.5}
+        {"_adr_pct": 0.42, "_two_eyes_parent_r_price": 7.0,
+         "_stage2_trend_pass": 1, "_two_eyes_has_mini": True}
     )
-    assert out["lps_descent_frac"] == 0.42
-    assert out["bin_a_bars"] == 7
+    assert out["adr_pct"] == 0.42
+    assert out["two_eyes_parent_r_price"] == 7.0
     assert out["stage2_trend_pass"] == 1
-    assert out["htf_w_ma30"] == 1.5  # htf_archive_values(..., prefixed=False) reads this
+    assert out["two_eyes_has_mini"] is True  # two_eyes_archive_values(..., prefixed=False) reads this
 
 
 def test_adapter_applies_explicit_renames():
@@ -66,65 +46,6 @@ def test_adapter_does_not_mutate_input():
     canon = {"Setup": "LPS", "_R": 1.0}
     seed_row_from_result(canon)
     assert canon == {"Setup": "LPS", "_R": 1.0}
-
-
-def test_parent_is_inner_box_is_always_false():
-    """The parent box is never itself 'inner' (_structure_to_boxes slot 11 = False), so
-    structure_ctx['is_inner_box'] is False on BOTH live and seed by construction — the
-    live/seed convergence on this flag is inert (locks finding A of the eval unify)."""
-    from tools.regression.shadow_diff import _load_fixture
-    from engine_alpha.evaluation import _prepare_eval_frame, _resolve_structure_context
-
-    frames, scalars = _load_fixture()
-    checked = 0
-    for ticker in scalars["tickers"]:
-        df = frames.get(ticker)
-        if df is None:
-            continue
-        prepared = _prepare_eval_frame(df)
-        if prepared is None:
-            continue
-        ctx = _resolve_structure_context(prepared["df"], prepared["latest"])
-        if ctx is None:
-            continue
-        assert ctx["is_inner_box"] is False, f"{ticker}: parent is_inner_box must be False"
-        checked += 1
-    assert checked > 0, "fixture produced no resolvable structure contexts"
-
-
-def test_live_breadth_none_equals_seed_on_fixture():
-    """The load-bearing equivalence: live(breadth=None) ≡ seed on the frozen fixture,
-    re-keyed through the adapter. Proves the A3 extraction will be lossless."""
-    from tools.regression.shadow_diff import _load_fixture
-    from engine_alpha.evaluation import _evaluate_ticker
-    from core.archive.seed import _evaluate_at_date
-
-    frames, scalars = _load_fixture()
-    spy_6m = float(scalars.get("spy_6m_return", 0.0))
-
-    compared = 0
-    for ticker in scalars["tickers"]:
-        df = frames.get(ticker)
-        if df is None:
-            continue
-        live = _evaluate_ticker(ticker, df, spy_6m, None)  # breadth=None to match seed
-        seed = _evaluate_at_date(df, spy_6m)
-        # Both engines must agree on whether the setup fires.
-        assert (live is None) == (seed is None), f"{ticker}: live/seed fire disagreement"
-        if live is None:
-            continue
-        adapted = seed_row_from_result(live)
-        # "Ticker" is the only ticker-dependent field; seed runs the chain with
-        # ticker="" so exclude that label from the numeric-equivalence comparison.
-        mismatches = {
-            k: (seed[k], adapted.get(k))
-            for k in seed
-            if k != "Ticker" and not _close(seed[k], adapted.get(k))
-        }
-        assert not mismatches, f"{ticker}: adapter/seed mismatch on {list(mismatches)[:8]}"
-        compared += 1
-
-    assert compared > 0, "fixture produced no comparable firing setups"
 
 
 def test_election_elects_higher_grade_over_higher_score():

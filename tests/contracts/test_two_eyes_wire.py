@@ -294,62 +294,56 @@ def test_the_old_families_are_not_carried_on_a_two_eyes_row(monkeypatch):
     assert tuple(sorted(chart)) == TWO_EYES_WIRE_KEYS
 
 
-def test_an_old_reader_row_carries_no_block(monkeypatch):
-    """Additive: the rows the old reader writes are the payload they always were."""
+def test_a_row_without_the_block_draws_no_chart(monkeypatch):
+    """Every fire carries the one block; a row without it (the old engine's shape, retired 2026-10-31) gets no chart
+    rather than a chart drawn from fields the reader never fills."""
+    from core.pipeline.screening import dashboard
+
     row = {"Ticker": "AAA", "Tier": "A", "Score": 100, "Setup": "LPS", "Current Price": 11.2,
            "_trigger_price": 11.6, "_R": 11.5, "_S": 9.5, "_base_len": 8, "_lps_len": 2, "_lps_offset": 0,
            "_r_anchor_bar": 2, "_s_anchor_bar": 3}
-    chart = _payload(monkeypatch, row)
-    assert "two_eyes" not in chart and chart["base_len"] == 8
+    monkeypatch.setattr(dashboard, "_sector_etf_for_ticker", lambda *_a: None)
+    assert dashboard._extract_chart_data(_frame(), pd.DataFrame([row]), ["AAA"]) == {}
 
 
 # --------------------------------------------------------------------------- #
 # The leadership read and the volume at key points (go-live plan task 3)      #
 # --------------------------------------------------------------------------- #
-_OLD_ROW = {"Ticker": "TWOEYES", "Tier": "A", "Score": 100, "Setup": "LPS", "Current Price": 97.1,
-            "_trigger_price": 98.4, "_R": 100.0, "_S": 90.0, "_base_len": 8, "_lps_len": 2, "_lps_offset": 0,
-            "_r_anchor_bar": 2, "_s_anchor_bar": 3}
-#: What the scan attaches to a fire (the RS rating, after the read) and what the old chain measures on the stock (the
-#: trend template): the same on both rows, as on one chart read by either reader.
+#: What the scan attaches to a fire (the RS rating, after the read) and what the chain measures on the stock (the
+#: trend template): the stock's facts, carried to the card exactly as the row holds them.
 _STOCK = {"_rs_rating": 84.21, "_stage2_trend_pass_count": 6, "_stage2_52w_low_pct": 0.8412,
           "_stage2_ma200_slope_1m_pct": -1.25}
 
 
-def test_a_two_eyes_fire_carries_the_leadership_read_exactly_as_an_old_fire_does(monkeypatch):
-    """Today a new-reader fire skipped the whole leadership block on the live screen (the old shape's `continue`).
-    The stock's read does not depend on the reader: the same row facts and the same frame give the same cells."""
+def test_a_two_eyes_fire_carries_the_leadership_read(monkeypatch):
+    """Once a new-reader fire skipped the whole leadership block on the live screen (the old shape's `continue`).
+    The stock's read does not depend on the reader: the row's facts reach the card as they are."""
     from engine_alpha.two_eyes_adapter import to_result
 
-    old = _payload(monkeypatch, {**_OLD_ROW, **_STOCK})
     new = _payload(monkeypatch, {**to_result(_read()), **_STOCK})
-    assert {k: new[k] for k in LEADERSHIP_KEYS} == {k: old[k] for k in LEADERSHIP_KEYS}
-    assert new["stage2_trend_pass_count"] == 6 and new["rs_rating"] == 84.21
-    assert new["dollar_volume_50d"] is not None, "the 50-day dollar volume is read off the frame, for either reader"
+    assert {k: new[k] for k in LEADERSHIP_KEYS if k != "dollar_volume_50d"} == {
+        "rs_rating": 84.21, "stage2_trend_pass_count": 6, "stage2_52w_low_pct": 0.8412,
+        "stage2_ma200_slope_1m_pct": -1.25}
+    assert new["dollar_volume_50d"] is not None, "the 50-day dollar volume is read off the frame"
 
 
-def test_a_two_eyes_fire_carries_the_adr_an_old_fire_of_the_same_frame_carries(monkeypatch):
+def test_a_two_eyes_fire_carries_the_stocks_adr(monkeypatch):
     """Since the flip a new-reader fire carried no ADR: the archive stored `adr_pct` empty on every such row (the edge
     reads split fires into ADR thirds, and an empty row falls out of them silently) and the leadership grid's ADR cell
-    showed a dash. The ADR is the stock's, not the setup's: his ALB, read by each reader through the one door on Tue
-    07/04/2026 (a day both fire), carries ONE number on the row the archive writes and on the card, the old chain's
-    own formula and window (4.99%), never a second one."""
+    showed a dash. The ADR is the stock's, not the setup's: his ALB on Tue 07/04/2026 carries ONE number on the row
+    the archive writes and on the card, the one formula and window (4.99%, the number the old chain read too)."""
     from core.calibration.replay import load_sealed_fixture
     from engine_alpha import reader
 
     frames, _ = load_sealed_fixture()
     alb = frames["ALB:2026-04-13"].loc[:pd.Timestamp("2026-04-07")]
-    assert reader.which_reader() == reader.READER_NEW, "the switch is off: this test reads the new reader"
     new = reader.evaluate_ticker("ALB", alb)
-    with reader.the_old_reader_answers():
-        old = reader.evaluate_ticker("ALB", alb)
-    assert isinstance(old, dict) and isinstance(new, dict), "each reader fires on his ALB that day"
-    assert "_wire_two_eyes" in new and "_wire_two_eyes" not in old, "each fire is its own reader's"
-    assert round(old["_adr_pct"], 2) == 4.99
-    assert new.get("_adr_pct") == old["_adr_pct"], "the row the archive writes: the old fire's ADR, to the last digit"
+    assert isinstance(new, dict) and "_wire_two_eyes" in new, "the reader fires on his ALB that day"
+    assert round(new["_adr_pct"], 2) == 4.99
 
-    old_card, new_card = _payload(monkeypatch, old, alb), _payload(monkeypatch, new, alb)
-    assert "two_eyes" in new_card and "two_eyes" not in old_card
-    assert new_card.get("adr_pct") == old_card["adr_pct"] == old["_adr_pct"], "the card: the same number, unrounded"
+    card = _payload(monkeypatch, new, alb)
+    assert "two_eyes" in card
+    assert card.get("adr_pct") == new["_adr_pct"], "the card: the same number, unrounded"
 
 
 def _quiet_frame():

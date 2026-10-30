@@ -1,9 +1,8 @@
 import ArchiveCalibrationPanels from './ArchiveCalibrationPanels';
 import ArchiveEquityCurve from './ArchiveEquityCurve';
-import ArchiveReweightingStrip from './ArchiveReweightingStrip';
 import ArchiveTierCards from './ArchiveTierCards';
 
-// The four analytics blocks, folded below the review table. A native <details>:
+// The three analytics blocks, folded below the review table. A native <details>:
 // the body is not rendered while closed, so its two slow endpoints are not called
 // (useArchiveAnalytics). The summary click is never preventDefault-ed, or the
 // open attribute and the React state drift apart; a fold mounted open fires one
@@ -14,7 +13,7 @@ export default function ArchiveAnalytics({ analytics, onToggle, open }) {
       <summary className="focus-ring" style={summaryStyle}>
         <span aria-hidden="true" style={chevronStyle}>{open ? '▾' : '▸'}</span>
         <span style={titleStyle}>Analytics</span>
-        <span style={hintStyle}>Tier results, what predicts returns, suggested weights, equity curve</span>
+        <span style={hintStyle}>Tier results, setup types and market regime, equity curve</span>
       </summary>
       {open && <AnalyticsBody analytics={analytics} />}
     </details>
@@ -35,7 +34,6 @@ function AnalyticsBody({ analytics: { calibration, equityCurve, status } }) {
     <div style={bodyStyle}>
       <ArchiveTierCards performance={calibration?.tier_performance} />
       <ArchiveCalibrationPanels calibration={calibration} />
-      <ArchiveReweightingStrip data={calibration?.suggested_weights} basis={calibration?.weights_basis} />
       {equityCurve && <ArchiveEquityCurve data={equityCurve} />}
     </div>
   );

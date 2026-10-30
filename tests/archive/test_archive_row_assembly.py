@@ -57,17 +57,9 @@ if _BACKEND_DIR not in sys.path:
 
 from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
+from core.archive.writer import retired_columns_null  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
-from engine_alpha.scoring.scoring import (  # noqa: E402
-    sub_score_archive_values,
-    ta_grade_archive_values,
-)
-from engine_alpha.structure.events.event_map import event_map_archive_values  # noqa: E402
-from engine_alpha.structure.events.event_vocabulary import sentence_archive_values  # noqa: E402
-from engine_alpha.structure.context.htf import htf_archive_values  # noqa: E402
-from engine_alpha.structure.context.strategy_read import strategy_archive_values  # noqa: E402
 from engine_alpha.two_eyes_archive import two_eyes_archive_values  # noqa: E402
-from engine_alpha.structure.box.trace_export import election_trace_archive_values  # noqa: E402
 
 
 def _model_columns() -> frozenset[str]:
@@ -130,53 +122,15 @@ def _values_dict_keys(func, var: str = "values") -> tuple[frozenset[str], list[s
     return frozenset(literal_keys), splat_names
 
 
-def _htf_splat_keys(*, prefixed: bool) -> frozenset[str]:
-    """Columns the HTF ``**`` splat contributes (driven hermetically)."""
-    return frozenset(htf_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _ta_grade_splat_keys(*, prefixed: bool) -> frozenset[str]:
-    """Columns the TA-grade family ``**`` splat contributes (hermetic)."""
-    return frozenset(
-        ta_grade_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _sub_score_splat_keys() -> frozenset[str]:
-    """Columns the per-term sub-score ``**`` splat contributes (hermetic)."""
-    return frozenset(sub_score_archive_values({}).keys())
-
-
-def _event_map_splat_keys(*, prefixed: bool) -> frozenset[str]:
-    """Columns the Event Map ``**`` splat contributes (driven hermetically)."""
-    return frozenset(
-        event_map_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _sentence_splat_keys(*, prefixed: bool) -> frozenset[str]:
-    """Columns the sentence-token ``**`` splat contributes (hermetic)."""
-    return frozenset(
-        sentence_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _election_trace_splat_keys(*, prefixed: bool) -> frozenset[str]:
-    """Columns the election-trace ``**`` splat contributes (driven hermetically)."""
-    return frozenset(
-        election_trace_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _strategy_splat_keys(*, prefixed: bool) -> frozenset[str]:
-    """Columns the strategy-read ``**`` splat contributes (driven hermetically)."""
-    return frozenset(
-        strategy_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
+def _retired_splat_keys() -> frozenset[str]:
+    """Columns the retired-families ``**`` splat empties (decision H)."""
+    return frozenset(retired_columns_null().keys())
 
 
 def _two_eyes_splat_keys(*, prefixed: bool) -> frozenset[str]:
     """Columns the two-eyes family ``**`` splat contributes."""
     return frozenset(
         two_eyes_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
 def _sector_rank_splat_keys() -> frozenset[str]:
     """Columns the sector-rank ``**`` splat contributes.
 
@@ -222,23 +176,12 @@ def test_writer_values_dict_is_subset_of_model_columns():
 
     # 2. The **splats are the ones we resolve hermetically below (fail loudly if
     #    a new/renamed splat appears so the guard is extended, not silently blind).
-    assert set(splats) == {"htf_archive_values", "event_map_archive_values",
-                           "sentence_archive_values",
-                           "ta_grade_archive_values", "sub_score_archive_values",
-                           "election_trace_archive_values",
-                           "strategy_archive_values",
-                           "two_eyes_archive_values",
+    assert set(splats) == {"retired_columns_null", "two_eyes_archive_values",
                            "sector_rank_columns"}, (
         f"unexpected **splat(s) in archive_scan_results: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
     )
-    splat_cols = (_htf_splat_keys(prefixed=True)
-                  | _event_map_splat_keys(prefixed=True)
-                  | _sentence_splat_keys(prefixed=True)
-                  | _ta_grade_splat_keys(prefixed=True)
-                  | _sub_score_splat_keys()
-                  | _election_trace_splat_keys(prefixed=True)
-                  | _strategy_splat_keys(prefixed=True)
+    splat_cols = (_retired_splat_keys()
                   | _two_eyes_splat_keys(prefixed=True)
                   | _sector_rank_splat_keys())
     stray_splat = splat_cols - model
@@ -291,23 +234,12 @@ def test_seed_values_dict_is_subset_of_model_columns():
 
     # 3. The **splats inside overrides are the ones we resolve hermetically (fail
     #    loudly on a new/renamed splat so the guard is extended, not blind).
-    assert set(splats) == {"htf_archive_values", "event_map_archive_values",
-                           "sentence_archive_values",
-                           "ta_grade_archive_values", "sub_score_archive_values",
-                           "election_trace_archive_values",
-                           "strategy_archive_values",
-                           "two_eyes_archive_values",
+    assert set(splats) == {"retired_columns_null", "two_eyes_archive_values",
                            "fwd_returns"}, (
         f"unexpected **splat(s) in seed_archive overrides: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
     )
-    splat_cols = (_htf_splat_keys(prefixed=False)
-                  | _event_map_splat_keys(prefixed=False)
-                  | _sentence_splat_keys(prefixed=False)
-                  | _ta_grade_splat_keys(prefixed=False)
-                  | _sub_score_splat_keys()
-                  | _election_trace_splat_keys(prefixed=False)
-                  | _strategy_splat_keys(prefixed=False)
+    splat_cols = (_retired_splat_keys()
                   | _two_eyes_splat_keys(prefixed=False)
                   | _fwd_return_splat_keys())
     stray_splat = splat_cols - model

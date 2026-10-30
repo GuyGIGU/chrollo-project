@@ -549,9 +549,9 @@ climax is reconstructed backward over a FIXED 60-day window, so box placement de
 anchor error entirely. Fixing that is the work; this flag was never going to.
 
 **What survived:** `market_structure.elected_trend_leg_base` (the full-leg base), because
-[`tools/research/full_package_render.py`](../tools/research/full_package_render.py) draws it and the
+`tools/research/full_package_render.py` (retired with the old engine, 31/10/2026) drew it and the
 climax-anchor program it serves is open; and the anchor half of
-[`tools/research/operator_marks_diff.py`](../tools/research/operator_marks_diff.py), whose flip half retired
+`tools/research/operator_marks_diff.py` (retired with the old engine, 31/10/2026), whose flip half retired
 with the flag. **What went with it:** `bricks._first_impulse_ar_end`,
 `market_structure.first_reaction_after`, the flag plus its four `AR_*` tuning constants,
 their five manifest rows, and `tools/ar_first_reaction_diff.py`.

@@ -18,7 +18,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tools.calibration import parallel_night as night
 from tools.ops import morning_check as morning
 
 NIGHT = "2026-10-08"
@@ -80,12 +79,12 @@ def _sha(path) -> str:
 
 @pytest.fixture()
 def outside_the_slot(monkeypatch):
-    monkeypatch.setattr(night, "now_et", lambda: dt.datetime(2026, 10, 9, 7, 30))
+    monkeypatch.setattr(morning, "now_et", lambda: dt.datetime(2026, 10, 9, 7, 30))
 
 
 @pytest.fixture()
 def new_stamp():
-    return night._version(True)
+    return morning._version()
 
 
 def _scripted_reader(monkeypatch, fires=(), not_read=(), crashed=()):
@@ -94,7 +93,6 @@ def _scripted_reader(monkeypatch, fires=(), not_read=(), crashed=()):
         return {"ticker": ticker, "fired": ticker in fires, "crashed": ticker in crashed,
                 "not_read": HOLE if ticker in not_read else None}
     monkeypatch.setattr(morning, "read_new", read)
-    monkeypatch.setattr(morning, "read_old", read)
 
 
 def _run(tmp_path, panel, meta, payload) -> tuple[int, str]:
@@ -110,10 +108,21 @@ def _ledger(out) -> list[str]:
 # --------------------------------------------------------------------------- #
 # The clock                                                                    #
 # --------------------------------------------------------------------------- #
+def test_the_slot_is_the_scans_hour_and_the_two_after_it():
+    from config import settings
+
+    hour = int(settings.SCAN_SCHEDULE_HOUR_ET)
+    day = dt.datetime(2026, 10, 9, 0, 0)
+    assert not morning.in_scan_slot(day.replace(hour=hour - 1, minute=59))
+    assert morning.in_scan_slot(day.replace(hour=hour, minute=0))
+    assert morning.in_scan_slot(day.replace(hour=hour + 1, minute=59))
+    assert not morning.in_scan_slot(day.replace(hour=hour + 2, minute=0))
+
+
 def test_it_refuses_inside_the_scan_slot(monkeypatch, tmp_path):
     from config import settings
 
-    monkeypatch.setattr(night, "now_et", lambda: dt.datetime(2026, 10, 9, int(settings.SCAN_SCHEDULE_HOUR_ET), 30))
+    monkeypatch.setattr(morning, "now_et", lambda: dt.datetime(2026, 10, 9, int(settings.SCAN_SCHEDULE_HOUR_ET), 30))
     out = tmp_path / "morning"
     assert morning.main([str(out)]) == 2
     assert not out.exists(), "a refused morning writes nothing"
@@ -176,7 +185,7 @@ def test_a_fire_missing_from_the_archive_and_a_not_read_mismatch_are_named(
     assert "not read by the scan, read by the replay: CCC" in line
 
 
-def test_a_stamp_neither_reader_of_this_tree_gives_is_named(tmp_path, monkeypatch, outside_the_slot):
+def test_a_stamp_this_tree_does_not_give_is_named(tmp_path, monkeypatch, outside_the_slot):
     panel, meta = _panel(tmp_path)
     stranger = "deadbeef" + "0" * 56
     payload = _payload(tmp_path, stamp=stranger, shown=(), removed=())
@@ -187,7 +196,7 @@ def test_a_stamp_neither_reader_of_this_tree_gives_is_named(tmp_path, monkeypatc
 
     assert code == 1
     [line] = _ledger(out)
-    assert line.startswith(f"{NIGHT} ? deadbeef NOT CLEAN") and "neither reader of this tree" in line
+    assert line.startswith(f"{NIGHT} ? deadbeef NOT CLEAN") and "is not this tree's" in line
 
 
 def test_an_undo_night_is_named_not_clean(tmp_path, monkeypatch, outside_the_slot, new_stamp):
@@ -249,8 +258,8 @@ def test_the_ledger_grows_one_line_a_night_and_counts_the_clean_run(tmp_path):
 # The real reader on the tiny panel                                            #
 # --------------------------------------------------------------------------- #
 def test_the_real_reader_replays_the_tiny_panel(tmp_path, monkeypatch, outside_the_slot, new_stamp):
-    """No scripted reads: the scan's own new-reader worker reads the copied panel. In this seeded random walk the
-    new reader fires on CCC alone, so a screen that showed CCC, archived under the new reader's stamp, is clean;
+    """No scripted reads: the scan's own worker reads the copied panel. In this seeded random walk the
+    reader fires on CCC alone, so a screen that showed CCC, archived under this tree's stamp, is clean;
     the same screen without CCC is not."""
     panel, meta = _panel(tmp_path)
     payload = _payload(tmp_path, stamp=new_stamp, shown=("CCC",), removed=())

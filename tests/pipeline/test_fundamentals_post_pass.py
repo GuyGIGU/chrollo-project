@@ -8,7 +8,6 @@ untouched, and the in-worker attach point is gone. Post-review additions
 malformed cache entry is dropped loudly and the cached replay is
 namespace-restricted, and one poisoned ticker costs itself — never the loop."""
 import copy
-import inspect
 import json
 
 import pandas as pd
@@ -247,10 +246,3 @@ def test_one_poisoned_ticker_costs_itself_not_the_loop(tmp_path, monkeypatch):
     assert counts["errored"] == 1
     assert rows[1]["_fund_eps_growth_yoy"] == pytest.approx(0.20)
 
-
-def test_the_in_worker_attach_point_is_gone():
-    from engine_alpha import evaluation
-    assert not hasattr(evaluation, "_attach_advisory_metadata")
-    src = inspect.getsource(evaluation._run_guarded_chain)
-    assert "per_ticker_advisory" not in src
-    assert "_attach_advisory_metadata" not in src

@@ -12,71 +12,41 @@ import { confirmDialog } from '../../../shared/components/feedback';
 // population). Color doctrine: committed box marks wear the reserved operator
 // hue; NEGATIVES ARE NEUTRAL, never danger-red — a no-structure verdict is
 // information, not an alarm. The row being edited carries the active-row cue.
-// Engine chip — the operator's calibration read on a mark. It shows the SHARPER
-// FIRED-in-window verdict once it computes (green `fired · tier · Δ`, or red
-// `missed · <stage>` — the old reader's gate that killed the box at his rails,
-// or the new reader's state word, with its box and its reason in the title);
-// until then it shows the instant CONCORDANCE headline (green `reads` / red
-// `no read` — did the engine surface a box at the pick at all). Progressive
-// enhancement: the cheap headline immediately, the fired verdict a moment later.
-// Green/red live ONLY here (engine agreement); untested / negatives stay neutral.
+// Engine chip — the operator's calibration read on a mark: the FIRED-in-window
+// verdict once it computes (green `fired · tier · Δ`, or red `missed · <state
+// word>` — the reader's own word on his day, with its box and its reason in the
+// title); a neutral dash while it computes. Green/red live ONLY here (engine
+// agreement); untested / negatives stay neutral.
 const KIND_TITLE = {
-  // concordance
-  match: 'Engine elects a box matching your rails',
-  differs: 'Engine elects a box here, but the geometry differs (see Δ)',
-  no_read: 'Engine elects no box at this pick — the concordance miss',
-  edge: 'The drawn span starts before the frozen frame — the engine cannot fairly see it',
-  no_frame: 'The frozen frame for this mark is unavailable',
-  // fired
   fired: 'This pick would have surfaced on the nightly screener in-window',
-  missed: "No fire in the fair window — the engine's reason",
-  old_reader: "Not graded: this headline reads the old reader's election, and the new reader is switched on",
+  missed: "No fire in the fair window — the reader's own reason",
   unassessable: 'No faithful basis to replay the fair window (thin frame / engine error)',
-  // shared
   negative: 'A negative mark — no box for the engine to surface',
   error: 'The engine read failed for this mark',
   other: 'Untested',
 };
 
-function chipTitle(chip, extra = '') {
+function chipTitle(chip) {
   // Open enum: an unknown kind (a newer harness vocabulary than this build)
   // stays visible — surface the raw server value, never hide it behind a dash.
   let title = KIND_TITLE[chip.kind] || (chip.kind ? `Server verdict: ${chip.kind}` : 'Untested');
-  if (Number.isFinite(chip.span_overlap)) title += ` · span overlap ${Math.round(chip.span_overlap * 100)}%`;
-  if (chip.detail) title += ` · ${chip.detail}`; // the full reject reason, e.g. "respect 0.71 < 0.80"
+  if (chip.detail) title += ` · ${chip.detail}`; // the reader's words: its box, then why no LPS
   if (chip.stale) title += ' · engine changed since this mark was made';
-  return title + extra;
+  return title;
 }
 
 const railDelta = (chip) => (Number.isFinite(chip.rail_delta) ? ` · Δ${chip.rail_delta.toFixed(2)}` : '');
 
-// The sharper fired verdict, once it has computed.
 function firedLabel(chip) {
   if (chip.state === 'ok') return `fired${chip.tier ? ` · ${chip.tier}` : ''}${railDelta(chip)}`;
   if (chip.state === 'miss') return `missed${chip.stage ? ` · ${chip.stage}` : ''}`;
   return 'untested';
 }
 
-// The instant concordance headline.
-function concordanceLabel(chip) {
-  if (chip.state === 'ok') return `${chip.kind === 'differs' ? 'reads · differs' : 'reads'}${railDelta(chip)}`;
-  if (chip.state === 'miss') return 'no read';
-  return 'untested';
-}
-
-function EngineChip({ agreement, fired }) {
-  // Prefer the sharper fired verdict once it lands; until then the concordance
-  // headline; a neutral dash before either arrives — never a false red.
+function EngineChip({ fired }) {
+  // The fired verdict once it lands; a neutral dash before it — never a false red.
   if (fired && (fired.state === 'ok' || fired.state === 'miss')) {
     return <span className={`inst-chip ${fired.state}`} title={chipTitle(fired)}>{firedLabel(fired)}</span>;
-  }
-  if (agreement && agreement.state) {
-    const hint = fired && fired.state === 'pending' ? ' · computing fired verdict…' : '';
-    return (
-      <span className={`inst-chip ${agreement.state}`} title={chipTitle(agreement, hint)}>
-        {concordanceLabel(agreement)}
-      </span>
-    );
   }
   if (fired && fired.state === 'untested') {
     return <span className="inst-chip untested" title={chipTitle(fired)}>untested</span>;
@@ -89,7 +59,7 @@ function EngineChip({ agreement, fired }) {
   return <span style={{ color: 'var(--text-faint)' }}>—</span>;
 }
 
-function CalibrationMarksList({ marks, editingId, agreement, fired, onEdit, onDelete }) {
+function CalibrationMarksList({ marks, editingId, fired, onEdit, onDelete }) {
   const [sort, setSort] = useState({ by: 'asOf', dir: 'desc' });
 
   const rows = useMemo(
@@ -184,32 +154,7 @@ function CalibrationMarksList({ marks, editingId, agreement, fired, onEdit, onDe
       label: 'Engine',
       align: 'left',
       sortable: false,
-      render: (row) => <EngineChip agreement={agreement?.[row.id]} fired={fired?.[row.id]} />,
-    },
-    {
-      // Binding-gate margin of the FIRED read (signed distance-to-boundary in
-      // the gate's own statistic) — detail tier, neutral ink, fixed-width dash
-      // until the async fired grade lands so rows never jump. Not sortable for
-      // the same async reason as the Engine column.
-      key: 'gateMargin',
-      label: 'Gate Δ',
-      align: 'right',
-      sortable: false,
-      render: (row) => {
-        const gm = fired?.[row.id]?.gate_margin;
-        if (!gm || !Number.isFinite(Number(gm.margin))) {
-          return <span style={{ color: 'var(--text-faint)', fontVariantNumeric: 'tabular-nums' }}>—</span>;
-        }
-        const value = Number(gm.margin);
-        return (
-          <span
-            title={`Tightest worked-equilibrium gate on the fired read: ${gm.gate} survived by ${value >= 0 ? '+' : ''}${value.toFixed(3)}`}
-            style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' }}
-          >
-            {gm.gate} {value >= 0 ? '+' : ''}{value.toFixed(2)}
-          </span>
-        );
-      },
+      render: (row) => <EngineChip fired={fired?.[row.id]} />,
     },
     {
       key: 'delete',
@@ -264,8 +209,7 @@ function CalibrationMarksList({ marks, editingId, agreement, fired, onEdit, onDe
         ariaLabel="Saved marks for the loaded ticker"
         maxHeight={168}
       />
-      {/* Legend for the Engine column — the sharper fired-in-window grade, with
-          the instant concordance headline shown until it computes. */}
+      {/* Legend for the Engine column — the fired-in-window grade. */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: '6px 14px', alignItems: 'center',
         color: 'var(--text-faint)', fontSize: 11,
@@ -274,12 +218,11 @@ function CalibrationMarksList({ marks, editingId, agreement, fired, onEdit, onDe
           <span className="inst-chip ok">fired · S</span> would have surfaced in-window (tier · Δ rail gap)
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          <span className="inst-chip miss">missed · respect</span> no fire; the gate that killed the box
+          <span className="inst-chip miss">missed · lines, no LPS yet</span> no fire; the reader's word on his day
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span className="inst-chip untested">untested</span> negative, or no basis to replay
         </span>
-        <span>Shows the instant <b style={{ color: 'var(--text-muted)' }}>reads</b> / <b style={{ color: 'var(--text-muted)' }}>no read</b> concordance until the fired grade lands.</span>
       </div>
     </div>
   );

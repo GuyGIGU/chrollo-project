@@ -163,7 +163,7 @@ def test_the_letter_is_cut_on_the_whole_point_every_surface_shows():
 @functools.lru_cache(maxsize=None)
 def _his(key: str) -> record.Read:
     frames, _ = load_sealed_fixture()
-    from tools.calibration.yardstick import his_last_lps_day
+    from tools.calibration.board_helpers import his_last_lps_day
 
     setup = next(s for s in load_corpus() if setup_key(s) == key)
     raw = fixture_frame(frames, key, setup["ticker"])

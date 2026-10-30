@@ -1,17 +1,14 @@
-"""Agreement-harness bite proofs (Task 9) — a scorer nobody has seen fail
-proves nothing. Forced-never-match must report zero agreement, forced-always
-must report full; a malformed row aborts the batch NAMING the offender; and a
-full grading pass leaves the marks byte-identical (the path of least
-resistance to better numbers must never be 'correct' the ground truth)."""
+"""Marks-harness proofs (Task 9) — a scorer nobody has seen fail proves nothing.
+A malformed row aborts the batch NAMING the offender; the fired walk reports the
+FIRST fire in the fair window and never a crash as a hit; and a full pass leaves
+the marks byte-identical (the path of least resistance to better numbers must
+never be 'correct' the ground truth). The election-agreement grade (``grade_one``)
+and the knob variants retired with the old engine on 31/10/2026."""
 import sys
 from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
-
-# Written for the OLD reader: since the flip it keeps testing it (the switch back
-# is the first undo). tests/conftest.py, old_reader.
-pytestmark = pytest.mark.usefixtures("old_reader")
 
 from _paths import REPO_ROOT as ROOT
 BACKEND_DIR = ROOT / "webapp" / "backend"
@@ -24,22 +21,18 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import webapp.backend.frame_store as frame_store  # noqa: E402
-from engine_alpha.evaluation import EVAL_ERROR  # noqa: E402
-from core.calibration import agreement, replay  # noqa: E402
-from domains.calibration.grading import (  # noqa: E402
+from engine_alpha.sentinels import EVAL_ERROR  # noqa: E402
+from core.calibration.replay import (  # noqa: E402
     FIRED_EVENT_TAIL_SESSIONS,
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
-    HARNESS_POLICY_VERSION,
-    fired_one,
-    grade_one,
 )
+from domains.calibration.grading import HARNESS_POLICY_VERSION, fired_one  # noqa: E402
 from tools.calibration.calibration_harness import (  # noqa: E402
     _print_delta,
     _refuse_sealed_output,
     load_marks,
     marks_fingerprint,
-    parse_variant,
 )
 
 
@@ -83,82 +76,6 @@ def _add_mark(session, **overrides):
     session.commit()
 
 
-def _election_returning(structure, seen_snaps=None):
-    """A fake snapped election: every variant sees ``structure`` on the
-    as-of session, never snapped. ``seen_snaps`` records the snap_back the
-    harness asked for (the per-verdict policy pin)."""
-    def _run(frozen, as_of, variants, snap_back=5):
-        if seen_snaps is not None:
-            seen_snaps.append(snap_back)
-        df = frozen.loc[:pd.Timestamp(as_of)]
-        return (df, 1.0, [structure for _ in variants]), df.index[-1], 0
-    return _run
-
-
-class _Read:
-    """Engine-read stand-in shaped like a Structure (R/S/box.start_bar)."""
-    def __init__(self, R, S, start_bar):
-        self.R, self.S = R, S
-        self.box = type("B", (), {"start_bar": start_bar})()
-
-
-def test_bite_forced_never_match(session):
-    _add_mark(session)
-    _add_mark(session, as_of_date="2026-04-14", verdict="no_structure",
-              resistance=None, support=None,
-              box_start_date=None, box_end_date=None)
-    marks = load_marks(session)
-    rows = [grade_one(m, [{}], frame_loader=_loader(_FROZEN),
-                      election=_election_returning(None))[0] for m in marks]
-    t = agreement.tally(rows)
-    assert t["counts"]["match"] == 0
-    assert t["counts"]["engine_no_read"] == 1      # the box mark: no read
-    assert t["counts"]["negative_upheld"] == 1     # the negative: upheld
-
-
-def test_bite_forced_always_match(session):
-    _add_mark(session)
-    marks = load_marks(session)
-    exact = _Read(R=12.0, S=10.0, start_bar=0)  # bar 0 = 2026-01-05 = drawn start
-    rows = [grade_one(m, [{}], frame_loader=_loader(_FROZEN),
-                      election=_election_returning(exact))[0] for m in marks]
-    assert agreement.tally(rows)["match_over_scored"] == 1.0
-
-
-def test_negatives_grade_at_the_asserted_session_only(session):
-    # The snap-back walk is a BOX policy; hunting prior sessions to convict a
-    # negative would bias upheld_over_negatives (Council finding 6).
-    _add_mark(session, as_of_date="2026-04-14", verdict="no_structure",
-              resistance=None, support=None,
-              box_start_date=None, box_end_date=None)
-    _add_mark(session)  # the box mark, as-of 04-15
-    seen = []
-    for m in load_marks(session):  # ordered by as_of: negative first
-        grade_one(m, [{}], frame_loader=_loader(_FROZEN),
-                  election=_election_returning(None, seen_snaps=seen))
-    assert seen == [0, replay.SNAP_BACK_SESSIONS]
-
-
-def test_unresolved_digest_grades_basis_mismatch(session, tmp_path, monkeypatch):
-    # Through the REAL digest-resolved loader: a mark whose digest matches no
-    # frozen rendering is named, never replayed on other bars.
-    import frame_store as bare_frame_store
-    monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
-    monkeypatch.setattr(bare_frame_store, "FRAMES_DIR", str(tmp_path))
-    frame_store.freeze_frame("BODI", "2026-04-15", _FROZEN)
-    _add_mark(session, frame_digest="0" * 64)
-    row = grade_one(load_marks(session)[0], [{}],
-                    election=_election_returning(None))[0]
-    assert row["outcome"] == "basis_mismatch"
-    assert "no frozen frame matches" in row["detail"]
-    # And the matching digest resolves fine through the same real loader.
-    session.query(CalibrationMark).first().frame_digest = _DIGEST
-    session.commit()
-    row = grade_one(load_marks(session)[0], [{}],
-                    election=_election_returning(None))[0]
-    assert row["outcome"] == "engine_no_read"
-
-
 def test_malformed_row_aborts_naming_the_offender(session):
     # Valid to the DDL but invalid to the shared judgment: span past as-of.
     _add_mark(session, box_end_date="2026-05-01", label="stale")
@@ -180,11 +97,7 @@ def test_full_grading_pass_is_read_only(session):
               box_start_date=None, box_end_date=None)
     before = marks_fingerprint(load_marks(session))
     for m in load_marks(session):
-        grade_one(m, [{}, {"BAND_RAILS_ENABLED": True}],
-                  frame_loader=_loader(_FROZEN),
-                  election=_election_returning(None))
-        fired_one(m, [{}, {"BAND_RAILS_ENABLED": True}],
-                  frame_loader=_loader(_FROZEN), evaluate=lambda t, s: None)
+        fired_one(m, [{}], frame_loader=_loader(_FROZEN), evaluate=lambda t, s: None)
     session.expire_all()
     assert marks_fingerprint(load_marks(session)) == before
 
@@ -287,13 +200,6 @@ def test_fingerprint_is_order_free_and_content_bound(session):
     assert marks_fingerprint(load_marks(session)) != a
 
 
-def test_parse_variant():
-    assert parse_variant("BAND_RAILS_ENABLED=true") == {"BAND_RAILS_ENABLED": True}
-    assert parse_variant("X=2.5") == {"X": 2.5}
-    with pytest.raises(ValueError):
-        parse_variant("JUSTAFLAG")
-
-
 # ---------------------------------------------------------------- fired (v2)
 def _fire_result(R=12.0, S=10.0):
     """The fields fired_one reads off a full-pipeline firing result."""
@@ -340,8 +246,8 @@ def test_fired_knowable_from_sets_the_window(session):
 
 
 def test_fired_grades_box_marks_only(session):
-    # BOTH negative verdicts assert a no-read at ONE session (grade_one
-    # policy); window-hunting sessions to convict one would bias the rate.
+    # BOTH negative verdicts assert a no-read at ONE session; window-hunting
+    # sessions to convict one would bias the rate.
     _add_mark(session, as_of_date="2026-04-14", verdict="no_structure",
               resistance=None, support=None,
               box_start_date=None, box_end_date=None)
@@ -353,14 +259,13 @@ def test_fired_grades_box_marks_only(session):
         raise AssertionError("negative marks are never window-walked")
 
     for mark in load_marks(session):
-        frags = fired_one(mark, [{}, {"BAND_RAILS_ENABLED": True}],
-                          frame_loader=_loader(_FROZEN), evaluate=_never)
-        assert frags == [None, None], mark["verdict"]
+        frags = fired_one(mark, [{}], frame_loader=_loader(_FROZEN), evaluate=_never)
+        assert frags == [None], mark["verdict"]
 
 
 def test_fired_digest_resolves_through_the_real_loader(session, tmp_path, monkeypatch):
-    # Frozen-or-refuse through the REAL digest-resolved loader (the grade_one
-    # twin): a restated mark must never be silently walked on other bars.
+    # Frozen-or-refuse through the REAL digest-resolved loader: a restated
+    # mark must never be silently walked on other bars.
     import frame_store as bare_frame_store
     monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
     monkeypatch.setattr(bare_frame_store, "FRAMES_DIR", str(tmp_path))
@@ -399,7 +304,7 @@ def test_fired_default_evaluate_wires_the_frozen_scalars_in_order(session, monke
     # Every other test injects a fake evaluate; this pins the PRODUCTION
     # closure — argument order matters because a swapped pair would stamp
     # Tier/Score under a fictitious +50% SPY regime with no error anywhere.
-    import engine_alpha.evaluation as evaluation
+    from engine_alpha import reader
     _add_mark(session)
     calls = []
 
@@ -407,26 +312,10 @@ def test_fired_default_evaluate_wires_the_frozen_scalars_in_order(session, monke
         calls.append((ticker, spy_6m_return, breadth_pct))
         return _fire_result()
 
-    monkeypatch.setattr(evaluation, "_evaluate_ticker", _capture)
+    monkeypatch.setattr(reader, "evaluate_ticker", _capture)
     frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN))[0]
     assert frag["fired"] is True
     assert calls == [("BODI", 0.0, 0.5)]  # spy_6m first, breadth second
-
-
-def test_fired_variant_flags_set_during_walk_and_restored(session):
-    from config import settings
-    _add_mark(session)
-    prior = settings.BAND_RAILS_ENABLED
-    seen = []
-
-    def _peek(ticker, sliced):
-        seen.append(settings.BAND_RAILS_ENABLED)
-        return _fire_result()   # fire on the first session -> one eval per variant
-
-    fired_one(load_marks(session)[0], [{}, {"BAND_RAILS_ENABLED": True}],
-              frame_loader=_loader(_FROZEN), evaluate=_peek)
-    assert seen == [prior, True]
-    assert settings.BAND_RAILS_ENABLED == prior
 
 
 def test_fired_on_a_different_structure_is_diagnosed(session):
@@ -453,25 +342,6 @@ def test_fired_rail_tolerance_is_referenced_to_the_drawn_box_height(session):
     assert frag["fire_rails_within_tol"] is False
 
 
-def test_fired_at_the_inner_box_counts_as_his_rails(session):
-    # A fire whose LPS re-anchored to the tighter inner box IS a fire at that
-    # shelf: when the operator marked the inner pair, the diagnostic must not
-    # misread it as a different structure just because parent _R/_S differ.
-    _add_mark(session)
-    inner_fire = {**_fire_result(R=20.0, S=8.0), "_lps_in_inner": True,
-                  "_inner_R": 12.0, "_inner_S": 10.0}
-    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
-                     evaluate=_evaluate_firing_from("2026-04-02", result=inner_fire))[0]
-    assert frag["fire_rails_within_tol"] is True
-    assert frag["fire_lps_in_inner"] is True
-    assert (frag["fire_inner_R"], frag["fire_inner_S"]) == (12.0, 10.0)
-    # Without the inner re-anchor, off-tol parent rails stay off-tol.
-    no_anchor = {**inner_fire, "_lps_in_inner": False}
-    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
-                     evaluate=_evaluate_firing_from("2026-04-02", result=no_anchor))[0]
-    assert frag["fire_rails_within_tol"] is False
-
-
 def test_fired_knowable_from_narrows_too(session):
     # Hindsight never penalizes the point-in-time read: the walk STARTS at
     # knowable_from, so a pre-knowable fire is never even visited and the
@@ -482,23 +352,6 @@ def test_fired_knowable_from_narrows_too(session):
     assert frag["fired_window"][0] == "2026-04-10"
     assert frag["fire_date"] == "2026-04-10"
     assert frag["fired"] is True
-
-
-def test_fired_flags_restored_when_the_walk_raises(session):
-    # _evaluate_ticker converts only six exception types to EVAL_ERROR;
-    # anything else propagates mid-walk — the variant flag must not leak
-    # into every subsequent measurement in the process.
-    from config import settings
-    _add_mark(session)
-    prior = settings.BAND_RAILS_ENABLED
-
-    def _boom(ticker, sliced):
-        raise RuntimeError("engine crash mid-walk")
-
-    with pytest.raises(RuntimeError):
-        fired_one(load_marks(session)[0], [{"BAND_RAILS_ENABLED": True}],
-                  frame_loader=_loader(_FROZEN), evaluate=_boom)
-    assert settings.BAND_RAILS_ENABLED == prior
 
 
 def _long_frame():
@@ -604,18 +457,6 @@ def test_fired_canned_result_without_box_dates_stays_gradable(session):
     assert frag["fire_rail_distances"] == {"r_frac": 0.0, "s_frac": 0.0}
 
 
-def test_fired_binding_gate_margin_picks_the_tightest_gate(session):
-    # respect sits +0.11 over its 0.80 floor; upper dwell only +0.01 over its
-    # 0.15 floor -> the binding gate is upper_dwell. Hand-specified margins.
-    _add_mark(session)
-    firing = {**_fire_result(), "_eq_respect_frac": 0.91,
-              "_eq_close_lower_dwell": 0.30, "_eq_close_upper_dwell": 0.16,
-              "_eq_close_mid_dwell": 0.40}
-    frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN),
-                     evaluate=_evaluate_firing_from("2026-04-09", result=firing))[0]
-    assert frag["fire_gate_margin"] == {"gate": "upper_dwell", "margin": 0.01}
-
-
 def test_backend_fired_signature_carries_the_policy_version():
     # The chip cache key must rotate when grading SEMANTICS change even though
     # no numeric constant moved and the engine hash never rotates.
@@ -627,16 +468,10 @@ def test_delta_attribution_names_exactly_the_moved_axis(capsys):
     base = {"marks_fingerprint": "f" * 64, "engine_config_version": "e" * 64,
             "harness_policy_version": HARNESS_POLICY_VERSION,
             "generated_at": "2026-07-16T00:00:00+00:00",
-            "variants": {"baseline": {"rows": [
-                {"mark": "MS@2026-06-04", "outcome": "engine_no_read",
-                 "fired": False}]}}}
+            "rows": [{"mark": "MS@2026-06-04", "fired": False}]}
     prev = {**base, "harness_policy_version": 1,
-            "variants": {"baseline": {"rows": [
-                {"mark": "MS@2026-06-04", "outcome": "engine_no_read",
-                 "fired": False}]}}}
-    cur = {**base, "variants": {"baseline": {"rows": [
-        {"mark": "MS@2026-06-04", "outcome": "engine_no_read",
-         "fired": True}]}}}
+            "rows": [{"mark": "MS@2026-06-04", "fired": False}]}
+    cur = {**base, "rows": [{"mark": "MS@2026-06-04", "fired": True}]}
     _print_delta(cur, prev)
     out = capsys.readouterr().out
     assert "MEASUREMENT moved" in out
@@ -644,17 +479,15 @@ def test_delta_attribution_names_exactly_the_moved_axis(capsys):
     assert "fired False -> True" in out
 
 
-def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
+def test_run_fired_stamps_policy_and_merges_the_fragment_into_the_row(
         session, tmp_path, monkeypatch):
-    # run(--fired) merges fired fragments into grade rows by variant INDEX;
-    # the A/B question ("did the flag change the pops-up-live verdict?") is
-    # only answerable if that alignment holds and the policy is stamped.
+    # run(--fired) merges each box mark's fired fragment into its row and
+    # stamps the policy, or two reports are silently incomparable.
     import json
 
-    import engine_alpha.evaluation as evaluation
     import database
     import frame_store as bare_frame_store
-    from config import settings
+    from engine_alpha import reader
     from tools.calibration import calibration_harness as harness
 
     monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
@@ -663,15 +496,12 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     _add_mark(session)
     monkeypatch.setattr(database, "SessionLocal", lambda: session)
 
-    # The stub fires only under the LIVE default (band-rails ON since the
-    # 2026-07-16 flip); the variant turns the flag OFF, so baseline fires and
-    # the variant doesn't — the same A/B polarity the alignment check needs.
-    def _fires_baseline_only(ticker, sliced, spy_6m_return, breadth_pct):
-        return _fire_result() if settings.BAND_RAILS_ENABLED else None
+    def _fires(ticker, sliced, spy_6m_return, breadth_pct):
+        return _fire_result()
 
-    monkeypatch.setattr(evaluation, "_evaluate_ticker", _fires_baseline_only)
+    monkeypatch.setattr(reader, "evaluate_ticker", _fires)
     out = tmp_path / "report.json"
-    harness.run(None, ["BAND_RAILS_ENABLED=false"], str(out), fired=True)
+    harness.run(None, str(out), fired=True)
     report = json.loads(out.read_text(encoding="utf-8"))
     assert report["fired_policy"]["window_sessions"] == FIRED_WINDOW_SESSIONS
     # EC-9 self-identification: the report NAMES the population it scored and
@@ -679,10 +509,9 @@ def test_run_fired_stamps_policy_and_keeps_variant_fragments_aligned(
     # incomparable / the editable marks could be mislabelled the sealed corpus.
     assert report["population"] == "calibration_marks"
     assert isinstance(report["marks_fingerprint"], str) and len(report["marks_fingerprint"]) == 64
-    base = report["variants"]["baseline"]["rows"][0]
-    variant = report["variants"]["BAND_RAILS_ENABLED=false"]["rows"][0]
-    assert base["fired"] is True and base["fire_date"] == "2026-04-02"
-    assert variant["fired"] is False
+    [row] = report["rows"]
+    assert row["mark"] == "BODI@2026-04-15" and row["verdict"] == "box"
+    assert row["fired"] is True and row["fire_date"] == "2026-04-02"
 
 
 # ---------------------------------- complete dict / frozen seal (2026-08-28)

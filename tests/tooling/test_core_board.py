@@ -88,22 +88,21 @@ def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
     from engine_alpha import reader
     from tools.calibration import core_board
     from tools.regression.marks_corpus import load_corpus
-    from core.calibration.replay import flag_capture, load_sealed_fixture
+    from core.calibration.replay import load_sealed_fixture
 
     frames, _ = load_sealed_fixture()
     drawings = load_corpus()
     got = core_board.run_board(drawings, frames)
     assert len(got) == len(drawings) >= 37    # the population follows his drawings (his ruling, Tue 08/09/2026)
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        for row in got:
-            watch, on_last = {}, row["on_last"]
-            result = reader.evaluate_ticker(row["ticker"], row["raw"].loc[:pd.Timestamp(row["last"])], watch=watch)
-            assert isinstance(result, dict) == on_last["fired"], row["key"]
-            assert (watch["state"] == "not scanned") == (on_last["door"] is not None), row["key"]
-            assert on_last["door"] is None or watch["why"] == on_last["door"], row["key"]
-            assert not on_last["fired"] or result["_trigger_price"] == on_last["read"].lps.trigger_price, row["key"]
-            # And the box the LPS was read against (task 13): the band the board draws is the band that fired.
-            assert not on_last["fired"] or result["_two_eyes_lps_read_against"] == on_last["lps_box"], row["key"]
+    for row in got:
+        watch, on_last = {}, row["on_last"]
+        result = reader.evaluate_ticker(row["ticker"], row["raw"].loc[:pd.Timestamp(row["last"])], watch=watch)
+        assert isinstance(result, dict) == on_last["fired"], row["key"]
+        assert (watch["state"] == "not scanned") == (on_last["door"] is not None), row["key"]
+        assert on_last["door"] is None or watch["why"] == on_last["door"], row["key"]
+        assert not on_last["fired"] or result["_trigger_price"] == on_last["read"].lps.trigger_price, row["key"]
+        # And the box the LPS was read against (task 13): the band the board draws is the band that fired.
+        assert not on_last["fired"] or result["_two_eyes_lps_read_against"] == on_last["lps_box"], row["key"]
 
 
 def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_its_first_day_only(tmp_path):

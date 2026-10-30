@@ -370,10 +370,10 @@ class SetupArchive(Base):
     htf_m_reaccum = Column(Integer, nullable=True)
     htf_m_daily_nested = Column(Integer, nullable=True)
 
-    # ── Event Map tape summary — measure-only, flag-gated (EVENT_MAP_ENABLED) ──
-    # Owning declaration (names / SQL types / row extraction) lives in
-    # engine_alpha/structure/events/event_map.py (EVENT_MAP_COLUMN_SQL); a test keeps this model
-    # in sync. MODEL-ONLY adds (the engine_config_version precedent): deliberately
+    # ── Event Map tape summary — the OLD engine's family (retired 2026-10-31):
+    # history on pre-flip rows, NULL on every row written since. The owning
+    # declaration left with the old engine's event_map module.
+    # MODEL-ONLY adds (the engine_config_version precedent): deliberately
     # NOT in the writer's _NEW_COLUMNS or startup._MIGRATIONS — the Track B
     # model-diff auto-migration and the writer's model-derived pass ADD them.
     # NULL means "not measured" (flag off / pre-Event-Map rows), never zero.
@@ -396,9 +396,9 @@ class SetupArchive(Base):
     event_map_episodes = Column(String, nullable=True)           # compact JSON tape (dates)
 
     # ── Sentence-token family (consolidation-method Task 8) — MODEL-ONLY adds;
-    # owning declaration engine_alpha/structure/events/event_vocabulary.py
-    # (SENTENCE_COLUMN_SQL + serialize_sentence + sentence_archive_values,
-    # splatted by BOTH writers per EC-30). NULL = not measured or refused (the
+    # the OLD engine's family (retired 2026-10-31), history on pre-flip rows
+    # and NULL since; its declaration left with the old event_vocabulary
+    # module. NULL = not measured or refused (the
     # family is dark until its measurement flag flips); a refused read NULLs
     # the WHOLE family; tokens are date-anchored, closed-set-asserted at mint
     # (EC-55). Different reader vocabularies = different epochs; no backfill. ──
@@ -408,8 +408,9 @@ class SetupArchive(Base):
 
     # ── Technical Analysis Grade v2 family — always-on since the 2026-08-22
     # legacy retirement (the TA_SCORE_V2 flag is gone) ───────────────────────
-    # Owning declaration in engine_alpha/scoring/scoring.py (TA_GRADE_COLUMN_SQL
-    # + ta_grade_archive_values — the ONE extraction both writers splat).
+    # Since the old engine retired (2026-10-31) only ``ta_grade`` is written —
+    # the reader's grade, stamped from the result's ``_ta_grade`` by every
+    # writer; the other columns of the family are history, NULL on new rows.
     # MODEL-ONLY schema adds (AP-7): the Track B auto-migration and the
     # writer's model-derived pass ADD them; never hand-list in _NEW_COLUMNS /
     # _MIGRATIONS. NULL = pre-flip epoch rows FOREVER (no backfill, ever);
@@ -457,17 +458,17 @@ class SetupArchive(Base):
     # nothing fired (absent vs empty are DIFFERENT states).
     fired_tags = Column(String, nullable=True)
 
-    # ── Election-trace evidence — flag-gated (ELECTION_TRACE_EXPORT_ENABLED) ──
-    # Owning declaration in engine_alpha/structure/box/trace_export.py (ELECTION_TRACE_COLUMN_SQL);
-    # same MODEL-ONLY convention as the event_map family above. The compact
+    # ── Election-trace evidence — the OLD engine's family (retired 2026-10-31),
+    # history on pre-flip rows and NULL since; its declaration left with the old
+    # trace_export module. Same MODEL-ONLY convention as the event_map family above. The compact
     # date-anchored export the operator was shown, as JSON text — NULL means
     # never captured, and pre-flip NULLs are never backfilled (a trace
     # re-derived under a rotated engine is not the evidence he graded).
     election_trace = Column(String, nullable=True)
 
-    # ── Strategy read — flag-gated (STRATEGY_READ_ENABLED), measure-first ──
-    # Owning declaration in engine_alpha/structure/context/strategy_read.py; raw campaign
-    # context, never gated, never scored; NULL = never measured.
+    # ── Strategy read — the OLD engine's family (retired 2026-10-31), history on
+    # pre-flip rows and NULL since; its declaration left with the old strategy_read
+    # module. Raw campaign context, never gated, never scored; NULL = never measured.
     strategy_correction_depth_pct = Column(Float, nullable=True)
     strategy_floor_above_ar = Column(Integer, nullable=True)
 

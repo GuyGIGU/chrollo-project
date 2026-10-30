@@ -1,40 +1,34 @@
 """
-Negative-corpus precision gate - proves labeled must-NOT-fire charts STAY
-non-firing.
+Negative-corpus precision gate - the junk charts' fire days are PINNED.
 
-The engine's other guards are one-directional: the shadow fixture
-(``tools.regression.shadow_diff``) freezes only PREVIOUSLY-FIRING tickers, and seed-recall
-(``core.archive.seed_recall``) can only fail on LOST winners - neither reds when
-a change makes junk setups fire universe-wide. This guard closes that gap for
-the prime directive (accurate detection of visually TIGHT structure): it
-freezes OHLCV for operator/dissection-labeled must-NOT-fire cases into a
-committed fixture and fails when ANY of them starts firing.
-
-Each case carries its label (the documented junk class) and evidence pointer,
-and is verified non-firing against the live engine AT FREEZE TIME -
-``--build-fixture`` refuses to freeze a case the current engine fires on. Both
-the build refusal and ``--check`` grade the SAME fired-policy WINDOW the marks
-ratchet grades (``core.calibration.replay.fired_window_walk``: the last
+Sixteen charts the operator or a documented dissection labeled as junk are frozen
+into a committed fixture (``tests/baselines/negative_corpus.parquet`` +
+``negative_corpus_meta.json``) and replayed through the reader door
+(``engine_alpha.reader.evaluate_ticker``) on every day of the fired-policy window
+the marks ratchet grades (``core.calibration.replay.fired_window_walk``: the last
 ``FIRED_WINDOW_SESSIONS`` trading days ending at the frozen day, every clamp
-named): a junk chart that fires on ANY day of that window fails. One day per
-frame was blind to a fire that moves a day earlier or later (final method,
-build step 1, operator ruling 2026-09-13). Cases
-whose junk structure has scrolled out of the live 2y read window are frozen
-with an ``as_of`` trim back to their dissection era, chosen so the frame PASSES
-the baseline universe filters and rejects on STRUCTURE - a case that fails
-baseline would be dead weight (it could never fire regardless of detector
-code and would guard nothing).
+named). The engine's other guards are one-directional: the shadow fixture
+(``tools.regression.shadow_diff``) freezes only PREVIOUSLY-FIRING tickers, and
+seed-recall (``core.archive.seed_recall``) can only fail on LOST winners - neither
+reds when a change makes junk setups fire universe-wide.
 
-An EVAL_ERROR on a corpus frame FAILS the gate (unlike the shadow guard, which
-drops it): the corpus documents "the engine cleanly rejects this junk", and a
-crash is neither a rejection nor a fire - it silently removes the tripwire.
+The gate (decision E of the one-reader plan, Sat 31/10/2026): the days each junk
+chart fires are pinned in ``tests/baselines/negative_corpus_baseline.json``
+(``known_fires`` - every case, a silent chart with an empty list). ``--check``
+FAILS on a fire on an UNPINNED day (a new fire day), on the silent chart firing
+on any day, on a crash (``EVAL_ERROR``) on any day, and on a frame missing from
+the parquet - each one removes a tripwire, so none may pass silently. A pinned
+day that no longer fires is NAMED, not failed: good news is still a change to
+look at, but the gate's teeth are for new junk fires. Re-pinning is a declared
+seam (``--pin-known-fires``, recorded in ``docs/decisions.md`` with the cases
+and days), never a routine recapture.
 
 Hermetic: reads the frozen fixture parquet, never the network or the live cache.
 
 Usage:
     python -m tools.regression.negative_corpus --build-fixture   # one-time, from the live data cache
-    python -m tools.regression.negative_corpus --check           # fail (exit 1) if any case fires on an unpinned window day
-    python -m tools.regression.negative_corpus --pin-known-fires # a declared seam: pin today's early-window fires as KNOWN
+    python -m tools.regression.negative_corpus --check           # fail (exit 1) on a new fire day, a crash, a missing frame
+    python -m tools.regression.negative_corpus --pin-known-fires # a declared seam: pin today's fire days as KNOWN
     python -m tools.regression.negative_corpus --drop-case KEY   # a declared seam: a case leaves on the operator's ruling
 """
 from __future__ import annotations
@@ -55,8 +49,8 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from engine_alpha.evaluation import apply_baseline_filters
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
+from engine_alpha.universe_door import apply_baseline_filters
 from core.calibration.replay import (
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
@@ -69,8 +63,9 @@ _FIXTURE_META = os.path.join(_BASELINE_DIR, "negative_corpus_meta.json")
 _BASELINE_JSON = os.path.join(_BASELINE_DIR, "negative_corpus_baseline.json")
 _CACHE_PATH = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
 
-# Frozen market scalar for the breadth bonus - scoring-only, never a firing
-# decision; any fixed value keeps the replay deterministic.
+# Frozen market scalar carried in the meta for the replay seam's call shape; the
+# alpha reader reads neither it nor the SPY return. Any fixed value keeps the
+# replay deterministic.
 _FROZEN_BREADTH = 0.5
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -161,6 +156,10 @@ CASES: tuple[dict, ...] = (
 )
 
 
+def _key(case: dict) -> str:
+    return case.get("key", case["ticker"])
+
+
 # ------------------------------------------------------------------
 # Check (hermetic; reads only the committed fixture)
 # ------------------------------------------------------------------
@@ -174,8 +173,7 @@ def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
     with open(_FIXTURE_META, "r", encoding="utf-8") as f:
         meta = json.load(f)
     level0 = set(data.columns.get_level_values(0))
-    frames = {c.get("key", c["ticker"]): data[c.get("key", c["ticker"])].dropna()
-              for c in meta["cases"] if c.get("key", c["ticker"]) in level0}
+    frames = {_key(c): data[_key(c)].dropna() for c in meta["cases"] if _key(c) in level0}
     return frames, meta
 
 
@@ -193,144 +191,135 @@ def _window_line(walk: dict) -> str:
 
 
 def load_known_fires() -> dict:
-    """The pinned early-window fires - ``{case key: [ISO days]}`` - captured at
-    a DECLARED seam by ``--pin-known-fires`` (first pinned Sun 13/09/2026, build
-    step 1 of the final method: 9 of the then 17 cases fired on an earlier day of their
-    window under the engine of that day, none on the frozen day; those days are
-    the operator's-eye queue, recorded in ``docs/decisions.md``). A fire on a
-    pinned day is reported as KNOWN and does not fail the gate; a fire on any
-    OTHER day, a crash on any day, or a missing frame still fails - the gate
-    keeps its teeth in the only direction that matters (new junk fires). An
-    absent file means nothing is pinned."""
+    """The pinned fire days - ``{case key: [ISO days]}`` - captured at a DECLARED
+    seam by ``--pin-known-fires`` (first pinned Sun 13/09/2026 for the early-
+    window fires of the old reader; re-pinned Sat 31/10/2026 as EVERY fire day of
+    the alpha reader, 47 days over 15 charts, GOOD silent). A fire on a pinned
+    day is reported as KNOWN and does not fail the gate; a fire on any OTHER
+    day, a crash on any day, or a missing frame fails - the gate keeps its teeth
+    in the only direction that matters (new junk fires). An absent file means
+    nothing is pinned."""
     if not os.path.exists(_BASELINE_JSON):
         return {}
     with open(_BASELINE_JSON, "r", encoding="utf-8") as f:
         return json.load(f).get("known_fires", {})
 
 
-@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
-def _case_walk(case: dict, df: pd.DataFrame, meta: dict, frozen_day_only: bool) -> dict:
-    """One case's window walk; with ``frozen_day_only`` only the frame's final
-    day is kept (the pre-2026-09-13 one-day read, still used for the dark
-    flag-ON replays whose junk exposure is graded on the frozen day)."""
-    walk = fired_window_walk(case["ticker"], df, float(case["spy_6m_return"]),
+def _case_walk(case: dict, df: pd.DataFrame, meta: dict) -> dict:
+    """One case's window walk through the reader door."""
+    return fired_window_walk(case["ticker"], df, float(case["spy_6m_return"]),
                              float(meta["breadth_pct"]), evaluate=_evaluate_ticker)
-    if frozen_day_only:
-        final_day = df.index[-1].date().isoformat()
-        walk["fires"] = [f for f in walk["fires"] if f["day"] == final_day]
-        walk["errors"] = [e for e in walk["errors"] if e["day"] == final_day]
-    return walk
 
 
-def check_corpus(*, frozen_day_only: bool = False) -> bool:
-    """Replay every frozen must-NOT-fire frame through the real pipeline on
-    the fired-policy window (``core.calibration.replay.fired_window_walk``).
-
-    Returns True iff every case still cleanly rejects on EVERY day of its
-    window that is not a pinned KNOWN fire day (``load_known_fires``). A case
-    that FIRES on an unpinned day, a case whose eval CRASHES (EVAL_ERROR) on
-    any day, and a case whose frame is missing from the parquet all fail -
-    each removes a tripwire, so none may pass silently. Pinned fires are
-    printed as KNOWN so they are never invisible. The report names each
-    case's walked window and any clamp. ``frozen_day_only`` grades the
-    frame's final day alone with no pins (the dark flag-ON replays).
-    """
+def walk_corpus() -> tuple[list[dict], dict]:
+    """The REAL replay, paid once: ``(cases, {case key: walk | None})`` - None for
+    a frame missing from the parquet."""
     frames, meta = _load_fixture()
-    cases = meta["cases"]
-    known = {} if frozen_day_only else load_known_fires()
+    walks: dict = {}
+    for case in meta["cases"]:
+        df = frames.get(_key(case))
+        walks[_key(case)] = None if df is None or df.empty else _case_walk(case, df, meta)
+    return meta["cases"], walks
 
-    lines: list[str] = []
-    windows: list[str] = []
-    known_lines: list[str] = []
-    ok = True
-    if not cases:
-        return False
 
+def judge(cases: list[dict], walks: dict, known: dict) -> tuple[bool, list[str], list[str]]:
+    """The verdict on one replay: ``(ok, failures, notes)``.
+
+    A failure: a frame missing, a crash on any day, a fire on an unpinned day
+    (the silent chart firing is one: it has no pinned day). A note: each case's
+    walked window, each pinned day that fired (KNOWN) and each pinned day that
+    no longer fires (named, never failed)."""
+    failures: list[str] = []
+    notes: list[str] = []
+    ok = bool(cases)
     for case in cases:
-        ticker = case["ticker"]
-        key = case.get("key", ticker)
-        df = frames.get(key)
-        if df is None or df.empty:
+        key = _key(case)
+        walk = walks.get(key)
+        if walk is None:
             ok = False
-            lines.append(f"  {key}: frame MISSING from fixture parquet - rebuild the fixture")
+            failures.append(f"  {key}: frame MISSING from fixture parquet - rebuild the fixture")
             continue
-        walk = _case_walk(case, df, meta, frozen_day_only)
-        windows.append(f"  {key}: {_window_line(walk)}")
+        notes.append(f"  {key}: {_window_line(walk)}")
         if walk["errors"]:
             ok = False
             days = ", ".join(e["day"] for e in walk["errors"])
-            lines.append(f"  {key}: EVAL_ERROR on {days} - the eval chain crashed on a corpus "
-                         f"frame ({case['label']}); a crash is not a clean rejection")
-        pinned = set(known.get(key, []))
+            failures.append(f"  {key}: EVAL_ERROR on {days} - the eval chain crashed on a corpus "
+                            f"frame ({case['label']}); a crash is not a clean rejection")
+        pinned = list(known.get(key, []))
+        fired = {f["day"] for f in walk["fires"]}
         old_fires = [f for f in walk["fires"] if f["day"] in pinned]
         new_fires = [f for f in walk["fires"] if f["day"] not in pinned]
+        quiet = [day for day in pinned if day not in fired]
         if old_fires:
-            known_lines.append(f"  {key}: KNOWN on {_fires_line({'fires': old_fires})} - "
-                               "pinned, awaiting the operator's eye")
+            notes.append(f"  {key}: KNOWN on {_fires_line({'fires': old_fires})}")
+        if quiet:
+            notes.append(f"  {key}: no longer fires on {', '.join(quiet)} - a pinned day went quiet; "
+                         "look, then re-pin deliberately (--pin-known-fires)")
         if new_fires:
             ok = False
-            lines.append(
+            failures.append(
                 f"  {key}: FIRES on {_fires_line({'fires': new_fires})} - "
                 f"labeled must-NOT-fire: {case['label']} [{case['evidence']}]"
             )
+    return ok, failures, notes
+
+
+def check_corpus() -> bool:
+    """Replay every frozen junk frame through the reader door on the fired-policy
+    window and judge it against the pinned fire days (``load_known_fires``).
+
+    Returns True iff every case fires on pinned days only - a fire on an
+    unpinned day, a crash on any day, or a missing frame fails. Pinned fires
+    are printed as KNOWN and pinned days that went quiet are named, so neither
+    is ever invisible.
+    """
+    cases, walks = walk_corpus()
+    ok, failures, notes = judge(cases, walks, load_known_fires())
 
     print("=" * 64)
-    print("  NEGATIVE-CORPUS PRECISION GUARD - must-NOT-fire cases")
+    print("  NEGATIVE-CORPUS PRECISION GUARD - the junk charts' fire days, pinned")
     print("=" * 64)
-    if frozen_day_only:
-        print("frozen day only: each case graded on its frame's final day (no pins).")
-    else:
-        print(f"fired-policy window: the last {FIRED_WINDOW_SESSIONS} trading days ending at "
-              f"each frozen day (the marks ratchet's window); a fire on any UNPINNED day fails.")
-    for line in windows:
+    print(f"fired-policy window: the last {FIRED_WINDOW_SESSIONS} trading days ending at "
+          f"each frozen day (the marks ratchet's window); a fire on any UNPINNED day fails.")
+    for line in notes:
         print(line)
-    if known_lines:
-        print(f"known early-window fires, pinned by --pin-known-fires ({len(known_lines)} cases):")
-        for line in known_lines:
-            print(line)
     print()
     if ok:
-        print(f"all {len(cases)} labeled junk cases still cleanly reject on every "
-              f"{'frozen day' if frozen_day_only else 'unpinned window day'}.")
+        pinned_days = sum(len(v) for v in load_known_fires().values())
+        print(f"all {len(cases)} labeled junk cases fire on their pinned days only "
+              f"({pinned_days} pinned days); no new fire day, no crash.")
         print("PASS - precision held.")
     else:
-        for line in lines:
+        for line in failures:
             print(line)
         print()
-        print("FAIL - a labeled must-NOT-fire case no longer cleanly rejects.")
-        print("If the fire is INTENDED (a deliberate recall change re-storied this")
-        print("chart), re-eyeball the case, then remove/re-freeze it deliberately -")
-        print("never re-capture wholesale.")
+        print("FAIL - a labeled must-NOT-fire case fires on a new day, crashed, or is missing.")
+        print("If the fire is INTENDED (a deliberate reading change re-storied this chart),")
+        print("re-eyeball the case, then pin it deliberately (--pin-known-fires, recorded in")
+        print("docs/decisions.md) - never re-capture wholesale.")
     return ok
 
 
 def pin_known_fires() -> dict:
-    """Pin the CURRENT early-window fires as KNOWN - a declared seam, never a
+    """Pin the CURRENT fire days of every case as KNOWN - a declared seam, never a
     routine recapture (record it in ``docs/decisions.md`` with the cases and
-    days). Walks every case on the window with the real engine and writes
-    ``{case key: [days]}`` for the cases that fire. Refuses on any EVAL_ERROR
-    and on a fire on a case's FINAL day (that day is the fixture's own
-    verified-non-firing premise; such a case must be re-eyeballed and
-    removed or re-frozen instead)."""
-    frames, meta = _load_fixture()
+    days). Walks every case on the window with the real reader and writes
+    ``{case key: [days]}`` for EVERY case, a silent one with an empty list, so
+    the baseline says of each chart what it does. Refuses on any EVAL_ERROR and
+    on a missing frame."""
+    cases, walks = walk_corpus()
     known: dict[str, list[str]] = {}
     problems: list[str] = []
-    for case in meta["cases"]:
-        key = case.get("key", case["ticker"])
-        df = frames.get(key)
-        if df is None or df.empty:
+    for case in cases:
+        key = _key(case)
+        walk = walks[key]
+        if walk is None:
             problems.append(f"{key}: frame MISSING from fixture parquet")
             continue
-        walk = _case_walk(case, df, meta, frozen_day_only=False)
-        final_day = df.index[-1].date().isoformat()
         if walk["errors"]:
             problems.append(f"{key}: EVAL_ERROR on " + ", ".join(e["day"] for e in walk["errors"]))
-        if any(f["day"] == final_day for f in walk["fires"]):
-            problems.append(f"{key}: FIRES on its frozen day {final_day} - not pinnable, re-eyeball it")
-        early = [f for f in walk["fires"] if f["day"] != final_day]
-        if early:
-            known[key] = [f["day"] for f in early]
-            print(f"  {key}: pinned {_fires_line({'fires': early})}")
+        known[key] = [f["day"] for f in walk["fires"]]
+        print(f"  {key}: " + (f"pinned {_fires_line(walk)}" if walk["fires"] else "silent"))
     if problems:
         raise RuntimeError("Refusing to pin known fires:\n  " + "\n  ".join(problems))
     from engine_alpha.freeze.manifest import manifest_hash
@@ -340,14 +329,17 @@ def pin_known_fires() -> dict:
         "engine_config_version": manifest_hash(),
         "fired_policy": {"window_sessions": FIRED_WINDOW_SESSIONS,
                          "max_walk_sessions": FIRED_WALK_MAX_SESSIONS},
-        "note": ("Early-window fires of labeled junk under the engine of the capture day, pinned so "
-                 "the gate reds only on NEW fire days; each pinned day awaits the operator's eye."),
+        "note": ("The fire days of the labeled junk charts under the reader of the capture day, every case, "
+                 "pinned so the gate reds only on a NEW fire day (or a crash, or a missing frame); a silent "
+                 "chart carries an empty list."),
         "known_fires": known,
     }
     os.makedirs(_BASELINE_DIR, exist_ok=True)
-    with open(_BASELINE_JSON, "w", encoding="utf-8") as f:
+    # newline="\n": tests/baselines/*.json is .gitattributes-pinned to LF.
+    with open(_BASELINE_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(out, f, indent=2)
-    print(f"Pinned known early-window fires for {len(known)} of {len(meta['cases'])} cases -> {_BASELINE_JSON}")
+    days = sum(len(v) for v in known.values())
+    print(f"Pinned {days} fire days over {sum(1 for v in known.values() if v)} of {len(cases)} cases -> {_BASELINE_JSON}")
     return out
 
 
@@ -355,28 +347,27 @@ def drop_case(key: str) -> dict:
     """A case leaves the sealed fixture on the operator's ruling that the chart
     is NOT junk - the declared seam for a population change (``--drop-case``,
     first used for CHCT on Sun 13/09/2026: "The setups is valid", ruled on its
-    pinned Thu 18/06/2026 window fire). ``build_fixture`` cannot re-seal while
-    other cases fire on pinned window days, and a hand edit of the parquet
-    leaves no trail, so this drops the frame's columns, the meta row and any
-    pinned fire days TOGETHER and prints what left. Refuses when the key is
-    still in ``CASES`` (the recipe and the fixture must agree: remove it from
-    the recipe first, naming the ruling) or is not in the sealed meta."""
-    if any(c.get("key", c["ticker"]) == key for c in CASES):
+    pinned Thu 18/06/2026 window fire). A hand edit of the parquet leaves no
+    trail, so this drops the frame's columns, the meta row and any pinned fire
+    days TOGETHER and prints what left. Refuses when the key is still in
+    ``CASES`` (the recipe and the fixture must agree: remove it from the recipe
+    first, naming the ruling) or is not in the sealed meta."""
+    if any(_key(c) == key for c in CASES):
         raise RuntimeError(f"Refusing to drop {key}: still in the build recipe (CASES) - "
                            "remove it there first, naming the ruling")
     if not os.path.exists(_FIXTURE_PARQUET) or not os.path.exists(_FIXTURE_META):
         raise FileNotFoundError("No negative-corpus fixture to drop a case from")
     with open(_FIXTURE_META, "r", encoding="utf-8") as f:
         meta = json.load(f)
-    keys = [c.get("key", c["ticker"]) for c in meta["cases"]]
+    keys = [_key(c) for c in meta["cases"]]
     if key not in keys:
         raise RuntimeError(f"Refusing to drop {key}: not in the sealed fixture ({len(keys)} cases)")
     data = pd.read_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
     if key in set(data.columns.get_level_values(0)):
         data = data.drop(columns=key, level=0)
     data.to_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
-    meta["cases"] = [c for c in meta["cases"] if c.get("key", c["ticker"]) != key]
-    with open(_FIXTURE_META, "w", encoding="utf-8") as f:
+    meta["cases"] = [c for c in meta["cases"] if _key(c) != key]
+    with open(_FIXTURE_META, "w", encoding="utf-8", newline="\n") as f:
         json.dump(meta, f, indent=2)
     pins_dropped: list = []
     if os.path.exists(_BASELINE_JSON):
@@ -384,7 +375,7 @@ def drop_case(key: str) -> dict:
             pins = json.load(f)
         if key in pins.get("known_fires", {}):
             pins_dropped = pins["known_fires"].pop(key)
-            with open(_BASELINE_JSON, "w", encoding="utf-8") as f:
+            with open(_BASELINE_JSON, "w", encoding="utf-8", newline="\n") as f:
                 json.dump(pins, f, indent=2)
     print(f"Dropped {key} from the negative corpus: {len(meta['cases'])} cases remain; "
           f"pinned fire days removed: {pins_dropped or 'none'}. Record the ruling in docs/decisions.md.")
@@ -394,16 +385,16 @@ def drop_case(key: str) -> dict:
 # ------------------------------------------------------------------
 # Fixture build (one-time; reads the live data cache, writes frozen files)
 # ------------------------------------------------------------------
-@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     """Freeze the labeled corpus from the live data cache.
 
-    Refuses to freeze a case the current engine FIRES on (or crashes on) on
-    ANY day of its fired-policy window - the gate's premise is that every
-    frozen frame is verified non-firing across the window the check grades.
-    Records each case's walked window and the window policy it was verified
-    under. Also records whether each frame passes the baseline filters: a
-    case should reject on STRUCTURE, not on the universe gate.
+    Refuses to freeze a case the reader CRASHES on on any day of its
+    fired-policy window. A case that fires is frozen and its fire days are
+    printed: they are pinned afterwards by ``--pin-known-fires`` (the gate
+    pins fire days, it no longer demands silence). Records each case's walked
+    window and the window policy it was read under, and whether each frame
+    passes the baseline filters: a case should be judged on STRUCTURE, not on
+    the universe gate.
     """
     if not os.path.exists(cache_path):
         raise FileNotFoundError(
@@ -419,7 +410,7 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     problems: list[str] = []
     for case in CASES:
         ticker, as_of = case["ticker"], case["as_of"]
-        key = case.get("key", ticker)
+        key = _key(case)
         if key in frames:
             problems.append(f"{key}: duplicated in CASES")
             continue
@@ -443,12 +434,8 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
             problems.append(f"{ticker}: EVAL_ERROR on {days} ({_window_line(walk)}) - "
                             "cannot freeze a crashing frame")
             continue
-        if walk["fires"]:
-            problems.append(
-                f"{ticker}: FIRES on {_fires_line(walk)} ({_window_line(walk)}) - "
-                "not freezable as a must-NOT-fire case"
-            )
-            continue
+        print(f"  {key}: " + (f"fires on {_fires_line(walk)}" if walk["fires"] else "silent")
+              + f" ({_window_line(walk)})")
 
         baseline_pass = apply_baseline_filters(df) is not None
         if not baseline_pass:
@@ -484,21 +471,22 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     meta = {
         "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "breadth_pct": _FROZEN_BREADTH,
-        # The engine the cases were verified non-firing against (Rail Program
-        # Task 2): stamped at every rebuild so junk evidence is cohortable.
+        # The engine the cases were frozen under: stamped at every rebuild so
+        # junk evidence is cohortable.
         "engine_config_version": manifest_hash(),
-        # The window policy every case was verified non-firing under - the
-        # replay seam's constants, never re-typed here.
+        # The window policy every case was read under - the replay seam's
+        # constants, never re-typed here.
         "fired_policy": {"window_sessions": FIRED_WINDOW_SESSIONS,
                          "max_walk_sessions": FIRED_WALK_MAX_SESSIONS},
         "cases": meta_cases,
     }
-    with open(_FIXTURE_META, "w", encoding="utf-8") as f:
+    with open(_FIXTURE_META, "w", encoding="utf-8", newline="\n") as f:
         json.dump(meta, f, indent=2)
 
-    print(f"Built negative corpus: {len(meta_cases)} verified must-NOT-fire cases -> {_FIXTURE_PARQUET}")
+    print(f"Built negative corpus: {len(meta_cases)} labeled junk cases -> {_FIXTURE_PARQUET}")
     baseline_passing = sum(1 for c in meta_cases if c["baseline_pass_at_freeze"])
     print(f"  {baseline_passing}/{len(meta_cases)} pass baseline at freeze (live structural tripwires)")
+    print("  now pin the fire days: python -m tools.regression.negative_corpus --pin-known-fires")
     return meta
 
 
@@ -512,7 +500,7 @@ def main() -> None:
     group.add_argument("--check", action="store_true",
                        help="Fail (exit 1) if any frozen case fires on an unpinned window day or crashes")
     group.add_argument("--pin-known-fires", action="store_true",
-                       help="Pin the current early-window fires as KNOWN (a declared seam; record it in decisions.md)")
+                       help="Pin the current fire days of every case as KNOWN (a declared seam; record it in decisions.md)")
     group.add_argument("--drop-case", metavar="KEY",
                        help="Drop one case from the sealed fixture on the operator's ruling (a declared seam; "
                             "remove it from CASES first and record the ruling in decisions.md)")

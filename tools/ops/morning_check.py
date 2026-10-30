@@ -3,8 +3,8 @@
 Run the morning after a night, outside the scan slot. It sets the night the screen shows beside a replay of the same
 night, read again by the reader that scanned it, and says whether they agree:
 
-* **The same fires.** The scan's market-data file is copied (`parallel_night.copy_panel`) and only the copy is read,
-  ticker by ticker, by the scan's own worker for the reader whose engine stamp the night carries. The market-cap
+* **The same fires.** The scan's market-data file is copied and only the copy is read, ticker by ticker, by the
+  scan's own worker, once the night's engine stamp is this tree's. The market-cap
   floor is applied the way the scan applied it: from the scan's own recorded removals (its payload's
   ``market_cap_floor.refused_tickers``), so no market cap is looked up again and nothing goes to the network.
 * **Every fire archived under that night's stamp.** The archive is opened read-only (sqlite ``mode=ro``); every fire
@@ -22,11 +22,18 @@ differences>``. Checking a night again replaces its line. US stocks only (the sc
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import hashlib
 import json
 import os
+import shutil
 import sqlite3
 import sys
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from urllib.request import pathname2url
+
+import pandas as pd
 
 try:
     from tools._bootstrap import configure_path, refuse_sealed_output
@@ -35,17 +42,93 @@ except ImportError:  # invoked as a script from the repo root
     from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 ROOT = configure_path()
 
+from config import settings  # noqa: E402
 from core.archive.db_path import archive_db_path  # noqa: E402
 from core.calibration.replay import flag_capture  # noqa: E402
+from core.pipeline.context.market_context import get_market_context  # noqa: E402
+from core.pipeline.market_data.market_calendar import MARKET_TZ  # noqa: E402
+from core.pipeline.market_data.market_data_health import eligible_tickers_for  # noqa: E402
+from core.pipeline.screening.screener import _prepare_ticker_frames  # noqa: E402
 from core.pipeline.universe.descriptor import resolve_universe  # noqa: E402
 from engine_alpha import reader  # noqa: E402
-from engine_alpha.evaluation import EVAL_ERROR  # noqa: E402
-from tools.calibration import parallel_night as night  # noqa: E402
+from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
+from engine_alpha.sentinels import EVAL_ERROR  # noqa: E402
 
 LEDGER = "ledger.txt"
 CLEAN = "clean"
+#: The ledger's reader token. One reader since the old engine retired (31/10/2026); the token stays so the
+#: lines written before it keep counting.
+READER = "new"
+#: How long the scan slot lasts from the scan's own hour: the nightly scan (12 to 17 minutes) and its catch-up.
+SLOT_HOURS = 2
+#: The eligibility ledgers the scan reads beside its meta file (`market_data_health._state_path`).
+_LEDGERS = (("QUARANTINE_FILENAME", "ticker_quarantine.json"), ("TICKER_ADMISSION_FILENAME", "ticker_admission.json"))
 #: How many clean new-reader nights in a row the go-live wants before it calls the flip settled.
 NIGHTS_WANTED = 10
+
+
+# --------------------------------------------------------------------------- #
+# The slot and the copy                                                        #
+# --------------------------------------------------------------------------- #
+def now_et() -> dt.datetime:
+    """The market's clock, naive."""
+    return dt.datetime.now(MARKET_TZ).replace(tzinfo=None)
+
+
+def in_scan_slot(now: dt.datetime) -> bool:
+    """Is it the nightly scan's slot: from its hour to two hours after (America/New_York)."""
+    hour = int(settings.SCAN_SCHEDULE_HOUR_ET)
+    return hour <= now.hour < hour + SLOT_HOURS
+
+
+def _sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def copy_panel(panel: str, meta: str, out_dir: str) -> dict:
+    """Copy the panel, its meta and the eligibility ledgers beside the meta into OUT/panel; only the copies are
+    read from here on."""
+    folder = os.path.join(out_dir, "panel")
+    os.makedirs(folder, exist_ok=True)
+    copy = os.path.join(folder, os.path.basename(panel))
+    shutil.copyfile(panel, copy)
+    meta_copy = os.path.join(folder, os.path.basename(meta))
+    if os.path.exists(meta):
+        shutil.copyfile(meta, meta_copy)
+    for setting, default in _LEDGERS:
+        name = getattr(settings, setting, default)
+        if os.path.exists(os.path.join(os.path.dirname(meta), name)):
+            shutil.copyfile(os.path.join(os.path.dirname(meta), name), os.path.join(folder, name))
+    return {"source": os.path.abspath(panel), "copy": copy, "meta": meta_copy,
+            "bytes": os.path.getsize(copy), "sha256": _sha256(copy)}
+
+
+def load_night(panel_copy: str, meta_copy: str, universe=None) -> tuple:
+    """The night's frames, prepared as the scan prepares them, and the two market numbers the scan hands the
+    reader. Returns ``(frames, spy_6m_return, breadth_pct, night, tickers)``.
+
+    The market context is computed from the copy and its cache file is written beside the copy, never over the
+    service's own (the scan's helper writes one wherever its setting points; here the setting points into OUT). A
+    rerun into the same folder on the same night reuses that file, by the helper's own cache rule.
+    """
+    uni = resolve_universe(universe)
+    data = pd.read_parquet(panel_copy, engine=settings.PARQUET_ENGINE)
+    if getattr(data.index, "tz", None) is not None:
+        data.index = data.index.tz_localize(None)
+    index_symbols = list(uni.index_symbols)
+    tickers = [s for s in dict.fromkeys(data.columns.get_level_values(0)) if s not in set(index_symbols)]
+    eligible = eligible_tickers_for(tickers, meta_file=meta_copy, index_symbols=index_symbols)
+    frames = _prepare_ticker_frames(eligible, data, uni)
+    context_file = os.path.abspath(os.path.join(os.path.dirname(panel_copy), "market_context.json"))
+    with flag_capture(MARKET_CONTEXT_FILENAME=context_file):
+        context = get_market_context(data, frames, uni)
+    breadth = context.get("breadth_pct")
+    return (frames, float(context.get("spy_6m_return") or 0.0), None if breadth is None else float(breadth),
+            data.index[-1].date(), len(tickers))
 
 
 # --------------------------------------------------------------------------- #
@@ -57,15 +140,29 @@ def _outcome(ticker: str, result) -> dict:
 
 
 def read_new(ticker: str, df, spy_6m_return: float, breadth_pct) -> dict:
-    """The new reader's scan worker (it names a chart it would not read)."""
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        return _outcome(ticker, reader.scan_read(ticker, df, spy_6m_return, breadth_pct))
+    """The scan's own worker (it names a chart the reader would not read)."""
+    return _outcome(ticker, reader.scan_read(ticker, df, spy_6m_return, breadth_pct))
 
 
-def read_old(ticker: str, df, spy_6m_return: float, breadth_pct) -> dict:
-    """The old reader's read, as the scan's base read (its lanes move no fire)."""
-    with flag_capture(TWO_EYES_READER_ENABLED=False):
-        return _outcome(ticker, reader.evaluate_ticker(ticker, df, spy_6m_return, breadth_pct))
+def run_pass(worker, frames: dict, spy_6m_return: float, breadth_pct, workers: int) -> tuple:
+    """The reader over every frame; ``(rows, wall clock in seconds)``. ``workers`` 0 reads in this process."""
+    started = time.perf_counter()
+    if workers == 0:
+        rows = [worker(ticker, df, spy_6m_return, breadth_pct) for ticker, df in frames.items()]
+    else:
+        rows, step = [], max(1, len(frames) // 10)
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(worker, ticker, df, spy_6m_return, breadth_pct) for ticker, df in frames.items()]
+            for done, future in enumerate(as_completed(futures), 1):
+                rows.append(future.result())
+                if done % step == 0 or done == len(futures):
+                    print(f"  {worker.__name__}: {done} of {len(futures)}", flush=True)
+    return sorted(rows, key=lambda r: r["ticker"]), time.perf_counter() - started
+
+
+def _version() -> str:
+    """This tree's engine stamp (EC-46's stamp)."""
+    return manifest_hash()
 
 
 # --------------------------------------------------------------------------- #
@@ -167,7 +264,7 @@ def clean_run(lines: list) -> int:
     run = 0
     for line in reversed(lines):
         parts = line.split(" ", 3)
-        if len(parts) < 4 or parts[1] != reader.READER_NEW or parts[3] != CLEAN:
+        if len(parts) < 4 or parts[1] != READER or parts[3] != CLEAN:
             break
         run += 1
     return run
@@ -197,26 +294,24 @@ def check(panel: str, meta: str, payload: str, out_dir: str, *, workers: int | N
     """The whole morning; returns ``(record, ledger lines)``."""
     refuse_sealed_output(out_dir)
     scan = scan_of(payload)
-    versions = {reader.READER_NEW: night._version(True), reader.READER_OLD: night._version(False)}
-    which = next((name for name, stamp in versions.items() if stamp == scan["stamp"]), None)
+    version = _version()
+    which = READER if scan["stamp"] == version else None
     record = {**{k: scan[k] for k in ("night", "stamp", "shown", "not_read")}, "reader": which, "read": 0,
               "replay_fires": [],
               "floor": {"from": "the scan's recorded removals", "removed": scan["floor_removed"]}}
     diffs = []
     if which is None:
-        diffs.append(f"the night's engine stamp {scan['stamp'][:8]} is neither reader of this tree (old "
-                     f"{versions[reader.READER_OLD][:8]}, new {versions[reader.READER_NEW][:8]}): the replay "
+        diffs.append(f"the night's engine stamp {scan['stamp'][:8]} is not this tree's ({version[:8]}): the replay "
                      "cannot vouch for it")
     else:
-        copied = night.copy_panel(panel, meta, out_dir)
-        frames, spy, breadth, panel_night, _tickers = night.load_night(copied["copy"], copied["meta"])
+        copied = copy_panel(panel, meta, out_dir)
+        frames, spy, breadth, panel_night, _tickers = load_night(copied["copy"], copied["meta"])
         if panel_night.isoformat() != scan["night"]:
             diffs.append(f"the market data on disk ends {panel_night.isoformat()}, the screen is of {scan['night']}: "
                          "not replayed")
         else:
-            worker = read_new if which == reader.READER_NEW else read_old
-            rows, _seconds = night.run_pass(worker, frames, spy, breadth,
-                                            (os.cpu_count() or 4) if workers is None else int(workers))
+            rows, _seconds = run_pass(read_new, frames, spy, breadth,
+                                      (os.cpu_count() or 4) if workers is None else int(workers))
             record.update(read=len(rows), replay_fires=sorted(r["ticker"] for r in rows if r["fired"]),
                           panel_sha256=copied["sha256"])
             diffs += replay_differences(scan, rows)
@@ -243,7 +338,7 @@ def main(argv=None) -> int:
     ap.add_argument("--payload", help="the screen's file of the night (default: the scan's own)")
     ap.add_argument("--workers", type=int, help="worker processes (default: one per core; 0 reads in this process)")
     args = ap.parse_args(argv)
-    if night.in_scan_slot(night.now_et()):
+    if in_scan_slot(now_et()):
         print("Refusing: it is the scan slot. Run the morning check after it. Nothing was read or written.")
         return 2
     uni = resolve_universe(None)

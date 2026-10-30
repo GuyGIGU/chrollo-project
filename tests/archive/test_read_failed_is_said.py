@@ -5,8 +5,8 @@ history refused 27 charts on Thu 08/10/2026). The seed's re-read caught every Va
 manual add answered "screener did not fire ... no valid LPS at that date" for a chart that was never read, and the
 winners seed dropped the date without counting it.
 
-Real route handler against a real throwaway SQLite database, the switch forced on for this test only (it measures,
-it decides nothing), the download monkeypatched at its source; never the live DB, never a booted app.
+Real route handler against a real throwaway SQLite database, the download monkeypatched at its source; never the
+live DB, never a booted app.
 """
 import sys
 
@@ -40,14 +40,7 @@ def _chart_with_a_hole():
     return df.drop(df.index[len(df) // 2])
 
 
-@pytest.fixture()
-def new_reader(monkeypatch):
-    from config import settings
-
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True, raising=False)
-
-
-def test_the_seeds_re_read_says_a_failed_read_instead_of_no_setup(new_reader):
+def test_the_seeds_re_read_says_a_failed_read_instead_of_no_setup():
     from core.archive import seed
     from engine_alpha import reader
 
@@ -55,7 +48,7 @@ def test_the_seeds_re_read_says_a_failed_read_instead_of_no_setup(new_reader):
         seed._evaluate_at_date(_chart_with_a_hole())
 
 
-def test_the_manual_add_says_the_read_failed_and_why(new_reader, monkeypatch):
+def test_the_manual_add_says_the_read_failed_and_why(monkeypatch):
     import core.pipeline.market_data.downloads as downloads
 
     engine = database.make_sqlite_engine(":memory:")
@@ -73,7 +66,7 @@ def test_the_manual_add_says_the_read_failed_and_why(new_reader, monkeypatch):
     assert "did not fire" not in caught.value.detail
 
 
-def test_the_seeds_window_counts_its_failed_reads_and_says_so(new_reader):
+def test_the_seeds_window_counts_its_failed_reads_and_says_so():
     """The seed's own walk (verify-2 of the fix run: the loop was run by no test). Every day of the window reads
     his chart with its hole, so every day is a failed read: none fires, and the words say the read FAILED."""
     import pandas as pd

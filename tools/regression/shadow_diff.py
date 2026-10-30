@@ -2,16 +2,17 @@
 Shadow-output diff guard - proves a code change did NOT silently alter the
 screener's existing outputs.
 
-It runs the REAL per-ticker pipeline (``core.pipeline.screening.screener._evaluate_ticker``)
+It runs the REAL per-ticker read (the reader door, ``engine_alpha.reader.evaluate_ticker``)
 on a FROZEN input fixture (committed OHLCV frames + frozen market scalars),
 serializes the canonical output fields per ticker, and compares against a
 captured baseline.
 
-Only the canonical fields are frozen - ticker set, setup type, score, tier,
-R/S levels, trigger price, box width, LPS length, and the displayed ranking. Any
-NEW diagnostic field a future change adds is ignored, so measure-first additions
-never trip the guard. A drift in any canonical field is reported with the exact
-ticker and field so an unintended change is impossible to miss.
+Only the canonical fields are frozen - ticker set, score, tier, the read day's
+close, the box's R/S and width, the trigger price, the box's first day and the
+LPS's last day, and the displayed ranking. Any NEW diagnostic field a future
+change adds is ignored, so measure-first additions never trip the guard. A
+drift in any canonical field is reported with the exact ticker and field so an
+unintended change is impossible to miss.
 
 Each ticker is graded on the SAME fired-policy WINDOW the marks ratchet grades
 (``core.calibration.replay.fired_window_walk``: the last ``FIRED_WINDOW_SESSIONS`` trading
@@ -50,7 +51,7 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
 from core.archive.db_path import archive_db_path
 from core.calibration.replay import fired_window_walk
 
@@ -61,11 +62,15 @@ _BASELINE_PATH = os.path.join(_BASELINE_DIR, "shadow_baseline.json")
 _DB_PATH = archive_db_path()
 _CACHE_PATH = os.path.join(_PROJECT_ROOT, settings.CACHE_FILENAME)
 
-# The screener outputs frozen by the guard. New diagnostic fields are NOT here,
-# so they are free to appear/differ without tripping it.
+# The screener outputs frozen by the guard: the fields the alpha reader's result row
+# FILLS and that vary chart to chart. ``Setup`` (always "LPS"), ``Base Len`` and
+# ``LPS Length`` (always empty on an alpha row) left when the old reader retired
+# (Sat 31/10/2026). New diagnostic fields are NOT here, so they are free to
+# appear/differ without tripping it.
 CANONICAL_FIELDS = (
-    "Setup", "Score", "Tier", "Base Len", "Box Width", "LPS Length",
+    "Score", "Tier", "Current Price", "Box Width",
     "_R", "_S", "_trigger_price",
+    "_phase_b_start_date", "_lps_zone_end_date",
 )
 # The fired-policy window record per ticker (ISO first/last fire day, count of
 # fire days) - frozen alongside the canonical fields: a fire that moves a day is
@@ -175,7 +180,6 @@ def _load_fixture() -> tuple[dict[str, pd.DataFrame], dict]:
     return frames, scalars
 
 
-@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def run_fixture() -> dict:
     """Run the real per-ticker pipeline over the frozen fixture, every ticker
     walked on its fired-policy window (``core.calibration.replay.fired_window_walk``).
@@ -242,7 +246,6 @@ def _recent_firing_tickers(db_path: str) -> list[str]:
         con.close()
 
 
-@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def build_fixture(cache_path: str = _CACHE_PATH, db_path: str = _DB_PATH,
                   extra_tickers: list[str] | None = None) -> dict:
     """Freeze a fixture from the live data cache + the archive's firing set.
@@ -313,7 +316,8 @@ def build_fixture(cache_path: str = _CACHE_PATH, db_path: str = _DB_PATH,
         "breadth_pct": breadth_pct,
         "tickers": sorted(firing),
     }
-    with open(_FIXTURE_SCALARS, "w", encoding="utf-8") as f:
+    # newline="\n": tests/baselines/*.json is .gitattributes-pinned to LF.
+    with open(_FIXTURE_SCALARS, "w", encoding="utf-8", newline="\n") as f:
         json.dump(scalars, f, indent=2)
 
     print(f"Built fixture: {len(firing)}/{len(candidates)} candidates fire -> {_FIXTURE_PARQUET}")
@@ -331,7 +335,8 @@ def capture_baseline() -> dict:
     # stamp can never register as drift.
     snapshot["captured_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     os.makedirs(_BASELINE_DIR, exist_ok=True)
-    with open(_BASELINE_PATH, "w", encoding="utf-8") as f:
+    # newline="\n": tests/baselines/*.json is .gitattributes-pinned to LF.
+    with open(_BASELINE_PATH, "w", encoding="utf-8", newline="\n") as f:
         json.dump(snapshot, f, indent=2)
     print(f"Captured shadow baseline -> {_BASELINE_PATH}")
     print(f"  {len(snapshot['fields'])} firing tickers, ranking of {len(snapshot['ranking'])}.")

@@ -6,7 +6,6 @@ import json
 import pandas as pd
 import pytest
 
-from config import settings
 from tools.audits import live_reader_audit as audit
 
 
@@ -17,10 +16,9 @@ def test_float_roundoff_is_not_a_changed_read_but_price_and_date_changes_are():
     assert not audit.same_read(old, {**old, 'day': '2026-10-21'})
 
 
-def test_sealed_alb_replays_through_both_public_paths(monkeypatch):
+def test_sealed_alb_replays_through_both_public_paths():
     from core.calibration.replay import load_sealed_fixture
 
-    monkeypatch.setattr(settings, 'TWO_EYES_READER_ENABLED', True)
     frames, _ = load_sealed_fixture()
     frame = frames['ALB:2026-04-13'].loc[:'2026-04-07']
     result = audit.reader.scan_read('ALB', frame)
@@ -50,11 +48,7 @@ def test_future_anchor_and_a_lost_fire_are_failures(monkeypatch):
     assert any('no longer fires' in issue for issue in audit.inspect_frame('AAA', frame, chart))
 
 
-def test_audit_refuses_the_old_reader_and_a_different_engine_epoch(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, 'TWO_EYES_READER_ENABLED', False)
-    with pytest.raises(ValueError, match='active reader is old'):
-        audit.audit(tmp_path)
-    monkeypatch.setattr(settings, 'TWO_EYES_READER_ENABLED', True)
+def test_audit_refuses_a_different_engine_epoch(tmp_path):
     (tmp_path / 'output').mkdir()
     (tmp_path / 'output/screener_data.json').write_text(json.dumps({
         'scan_identity': {'engine_config_version': 'old-version'},
@@ -64,7 +58,6 @@ def test_audit_refuses_the_old_reader_and_a_different_engine_epoch(tmp_path, mon
 
 
 def test_audit_cuts_the_cache_at_the_saved_session(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, 'TWO_EYES_READER_ENABLED', True)
     (tmp_path / 'output').mkdir()
     (tmp_path / 'output/screener_data.json').write_text(json.dumps({
         'scan_identity': {'engine_config_version': audit.manifest_hash(), 'scan_date': '2026-10-22'},

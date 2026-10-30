@@ -152,8 +152,8 @@ def test_the_line_citation_detector_tells_a_symbol_from_a_line_number():
     only one is the defect - so a detector that flagged everything, or
     nothing, cannot pass here."""
     fixture = (
-        "the `_fire_row` of `tools/research/miss_lane_census.py` reads the wrong keys; "
-        "pinned by `tests/tooling/test_knob_pair_table.py::test_leg_headers_speak`; "
+        "the `run_board` of `tools/calibration/core_board.py` reads the wrong keys; "
+        "pinned by `tests/tooling/test_core_board.py::test_the_board_counts_his_drawings`; "
         "cited as `:39-42` until 2026-09-01; see `core/archive/writer.py:214`")
     assert _line_citations(fixture) == ["core/archive/writer.py:214"], (
         "the detector must flag the path+line citation and ONLY that one - a "

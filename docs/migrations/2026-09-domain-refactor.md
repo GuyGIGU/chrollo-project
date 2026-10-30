@@ -4,7 +4,7 @@ The refactor on `claude/domain-refactor` grouped the code by what it does. It ru
 
 The machine-readable map is [2026-09-domain-refactor.json](2026-09-domain-refactor.json). [apply_move_map.py](../../tools/maintenance/apply_move_map.py) reads it to port a branch, and [test_apply_move_map.py](../../tests/tooling/test_apply_move_map.py) checks that the rewrite is idempotent, that every import it writes resolves, and that every file move in the JSON has a row on this page. The tables below are generated from the JSON; if you edit one, edit the other.
 
-The JSON records 571 file moves, 134 Python module moves, 10 whole-folder moves and 20 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; thirteen of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
+The JSON records 545 file moves, 114 Python module moves, 10 whole-folder moves and 46 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; thirteen of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
 
 | Area | Files moved |
 |---|---|
@@ -12,8 +12,8 @@ The JSON records 571 file moves, 134 Python module moves, 10 whole-folder moves 
 | Pipeline | 21 |
 | Backend | 47 |
 | Frontend | 216 |
-| Tests | 150 |
-| Tools | 42 |
+| Tests | 144 |
+| Tools | 22 |
 | Research evidence | 67 |
 
 ## How to port a branch
@@ -193,6 +193,8 @@ On Fri 17/10/2026 the lens became the operator's TradingView three-pane grid (th
 
 On Fri 23/10/2026 the operator's Watchlist redesign (the Watchlist tab became a ticker ledger, and its filter and manager left the Screener) deleted a fourteenth and a fifteenth: `webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx`, the Screener's watchlist panel, and `webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx`, the tab's card wall, which `InstrumentTable` rows and a chart dialog replaced. Their moves left `file_moves` the same way, and their old paths are in `deleted`; a branch that still mounts either is ported to `WatchlistTable` and `WatchlistChartDialog` by hand.
 
+On Sat 31/10/2026 the old engine retired on the operator's word of the night before (*"retire the old engine, from now on we focus on the new one"*; claude/retire-old-engine), and twenty-six more files the refactor had moved went with it, every one an instrument, audit or test that read the old engine past the reader door or measured it against the new one: `tests/tooling/test_doctrine_audit.py`, `tests/tooling/test_fold_parity.py`, `tests/tooling/test_near_miss_report.py`, `tests/tooling/test_rail_margin_evidence.py`, `tests/tooling/test_shelf_harness.py`, `tests/tooling/test_ta_grade_archive_replay.py`, `tools/research/bar_state_census.py`, `tools/calibration/calibration_stat_card.py`, `tools/research/correspondence_census.py`, `tools/audits/doctrine_audit.py`, `tools/research/event_map_census.py`, `tools/audits/event_map_chronology.py`, `tools/research/full_package_render.py`, `tools/audits/htf_audit.py`, `tools/research/miss_lane_census.py`, `tools/research/near_miss_census.py`, `tools/research/near_miss_report.py`, `tools/research/operator_marks_diff.py`, `tools/research/rail_area_census.py`, `tools/research/rail_margin_ab.py`, `tools/research/rail_margin_evidence.py`, `tools/research/shape_profile.py`, `tools/calibration/shelf_harness.py`, `tools/audits/structure_case_audit.py`, `tools/research/ta_grade_archive_replay.py`, `tools/audits/ta_grade_timing.py`. Their moves left `file_moves`, their old paths sit under `deleted`, and the twenty module moves among them became `deleted` notes, so a branch that still imports one is told it is gone. The two compatibility aliases `tools/calibration/replay.py` and `tools/calibration/agreement.py` went the same day (their last importers were among the deleted); `core.calibration.replay` and `core.calibration.agreement` are the names.
+
 ## What was deleted, and why
 
 | Path | Why |
@@ -217,6 +219,32 @@ On Fri 23/10/2026 the operator's Watchlist redesign (the Watchlist tab became a 
 | `webapp/frontend/src/components/TimeframeMiniRow.jsx` | The refactor moved it to webapp/frontend/src/shared/setup/TimeframeMiniRow.jsx; it was then DELETED when the lens became the operator's TradingView three-pane grid (the weekly and the monthly are real charts in the side column, so the preview cubes had no job; Fri 17/10/2026; claude/gfr-read-and-lens-three-panes). |
 | `webapp/frontend/src/components/ScreenerWatchlistPanel.jsx` | The refactor moved it to webapp/frontend/src/features/watchlist/components/ScreenerWatchlistPanel.jsx; it was then DELETED when the Watchlist filter and manager left the Screener (the operator's Watchlist redesign: the Watchlist tab is the one place to manage saved names, Fri 23/10/2026; codex/engineering-quality). |
 | `webapp/frontend/src/components/watchlist/WatchlistCardGrid.jsx` | The refactor moved it to webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx; it was then DELETED when the Watchlist tab became a ticker ledger (InstrumentTable rows, with the D/W/M charts in a dialog; the operator's Watchlist redesign, Fri 23/10/2026; codex/engineering-quality). |
+| `tests/test_doctrine_audit.py` | The refactor moved it to tests/tooling/test_doctrine_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_fold_parity.py` | The refactor moved it to tests/tooling/test_fold_parity.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_near_miss_report.py` | The refactor moved it to tests/tooling/test_near_miss_report.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_rail_margin_evidence.py` | The refactor moved it to tests/tooling/test_rail_margin_evidence.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_shelf_harness.py` | The refactor moved it to tests/tooling/test_shelf_harness.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_ta_grade_archive_replay.py` | The refactor moved it to tests/tooling/test_ta_grade_archive_replay.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/bar_state_census.py` | The refactor moved it to tools/research/bar_state_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/calibration_stat_card.py` | The refactor moved it to tools/calibration/calibration_stat_card.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/correspondence_census.py` | The refactor moved it to tools/research/correspondence_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/doctrine_audit.py` | The refactor moved it to tools/audits/doctrine_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/event_map_census.py` | The refactor moved it to tools/research/event_map_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/event_map_chronology.py` | The refactor moved it to tools/audits/event_map_chronology.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/full_package_render.py` | The refactor moved it to tools/research/full_package_render.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/htf_audit.py` | The refactor moved it to tools/audits/htf_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/miss_lane_census.py` | The refactor moved it to tools/research/miss_lane_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/near_miss_census.py` | The refactor moved it to tools/research/near_miss_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/near_miss_report.py` | The refactor moved it to tools/research/near_miss_report.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/operator_marks_diff.py` | The refactor moved it to tools/research/operator_marks_diff.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/rail_area_census.py` | The refactor moved it to tools/research/rail_area_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/rail_margin_ab.py` | The refactor moved it to tools/research/rail_margin_ab.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/rail_margin_evidence.py` | The refactor moved it to tools/research/rail_margin_evidence.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/shape_profile.py` | The refactor moved it to tools/research/shape_profile.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/shelf_harness.py` | The refactor moved it to tools/calibration/shelf_harness.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/structure_case_audit.py` | The refactor moved it to tools/audits/structure_case_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/ta_grade_archive_replay.py` | The refactor moved it to tools/research/ta_grade_archive_replay.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/ta_grade_timing.py` | The refactor moved it to tools/audits/ta_grade_timing.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
 
 Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webapp/backend/ibkr/`, which the first commit had left behind as aliases. Across the whole refactor git pairs each of them with its new home, so they appear as moves in the tables below, not here.
 
@@ -232,8 +260,6 @@ Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webap
 | `webapp/backend/models.py` | The model registry `create_all` needs | `webapp/backend/domains/<name>/models.py` |
 | `webapp/backend/archive_models.py` | The archive ORM and market-context names | `domains/archive/models.py`, `domains/archive/market_context.py` |
 | `webapp/backend/broker_config.py` | Unchanged: it carries its own manual-connection safety contract | (same file) |
-| `tools/calibration/replay.py` | `tools.calibration.replay`, which engine docstrings cite and branches cut before 2026-09-24 import (the same module object) | `core/calibration/replay.py` |
-| `tools/calibration/agreement.py` | `tools.calibration.agreement`, likewise | `core/calibration/agreement.py` |
 | `tools/run_maturation.bat` | The Task Scheduler entry registered with this absolute path; permanent, since the task is not being re-registered (it only forwards) | `tools/ops/run_maturation.bat` |
 | `tools/fidelity/README.md` | Sealed records that cite `tools/fidelity/<name>/` | `research/fidelity/` |
 
@@ -296,42 +322,22 @@ Import names, as the porter rewrites them. Repo-root modules import from the rep
 | `output.terminal` | `core.pipeline.screening.terminal` |
 | `tools.agreement` | `core.calibration.agreement` |
 | `tools.backtest_engine` | `tools.research.backtest_engine` |
-| `tools.bar_state_census` | `tools.research.bar_state_census` |
 | `tools.build_universe_returns` | `tools.research.build_universe_returns` |
 | `tools.calibration_harness` | `tools.calibration.calibration_harness` |
-| `tools.calibration_stat_card` | `tools.calibration.calibration_stat_card` |
 | `tools.cause_veto_corpus` | `tools.regression.cause_veto_corpus` |
-| `tools.correspondence_census` | `tools.research.correspondence_census` |
-| `tools.doctrine_audit` | `tools.audits.doctrine_audit` |
-| `tools.event_map_census` | `tools.research.event_map_census` |
-| `tools.event_map_chronology` | `tools.audits.event_map_chronology` |
 | `tools.fold_parity` | `tools.regression.fold_parity` |
-| `tools.full_package_render` | `tools.research.full_package_render` |
 | `tools.guided_list_export` | `tools.calibration.guided_list_export` |
-| `tools.htf_audit` | `tools.audits.htf_audit` |
 | `tools.marks_corpus` | `tools.regression.marks_corpus` |
 | `tools.marks_json` | `tools.calibration.marks_json` |
-| `tools.miss_lane_census` | `tools.research.miss_lane_census` |
-| `tools.near_miss_census` | `tools.research.near_miss_census` |
-| `tools.near_miss_report` | `tools.research.near_miss_report` |
 | `tools.negative_corpus` | `tools.regression.negative_corpus` |
-| `tools.operator_marks_diff` | `tools.research.operator_marks_diff` |
 | `tools.pointer_audit` | `tools.audits.pointer_audit` |
 | `tools.provider_parity` | `tools.audits.provider_parity` |
-| `tools.rail_area_census` | `tools.research.rail_area_census` |
-| `tools.rail_margin_ab` | `tools.research.rail_margin_ab` |
-| `tools.rail_margin_evidence` | `tools.research.rail_margin_evidence` |
 | `tools.reader_pin` | `tools.regression.reader_pin` |
 | `tools.replay` | `core.calibration.replay` |
 | `tools.restore_drill` | `tools.ops.restore_drill` |
 | `tools.settings_reference` | `tools.maintenance.settings_reference` |
 | `tools.shadow_diff` | `tools.regression.shadow_diff` |
-| `tools.shape_profile` | `tools.research.shape_profile` |
-| `tools.shelf_harness` | `tools.calibration.shelf_harness` |
 | `tools.story_chain_candidates` | `tools.research.story_chain_candidates` |
-| `tools.structure_case_audit` | `tools.audits.structure_case_audit` |
-| `tools.ta_grade_archive_replay` | `tools.research.ta_grade_archive_replay` |
-| `tools.ta_grade_timing` | `tools.audits.ta_grade_timing` |
 
 ### Backend root
 
@@ -772,7 +778,6 @@ Whole folders that moved unchanged:
 | `tests/test_db_isolation.py` | `tests/integration/test_db_isolation.py` |
 | `tests/test_displacement.py` | `tests/engine/test_displacement.py` |
 | `tests/test_docs_sync.py` | `tests/tooling/test_docs_sync.py` |
-| `tests/test_doctrine_audit.py` | `tests/tooling/test_doctrine_audit.py` |
 | `tests/test_download_integrity.py` | `tests/market_data/test_download_integrity.py` |
 | `tests/test_election_stability.py` | `tests/engine/test_election_stability.py` |
 | `tests/test_election_surgery.py` | `tests/engine/test_election_surgery.py` |
@@ -786,7 +791,6 @@ Whole folders that moved unchanged:
 | `tests/test_fetch_repair.py` | `tests/market_data/test_fetch_repair.py` |
 | `tests/test_file_lock.py` | `tests/market_data/test_file_lock.py` |
 | `tests/test_fired_tags.py` | `tests/scoring/test_fired_tags.py` |
-| `tests/test_fold_parity.py` | `tests/tooling/test_fold_parity.py` |
 | `tests/test_frame_store.py` | `tests/backend/test_frame_store.py` |
 | `tests/test_framing_identity.py` | `tests/engine/test_framing_identity.py` |
 | `tests/test_fundamentals_metrics.py` | `tests/pipeline/test_fundamentals_metrics.py` |
@@ -825,7 +829,6 @@ Whole folders that moved unchanged:
 | `tests/test_near_miss_guards.py` | `tests/engine/test_near_miss_guards.py` |
 | `tests/test_near_miss_identity_migration.py` | `tests/backend/test_near_miss_identity_migration.py` |
 | `tests/test_near_miss_outcomes.py` | `tests/archive/test_near_miss_outcomes.py` |
-| `tests/test_near_miss_report.py` | `tests/tooling/test_near_miss_report.py` |
 | `tests/test_near_miss_ruling.py` | `tests/engine/test_near_miss_ruling.py` |
 | `tests/test_near_miss_wiring.py` | `tests/pipeline/test_near_miss_wiring.py` |
 | `tests/test_negative_corpus.py` | `tests/regression/test_negative_corpus.py` |
@@ -839,7 +842,6 @@ Whole folders that moved unchanged:
 | `tests/test_provider_capabilities.py` | `tests/market_data/test_provider_capabilities.py` |
 | `tests/test_provider_parity.py` | `tests/tooling/test_provider_parity.py` |
 | `tests/test_providers.py` | `tests/market_data/test_providers.py` |
-| `tests/test_rail_margin_evidence.py` | `tests/tooling/test_rail_margin_evidence.py` |
 | `tests/test_rail_qualification.py` | `tests/engine/test_rail_qualification.py` |
 | `tests/test_rate_limit.py` | `tests/market_data/test_rate_limit.py` |
 | `tests/test_reader_pin.py` | `tests/regression/test_reader_pin.py` |
@@ -865,14 +867,12 @@ Whole folders that moved unchanged:
 | `tests/test_seeding_refusals.py` | `tests/engine/test_seeding_refusals.py` |
 | `tests/test_service_boot.py` | `tests/backend/test_service_boot.py` |
 | `tests/test_setup_like_verdict.py` | `tests/backend/test_setup_like_verdict.py` |
-| `tests/test_shelf_harness.py` | `tests/tooling/test_shelf_harness.py` |
 | `tests/test_startup_migrations.py` | `tests/backend/test_startup_migrations.py` |
 | `tests/test_story_chain_candidates.py` | `tests/tooling/test_story_chain_candidates.py` |
 | `tests/test_story_pool.py` | `tests/engine/test_story_pool.py` |
 | `tests/test_story_pool_guards.py` | `tests/engine/test_story_pool_guards.py` |
 | `tests/test_strategy_read.py` | `tests/engine/test_strategy_read.py` |
 | `tests/test_suggested_weights.py` | `tests/archive/test_suggested_weights.py` |
-| `tests/test_ta_grade_archive_replay.py` | `tests/tooling/test_ta_grade_archive_replay.py` |
 | `tests/test_ta_grade_cascade.py` | `tests/scoring/test_ta_grade_cascade.py` |
 | `tests/test_ticker_admission.py` | `tests/pipeline/test_ticker_admission.py` |
 | `tests/test_tickers.py` | `tests/pipeline/test_tickers.py` |
@@ -896,32 +896,17 @@ Whole folders that moved unchanged:
 | `tools/ChrolloBackup.ps1` | `tools/ops/ChrolloBackup.ps1` |
 | `tools/agreement.py` | `core/calibration/agreement.py` |
 | `tools/backtest_engine.py` | `tools/research/backtest_engine.py` |
-| `tools/bar_state_census.py` | `tools/research/bar_state_census.py` |
 | `tools/build_universe_returns.py` | `tools/research/build_universe_returns.py` |
 | `tools/calibration_harness.py` | `tools/calibration/calibration_harness.py` |
-| `tools/calibration_stat_card.py` | `tools/calibration/calibration_stat_card.py` |
 | `tools/cause_veto_corpus.py` | `tools/regression/cause_veto_corpus.py` |
 | `tools/chart_framing_census.mjs` | `tools/research/chart_framing_census.mjs` |
-| `tools/correspondence_census.py` | `tools/research/correspondence_census.py` |
-| `tools/doctrine_audit.py` | `tools/audits/doctrine_audit.py` |
-| `tools/event_map_census.py` | `tools/research/event_map_census.py` |
-| `tools/event_map_chronology.py` | `tools/audits/event_map_chronology.py` |
 | `tools/fold_parity.py` | `tools/regression/fold_parity.py` |
-| `tools/full_package_render.py` | `tools/research/full_package_render.py` |
 | `tools/guided_list_export.py` | `tools/calibration/guided_list_export.py` |
-| `tools/htf_audit.py` | `tools/audits/htf_audit.py` |
 | `tools/marks_corpus.py` | `tools/regression/marks_corpus.py` |
 | `tools/marks_json.py` | `tools/calibration/marks_json.py` |
-| `tools/miss_lane_census.py` | `tools/research/miss_lane_census.py` |
-| `tools/near_miss_census.py` | `tools/research/near_miss_census.py` |
-| `tools/near_miss_report.py` | `tools/research/near_miss_report.py` |
 | `tools/negative_corpus.py` | `tools/regression/negative_corpus.py` |
-| `tools/operator_marks_diff.py` | `tools/research/operator_marks_diff.py` |
 | `tools/pointer_audit.py` | `tools/audits/pointer_audit.py` |
 | `tools/provider_parity.py` | `tools/audits/provider_parity.py` |
-| `tools/rail_area_census.py` | `tools/research/rail_area_census.py` |
-| `tools/rail_margin_ab.py` | `tools/research/rail_margin_ab.py` |
-| `tools/rail_margin_evidence.py` | `tools/research/rail_margin_evidence.py` |
 | `tools/reader_pin.py` | `tools/regression/reader_pin.py` |
 | `tools/recover_service_python.bat` | `tools/ops/recover_service_python.bat` |
 | `tools/recover_service_python.ps1` | `tools/ops/recover_service_python.ps1` |
@@ -929,12 +914,7 @@ Whole folders that moved unchanged:
 | `tools/restore_drill.py` | `tools/ops/restore_drill.py` |
 | `tools/settings_reference.py` | `tools/maintenance/settings_reference.py` |
 | `tools/shadow_diff.py` | `tools/regression/shadow_diff.py` |
-| `tools/shape_profile.py` | `tools/research/shape_profile.py` |
-| `tools/shelf_harness.py` | `tools/calibration/shelf_harness.py` |
 | `tools/story_chain_candidates.py` | `tools/research/story_chain_candidates.py` |
-| `tools/structure_case_audit.py` | `tools/audits/structure_case_audit.py` |
-| `tools/ta_grade_archive_replay.py` | `tools/research/ta_grade_archive_replay.py` |
-| `tools/ta_grade_timing.py` | `tools/audits/ta_grade_timing.py` |
 
 ### Research evidence (to `research/`)
 

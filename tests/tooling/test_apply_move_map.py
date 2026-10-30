@@ -388,10 +388,10 @@ PY_CORPUS = [
     "tests/test_universe_descriptor.py", "tests/test_download_integrity.py",
     "tests/test_candles_router.py", "tests/test_lps.py", "tests/test_charter_measurements.py",
     "tests/test_miss_program_lanes.py", "tests/test_election_stability.py",
-    "tests/test_doctrine_audit.py", "tests/test_health_board.py",
+    "tests/test_health_board.py",
     "tests/test_trigger_grade_spec.py", "tests/test_backend_services.py",
     "webapp/backend/main.py", _R + "archive.py", _R + "calibration.py", _R + "watchlist.py",
-    _T + "calibration_stat_card.py", _T + "structure_case_audit.py", _T + "marks_corpus.py",
+    _T + "marks_corpus.py",
 ]
 # AppShell and useScanRunner import '../api', a module that became a folder
 # (api/base.js): a folder is not an import target, so it must not count as resolved.

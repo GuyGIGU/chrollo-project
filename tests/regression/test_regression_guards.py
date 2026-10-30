@@ -8,7 +8,7 @@ This module runs the REAL guard end-to-end against the COMMITTED baseline and
 frozen fixture, so any canonical-field drift fails the default pytest run (and
 therefore CI). It is fully OFFLINE and deterministic: ``check_baseline`` reads
 the committed ``tests/baselines/shadow_baseline.json`` and replays the frozen
-``shadow_fixture.parquet`` through the per-ticker pipeline on the fired-policy
+``shadow_fixture.parquet`` through the reader door on the fired-policy
 WINDOW the marks ratchet grades (the last ten trading days ending at the frozen
 day, ``core.calibration.replay.fired_window_walk``; final method build step 1,
 2026-09-13). No network, no live archive DB, no parquet cache.
@@ -55,9 +55,9 @@ def _one_fixture_ticker():
 
 
 def _fire(score: float) -> dict:
-    return {"Setup": "LPS", "Score": score, "Tier": "A", "Base Len": 30,
-            "Box Width": 0.1, "LPS Length": 3, "_R": 10.0, "_S": 9.0,
-            "_trigger_price": 10.1}
+    return {"Setup": "LPS", "Score": score, "Tier": "A", "Current Price": 10.05,
+            "Box Width": 0.1, "_R": 10.0, "_S": 9.0, "_trigger_price": 10.1,
+            "_phase_b_start_date": "2026-04-01", "_lps_zone_end_date": "2026-06-04"}
 
 
 def test_shadow_baseline_and_fixture_are_committed():
@@ -112,7 +112,7 @@ def test_run_fixture_drops_eval_error_without_raising(monkeypatch):
     Bite proof: make ``core.calibration.replay.fired_window_walk`` file EVAL_ERROR under
     ``fires`` and this test raises AttributeError.
     """
-    from engine_alpha.evaluation import EVAL_ERROR
+    from engine_alpha.sentinels import EVAL_ERROR
 
     poisoned, _days = _one_fixture_ticker()
 

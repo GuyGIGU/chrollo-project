@@ -20,21 +20,12 @@ from tools.regression import marks_corpus
 
 pytestmark = pytest.mark.regression
 
-# The post-gap-breach stages (2026-07-24): Tasks 3/4/6 falsified
-# engagement-respect, commit-the-cause, and lps-envelope in turn — every
-# chart-readable miss converged on rail-placement (the named next program);
-# SKYT is a universe-gate exclusion, not a chart-reading gap.
-# The hand-curated stages, each naming the build-order work expected to convert
-# that miss — plus the ONE stage the build assigns itself: a chart the operator
-# has just drawn or redrawn that the engine cannot read. That one is not an
-# explanation, it is an open question addressed to him (his 2026-09-08 ruling:
-# drawing a mark must never break his gate before he has looked at it), and
-# `test_a_freshly_drawn_mark_never_needs_a_hand_written_stage` keeps the two
-# populations from blurring.
-# "lps-ceiling" (2026-09-13): the LPS zone's R-side ceiling, 0.5 daily ranges today,
-# ruled 1.35 by the operator (R12); ST's LPS low sits 1.30 above his resistance.
-# Converts at build step 3 of the final method (LPS refusals to grades).
-_KNOWN_STAGES = {"rail-placement", "universe-gate", "lps-ceiling", marks_corpus.NEW_MARK_STAGE}
+# The hand-curated stages are the tool's own STAGE_TAGS values (one plain sentence per miss under the alpha
+# reader, Sat 31/10/2026) — plus the ONE stage the build assigns itself: a chart the operator has just drawn
+# or redrawn that the engine cannot read. That one is not an explanation, it is an open question addressed
+# to him (his 2026-09-08 ruling: drawing a mark must never break his gate before he has looked at it), and
+# `test_a_freshly_drawn_mark_never_needs_a_hand_written_stage` keeps the two populations from blurring.
+_KNOWN_STAGES = set(marks_corpus.STAGE_TAGS.values()) | {marks_corpus.NEW_MARK_STAGE}
 
 
 def _load_baseline() -> dict:

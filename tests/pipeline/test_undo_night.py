@@ -37,7 +37,8 @@ def _sha(path) -> str:
 
 
 def _seed_archive(path) -> None:
-    """A throwaway archive with one row in each table the night could touch."""
+    """A throwaway archive with one row in each table the night could touch (the
+    near-miss table is read-only history since the lane retired, and must stay so)."""
     with sqlite3.connect(path) as conn:
         conn.execute("CREATE TABLE setup_archive (ticker TEXT, scan_date TEXT)")
         conn.execute("CREATE TABLE near_miss_archive (ticker TEXT)")
@@ -54,12 +55,9 @@ def _wire_night(monkeypatch, tmp_path, results: pd.DataFrame) -> dict:
     monkeypatch.setenv("CHROLLO_DB_PATH", str(db))
     # Restored at teardown whatever the command does to it in-process.
     monkeypatch.setattr(settings, "ARCHIVE_LIVE_SCANS", True)
-    monkeypatch.setattr(settings, "NEAR_MISS_LANE_ENABLED", True)
     seen: dict = {"db": db, "dashboards": []}
 
-    def _screener(mode="download", universe=None, near_miss_sink=None):
-        if near_miss_sink is not None:
-            near_miss_sink["rows"].append({"ticker": "NMS"})
+    def _screener(mode="download", universe=None):
         return results, pd.DataFrame(), list(results.get("Ticker", [])), {"spy": 1}
 
     def _archive_spy(frame, scan_date_str=None, enable=False, universe=None, refused=None):
@@ -71,14 +69,6 @@ def _wire_night(monkeypatch, tmp_path, results: pd.DataFrame) -> dict:
         conn.close()
         return len(frame)
 
-    def _near_miss_spy(rows, *, universe_type, enable=False):
-        with sqlite3.connect(os.environ["CHROLLO_DB_PATH"]) as conn:
-            conn.executemany("INSERT INTO near_miss_archive VALUES (?)",
-                             [(r["ticker"],) for r in rows])
-        conn.close()
-        return {"inserted": len(rows), "recurred": 0}
-
-    from core.archive import near_miss_writer as nmw
     monkeypatch.setattr(sj, "run_screener", _screener)
     monkeypatch.setattr(sj, "_passes_archive_freshness", lambda *a, **k: True)
     monkeypatch.setattr(sj, "_maybe_build_health_board", lambda *a, **k: None)
@@ -86,7 +76,6 @@ def _wire_night(monkeypatch, tmp_path, results: pd.DataFrame) -> dict:
     monkeypatch.setattr(sj, "save_csv", lambda *a, **k: None)
     monkeypatch.setattr(sj, "print_finviz_url", lambda *a, **k: None)
     monkeypatch.setattr(sj, "archive_scan_results", _archive_spy)
-    monkeypatch.setattr(nmw, "archive_near_miss_rows", _near_miss_spy)
     monkeypatch.setattr(
         sj, "generate_dashboard",
         lambda results_df, data, tickers, market_context, **k:
@@ -119,7 +108,7 @@ def test_the_undo_night_shows_the_read_and_leaves_the_archive_byte_identical(
     _run(monkeypatch, "--cached", "--no-archive")
 
     out = capsys.readouterr().out
-    # The archive: not one byte moved (fires, near-miss lane, calibration).
+    # The archive: not one byte moved (fires, the near-miss history, calibration).
     assert _sha(seen["db"]) == before
     # The screen: rewritten with the re-read, and the payload says it is not archived.
     assert len(seen["dashboards"]) == 1
@@ -138,10 +127,12 @@ def test_the_undo_night_shows_the_read_and_leaves_the_archive_byte_identical(
     assert importlib.import_module("config.archive").ARCHIVE_LIVE_SCANS is True
 
 
-@pytest.mark.parametrize("results", [_FIRED, _EMPTY], ids=["fires", "zero-fires"])
-def test_control_a_normal_night_does_write_the_archive(monkeypatch, tmp_path, capsys, results):
+def test_control_a_normal_night_does_write_the_archive(monkeypatch, tmp_path, capsys):
     """The byte comparison above can SEE an archive write: the same night without the
-    flag changes the file — and its result line is byte-for-byte today's (no new key)."""
+    flag changes the file — and its result line is byte-for-byte today's (no new key).
+    Fires only: since the near-miss lane retired (Fri 30/10/2026) a zero-fire night
+    writes nothing to the archive, so it has no write for the comparison to see."""
+    results = _FIRED
     seen = _wire_night(monkeypatch, tmp_path, results)
     before = _sha(seen["db"])
 

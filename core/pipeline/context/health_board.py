@@ -11,26 +11,22 @@ those tabs become a useful "where is this in its cycle" board.
 Boundaries this module lives inside (see docs/archive/specs/market-sector-health-board.md and
 docs/health_board_state_audit.md):
 
-* It reads ONLY the PUBLIC ``engine_alpha.structure`` API — the same box detector and
-  gate-free measures the firing engine uses (``find_outer_box`` for R/S,
-  ``trend_template`` / ``distance_to_52w_high_pct`` for posture / drawdown). It
-  NEVER imports the firing-chain helpers (``_resolve_structure_context`` /
-  ``_run_eval_chain`` / the baseline+crash+extension gates), so the
-  byte-parity-locked ``us_equities`` output cannot drift.
-* It ``structure``-measures and then judges; it assigns NO score / tier / trigger
-  and writes NOTHING to the archive.
-* Every measure is evaluated on the SAME as-of bar the box detector uses
-  (``df[:-STRUCTURE_EDGE_SKIP_BARS]``, i.e. ``df[-6]``), never the live edge, so a
-  member's state can never lead its own geometry — the board is an END-OF-SCAN
-  read, not a real-time feed (a fresh move may take a few sessions to re-label).
+* It reads the member's box through the reader door (``engine_alpha.reader.read_record``:
+  the frame contract, then the universe door, then the reader's parent box) and the
+  shared stock measures (``engine_alpha.metrics``: ``trend_template`` /
+  ``distance_to_52w_high_pct`` for posture / drawdown). It never scores, so the
+  ``us_equities`` output cannot drift.
+* It measures and then judges; it assigns NO score / tier / trigger and writes
+  NOTHING to the archive.
+* Every measure is read on the last close, as the reader reads — the board is an
+  END-OF-SCAN read, not a real-time feed.
 * ``settings`` is read LAZILY inside functions (never at import) to respect the
   backend config-vs-cwd shadowing trap.
 
 The seven states are a CLOSED set; their ``HealthState`` declaration order is the
-decision-proximity order the frontend sorts by. ``read_structure`` is deliberately
-NOT reused: it only returns a ``Structure`` when a full A→B→(C?)→D narrative WITH a
-completed LPS exists, so it would collapse a good LPS-less base to "no structure" —
-exactly the non-firing cohort the board exists to show.
+decision-proximity order the frontend sorts by. A member the reader holds a box
+for but reads no LPS on is still a box (``consolidating`` / ``near_*``): the
+non-firing cohort is exactly what the board exists to show.
 """
 from __future__ import annotations
 
@@ -102,32 +98,30 @@ class MemberHealth:
 def classify_member(df: "pd.DataFrame") -> MemberHealth:
     """Classify a single member's daily OHLCV frame into exactly one state.
 
-    Pure and self-contained: it prepares its own as-of frame, reads only the public
-    ``engine_alpha.structure`` measures, and returns one :class:`MemberHealth`. Raises
-    :class:`InsufficientHistoryError` when the member is too short to read; any
-    other degenerate input is routed to ``no_structure`` rather than a poisoned
-    value. Never mutates the caller's frame (works on an explicit ``.copy()``).
+    Pure and self-contained: it reads the member's box through the reader door
+    (``engine_alpha.reader.read_record``: the frame contract, then the universe
+    door, then the reader) and the shared stock measures (``engine_alpha.metrics``),
+    and returns one :class:`MemberHealth`. Raises :class:`InsufficientHistoryError`
+    when the member is too short to read; any other degenerate input is routed to
+    ``no_structure`` rather than a poisoned value. Never mutates the caller's frame.
 
     The precedence ladder is ONE ordered, exhaustive, non-overlapping cascade so a
     member always gets exactly one state:
 
       1. **deep_correction** — drawdown at/below the deep-correction floor
-         (classified FIRST, before any box read; also absorbs the below-SMA200
-         fallen cohort the box substrate refuses).
-      2. **valid box** → one of the four box states (``post_breakout_markup`` when
-         the as-of close is clearly above R; else ``near_resistance`` /
-         ``near_support`` by the calibrated traversal zones; else ``consolidating``).
+         (classified FIRST, before any box read).
+      2. **a box the reader holds** → one of the four box states (``post_breakout_markup``
+         when the last close is more than one line area above R; else ``near_resistance``
+         / ``near_support`` when the last close is within one line area —
+         ``LINE_WORD_AREA_ATR`` daily ranges — of R or S; else ``consolidating``).
       3. **trending** — no box, but a clean Stage-2 moving-average stack.
       4. **no_structure** — the total fallback.
     """
     from config import settings  # lazy: config-vs-cwd shadowing trap
     from core.pipeline.market_data.downloads import _trim_to_period
-    from engine_alpha.structure import (
-        calculate_atr,
-        distance_to_52w_high_pct,
-        find_outer_box,
-        trend_template,
-    )
+    from engine_alpha import reader
+    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha.metrics import calculate_atr, distance_to_52w_high_pct, trend_template
 
     min_bars = int(settings.HEALTH_MIN_BARS)
     if df is None or len(df) < min_bars:
@@ -135,54 +129,38 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
             f"need >= {min_bars} bars, have {0 if df is None else len(df)}"
         )
 
-    # Same trailing daily window + ATR frame the firing chain reads on (a fresh
-    # .copy() so the shared panel slice is never enriched in place).
+    # The same trailing daily window the reader reads on (a fresh .copy() so the
+    # shared panel slice is never enriched in place).
     daily_df = _trim_to_period(df, settings.DAILY_STRUCTURE_PERIOD).copy()
-    daily_df["ATR_10"] = calculate_atr(daily_df, 10)
-
-    skip = int(settings.STRUCTURE_EDGE_SKIP_BARS)
-    eval_df = daily_df.iloc[:-skip] if len(daily_df) > skip else daily_df
-    # trend_template needs a full 200-bar read on the as-of frame; below that the
-    # member is "can't read yet", never silently mislabeled.
-    if len(eval_df) < min_bars:
+    if len(daily_df) < min_bars:
         raise InsufficientHistoryError(
-            f"as-of frame has {len(eval_df)} bars (< {min_bars})"
+            f"the daily window has {len(daily_df)} bars (< {min_bars})"
         )
 
-    as_of_close = float(eval_df["Close"].iloc[-1])
+    as_of_close = float(daily_df["Close"].iloc[-1])
     if not math.isfinite(as_of_close):
         return _boxless(HealthState.NO_STRUCTURE, None)
 
-    # ATR sampled on the SAME bar (df[-6]) the box/LPS zones anchor to.
-    atr_raw = float(daily_df["ATR_10"].iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET])
-    atr = atr_raw if (math.isfinite(atr_raw) and atr_raw > 0) else None
-
-    drawdown = distance_to_52w_high_pct(eval_df["High"], as_of_close)
+    drawdown = distance_to_52w_high_pct(daily_df["High"], as_of_close)
 
     # 1. Deep correction — a large drawdown dominates every other read.
     deep_floor = float(settings.HEALTH_DEEP_CORRECTION_DRAWDOWN)
     if drawdown is not None and drawdown <= deep_floor:
         return _boxless(HealthState.DEEP_CORRECTION, drawdown)
 
-    # 2. Box read. find_outer_box applies the SMA200 macro gate + the full
-    #    worked-equilibrium/traversal gates internally, so a returned box is a
-    #    genuinely worked two-sided range (no need to re-measure traversal here).
-    box = find_outer_box(daily_df)
-    base_len, R, S = int(box[0]), float(box[1]), float(box[2])
-    span = R - S
-    has_box = (
-        base_len > 0
-        and math.isfinite(R)
-        and math.isfinite(S)
-        and math.isfinite(span)
-        and span > 0
-    )
-    if has_box:
-        box_pos = (as_of_close - S) / span  # guarded: span > 0 and inputs finite
-        touch_band = (settings.TOUCH_TOLERANCE_ATR * atr) if atr is not None else 0.0
-        if as_of_close > R + touch_band:
-            # Coarse "price above the established box R" (the extension comparison
-            # without the veto) — the honest v1 post-breakout flag.
+    # 2. The box, through the door. None when the universe door refused the
+    #    member or the reader holds no box; a read that failed is no box either.
+    box = _parent_box(reader, daily_df)
+    if box is not None:
+        R, S = float(box.resistance.price), float(box.support.price)
+        span = R - S
+        box_pos = (as_of_close - S) / span
+        # The line's area: the last day's range (the reader's own unit), so many
+        # ranges wide. A NaN or non-positive range reads as no area.
+        atr_raw = float(calculate_atr(daily_df, M.DAILY_RANGE_DAYS).iloc[-1])
+        area = M.LINE_WORD_AREA_ATR * atr_raw if (math.isfinite(atr_raw) and atr_raw > 0) else 0.0
+        base_len = _sessions_in(daily_df, box.opened_day, box.end_day)
+        if as_of_close > R + area:
             return MemberHealth(
                 state=HealthState.POST_BREAKOUT_MARKUP,
                 box_pos=round(box_pos, 4),
@@ -192,9 +170,9 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
                 S=round(S, 2),
                 base_len=base_len,
             )
-        if box_pos >= settings.TRAVERSAL_HIGH_ZONE:
+        if as_of_close >= R - area:
             state = HealthState.NEAR_RESISTANCE
-        elif box_pos <= settings.TRAVERSAL_LOW_ZONE:
+        elif as_of_close <= S + area:
             state = HealthState.NEAR_SUPPORT
         else:
             state = HealthState.CONSOLIDATING
@@ -210,12 +188,35 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
 
     # 3. Trending — no readable box, but a clean Stage-2 moving-average stack
     #    (price > SMA50 > SMA150 > SMA200). Pure gate-free posture measure.
-    trend = trend_template(eval_df, dist_52w_high_pct=drawdown)
+    trend = trend_template(daily_df, dist_52w_high_pct=drawdown)
     if trend.get("stage2_ma_stack_pass"):
         return _boxless(HealthState.TRENDING, drawdown)
 
     # 4. Total fallback.
     return _boxless(HealthState.NO_STRUCTURE, drawdown)
+
+
+def _parent_box(reader, daily_df):
+    """The reader's parent box for this frame, or None: the universe door refused
+    the member, the reader held no box, or the read failed (a failed read is said
+    by the reader's own record; the board draws no box for it)."""
+    read = reader.read_record("", daily_df)
+    if read is None or read.failed:
+        return None
+    box = read.parent
+    if box is None:
+        return None
+    R, S = float(box.resistance.price), float(box.support.price)
+    if not (math.isfinite(R) and math.isfinite(S) and R - S > 0):
+        return None
+    return box
+
+
+def _sessions_in(df, opened_day, end_day) -> int:
+    """Trading sessions from the box's first day through its last (or the frame's)."""
+    start = pd.Timestamp(opened_day)
+    end = pd.Timestamp(end_day) if end_day else df.index[-1]
+    return int(((df.index >= start) & (df.index <= end)).sum())
 
 
 def _boxless(state: HealthState, drawdown: Optional[float]) -> MemberHealth:

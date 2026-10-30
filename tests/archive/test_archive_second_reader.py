@@ -466,37 +466,6 @@ def test_a_new_reader_fire_stores_the_real_close_and_no_invented_counts(
         "bar counts, which stage 5 has not ruled how to count yet"
 
 
-def test_a_mixed_night_stores_each_reader_honestly(writer_on_a_scratch_db):
-    """One night's rows all come from ONE reader (the switch is global), but
-    that reader's rows differ: a fire with a mini and a fire without one, so
-    the mini's keys arrive as NaN on the second. The NaN scrub is the only
-    thing between that and a mini dated 'nan' and a live box read as ended.
-    The third row carries none of the family's keys — the shape of every row
-    the old reader writes — and must store the whole family empty."""
-    from engine_alpha.two_eyes_adapter import to_result
-    from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL
-
-    writer_mod, rows_in_the_archive = writer_on_a_scratch_db
-    with_mini = to_result(_fired_read(with_mini=True, lps_box="mini"))
-    with_mini["Ticker"] = "WITHMINI"
-    no_mini = to_result(_fired_read(with_mini=False))
-    no_mini["Ticker"] = "NOMINI"
-    frame = pd.DataFrame([with_mini, no_mini, _row("OLDREADER")])
-    refused: dict = {}
-    writer_mod.archive_scan_results(frame, scan_date_str="2026-03-06",
-                                    enable=True, refused=refused)
-    assert refused["count"] == 0, refused
-    s = {r.ticker: r for r in rows_in_the_archive()}
-    assert s["WITHMINI"].two_eyes_has_mini == 1
-    assert s["WITHMINI"].two_eyes_mini_end_date is None, "a live mini is not ended"
-    assert s["NOMINI"].two_eyes_has_mini == 0
-    assert (s["NOMINI"].two_eyes_mini_r_price, s["NOMINI"].two_eyes_mini_r_anchor_date,
-            s["NOMINI"].two_eyes_mini_end_date) == (None, None, None)
-    old = s["OLDREADER"]
-    assert {c: getattr(old, c) for c in TWO_EYES_COLUMN_SQL} == \
-        {c: None for c in TWO_EYES_COLUMN_SQL}, "the old reader never looked"
-
-
 def test_a_fresh_database_refuses_an_off_set_word_even_past_the_producer(tmp_path):
     """EC-19: the producer refuses a bad word, and on a fresh database the
     table does too, like every sibling closed-set column — a raw insert that
@@ -799,15 +768,6 @@ def test_the_scan_prints_a_new_reader_row_before_it_archives_it(capsys):
     assert "TWOEYES" in capsys.readouterr().out
 
 
-def test_an_old_reader_row_prints_exactly_as_it_always_has():
-    from core.pipeline.screening.terminal import _format_display_row
-
-    shown = _format_display_row(pd.Series(_row("OLD")))
-    assert shown == {"Ticker": "OLD", "Tier": "B", "Setup": "box", "Score": 50.0,
-                     "Price": "$10.00", "Base Len": "40d", "Box Width": "200.0%",
-                     "Touches": "4", "ATR Ratio": "150.0%", "LPS Length": "5d"}
-
-
 # -- the count, on the links a mutation walked past --------------------------
 def test_an_etf_universe_that_refused_every_row_still_counts_on_the_night(monkeypatch):
     """An ETF universe's failure is isolated by design, and when the failure
@@ -1088,37 +1048,6 @@ def test_the_seed_and_manual_writers_fill_the_family_from_their_own_row_shape():
             prefixed = {k.arg: k.value for k in call.keywords}["prefixed"]
             assert isinstance(prefixed, ast.Constant) and prefixed.value is False, \
                 f"{fn.__name__} reads a re-keyed row and must pass prefixed=False"
-
-
-def test_the_old_readers_nightly_path_does_not_import_the_new_reader():
-    """The archive needs the LPS words, and taking them from the new reader's
-    record imported the whole new-reader package — every stage the rewrite
-    adds — into the old reader's nightly scan. A broken stage could then stop
-    the scan with the switch off; the door exists to prevent exactly that.
-
-    The night also CALLS the engine's version stamp (the archive write and the
-    payload write), and importing alone never runs it: the stamp once loaded the
-    whole package at run time while this test stayed green (council review
-    2026-10-09, finding 1). So the probe computes the stamp too."""
-    import subprocess
-    import textwrap
-
-    probe = textwrap.dedent(f"""
-        import os, sys
-        sys.path[:0] = [{str(ROOT)!r}, {str(BACKEND_DIR)!r}]
-        os.environ["CHROLLO_DB_PATH"] = os.path.join({str(ROOT)!r}, "nonexistent", "x.db")
-        import core.pipeline.screening.scan_job, core.archive.writer, core.archive.seed
-        from engine_alpha.freeze.manifest import manifest_hash
-        manifest_hash()
-        leaked = sorted(m for m in sys.modules if m.startswith("engine_alpha.two_eyes."))
-        leaked += ["engine_alpha.two_eyes"] if "engine_alpha.two_eyes" in sys.modules else []
-        print("LEAKED:" + ",".join(leaked))
-    """)
-    done = subprocess.run([sys.executable, "-c", probe], capture_output=True,
-                          text=True, timeout=180)
-    assert "LEAKED:" in done.stdout, done.stderr[-800:]
-    leaked = done.stdout.split("LEAKED:")[1].strip()
-    assert leaked == "", f"the old reader's nightly path imports the new reader: {leaked}"
 
 
 def test_an_unknown_setup_count_stays_unknown_on_a_failed_nights_line(monkeypatch, capsys):

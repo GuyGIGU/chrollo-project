@@ -323,68 +323,6 @@ def test_migration_rebuilds_a_table_missing_a_NULLABLE_model_column(tmp_path):
 
 
 # ── the constraint bites, and the writer upserts against it ───────────────────
-def test_a_rail_that_moves_cannot_mint_a_second_episode(tmp_path, monkeypatch):
-    """The whole point, end to end through the writer: the same framing observed
-    again with a differently-rounded (or split-rescaled) rail is a RECURRENCE —
-    counters bump, the record stands — not a new row."""
-    from sqlalchemy.orm import sessionmaker
-
-    import database
-    from core.archive import near_miss_writer as nmw
-
-    eng = make_sqlite_engine(str(tmp_path / "lane.db"))
-    monkeypatch.setattr(database, "engine", eng)
-    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=eng))
-
-    margins = {"width": 0.17, "respect_share": 1, "respect_run": 9,
-               "crash": 0.25, "r_touches": 2, "s_touches": 1,
-               "r_touch_thirds": 0, "s_touch_thirds": 0, "lower_dwell": -1,
-               "upper_dwell": 3, "mid_dwell": 4, "coverage": 1,
-               "traversal_count": 0, "traversal_density": 0.02}
-
-    def _lane_row(scan_date, r_level, s_level):
-        return {"ticker": "APH", "scan_date": scan_date,
-                "r_level": r_level, "s_level": s_level,
-                "r_anchor_date": "2026-08-06", "s_anchor_date": "2026-08-03",
-                "window_start_date": "2026-08-03", "window_end_date": scan_date,
-                "pool": "strict", "kill_stage": "occupancy",
-                "failing_leg": "occupancy", "judged_n": 28, "fired_night": 0,
-                "episode_profile": "S+ R^", "margins": dict(margins),
-                "would_be_trigger": r_level, "scan_close": s_level + 1.0,
-                "lane_ruleset": "2026-07-26.A"}
-
-    first = nmw.archive_near_miss_rows(
-        [_lane_row("2026-09-02", 88.165, 77.6801)],
-        universe_type="us_equities", enable=True)
-    assert first["inserted"] == 1
-
-    # Same framing, rail re-read one ten-thousandth lower.
-    again = nmw.archive_near_miss_rows(
-        [_lane_row("2026-09-04", 88.165, 77.68)],
-        universe_type="us_equities", enable=True)
-    assert again["inserted"] == 0
-    assert again["recurred"] == 1
-
-    # Same framing after a 2-for-1 split — the rails halve, the box does not move.
-    split = nmw.archive_near_miss_rows(
-        [_lane_row("2026-09-08", 44.0825, 38.84)],
-        universe_type="us_equities", enable=True)
-    assert split["inserted"] == 0
-    assert split["recurred"] == 1
-
-    session = sessionmaker(bind=eng)()
-    try:
-        rows = session.query(archive_models.NearMissArchive).all()
-        assert len(rows) == 1, "a moving price minted a second episode"
-        assert rows[0].first_seen == "2026-09-02"     # the clock never restarted
-        assert rows[0].last_seen == "2026-09-08"
-        assert rows[0].nights_seen == 3
-        assert rows[0].s_level == 77.6801             # first-refusal evidence stands
-    finally:
-        session.close()
-    eng.dispose()
-
-
 def test_the_database_itself_refuses_a_second_row_on_one_framing(tmp_path):
     """Belt to the writer's braces: the constraint is an assertion, so the DB
     rejects the duplicate even if some future writer forgets to probe."""

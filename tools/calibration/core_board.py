@@ -42,7 +42,7 @@ from engine_alpha.universe_door import apply_baseline_filters_with_reason  # noq
 from engine_alpha.two_eyes import lps, mini, walk  # noqa: E402
 from engine_alpha.two_eyes_adapter import graded_read  # noqa: E402
 from engine_alpha import two_eyes_numbers as M  # noqa: E402
-from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
+from tools.calibration.board_helpers import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
 from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
                                            stamp_line)
@@ -582,7 +582,7 @@ def render_pages(rows: list, junk: list, out_dir: str) -> tuple:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from tools.research.full_package_render import _draw_bars
+    from tools.calibration.draw import _draw_bars
 
     os.makedirs(out_dir, exist_ok=True)
     his_pages, junk_pages = [], []
@@ -615,7 +615,7 @@ def render_read(row: dict, path: str, title: str) -> str:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from tools.research.full_package_render import _draw_bars
+    from tools.calibration.draw import _draw_bars
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     _render(plt, _draw_bars, row, path, title, _words(row["read"], row["door"]))

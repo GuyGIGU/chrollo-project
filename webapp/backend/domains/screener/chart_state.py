@@ -4,22 +4,23 @@ The scan's payload lists the fires and, once the method flips, the watch lane; e
 looks at (a starred name the scan did not list, a ticker he types) gets its ONE state word from the same table
 here, read off the cached frame by the same evaluation chain the scan ran: "not scanned" with the door's leg
 named in plain words and the distance to it in daily ranges (point 24: "not scanned: under the 50-day
-average"), or the lines the walk found and their facts (the rails, the open day, the age, the turns at each
-rail). Never on thousands of rows: one ticker per call, from the watchlist and the ticker page only.
+average"), or the lines the reader found and their facts (the rails, the open day, the days the word counts).
+Never on thousands of rows: one ticker per call, from the watchlist and the ticker page only.
 
 Read-only: the cache is read the way the watchlist candles read it, no download, no archive write, no scan.
 
 A read that falls over is a SCREEN state (``state`` None, ``failed`` True, "the read failed"), never one of the ten
-words. Under the two-eyes reader the word is the reader's and the lines are its own box's, from the record the door
-puts in the watch sink (the two-eyes build, task 15).
+words. The word is the reader's and the lines are its own box's, from the record the door puts in the watch sink
+(the two-eyes build, task 15); a word with no box carries no lines.
 """
 from __future__ import annotations
 
 import logging
 
 from config import settings
-from engine_alpha import evaluation, reader
-from engine_alpha.structure.metrics.indicators import calculate_atr
+from engine_alpha import reader
+from engine_alpha.metrics import calculate_atr
+from engine_alpha.sentinels import WATCH_WIRE_STATES
 from domains.market_data import watchlist_candles
 
 logger = logging.getLogger("chrollo.chart_state")
@@ -71,7 +72,11 @@ def read_chart_state(ticker: str, universe_key: str | None = None) -> dict:
         return {"ticker": ticker, "as_of": str(frame.index[-1].date()), "state": None, "failed": True,
                 "why": "the read failed", "distance_ranges": None,
                 "close": round(float(frame["Close"].iloc[-1]), 4)}
-    state = evaluation.watch_verdict(watch, isinstance(result, dict))
+    # The one state word: a fire is "fired"; otherwise the word the chain recorded at its exit, checked
+    # against the closed table loudly (a word off the table is a bug, never a card line).
+    state = "fired" if isinstance(result, dict) else (watch.get("state") or "no lines")
+    if state not in WATCH_WIRE_STATES:
+        raise ValueError(f"chart state {state!r} is not on the table ({' / '.join(WATCH_WIRE_STATES)})")
     out = {"ticker": ticker, "as_of": str(frame.index[-1].date()), "state": state,
            "why": watch.get("why"), "distance_ranges": None,
            "close": round(float(frame["Close"].iloc[-1]), 4)}
@@ -82,17 +87,9 @@ def read_chart_state(ticker: str, universe_key: str | None = None) -> dict:
         return out
     read = watch.get("read") if watch.get("two_eyes") else None
     if read is not None and read.parent is not None:
-        # The new reader's own box: its lines, the day it opened, and the days that ride beside a word that counts
+        # The reader's own box: its lines, the day it opened, and the days that ride beside a word that counts
         # them (never written into the word).
         box = read.parent
         out.update(R=round(float(box.resistance.price), 4), S=round(float(box.support.price), 4),
                    open=box.opened_day.isoformat(), days=read.state_days)
-        return out
-    if watch.get("df") is not None and watch.get("unit") and (watch.get("structure") is not None
-                                                                or watch.get("box") is not None):
-        row = evaluation._lane_row(ticker, watch, state, floor=0)
-        if row is not None:
-            for key in ("R", "S", "open", "age", "turns_at_r", "turns_at_s", "days", "forming"):
-                if key in row:
-                    out[key] = row[key]
     return out

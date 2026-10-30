@@ -51,7 +51,7 @@ from engine_alpha.two_eyes import line as two_eyes_line  # noqa: E402
 from engine_alpha import two_eyes_numbers as M  # noqa: E402
 from engine_alpha.two_eyes import walk  # noqa: E402
 from tools.calibration.listing_gate import anchor_turns  # noqa: E402
-from tools.calibration.yardstick import his_last_lps_day, rails_close  # noqa: E402
+from tools.calibration.board_helpers import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
 from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
                                            stamp_line)
@@ -290,7 +290,7 @@ def render_pages(rows: list, setups: dict, out_dir: str) -> list:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from tools.research.full_package_render import _draw_bars
+    from tools.calibration.draw import _draw_bars
 
     os.makedirs(out_dir, exist_ok=True)
     pages = []

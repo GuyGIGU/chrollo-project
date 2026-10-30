@@ -2900,13 +2900,6 @@
    "source": "git"
   },
   {
-   "old": "tests/test_doctrine_audit.py",
-   "new": "tests/tooling/test_doctrine_audit.py",
-   "area": "tests",
-   "similarity": 94,
-   "source": "git"
-  },
-  {
    "old": "tests/test_download_integrity.py",
    "new": "tests/market_data/test_download_integrity.py",
    "area": "tests",
@@ -2995,13 +2988,6 @@
    "new": "tests/scoring/test_fired_tags.py",
    "area": "tests",
    "similarity": 99,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_fold_parity.py",
-   "new": "tests/tooling/test_fold_parity.py",
-   "area": "tests",
-   "similarity": 93,
    "source": "git"
   },
   {
@@ -3271,13 +3257,6 @@
    "source": "git"
   },
   {
-   "old": "tests/test_near_miss_report.py",
-   "new": "tests/tooling/test_near_miss_report.py",
-   "area": "tests",
-   "similarity": 97,
-   "source": "git"
-  },
-  {
    "old": "tests/test_near_miss_ruling.py",
    "new": "tests/engine/test_near_miss_ruling.py",
    "area": "tests",
@@ -3366,13 +3345,6 @@
    "new": "tests/market_data/test_providers.py",
    "area": "tests",
    "similarity": 91,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_rail_margin_evidence.py",
-   "new": "tests/tooling/test_rail_margin_evidence.py",
-   "area": "tests",
-   "similarity": 98,
    "source": "git"
   },
   {
@@ -3551,13 +3523,6 @@
    "source": "git"
   },
   {
-   "old": "tests/test_shelf_harness.py",
-   "new": "tests/tooling/test_shelf_harness.py",
-   "area": "tests",
-   "similarity": 97,
-   "source": "git"
-  },
-  {
    "old": "tests/test_startup_migrations.py",
    "new": "tests/backend/test_startup_migrations.py",
    "area": "tests",
@@ -3597,13 +3562,6 @@
    "new": "tests/archive/test_suggested_weights.py",
    "area": "tests",
    "similarity": 98,
-   "source": "git"
-  },
-  {
-   "old": "tests/test_ta_grade_archive_replay.py",
-   "new": "tests/tooling/test_ta_grade_archive_replay.py",
-   "area": "tests",
-   "similarity": 96,
    "source": "git"
   },
   {
@@ -3733,13 +3691,6 @@
    "source": "git"
   },
   {
-   "old": "tools/bar_state_census.py",
-   "new": "tools/research/bar_state_census.py",
-   "area": "tools",
-   "similarity": 96,
-   "source": "git"
-  },
-  {
    "old": "tools/build_universe_returns.py",
    "new": "tools/research/build_universe_returns.py",
    "area": "tools",
@@ -3751,13 +3702,6 @@
    "new": "tools/calibration/calibration_harness.py",
    "area": "tools",
    "similarity": 96,
-   "source": "git"
-  },
-  {
-   "old": "tools/calibration_stat_card.py",
-   "new": "tools/calibration/calibration_stat_card.py",
-   "area": "tools",
-   "similarity": 93,
    "source": "git"
   },
   {
@@ -3775,34 +3719,6 @@
    "source": "git"
   },
   {
-   "old": "tools/correspondence_census.py",
-   "new": "tools/research/correspondence_census.py",
-   "area": "tools",
-   "similarity": 96,
-   "source": "git"
-  },
-  {
-   "old": "tools/doctrine_audit.py",
-   "new": "tools/audits/doctrine_audit.py",
-   "area": "tools",
-   "similarity": 96,
-   "source": "git"
-  },
-  {
-   "old": "tools/event_map_census.py",
-   "new": "tools/research/event_map_census.py",
-   "area": "tools",
-   "similarity": 94,
-   "source": "git"
-  },
-  {
-   "old": "tools/event_map_chronology.py",
-   "new": "tools/audits/event_map_chronology.py",
-   "area": "tools",
-   "similarity": 89,
-   "source": "git"
-  },
-  {
    "old": "tools/fold_parity.py",
    "new": "tools/regression/fold_parity.py",
    "area": "tools",
@@ -3810,24 +3726,10 @@
    "source": "git"
   },
   {
-   "old": "tools/full_package_render.py",
-   "new": "tools/research/full_package_render.py",
-   "area": "tools",
-   "similarity": 94,
-   "source": "git"
-  },
-  {
    "old": "tools/guided_list_export.py",
    "new": "tools/calibration/guided_list_export.py",
    "area": "tools",
    "similarity": 94,
-   "source": "git"
-  },
-  {
-   "old": "tools/htf_audit.py",
-   "new": "tools/audits/htf_audit.py",
-   "area": "tools",
-   "similarity": 84,
    "source": "git"
   },
   {
@@ -3845,38 +3747,10 @@
    "source": "git"
   },
   {
-   "old": "tools/miss_lane_census.py",
-   "new": "tools/research/miss_lane_census.py",
-   "area": "tools",
-   "similarity": 92,
-   "source": "git"
-  },
-  {
-   "old": "tools/near_miss_census.py",
-   "new": "tools/research/near_miss_census.py",
-   "area": "tools",
-   "similarity": 94,
-   "source": "git"
-  },
-  {
-   "old": "tools/near_miss_report.py",
-   "new": "tools/research/near_miss_report.py",
-   "area": "tools",
-   "similarity": 90,
-   "source": "git"
-  },
-  {
    "old": "tools/negative_corpus.py",
    "new": "tools/regression/negative_corpus.py",
    "area": "tools",
    "similarity": 95,
-   "source": "git"
-  },
-  {
-   "old": "tools/operator_marks_diff.py",
-   "new": "tools/research/operator_marks_diff.py",
-   "area": "tools",
-   "similarity": 91,
    "source": "git"
   },
   {
@@ -3889,27 +3763,6 @@
   {
    "old": "tools/provider_parity.py",
    "new": "tools/audits/provider_parity.py",
-   "area": "tools",
-   "similarity": 95,
-   "source": "git"
-  },
-  {
-   "old": "tools/rail_area_census.py",
-   "new": "tools/research/rail_area_census.py",
-   "area": "tools",
-   "similarity": 97,
-   "source": "git"
-  },
-  {
-   "old": "tools/rail_margin_ab.py",
-   "new": "tools/research/rail_margin_ab.py",
-   "area": "tools",
-   "similarity": 88,
-   "source": "git"
-  },
-  {
-   "old": "tools/rail_margin_evidence.py",
-   "new": "tools/research/rail_margin_evidence.py",
    "area": "tools",
    "similarity": 95,
    "source": "git"
@@ -3964,45 +3817,10 @@
    "source": "git"
   },
   {
-   "old": "tools/shape_profile.py",
-   "new": "tools/research/shape_profile.py",
-   "area": "tools",
-   "similarity": 91,
-   "source": "git"
-  },
-  {
-   "old": "tools/shelf_harness.py",
-   "new": "tools/calibration/shelf_harness.py",
-   "area": "tools",
-   "similarity": 93,
-   "source": "git"
-  },
-  {
    "old": "tools/story_chain_candidates.py",
    "new": "tools/research/story_chain_candidates.py",
    "area": "tools",
    "similarity": 95,
-   "source": "git"
-  },
-  {
-   "old": "tools/structure_case_audit.py",
-   "new": "tools/audits/structure_case_audit.py",
-   "area": "tools",
-   "similarity": 96,
-   "source": "git"
-  },
-  {
-   "old": "tools/ta_grade_archive_replay.py",
-   "new": "tools/research/ta_grade_archive_replay.py",
-   "area": "tools",
-   "similarity": 91,
-   "source": "git"
-  },
-  {
-   "old": "tools/ta_grade_timing.py",
-   "new": "tools/audits/ta_grade_timing.py",
-   "area": "tools",
-   "similarity": 84,
    "source": "git"
   }
  ],
@@ -4544,11 +4362,6 @@
    "root": "repo"
   },
   {
-   "old": "tools.bar_state_census",
-   "new": "tools.research.bar_state_census",
-   "root": "repo"
-  },
-  {
    "old": "tools.build_universe_returns",
    "new": "tools.research.build_universe_returns",
    "root": "repo"
@@ -4559,33 +4372,8 @@
    "root": "repo"
   },
   {
-   "old": "tools.calibration_stat_card",
-   "new": "tools.calibration.calibration_stat_card",
-   "root": "repo"
-  },
-  {
    "old": "tools.cause_veto_corpus",
    "new": "tools.regression.cause_veto_corpus",
-   "root": "repo"
-  },
-  {
-   "old": "tools.correspondence_census",
-   "new": "tools.research.correspondence_census",
-   "root": "repo"
-  },
-  {
-   "old": "tools.doctrine_audit",
-   "new": "tools.audits.doctrine_audit",
-   "root": "repo"
-  },
-  {
-   "old": "tools.event_map_census",
-   "new": "tools.research.event_map_census",
-   "root": "repo"
-  },
-  {
-   "old": "tools.event_map_chronology",
-   "new": "tools.audits.event_map_chronology",
    "root": "repo"
   },
   {
@@ -4594,18 +4382,8 @@
    "root": "repo"
   },
   {
-   "old": "tools.full_package_render",
-   "new": "tools.research.full_package_render",
-   "root": "repo"
-  },
-  {
    "old": "tools.guided_list_export",
    "new": "tools.calibration.guided_list_export",
-   "root": "repo"
-  },
-  {
-   "old": "tools.htf_audit",
-   "new": "tools.audits.htf_audit",
    "root": "repo"
   },
   {
@@ -4619,28 +4397,8 @@
    "root": "repo"
   },
   {
-   "old": "tools.miss_lane_census",
-   "new": "tools.research.miss_lane_census",
-   "root": "repo"
-  },
-  {
-   "old": "tools.near_miss_census",
-   "new": "tools.research.near_miss_census",
-   "root": "repo"
-  },
-  {
-   "old": "tools.near_miss_report",
-   "new": "tools.research.near_miss_report",
-   "root": "repo"
-  },
-  {
    "old": "tools.negative_corpus",
    "new": "tools.regression.negative_corpus",
-   "root": "repo"
-  },
-  {
-   "old": "tools.operator_marks_diff",
-   "new": "tools.research.operator_marks_diff",
    "root": "repo"
   },
   {
@@ -4651,21 +4409,6 @@
   {
    "old": "tools.provider_parity",
    "new": "tools.audits.provider_parity",
-   "root": "repo"
-  },
-  {
-   "old": "tools.rail_area_census",
-   "new": "tools.research.rail_area_census",
-   "root": "repo"
-  },
-  {
-   "old": "tools.rail_margin_ab",
-   "new": "tools.research.rail_margin_ab",
-   "root": "repo"
-  },
-  {
-   "old": "tools.rail_margin_evidence",
-   "new": "tools.research.rail_margin_evidence",
    "root": "repo"
   },
   {
@@ -4694,33 +4437,8 @@
    "root": "repo"
   },
   {
-   "old": "tools.shape_profile",
-   "new": "tools.research.shape_profile",
-   "root": "repo"
-  },
-  {
-   "old": "tools.shelf_harness",
-   "new": "tools.calibration.shelf_harness",
-   "root": "repo"
-  },
-  {
    "old": "tools.story_chain_candidates",
    "new": "tools.research.story_chain_candidates",
-   "root": "repo"
-  },
-  {
-   "old": "tools.structure_case_audit",
-   "new": "tools.audits.structure_case_audit",
-   "root": "repo"
-  },
-  {
-   "old": "tools.ta_grade_archive_replay",
-   "new": "tools.research.ta_grade_archive_replay",
-   "root": "repo"
-  },
-  {
-   "old": "tools.ta_grade_timing",
-   "new": "tools.audits.ta_grade_timing",
    "root": "repo"
   }
  ],
@@ -4896,6 +4614,146 @@
    "kind": "deleted",
    "report": true,
    "text": "tools.power_play_sheets is gone: the refactor moved it to tools.research.power_play_sheets, and it was deleted with the Power Play species lane (final method build step 12, point 25, 2026-09-19). Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.bar_state_census",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.bar_state_census is gone: the refactor moved it to tools.research.bar_state_census, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.calibration_stat_card",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.calibration_stat_card is gone: the refactor moved it to tools.calibration.calibration_stat_card, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.correspondence_census",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.correspondence_census is gone: the refactor moved it to tools.research.correspondence_census, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.doctrine_audit",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.doctrine_audit is gone: the refactor moved it to tools.audits.doctrine_audit, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.event_map_census",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.event_map_census is gone: the refactor moved it to tools.research.event_map_census, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.event_map_chronology",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.event_map_chronology is gone: the refactor moved it to tools.audits.event_map_chronology, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.full_package_render",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.full_package_render is gone: the refactor moved it to tools.research.full_package_render, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.htf_audit",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.htf_audit is gone: the refactor moved it to tools.audits.htf_audit, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.miss_lane_census",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.miss_lane_census is gone: the refactor moved it to tools.research.miss_lane_census, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.near_miss_census",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.near_miss_census is gone: the refactor moved it to tools.research.near_miss_census, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.near_miss_report",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.near_miss_report is gone: the refactor moved it to tools.research.near_miss_report, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.operator_marks_diff",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.operator_marks_diff is gone: the refactor moved it to tools.research.operator_marks_diff, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.rail_area_census",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.rail_area_census is gone: the refactor moved it to tools.research.rail_area_census, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.rail_margin_ab",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.rail_margin_ab is gone: the refactor moved it to tools.research.rail_margin_ab, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.rail_margin_evidence",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.rail_margin_evidence is gone: the refactor moved it to tools.research.rail_margin_evidence, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.shape_profile",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.shape_profile is gone: the refactor moved it to tools.research.shape_profile, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.shelf_harness",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.shelf_harness is gone: the refactor moved it to tools.calibration.shelf_harness, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.structure_case_audit",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.structure_case_audit is gone: the refactor moved it to tools.audits.structure_case_audit, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.ta_grade_archive_replay",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.ta_grade_archive_replay is gone: the refactor moved it to tools.research.ta_grade_archive_replay, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "tools.ta_grade_timing",
+   "root": "repo",
+   "kind": "deleted",
+   "report": true,
+   "text": "tools.ta_grade_timing is gone: the refactor moved it to tools.audits.ta_grade_timing, and it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. Nothing replaces it; see docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
   }
  ],
  "deleted": [
@@ -4978,6 +4836,110 @@
   {
    "path": "webapp/frontend/src/components/watchlist/WatchlistCardGrid.jsx",
    "why": "The refactor moved it to webapp/frontend/src/features/watchlist/components/WatchlistCardGrid.jsx; it was then DELETED when the Watchlist tab became a ticker ledger (InstrumentTable rows, with the D/W/M charts in a dialog; the operator's Watchlist redesign, Fri 23/10/2026; codex/engineering-quality)."
+  },
+  {
+   "path": "tests/test_doctrine_audit.py",
+   "why": "The refactor moved it to tests/tooling/test_doctrine_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tests/test_fold_parity.py",
+   "why": "The refactor moved it to tests/tooling/test_fold_parity.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tests/test_near_miss_report.py",
+   "why": "The refactor moved it to tests/tooling/test_near_miss_report.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tests/test_rail_margin_evidence.py",
+   "why": "The refactor moved it to tests/tooling/test_rail_margin_evidence.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tests/test_shelf_harness.py",
+   "why": "The refactor moved it to tests/tooling/test_shelf_harness.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tests/test_ta_grade_archive_replay.py",
+   "why": "The refactor moved it to tests/tooling/test_ta_grade_archive_replay.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/bar_state_census.py",
+   "why": "The refactor moved it to tools/research/bar_state_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/calibration_stat_card.py",
+   "why": "The refactor moved it to tools/calibration/calibration_stat_card.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/correspondence_census.py",
+   "why": "The refactor moved it to tools/research/correspondence_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/doctrine_audit.py",
+   "why": "The refactor moved it to tools/audits/doctrine_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/event_map_census.py",
+   "why": "The refactor moved it to tools/research/event_map_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/event_map_chronology.py",
+   "why": "The refactor moved it to tools/audits/event_map_chronology.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/full_package_render.py",
+   "why": "The refactor moved it to tools/research/full_package_render.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/htf_audit.py",
+   "why": "The refactor moved it to tools/audits/htf_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/miss_lane_census.py",
+   "why": "The refactor moved it to tools/research/miss_lane_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/near_miss_census.py",
+   "why": "The refactor moved it to tools/research/near_miss_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/near_miss_report.py",
+   "why": "The refactor moved it to tools/research/near_miss_report.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/operator_marks_diff.py",
+   "why": "The refactor moved it to tools/research/operator_marks_diff.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/rail_area_census.py",
+   "why": "The refactor moved it to tools/research/rail_area_census.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/rail_margin_ab.py",
+   "why": "The refactor moved it to tools/research/rail_margin_ab.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/rail_margin_evidence.py",
+   "why": "The refactor moved it to tools/research/rail_margin_evidence.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/shape_profile.py",
+   "why": "The refactor moved it to tools/research/shape_profile.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/shelf_harness.py",
+   "why": "The refactor moved it to tools/calibration/shelf_harness.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/structure_case_audit.py",
+   "why": "The refactor moved it to tools/audits/structure_case_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/ta_grade_archive_replay.py",
+   "why": "The refactor moved it to tools/research/ta_grade_archive_replay.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
+  },
+  {
+   "path": "tools/ta_grade_timing.py",
+   "why": "The refactor moved it to tools/audits/ta_grade_timing.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now."
   }
  ]
 }

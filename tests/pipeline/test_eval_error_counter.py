@@ -9,8 +9,6 @@ build with no counter and no alert.
 These tests pin the fix end-to-end WITHOUT touching the archive DB, the parquet
 cache, a real scan, or the scoring math:
 
-  * ``_evaluate_ticker`` returns the distinct ``EVAL_ERROR`` sentinel (not None)
-    when the eval chain throws, and still returns None for a structural reject.
   * ``_evaluate_frames`` returns the sentinel count in-band ``(results, errored)``,
     never appends sentinels to results, and a structural reject is NOT counted as
     an error while a normal fire is unaffected.
@@ -27,20 +25,15 @@ import sys
 import pandas as pd
 import pytest
 
-# Written for the OLD reader: since the flip it keeps testing it (the switch back
-# is the first undo). tests/conftest.py, old_reader.
-pytestmark = pytest.mark.usefixtures("old_reader")
-
 from _paths import REPO_ROOT as ROOT
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import engine_alpha.evaluation as evaluation
 # The scan's read is substituted at the DOOR, not on the screener module: the
-# scan composes its pool worker through `reader.scan_worker(...)` (two-eyes
-# reader task 4), so `screener._evaluate_ticker` is now only a re-export and
-# patching it controls nothing.
+# scan hands its pool the door's own worker (`reader.scan_read`), so
+# `screener._evaluate_ticker` is only a re-export and patching it controls nothing.
 import engine_alpha.reader as reader
+from engine_alpha.sentinels import EVAL_ERROR
 import core.pipeline.screening.screener as screener
 import core.pipeline.telemetry.scan_metrics as scan_metrics
 
@@ -99,31 +92,14 @@ def _price_frame(n: int = 5) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------- #
-# 1. The sentinel itself: crash -> EVAL_ERROR, structural reject -> None       #
+# 1. The sentinel itself crosses the pool boundary whole                       #
 # --------------------------------------------------------------------------- #
-def test_evaluate_ticker_returns_sentinel_on_crash_not_none(monkeypatch):
-    def _boom(*a, **k):
-        raise ValueError("synthetic eval-chain crash")  # in the guard's except list
-
-    monkeypatch.setattr(evaluation, "_run_eval_chain", _boom)
-    out = evaluation._evaluate_ticker("BOOM", _price_frame())
-    assert out is evaluation.EVAL_ERROR
-    assert out is not None  # the whole point: distinguishable from a reject
-
-
-def test_evaluate_ticker_structural_reject_stays_none(monkeypatch):
-    monkeypatch.setattr(evaluation, "_run_eval_chain", lambda *a, **k: None)
-    out = evaluation._evaluate_ticker("REJECT", _price_frame())
-    assert out is None
-    assert out is not evaluation.EVAL_ERROR
-
-
 def test_eval_error_sentinel_survives_pickle_identity():
-    # _evaluate_ticker runs in a worker process; the sentinel must round-trip to
-    # the SAME singleton or the parent's `is EVAL_ERROR` check silently misses.
+    # The read runs in a worker process; the sentinel must round-trip to the
+    # SAME singleton or the parent's `is EVAL_ERROR` check silently misses.
     import pickle
 
-    assert pickle.loads(pickle.dumps(evaluation.EVAL_ERROR)) is evaluation.EVAL_ERROR
+    assert pickle.loads(pickle.dumps(EVAL_ERROR)) is EVAL_ERROR
 
 
 # --------------------------------------------------------------------------- #
@@ -137,12 +113,12 @@ def test_evaluate_frames_counts_error_not_reject_and_keeps_fire(monkeypatch):
 
     def _fake_eval(ticker, df, spy, breadth):
         if ticker == "BOOM":
-            return evaluation.EVAL_ERROR      # swallowed eval crash
+            return EVAL_ERROR                 # swallowed eval crash
         if ticker == "REJECT":
             return None                        # legitimate structural reject
         return fire                            # a normal fire
 
-    monkeypatch.setattr(reader, "evaluate_ticker", _fake_eval)
+    monkeypatch.setattr(reader, "scan_read", _fake_eval)
 
     frames = {
         "BOOM": _price_frame(),
@@ -164,7 +140,7 @@ def test_evaluate_frames_clean_run_reports_zero_errored(monkeypatch):
     def _fake_eval(ticker, df, spy, breadth):
         return None if ticker == "REJECT" else {"Ticker": ticker, "Score": 1}
 
-    monkeypatch.setattr(reader, "evaluate_ticker", _fake_eval)
+    monkeypatch.setattr(reader, "scan_read", _fake_eval)
 
     frames = {"A": _price_frame(), "REJECT": _price_frame(), "B": _price_frame()}
     results, errored = screener._evaluate_frames(frames, 0.0, None)
@@ -179,14 +155,14 @@ def test_evaluate_frames_count_is_per_call_not_carried_over(monkeypatch):
     monkeypatch.setattr(screener, "ProcessPoolExecutor", _SyncExecutor)
     monkeypatch.setattr(screener, "as_completed", _as_completed_passthrough)
     monkeypatch.setattr(
-        reader, "evaluate_ticker",
-        lambda t, df, spy, breadth: evaluation.EVAL_ERROR,
+        reader, "scan_read",
+        lambda t, df, spy, breadth: EVAL_ERROR,
     )
     _, errored = screener._evaluate_frames({"X": _price_frame()}, 0.0, None)
     assert errored == 1
     # A subsequent clean call reports 0 — the prior 1 does not leak forward.
     monkeypatch.setattr(
-        reader, "evaluate_ticker",
+        reader, "scan_read",
         lambda t, df, spy, breadth: {"Ticker": t, "Score": 1},
     )
     _, errored = screener._evaluate_frames({"Y": _price_frame()}, 0.0, None)

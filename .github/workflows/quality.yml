@@ -84,14 +84,15 @@ jobs:
       - name: Shadow-output regression guard
         run: python -m tools.regression.shadow_diff --check
 
-      # Negative-corpus precision guard. Offline + deterministic: replays the
-      # committed must-NOT-fire fixture (operator/dissection-labeled junk
-      # charts) through the pipeline and fails if any starts firing. This is
-      # the precision direction the two guards above cannot see - the shadow
-      # fixture holds only previously-firing tickers and seed-recall only
-      # fails on lost winners. (Also covered by tests/regression/test_negative_corpus.py,
-      # but kept as an explicit CI step so a precision regression is
-      # unmistakable in the logs.)
+      # Negative-corpus precision guard. Offline + deterministic: replays the 16
+      # committed junk charts (operator/dissection-labeled) through the reader door
+      # on their 10-day fired window and fails on a fire day that is not PINNED in
+      # tests/baselines/negative_corpus_baseline.json (47 pinned days over 15 charts,
+      # GOOD silent), on a crash, or on a missing frame. This is the precision
+      # direction the two guards above cannot see - the shadow fixture holds only
+      # previously-firing tickers and seed-recall only fails on lost winners. (Also
+      # covered by tests/regression/test_negative_corpus.py, but kept as an explicit
+      # CI step so a precision regression is unmistakable in the logs.)
       - name: Negative-corpus precision guard
         run: python -m tools.regression.negative_corpus --check
 
@@ -123,26 +124,21 @@ jobs:
       - name: Operator-marks acceptance guard
         run: python -m tools.regression.marks_corpus --check
 
-      # Reader-vocabulary pin. Offline + deterministic, HARD gate, ~6s.
-      # Replays 88 committed fixture charts (the 33 sealed marks, the 18 junk
-      # charts, and all 37 shadow charts INCLUDING the 5 that reject) through
-      # the rail readers and fails on any change to what they SAY about the
-      # surfaces its window actually exercises. It is the only guard that can
-      # see that: shadow_diff freezes nine canonical fields, marks_corpus
-      # compares FIRES, and fold_parity collapses every non-firing ticker to one
-      # __REJECT__ token, so a change that rewrites every event label while
-      # keeping fires and scores identical passes all of them.
-      # KNOWN BLIND SPOT, so nobody reads this gate as total coverage: the pin's
-      # mechanical window puts S at the window's own minimum low, so no bar can
-      # undercut S, find_spring never fires, and `spring` reads None on all 88
-      # charts - the entire Phase-C spring surface is unpinned. Register row 19.
-      # Widening the window means recapturing the baseline, i.e. an EC-29 seam
-      # commit, not an edit that can ride along with a passing change.
-      # AGENTS.md has named it a standing gate all along while CI ran it never
-      # (council review 2026-09-07). Also covered by tests/regression/test_reader_pin.py -
-      # kept as an explicit step, like the two guards above, so a reading drift
-      # is unmistakable in the logs.
-      - name: Reader-vocabulary pin
+      # Reader pin. Offline + deterministic, HARD gate, ~1 min.
+      # Reads 105 committed fixture charts (the 52 sealed marks, the 16 junk
+      # charts, and all 37 shadow charts INCLUDING the ones that do not fire)
+      # with the alpha reader itself (engine_alpha.two_eyes.read) and fails on any
+      # change to what it SAYS about a chart: the boxes, the LPS, the state word,
+      # the events, the grade letter and score, the trail's stage words. It is the
+      # only guard that can see that: shadow_diff freezes nine canonical fields of
+      # the fires alone and marks_corpus compares FIRES, so a change that rewrites
+      # every event while keeping fires and scores identical passes both. The
+      # engine_config_version stamp is compared as an ADVISORY only (a declared
+      # epoch rotates it on purpose). Zero diffs is the fold acceptance; a ruled
+      # reading change recaptures at its own seam commit (EC-29), never mid-fold.
+      # Also covered by tests/regression/test_reader_pin.py - kept as an explicit
+      # step, like the guards above, so a reading drift is unmistakable in the logs.
+      - name: Reader pin
         run: python -m tools.regression.reader_pin --check
 
       # Seed-recall guard, FRESH-DATA basis. ADVISORY-ONLY on CI, by design.

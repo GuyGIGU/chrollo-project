@@ -11,10 +11,6 @@ import core.pipeline.telemetry.scan_metrics as scan_metrics
 import core.pipeline.screening.screener as screener_module
 import pytest
 
-# Written for the OLD reader: since the flip it keeps testing it (the switch back
-# is the first undo). tests/conftest.py, old_reader.
-pytestmark = pytest.mark.usefixtures("old_reader")
-
 
 @pytest.fixture(autouse=True)
 def _no_vendor_post_pass(monkeypatch):
@@ -89,7 +85,7 @@ def test_run_screener_records_phase_metrics(monkeypatch, tmp_path):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None, rescue_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
+        lambda frames, spy, breadth, not_read_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
     )
     saved = {}
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: saved.update(metrics))
@@ -135,7 +131,7 @@ def test_a_crashing_rs_rating_pass_costs_the_ratings_not_the_scan(monkeypatch):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None, rescue_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
+        lambda frames, spy, breadth, not_read_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
     )
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
     monkeypatch.setattr(scan_context, "attach_rs_ratings", crash)
@@ -163,7 +159,7 @@ def _one_fire_scan(monkeypatch):
         lambda data, frames, *a, **k: {"spy_6m_return": 0.0, "breadth_pct": 1.0})
     monkeypatch.setattr(
         screener_module, "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None, rescue_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
+        lambda frames, spy, breadth, not_read_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
     )
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
 
@@ -227,7 +223,7 @@ def test_run_screener_cache_mode_does_not_fetch_provider(monkeypatch):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None, rescue_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
+        lambda frames, spy, breadth, not_read_sink=None: ([{"Ticker": "AAA", "Score": 10, "_ta_grade": 50.0}], 0),
     )
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)
 
@@ -267,7 +263,7 @@ def _scan_with_caps(monkeypatch, caps):
     monkeypatch.setattr(
         screener_module,
         "_evaluate_frames",
-        lambda frames, spy, breadth, near_miss_sink=None, rescue_sink=None: (
+        lambda frames, spy, breadth, not_read_sink=None: (
             [{"Ticker": t, "Score": 10, "_ta_grade": 50.0} for t in tickers], 0),
     )
     monkeypatch.setattr(screener_module, "persist_scan_metrics", lambda metrics, universe=None: None)

@@ -1,5 +1,5 @@
 // The chart pane's words on the Calibration page: the lookup states (blank /
-// loading / failure classes) and the engine chip. Presentational copy only
+// loading / failure classes) and the provenance chip. Presentational copy only
 // (EC-28) — pure, so node --test pins it.
 import { fx } from '../../../shared/formatting/format.js';
 
@@ -38,31 +38,6 @@ export function failureNotice(failure) {
   return failure.class === 'rate_limited'
     ? `Vendor busy. ${paneBody(false, failure)}`
     : `Lookup failed — ${failure.class}. ${paneBody(false, failure)}`;
-}
-
-export function engineLine(engineRead, engineStatus) {
-  if (engineStatus === 'loading') return 'engine: reading…';
-  if (engineStatus) return `engine: ${engineStatus}`;
-  if (!engineRead) return 'engine: —';
-  if (!engineRead.elected) {
-    // Operator's terms (2026-07-21): a plain verdict, not the raw detector
-    // reason ("no structure elects within the snap window") — that moves to the
-    // chip's hover title for when the diagnostic is actually wanted.
-    return 'engine: does NOT confirm your box here';
-  }
-  const snap = engineRead.snapped
-    ? ` (snapped −${engineRead.snapped})` : '';
-  return `engine finds a box — R ${fx(engineRead.R, 2)} / S ${fx(engineRead.S, 2)}`
-    + ` · from ${engineRead.box_start_date} @ ${engineRead.eval_session}${snap}`;
-}
-
-// The raw detector reason, kept off the headline but one hover away — so "why
-// didn't it confirm?" is answerable without cluttering the plain verdict.
-export function engineTitle(engineRead) {
-  if (engineRead && !engineRead.elected && engineRead.reason) {
-    return `engine detail: ${engineRead.reason}`;
-  }
-  return undefined;
 }
 
 // The pane's provenance chip (top-left): which frame is on screen. It moved

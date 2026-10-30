@@ -240,7 +240,6 @@ def _assemble_row(ticker: str, payload: dict, spy_trend: Optional[str],
     mapper) verbatim so populated columns match the live/seed path.
     """
     from domains.archive.queries import archive_row_from_result
-    from engine_alpha.structure.context.htf import htf_archive_values
 
     r = payload["result"]
     sub = r.get("sub_scores", {}) or {}
@@ -302,7 +301,6 @@ def _assemble_row(ticker: str, payload: dict, spy_trend: Optional[str],
         engine_config_version=engine_config_version,
         source="screener",   # UNBIASED basis (NOT 'seed' — no winners-gallery bias)
         quality_label=None,
-        **htf_archive_values(r.get, prefixed=False),
         **payload["fwd_returns"],
     )
     return archive_row_from_result(r, overrides=overrides)

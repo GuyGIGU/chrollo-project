@@ -10,8 +10,6 @@ import CalibrationRail from './CalibrationRail';
 import useCalibrationChart from '../hooks/useCalibrationChart';
 import useCalibrationCanvas from '../hooks/useCalibrationCanvas';
 import useCalibrationMarks from '../hooks/useCalibrationMarks';
-import useEngineRead from '../hooks/useEngineRead';
-import useMarkAgreement from '../hooks/useMarkAgreement';
 import useMarkFired from '../hooks/useMarkFired';
 import useTriggerGrade from '../hooks/useTriggerGrade';
 import {
@@ -144,23 +142,10 @@ function CalibrationTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chartData?.ticker]);
 
-  // The engine overlay (default OFF, explicit toggle): the operator marks
-  // FIRST and peeks after — anchoring on the engine read corrupts the ground
-  // truth (council watchpoint). What it shows is the agreement harness's own
-  // projection, so "what the engine thinks" here = what agreement scores.
-  const [engineOn, setEngineOn] = useState(false);
-  const { engineRead, engineStatus } = useEngineRead(chartData, engineOn);
-
-  // Per-mark engine agreement for the ledger chip — the HEADLINE concordance
-  // ("does the engine surface a setup at my pick"), one fetch for the loaded
-  // ticker's whole ledger, keyed so a correction re-grades but a re-render
-  // never re-fetches. Peeking here does NOT corrupt ground truth: it reads the
-  // SAVED marks, not the live draft.
-  const agreement = useMarkAgreement(chartData?.ticker, marks);
-
-  // The sharper "pops-up-live" grade: would each pick have fired on the nightly
-  // screener? Runs the full pipeline per box mark in a background worker, so
-  // this polls and the Engine chip upgrades from concordance -> fired in place.
+  // The "pops-up-live" grade: would each pick have fired on the nightly
+  // screener? Runs the full read per box mark in a background worker, so this
+  // polls and the Engine chip fills in place. It reads the SAVED marks, never
+  // the live draft, so the operator marks first and the engine answers after.
   const fired = useMarkFired(chartData?.ticker, marks);
 
   // The rail's one-click engine test: grade a setup on its exact frozen snapshot
@@ -207,8 +192,7 @@ function CalibrationTab() {
   }, [setups, chartData]);
 
   const spec = useCalibrationCanvas({
-    chartData, marking, savedForFrame, engineOn, engineRead,
-    dispatchMarking, setPlaceNotice, framing,
+    chartData, marking, savedForFrame, dispatchMarking, setPlaceNotice, framing,
   });
 
   const canSave = !!chartData && draftComplete(marking.draft);
@@ -328,7 +312,7 @@ function CalibrationTab() {
   };
 
   // Keyboard loop (skipped while typing in any field): tools b/r/s/x,
-  // events c/l/t/o/m/u, Enter saves, Escape disarms, e toggles the engine peek.
+  // events c/l/t/o/m/u, Enter saves, Escape disarms.
   // It stands down while any dialog is up: Enter on the 'Unsaved marks' confirm
   // clicks Stay or Leave — it must never also save the draft he chose to drop.
   const keyDeps = useRef({});
@@ -336,11 +320,9 @@ function CalibrationTab() {
   useEffect(() => {
     const onKey = (e) => {
       if (!isMarkingKeystroke(e) || dialogOpen()) return;
-      const k = e.key.toLowerCase();
-      const tool = HOTKEY_TOOLS[k];
+      const tool = HOTKEY_TOOLS[e.key.toLowerCase()];
       if (tool) { dispatchMarking({ type: 'tool', tool }); e.preventDefault(); return; }
       if (e.key === 'Escape') { dispatchMarking({ type: 'tool', tool: 'idle' }); return; }
-      if (k === 'e') { setEngineOn((v) => !v); e.preventDefault(); return; }
       if (e.key === 'Enter') { keyDeps.current.save(); }
     };
     window.addEventListener('keydown', onKey);
@@ -447,7 +429,7 @@ function CalibrationTab() {
       {/* ONE command band (Task 8), folded from five stacked rows to three
           fixed lines (operator ask 2026-10-02: the band "got to much dead
           space"). Line 1 is the fixed controls — lookup · the tools in their
-          ruled order · the engine peek; line 2 is the save group, then the
+          ruled order; line 2 is the save group, then the
           instance actions pushed to the far end; line 3 is the live draft
           readout across the whole width. The readout had a two-row cut for an
           hour and was measured clipped: a complete draft (R/S/span, an LPS, a
@@ -475,12 +457,6 @@ function CalibrationTab() {
             disabled={!chartData}
             onReMark={reMark}
           />
-          <span className="screener-command-seam" aria-hidden="true" />
-          <button type="button" aria-pressed={engineOn} disabled={!chartData}
-                  onClick={() => setEngineOn((v) => !v)}
-                  title="Overlay the engine's read of this frame (the agreement harness's own lens) [e]. Mark FIRST, peek after — anchoring on the engine corrupts the ground truth.">
-            Engine
-          </button>
         </div>
 
         <div className="ccb-row ccb-row-draft">
@@ -525,9 +501,6 @@ function CalibrationTab() {
         spec={spec}
         loading={loading}
         failure={failure}
-        engineOn={engineOn}
-        engineRead={engineRead}
-        engineStatus={engineStatus}
         placeNotice={placeNotice}
         warningsOpen={warningsOpen}
         onDismissWarnings={() => setWarningsOpen(false)}
@@ -536,7 +509,6 @@ function CalibrationTab() {
       <CalibrationMarksList
         marks={marks}
         editingId={marking.editingId}
-        agreement={agreement}
         fired={fired}
         onEdit={editMark}
         onDelete={(id) => removeMark(id, chartData?.ticker)}

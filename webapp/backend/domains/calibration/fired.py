@@ -1,27 +1,26 @@
-"""Per-mark FIRED-in-window grade for the calibration ledger (the sharper
-"Engine" chip). The operator's real satisfaction bar (doctrine 2026-07-11):
-would this pick have popped up on the nightly screener in real trading time?
-That runs the FULL scoring pipeline (`domains.calibration.grading.fired_one` ->
-`_evaluate_ticker`) over the mark's fair window — ~1s/session, up to ~10s for a
+"""Per-mark FIRED-in-window grade for the calibration ledger (the "Engine"
+chip). The operator's real satisfaction bar (doctrine 2026-07-11): would this
+pick have popped up on the nightly screener in real trading time? That runs
+the FULL pipeline (`domains.calibration.grading.fired_one` -> the door's
+`evaluate_ticker`) over the mark's fair window — ~1s/session, up to ~10s for a
 no-fire mark — so it CANNOT compute inside a request (the backend rule forbids
 blocking on long work).
 
 Architecture: a single background worker (never blocks the request thread), a
 process-memo cache keyed per (mark id, created_at, revision, manifest_hash,
 fired-policy sig), and a `computing` flag the frontend polls until it settles.
-`created_at` is in the key for the same reason as the agreement cache (SQLite
-recycles rowids). One worker means fired computes never run concurrently with
-each other; the engine read path carries no shared mutable state and baseline
-`flag_capture` mutates nothing, so a fired compute is safe alongside the
-synchronous agreement read (a second worker OR variant/flag-mutating support
-would need a global engine lock — noted, not needed for baseline).
+`created_at` is in the key because SQLite recycles rowids. One worker means
+fired computes never run concurrently with each other; the reader carries no
+shared mutable state and the baseline walk mutates no setting, so one worker
+is enough (a second worker OR a flag-mutating variant would need a global
+engine lock — noted, not needed for baseline).
 
 Chip vocabulary: green **fired** (`fired · <tier> · Δ<rail>`), red **missed**
-(`missed · <stage>` — the structure-reject stage that killed the box at his
-rails, e.g. "respect", from a read-only traced structure read), neutral
-**untested** (a negative, or an unassessable basis/eval). Read-only + degrade-
-never-500 by construction. Heavy imports stay function-local so importing this
-module (or `main`) starts no worker and pulls no pandas.
+(`missed · <state word>` — the reader's own state word on his day, with its
+box and the reason from its own trail in the detail), neutral **untested** (a
+negative, or an unassessable basis/eval). Read-only + degrade-never-500 by
+construction. Heavy imports stay function-local so importing this module (or
+`main`) starts no worker and pulls no pandas.
 """
 from __future__ import annotations
 
@@ -52,7 +51,7 @@ def _fired_sig() -> str:
     SEMANTICS change (Family-7: event-window anchoring, fire-session rails)
     invalidates chips even when every numeric constant is unchanged and the
     engine hash never rotates."""
-    from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
+    from core.calibration.agreement import DEFAULT_RAIL_TOL_BOX_FRAC  # noqa: PLC0415
     from domains.calibration.grading import (  # noqa: PLC0415
         FIRED_WINDOW_SESSIONS,
         HARNESS_POLICY_VERSION,
@@ -61,36 +60,10 @@ def _fired_sig() -> str:
             f":rail{DEFAULT_RAIL_TOL_BOX_FRAC}")
 
 
-# ── miss reason (why the box at his rails was rejected) ───────────────
-
-def _nearest_reject(trace, mark_r, mark_s) -> dict | None:
-    """Across every root's box_cascade, the REJECTED candidate whose rails are
-    nearest the operator's box — 'why HIS box was rejected'. Returns
-    {stage, detail} or None. Pure over the trace the engine already built."""
-    rejects = [c for rec in (trace or []) for c in (rec.get("box_cascade") or [])
-               if c.get("verdict") == "rejected" and c.get("stage")]
-    if not rejects:
-        return None
-    if mark_r is None or mark_s is None or mark_r <= mark_s:
-        last = rejects[-1]  # no geometry to match -> the terminal reject stage
-        return {"stage": last.get("stage"), "detail": last.get("detail")}
-    height = abs(mark_r - mark_s) or 1.0
-    best, best_dist = None, None
-    for c in rejects:
-        R, S = c.get("R"), c.get("S")
-        if R is None or S is None:
-            continue
-        dist = (abs(mark_r - R) + abs(mark_s - S)) / height
-        if best_dist is None or dist < best_dist:
-            best, best_dist = c, dist
-    if best is None:
-        return None
-    return {"stage": best.get("stage"), "detail": best.get("detail"),
-            "rail_dist": round(best_dist, 3)}
-
+# ── miss reason (why the reader passed on his mark) ───────────────────
 
 def _new_reader_reason(ticker, chart) -> dict:
-    """Why the NEW reader passed on his mark, in its own words (go-live plan,
+    """Why the reader passed on his mark, in its own words (go-live plan,
     task 5): its state word as the stage, and its box and the reason from its
     own trail as the detail — the box step, then every LPS step, said as the
     reader said them. Never "no box" for a chart it never read: the universe
@@ -116,57 +89,37 @@ def _new_reader_reason(ticker, chart) -> dict:
 
 
 def _miss_reason(mark_dict, *, frame_loader=None) -> dict | None:
-    """Read-only traced structure read at the mark's as-of -> why the box at his
-    rails was rejected. None when the frame/prep is unavailable (degrade to a
-    reasonless 'missed'). Consumes the engine's EXISTING trace — no engine edit.
-    Under the new reader, its own record's words (``_new_reader_reason``)."""
+    """The reader's own record at the mark's as-of -> why it passed on his
+    box (``_new_reader_reason``). None when the frame is unavailable (degrade
+    to a reasonless 'missed')."""
     import pandas as pd  # noqa: PLC0415
 
-    from engine_alpha import reader  # noqa: PLC0415 - the ONE reader door
-    from core.calibration import replay  # noqa: PLC0415 — pandas/scipy-heavy chain
     from webapp.backend import frame_store  # noqa: PLC0415
     loader = frame_loader or frame_store.load_frame
     frozen = loader(mark_dict["ticker"], mark_dict["as_of_date"],
                     digest=mark_dict.get("frame_digest"))
     if frozen is None:
         return None
-    if reader.which_reader() == reader.READER_NEW:
-        # The chart as the fired walk read it on his day: the frame cut there.
-        return _new_reader_reason(mark_dict["ticker"],
-                                  frozen.loc[:pd.Timestamp(mark_dict["as_of_date"])])
-    prep = replay.prepared_frame(frozen, mark_dict["as_of_date"])
-    if prep is None:
-        return None
-    df, atr = prep
-    trace: list = []
-    reader.read_box(df, atr, trace=trace)  # baseline; no flag mutation needed
-    return _nearest_reject(trace, mark_dict.get("resistance"),
-                           mark_dict.get("support"))
+    # The chart as the fired walk read it on his day: the frame cut there.
+    return _new_reader_reason(mark_dict["ticker"],
+                              frozen.loc[:pd.Timestamp(mark_dict["as_of_date"])])
 
 
 # ── fired grade -> chip ──────────────────────────────────────────────
 
 def _rail_delta(mark_dict, frag):
     """Max per-rail distance (box-height fraction) of the fired rails from the
-    drawn rails — the closer of the parent/inner framing the fire matched."""
+    drawn rails."""
     from core.calibration.agreement import rail_distances  # noqa: PLC0415
     r, s = mark_dict.get("resistance"), mark_dict.get("support")
-    if r is None or s is None or r <= s:
+    read_r, read_s = frag.get("fire_R"), frag.get("fire_S")
+    if r is None or s is None or r <= s or read_r is None or read_s is None:
         return None
-
-    def _d(read_r, read_s):
-        if read_r is None or read_s is None:
-            return None
-        try:
-            d = rail_distances(r, s, float(read_r), float(read_s))
-        except (ValueError, TypeError):
-            return None
-        return max(d["r_frac"], d["s_frac"])
-
-    candidates = [x for x in (_d(frag.get("fire_R"), frag.get("fire_S")),
-                              _d(frag.get("fire_inner_R"), frag.get("fire_inner_S")))
-                  if x is not None]
-    return round(min(candidates), 3) if candidates else None
+    try:
+        d = rail_distances(r, s, float(read_r), float(read_s))
+    except (ValueError, TypeError):
+        return None
+    return round(max(d["r_frac"], d["s_frac"]), 3)
 
 
 def _chip_from_fired(mark_dict, frag) -> dict:
@@ -179,9 +132,7 @@ def _chip_from_fired(mark_dict, frag) -> dict:
                 "tier": frag.get("fire_tier"),
                 "rail_delta": _rail_delta(mark_dict, frag),
                 "fire_date": frag.get("fire_date"),
-                "rails_within_tol": bool(frag.get("fire_rails_within_tol")),
-                # binding-gate margin telemetry (nullable; older results omit)
-                "gate_margin": frag.get("fire_gate_margin")}
+                "rails_within_tol": bool(frag.get("fire_rails_within_tol"))}
     if fired is False:
         reason = _miss_reason(mark_dict) or {}
         return {"state": "miss", "kind": "missed",

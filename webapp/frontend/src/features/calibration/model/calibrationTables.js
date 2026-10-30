@@ -95,7 +95,7 @@ export function buildMarkRows(marks) {
     events: Array.isArray(m.events) ? m.events.length : 0,
     revision: finiteOrNull(m.revision) ?? 0,
     // Frame identity, flat — the thumbnail keys its feed on it and the
-    // agreement chip keys its cache on (id, revision). Only on row.raw before.
+    // fired chip keys its cache on (id, revision). Only on row.raw before.
     frameDigest: m.frame_digest ?? null,
     raw: m,
   }));

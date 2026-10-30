@@ -139,7 +139,7 @@ test('marks sort is idempotent and non-mutating', () => {
 
 // ---- v2 ledger fields: frame identity + coverage completeness ---------------
 
-test('buildMarkRows lifts frame_digest flat (thumbnail/agreement key), null-safe', () => {
+test('buildMarkRows lifts frame_digest flat (thumbnail/fired-chip key), null-safe', () => {
   const rows = buildMarkRows([
     { id: 7, ticker: 'X', as_of_date: '2026-01-02', verdict: 'box', frame_digest: 'abc123' },
     { id: 8, ticker: 'X', as_of_date: '2026-01-03', verdict: 'no_structure' }, // no digest

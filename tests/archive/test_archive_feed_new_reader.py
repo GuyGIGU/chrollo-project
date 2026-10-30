@@ -51,7 +51,6 @@ def test_writer_still_maps_every_new_reader_floor_key():
 
 @pytest.mark.slow
 def test_a_new_reader_fire_feeds_every_floor_key():
-    assert reader.which_reader() == reader.READER_NEW, "the switch is off: this gate reads the new reader"
     frames, scalars = _load_fixture()
     spy_6m = float(scalars.get("spy_6m_return", 0.0))
     breadth = scalars.get("breadth_pct")

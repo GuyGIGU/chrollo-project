@@ -1,9 +1,9 @@
 """Build step 12 of the final method, part three (points 22, 23 and 24): the display states.
 
 One chart's state word on demand (domains.screener.chart_state) for a ticker the payload does not list: "not scanned"
-with the door's leg in his words and the distance in ranges, or the lines the walk found and their facts; the
-ticker page's fired / crossed lookup (the archive's ticker filter); the watch lane's row facts without the
-display floor. Read-only, off the cached frame, never a new pick.
+with the door's leg in his words and the distance in ranges, or the lines the reader found and their facts; the
+ticker page's fired / crossed lookup (the archive's ticker filter). Read-only, off the cached frame, never a new
+pick.
 """
 from __future__ import annotations
 
@@ -21,8 +21,7 @@ _BACKEND_DIR = str(BACKEND_DIR)
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-from config import settings  # noqa: E402
-from engine_alpha import evaluation  # noqa: E402
+from engine_alpha.sentinels import WATCH_WIRE_STATES  # noqa: E402
 from domains.archive import queries as archive_queries  # noqa: E402
 from domains.screener import chart_state  # noqa: E402
 
@@ -63,26 +62,28 @@ def test_a_frame_the_cache_cannot_serve_is_not_scanned_with_the_reason(monkeypat
     assert out["as_of"] is None and out["close"] is None
 
 
-def test_a_read_that_raises_is_a_screen_state_never_one_of_his_words(old_reader, monkeypatch):
+def test_a_read_that_raises_is_a_screen_state_never_one_of_his_words(monkeypatch):
     """The two-eyes build, task 15: *"a failed or pending read is a screen state, never one of your ten words"*.
     It used to answer "no lines", the word for a chart that genuinely has none, so a broken read and an empty chart
     looked the same on the card."""
+    from engine_alpha import reader as door
+
     frame = _frame()
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
 
     def boom(*a, **k):
         raise RuntimeError("degenerate frame")
 
-    monkeypatch.setattr(chart_state.evaluation, "_run_eval_chain", boom)
+    monkeypatch.setattr(door, "run_eval_chain", boom)
     out = chart_state.read_chart_state("ABC")
     assert out["failed"] is True and out["why"] == "the read failed"
     assert out["state"] is None, "no word at all: the read did not get far enough to have one"
     assert out["as_of"] == str(frame.index[-1].date())
 
 
-def test_under_the_new_reader_the_word_and_the_lines_are_the_readers(monkeypatch):
-    """With his switch on, the card's line is the new reader's: its word, and its own box's lines and opening day,
-    with the days that ride beside a word that counts them."""
+def test_the_word_and_the_lines_are_the_readers(monkeypatch):
+    """The card's line is the reader's: its word, and its own box's lines and opening day, with the days that ride
+    beside a word that counts them."""
     import datetime as dt
 
     from engine_alpha import reader as door
@@ -125,36 +126,45 @@ def test_every_state_the_service_returns_is_on_the_table(monkeypatch):
     frame = _frame()
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
     out = chart_state.read_chart_state("ABC")
-    assert out["state"] in evaluation.WATCH_WIRE_STATES
+    assert out["state"] in WATCH_WIRE_STATES
 
 
-def test_the_lane_row_facts_ride_without_the_display_floor(monkeypatch):
-    """The ticker page shows the lines' facts however few turns they have: floor=0 skips the lane's floor."""
-    frame = _frame(n=60, band=0.2)          # bars under the turn floor: the line has no turns at all
-    watch = {"df": frame, "unit": 1.0, "structure": SimpleNamespace(
-        R=101.0, S=99.0, box=SimpleNamespace(start_bar=10, r_anchor_bar=12, s_anchor_bar=15)), "why": "x"}
-    assert evaluation._lane_row("ABC", watch, "lines, no LPS yet") is None, "flat bars: no turns, under the floor"
-    row = evaluation._lane_row("ABC", watch, "lines, no LPS yet", floor=0)
-    assert row["ticker"] == "ABC" and row["R"] == 101.0 and row["S"] == 99.0 and row["age"] == 48
-    assert row["turns_at_r"] == 0 and row["turns_at_s"] == 0 and row["why"] == "x"
-    monkeypatch.setattr(settings, "WATCH_LANE_MIN_TURNS_PER_RAIL", 0)
-    assert evaluation._lane_row("ABC", watch, "lines, no LPS yet")["turns_at_r"] == 0, "the setting is the default floor"
+def test_a_word_off_the_table_is_refused_loudly(monkeypatch):
+    """The state word is checked against the closed table at the publisher: a slug the reader never speaks is a
+    bug, surfaced as a failed read, never a card line."""
+    from engine_alpha import reader as door
 
+    frame = _frame()
 
-def test_the_service_carries_the_lane_facts_for_a_chart_with_lines(old_reader, monkeypatch):
-    frame = _frame(n=60, band=0.2)
-    fake_structure = SimpleNamespace(R=101.0, S=99.0, box=SimpleNamespace(start_bar=10, r_anchor_bar=12, s_anchor_bar=15))
-
-    def chain(ticker, df, spy, breadth, watch=None):
-        watch.update(df=df, unit=1.0, structure=fake_structure, state="lines, no LPS yet")
+    def off_table(ticker, df, spy, breadth, *, watch=None, **_k):
+        watch.update(two_eyes=True, state="somewhere else")
         return None
 
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
-    monkeypatch.setattr(chart_state.evaluation, "_run_eval_chain", chain)
+    monkeypatch.setattr(door, "run_eval_chain", off_table)
+    with pytest.raises(ValueError, match="not on the table"):
+        chart_state.read_chart_state("ABC")
+
+
+def test_a_word_with_no_box_carries_no_lines(monkeypatch):
+    """A chart the reader read but drew no box on ("no lines") says its word and nothing else: no R, no S, no
+    opening day — the old engine's lane facts (age, turns at each rail) left with it."""
+    from engine_alpha import reader as door
+    from engine_alpha.two_eyes import record
+
+    frame = _frame()
+    read = record.Read(ticker="ABC", as_of=frame.index[-1].date(), boxes=(), state="no lines",
+                       state_days=None, close=float(frame["Close"].iloc[-1]))
+
+    def boxless(ticker, df, spy, breadth, *, watch=None, **_k):
+        watch.update(two_eyes=True, read=read, state=read.state, why="no pair of swing ends became a box")
+        return None
+
+    monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
+    monkeypatch.setattr(door, "run_eval_chain", boxless)
     out = chart_state.read_chart_state("ABC")
-    assert out["state"] == "lines, no LPS yet"
-    assert out["R"] == 101.0 and out["S"] == 99.0 and out["open"] == str(frame.index[10].date())
-    assert out["turns_at_r"] == 0 and out["age"] == 48
+    assert out["state"] == "no lines" and out["why"] == "no pair of swing ends became a box"
+    assert not {"R", "S", "open", "days", "age", "turns_at_r", "turns_at_s", "forming"} & set(out)
 
 
 class _Query:
@@ -177,53 +187,3 @@ def test_the_state_route_refuses_a_malformed_ticker():
 
     assert _TICKER_RE.match("BRK.B") and _TICKER_RE.match("NGL") and _TICKER_RE.match("BF-B")
     assert not _TICKER_RE.match("../etc") and not _TICKER_RE.match("") and not _TICKER_RE.match("A B")
-
-
-# ── the descent tail as a comment on the fire (point 22, under the states switch) ──
-
-def _first_fire(monkeypatch):
-    from core.pipeline.screening.screener import _evaluate_ticker
-    from engine_alpha.evaluation import EVAL_ERROR
-    from tools.regression.shadow_diff import _load_fixture
-
-    frames, scalars = _load_fixture()
-    breadth = scalars.get("breadth_pct")
-    spy, breadth = float(scalars.get("spy_6m_return", 0.0)), (float(breadth) if breadth is not None else None)
-    for ticker in scalars["tickers"]:
-        df = frames.get(ticker)
-        if df is None:
-            continue
-        off = _evaluate_ticker(ticker, df, spy, breadth)
-        if isinstance(off, dict) and off is not EVAL_ERROR:
-            return ticker, df, spy, breadth, off
-    pytest.fail("no fire on the fixture")
-
-
-def test_the_descent_tail_refuses_flag_off_and_comments_under_the_switch(old_reader, monkeypatch):
-    from core.pipeline.screening.screener import _evaluate_ticker
-
-    ticker, df, spy, breadth, off = _first_fire(monkeypatch)
-    assert "_descent_tail" not in off, "flag-off the row carries no comment"
-    monkeypatch.setattr(evaluation, "descent_tail_drops", lambda *a, **k: True)
-    assert _evaluate_ticker(ticker, df, spy, breadth) is None, "flag-off the tail still refuses"
-    watch = {}
-    assert evaluation._run_eval_chain(ticker, df, spy, breadth, watch=watch) is None
-    assert (watch.get("state"), watch.get("why")) == ("no lines", "descent tail")
-    monkeypatch.setattr(settings, "LPS_LEAVES_ELECTION_ENABLED", True)
-    on = _evaluate_ticker(ticker, df, spy, breadth)
-    assert isinstance(on, dict) and on["_descent_tail"] is True, "under the switch the fire stands, commented"
-    monkeypatch.setattr(evaluation, "descent_tail_drops", lambda *a, **k: False)
-    assert _evaluate_ticker(ticker, df, spy, breadth)["_descent_tail"] is False
-
-
-def test_the_comment_is_never_read_by_the_score(monkeypatch):
-    """The tail is shown, not graded: the score and the grade do not move when the comment flips."""
-    from core.pipeline.screening.screener import _evaluate_ticker
-
-    ticker, df, spy, breadth, _off = _first_fire(monkeypatch)
-    monkeypatch.setattr(settings, "LPS_LEAVES_ELECTION_ENABLED", True)
-    monkeypatch.setattr(evaluation, "descent_tail_drops", lambda *a, **k: True)
-    tailed = _evaluate_ticker(ticker, df, spy, breadth)
-    monkeypatch.setattr(evaluation, "descent_tail_drops", lambda *a, **k: False)
-    clean = _evaluate_ticker(ticker, df, spy, breadth)
-    assert (tailed["Score"], tailed["_ta_grade"], tailed["Tier"]) == (clean["Score"], clean["_ta_grade"], clean["Tier"])

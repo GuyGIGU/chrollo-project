@@ -1,27 +1,26 @@
 """Shared point-in-time replay layer (Calibration at Scale, Task 6).
 
 ONE home for the jobs every mark-replay consumer repeats — the sealed-corpus
-GATE (``tools.regression.marks_corpus``), the agreement harness and the
-workbench chips (both through ``domains.calibration.grading``), the chronology
-battery (``tools.audits.event_map_chronology``), the election/shelf instruments
-and tests, and the backend calibration read paths (``domains.calibration``
-router + chips) — so two definitions of "what the engine saw" can never
+GATE (``tools.regression.marks_corpus``), the workbench chips (through
+``domains.calibration.grading``), the calibration boards and the backend
+calibration read paths — so two definitions of "what the reader saw" can never
 turn a number into an argument about tooling. It is production code (moved
 out of ``tools/`` on 2026-09-24) because the backend imports it:
 
-* ``prepared_frame`` / ``prepared_frame_with_reason`` / ``snapped_election``
-  — the live-twin point-in-time prep (reasoned: a refusal NAMES its first
-  failing universe gate) and the day-snapped structure capture (elections
-  are day-sensitive: BODI's flag-ON pair exists 2026-04-15 and dies 04-16).
-* ``flag_capture`` — the ONE self-restoring engine-flag toggle for
-  rule-variant batches; a leaked flag mid-batch silently poisons every
-  subsequent measurement in the run.
+* ``prepared_frame`` / ``prepared_frame_with_reason`` / ``refusal_scan`` — the
+  frame as of one eval date through the ONE universe door (a refusal NAMES its
+  first failing gate).
+* ``flag_capture`` — the ONE self-restoring settings override for rule-variant
+  batches; a leaked setting mid-batch silently poisons every subsequent
+  measurement in the run.
 * ``fired_window_sessions`` + the ``FIRED_*`` policy and frozen scalars —
   the ONE pops-up-live acceptance window the gate and the harness both grade;
   ``fired_window_walk`` — every fire in that window on one frozen frame, the
   walk the junk corpus and the fleet fixture grade (build step 1, 2026-09-13).
 * ``load_sealed_fixture`` / ``fixture_frame`` — the sealed-corpus basis and
   its one lookup rule.
+* ``enrich_marked_frame`` / ``drawn_box_window`` / ``MARK_ATR_OFFSET`` — the
+  marked-window instruments' one window and one ATR.
 
 FROZEN calibration frames are deliberately NOT resolved here — their policy
 is frozen-or-refuse (a mark must never silently replay on fallback data) and
@@ -41,20 +40,9 @@ import pandas as pd
 
 from config import settings
 from core.pipeline.market_data.downloads import _trim_to_period
-from engine_alpha import reader
-from engine_alpha.evaluation import EVAL_ERROR, _prepare_eval_frame_with_reason
-from engine_alpha.structure.box.gate_margins import (
-    count_allowed,
-    count_needed,
-    outside_allowed,
-)
-from engine_alpha.structure.metrics.indicators import calculate_atr
-
-# count_needed / count_allowed / outside_allowed are re-exported here for the
-# sibling instruments (near-miss lane Task 5): the ONE integer translation of
-# the gate's fraction thresholds lives in engine_alpha.structure.box.gate_margins
-# (EC-3); instruments import it from THIS seam so tooling never grows a twin.
-_COUNT_MATH = (count_needed, count_allowed, outside_allowed)
+from engine_alpha import reader, universe_door
+from engine_alpha.metrics import calculate_atr
+from engine_alpha.sentinels import EVAL_ERROR
 
 # Sealed-corpus fixture paths (written by `tools.regression.marks_corpus --build-fixture`,
 # read by every replay consumer). The corpus tool aliases these.
@@ -100,32 +88,33 @@ def fixture_frame(frames: dict, key: str, ticker: str | None = None):
 def prepared_frame_with_reason(
     raw: pd.DataFrame, as_of,
 ) -> tuple[tuple[pd.DataFrame, float] | None, tuple[str, dict] | None]:
-    """The faithful live-twin frame at one eval date, reasoned: slice to
-    ``as_of``, run the ONE reasoned prep (baseline filters -> 2y trim -> ATR
-    columns), take the live ATR snapshot. Returns ``((df, atr), None)`` on
-    pass or ``(None, (gate, samples))`` naming the FIRST failing universe
-    gate (Move 4 — a refusal is a named operational outcome, never a bare
-    silence). The reasonless ``prepared_frame`` derives from this."""
-    prep, reason = _prepare_eval_frame_with_reason(raw.loc[:pd.Timestamp(as_of)])
-    if prep is None:
+    """The frame as of one eval date, reasoned: slice to ``as_of``, ask the ONE
+    universe door (``engine_alpha.universe_door``), trim to the daily reading
+    window and carry the daily range (``ATR_10``), the last bar's as the
+    frame's. Returns ``((df, atr), None)`` on pass or ``(None, (gate, samples))``
+    naming the FIRST failing universe gate (a refusal is a named operational
+    outcome, never a bare silence). The reasonless ``prepared_frame`` derives
+    from this."""
+    admitted, reason = universe_door.apply_baseline_filters_with_reason(raw.loc[:pd.Timestamp(as_of)])
+    if admitted is None:
         return None, reason
-    df = prep["df"]
-    atr = float(df.iloc[-settings.STRUCTURE_ATR_SAMPLE_OFFSET]["ATR_10"])
-    return (df, atr), None
+    df = _trim_to_period(admitted[0], settings.DAILY_STRUCTURE_PERIOD).copy()
+    df["ATR_10"] = calculate_atr(df, 10)
+    return (df, float(df["ATR_10"].iloc[-1])), None
 
 
 def prepared_frame(raw: pd.DataFrame, as_of) -> tuple[pd.DataFrame, float] | None:
-    """The faithful live-twin frame at one eval date (reason discarded)."""
+    """The frame as of one eval date (reason discarded)."""
     prep, _ = prepared_frame_with_reason(raw, as_of)
     return prep
 
 
 def refusal_scan(raw: pd.DataFrame, sessions) -> list[tuple[str, str]]:
-    """Named universe-prep refusals across ``sessions`` — one ``(session ISO,
+    """Named universe-door refusals across ``sessions`` — one ``(session ISO,
     gate slug)`` per refused session, in walk order. The reason vocabulary is
-    the baseline gate's frozen first-fail contract (bars, price, vol50, sma50,
-    sma200, yoy). Inert evidence only: produced for harness reports; no
-    election, gate, or scoring path may ever branch on it."""
+    the door's first-fail contract (bars, price, vol50, sma50, sma200, yoy).
+    Inert evidence only: produced for harness reports; no election, gate, or
+    scoring path may ever branch on it."""
     out: list[tuple[str, str]] = []
     for ts in sessions:
         prep, reason = prepared_frame_with_reason(raw, ts)
@@ -137,10 +126,11 @@ def refusal_scan(raw: pd.DataFrame, sessions) -> list[tuple[str, str]]:
 # ------------------------------------------------------------------
 # Marked-window instrument helpers (ONE definition — EC-3)
 # ------------------------------------------------------------------
-# Shared by the marked-window instruments (shelf harness, stat card) so two
-# reports over the same mark can never measure different windows or a
-# different ATR. The setting always exists; no silent default.
-MARK_ATR_OFFSET = settings.STRUCTURE_ATR_SAMPLE_OFFSET
+# Shared by the marked-window instruments so two reports over the same mark can
+# never measure different windows or a different ATR: the ATR is read this many
+# bars back from the window's end (the old engine's STRUCTURE_ATR_SAMPLE_OFFSET,
+# 6, frozen here when that setting retired with it).
+MARK_ATR_OFFSET = 6
 
 
 def session_pos(index: pd.DatetimeIndex, date_str, *, boundary: str = "start") -> int:
@@ -188,94 +178,32 @@ def drawn_box_window(raw: pd.DataFrame, box_start, box_end):
     return df.iloc[bs:], float(atr_val)
 
 
-def judged_window(df: pd.DataFrame, cand_start: int) -> pd.DataFrame:
-    """The exact window the pair election judged a strict candidate on:
-    ``validate_equilibrium`` enumerates over ``df.iloc[:-STRUCTURE_EDGE_SKIP_BARS]``
-    (the box as of ~5 bars ago, uncontaminated by the live edge), so a
-    candidate's window is cand_start .. len(df) - skip — NOT the frame end.
-    The junk self-check against the trace's own detail numbers certifies this
-    slice; a drift there voids the run. Promoted here verbatim from
-    ``tools.research.rail_margin_evidence`` (near-miss lane Task 5) — the third
-    sibling instrument imports it from this seam."""
-    skip = settings.STRUCTURE_EDGE_SKIP_BARS
-    end = len(df) - skip if len(df) > skip else len(df)
-    return df.iloc[cand_start:end]
-
-
 @contextmanager
 def flag_capture(**overrides):
-    """Toggle engine flags for one capture, guaranteed restored — even on a
-    crash mid-capture. Refuses unknown flag names loudly: a typo'd override
-    that silently does nothing measures the wrong engine.
+    """Set the named settings for one capture, guaranteed restored — even on a
+    crash mid-capture. Refuses unknown names loudly: a typo'd override that
+    silently does nothing measures the wrong engine.
 
-    ALL names are validated before ANY flag is set — a typo in the second
+    ALL names are validated before ANY setting is set — a typo in the second
     name of a multi-flag override must not leave the first one flipped with
-    the restoring finally never entered.
-
-    The save/restore core DELEGATES to the engine's one scoped override
-    (``htf.window_override``) — the instrument and the live lane enter a
-    shared read through the SAME mechanism, so a behavioral change to it can
-    never diverge the census's measured read from the lane's live read
-    (2026-08-17 review, Fowler; EC-3 — this wrapper keeps only its
-    validate-all-names-first loudness)."""
+    the restoring finally never entered."""
     for name in overrides:
         if not hasattr(settings, name):
             raise AttributeError(f"flag_capture: settings.{name} does not exist")
-    from engine_alpha.structure.context.htf import window_override
-    with window_override(dict(overrides)):
+    saved = {name: getattr(settings, name) for name in overrides}
+    for name, value in overrides.items():
+        setattr(settings, name, value)
+    try:
         yield
-
-
-def refuse_old_knobs(overrides: dict) -> None:
-    """The seam's knob variants set the OLD reader's settings: under the new
-    reader a variant with any knob in it refuses by name (go-live plan, task 5),
-    rather than reading the new reader as if the knobs had moved nothing. The
-    baseline variant (no knob) passes; what it reads is the caller's door."""
-    if overrides and reader.which_reader() == reader.READER_NEW:
-        raise reader.NotThisReader(
-            f"the knob variant {sorted(overrides)} sets the old reader's "
-            "settings; the new reader is switched on and reads none of them")
-
-
-def read_structure_under(df: pd.DataFrame, atr: float, overrides: dict):
-    """One OLD-reader structure read under the given flag overrides
-    (self-restoring). Under the new reader it refuses by name: a knob variant
-    here (``refuse_old_knobs``), the box read itself at the door."""
-    refuse_old_knobs(overrides)
-    with flag_capture(**overrides):
-        return reader.read_box(df, atr)
+    finally:
+        for name, value in saved.items():
+            setattr(settings, name, value)
 
 
 # The ONE day-snap policy: how far a replay may walk back from a requested
-# eval day when nothing elects there. Every instrument (A/B render, agreement
-# harness) imports THIS value; changing it is a deliberate re-freeze event.
+# eval day when nothing elects there. Every instrument imports THIS value;
+# changing it is a deliberate re-freeze event.
 SNAP_BACK_SESSIONS = 5
-
-
-def snapped_election(raw: pd.DataFrame, span_end, variants: list[dict],
-                     *, snap_back: int = SNAP_BACK_SESSIONS):
-    """The reads at the last session <= ``span_end`` where ANY variant elects
-    a structure — or, when none elects there, the most recent prior session
-    (within ``snap_back``) where one does. Elections are day-sensitive; the
-    A/B must show the read where it EXISTS, with the snap named honestly.
-
-    Returns ``((df, atr, [structure per variant]), eval_ts, snapped_k)`` or
-    ``None`` when the prep refuses every candidate session. ``snapped_k`` is
-    0 on the requested day; callers word their own note from it.
-    """
-    idx = raw.index[raw.index <= pd.Timestamp(span_end)]
-    first = None
-    for k, ts in enumerate(reversed(idx[-(snap_back + 1):])):
-        prep = prepared_frame(raw, ts)
-        if prep is None:
-            continue
-        df, atr = prep
-        reads = [read_structure_under(df, atr, v) for v in variants]
-        if first is None:
-            first = ((df, atr, reads), ts, k)
-        if any(s is not None for s in reads):
-            return (df, atr, reads), ts, k
-    return first
 
 
 # ------------------------------------------------------------------

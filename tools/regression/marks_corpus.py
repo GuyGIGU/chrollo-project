@@ -80,9 +80,9 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path(backend=True)
 
 from config import settings
-from engine_alpha.evaluation import EVAL_ERROR
 from engine_alpha.freeze.manifest import manifest_hash
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker, the_old_reader_answers
+from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
+from engine_alpha.sentinels import EVAL_ERROR
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo
@@ -118,59 +118,17 @@ CORPUS_FILES: tuple[str, ...] = (
 # setups are graded on the replay seam's fired-policy window. Frozen (EC-7).
 NULL_TRIGGER_GRACE_SESSIONS = 2
 
-# Build-order stage expected to convert each known miss (docs/archive/PLAN-event-tape.md
-# ratchet). Verified at freeze time: the replayed miss-set must equal this key
-# set exactly, so the baseline can never freeze an unexplained miss.
+# Every frozen MISS names, in one plain sentence, why the reader does not fire it in its
+# window. Verified at freeze time: the replayed miss-set must equal this key set exactly,
+# so the baseline can never freeze an unexplained miss. Under the alpha reader (the one
+# reader since Sat 31/10/2026) 51 of his 52 drawings fire on some day of their fired-policy
+# window; the one miss is the universe door's, not the chart's. The old reader's stage
+# tags (rail-placement, universe-gate, lps-ceiling: EGBN, NOK, SKYT, ST) left with it -
+# the alpha reader fires all four.
 STAGE_TAGS: dict[str, str] = {
-    # Guided List population (operator GO 2026-07-24; PLAN-guided-list-gap-breach).
-    # Keys are FULL setup keys (ticker:label) — ORMP/NGL carry two instances
-    # with different outcomes, so a bare-ticker tag would misapply.
-    # Re-tagged 2026-07-24 after Tasks 3+4 falsified their original stages
-    # (engagement-respect and commit-the-cause both tested + REJECTED — see
-    # strategy_alpha.md): NKTR + EGBN belong to the rail-PLACEMENT family
-    # (wick-anchored candidate rails inflate width / sit at the body level), a
-    # named FUTURE stage outside this program's remaining tasks.
-    # Task 6 (2026-07-24) closed the lps-envelope stage with a NO-MOVES
-    # calibration answer: the marked-shelf terminal-turn envelope median is
-    # 0.0 (his shelves genuinely rest), ORMP-2/PKE marked shelves PASS the
-    # detector at the DRAWN rails, and NOK's launch-gate case is n=1. Every
-    # chart-readable miss belongs to ONE family — rail-placement (the engine
-    # anchors candidate rails at wick extremes / the body level where the operator
-    # anchors body levels / the ceiling) — the named next program. SKYT is a
-    # universe-gate exclusion (below SMA50 on 9/10 walked sessions), not a
-    # chart-reading gap; converting it is an operator strategy decision.
-    # THE RAIL PROGRAM EXECUTED 2026-07-25 (docs/rail_program_close_2026-07.md):
-    # every margin lever AND the cluster-rail statistic answered NO under a
-    # pre-registered protocol — these tags now mark CORRECT misses under
-    # current doctrine (tested-DEAD; see strategy_alpha.md), not pending work.
-    # Converting any of them requires an operator ruling or a new insight,
-    # never a re-run of the tested levers.
-    # STORY POOL LIVE 2026-07-26 (the "new insight" path taken): the ruled
-    # narrative form converted NKTR:2026-04-10 + YPF:2026-05-18 (operator
-    # eyeball passed; docs/event_map_program_2026-07.md) — tags removed at
-    # the deliberate 26 -> 28 reseal. EGBN stays rail-placement: its ADMISSION
-    # is certain but its wick-anchored candidate rails die upstream.
-    # 2026-09-08: ORMP:2026-05-08 and PKE:2026-02-24 were DELETED from this dict
-    # with the marks themselves. The operator had deleted both drawings from his
-    # calibration DB, but the sealed corpus still carried them — so the engine
-    # was being permanently EXCUSED for missing two charts that were no longer
-    # ground truth. That is the concrete thing his "always test against the
-    # updated marks" ruling fixed. A tag whose mark has left is now simply
-    # unused; it does not need pruning to keep the build honest, but leaving one
-    # here would re-assert a claim about a chart nobody stands behind.
-    "EGBN:2026-01-15": "rail-placement",
-    "NOK:2026-02-17": "rail-placement",
-    "SKYT:2026-04-13": "universe-gate",
-    # 2026-09-13 (final method, build step 1): the two marks that entered as
-    # unreviewed-new-mark at the 2026-09-08 seal are re-sealed with the stage the
-    # measurements name (docs/final_method_2026-09.md, docs/decisions.md rows of
-    # 2026-09-13). MDT is refused by the universe door's 200-day leg on every
-    # read day (3.77 daily ranges under its 200-day average), the same class as
-    # SKYT. ST's LPS low sits 1.30 daily ranges ABOVE his resistance and the
-    # LPS zone's ceiling is 0.5 today; the operator's R12 ceiling of 1.35 ranges
-    # (build step 3, LPS refusals to grades) is its measured converting stage.
-    "MDT:2026-07-24": "universe-gate",
-    "ST:2026-04-17": "lps-ceiling",
+    # Keys are FULL setup keys (ticker:as_of) - NGL and DDI carry two drawings each.
+    "MDT:2026-07-24": ("the universe door refuses it on every read day (3.77 daily ranges under its "
+                       "200-day average), so the reader never sees the chart, 31/10/2026"),
 }
 
 # The stage a mark carries when the operator has just drawn it and the engine
@@ -520,7 +478,6 @@ def _lps_spans(setup: dict) -> list[tuple[str, str]]:
     return spans
 
 
-@the_old_reader_answers()  # its baseline is the old reader's (the switch back is the first undo)
 def _replay_setup(setup: dict, df: pd.DataFrame, spy_6m: float) -> dict:
     """Replay one graduated setup on the ONE fired-policy window from the
     replay seam — the SAME pops-up-live criterion the agreement harness
@@ -754,11 +711,30 @@ def check_corpus() -> bool:
 # ------------------------------------------------------------------
 # Fixture build (per-stage re-freeze; reads the operator-local frame store)
 # ------------------------------------------------------------------
+def _frames_dir(frame_store) -> str:
+    """Where the frozen frames are. ``calibration_frames/`` is operator-local and lives in the MAIN checkout
+    (the one git's common dir sits in); a linked worktree has none of its own, so a build run from one reads
+    the main checkout's folder — reads only, nothing is written there."""
+    if os.path.isdir(frame_store.FRAMES_DIR):
+        return frame_store.FRAMES_DIR
+    import subprocess
+    try:
+        run = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=_PROJECT_ROOT,
+                             capture_output=True, text=True, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        return frame_store.FRAMES_DIR
+    common = run.stdout.strip()
+    if not common:
+        return frame_store.FRAMES_DIR
+    return os.path.join(os.path.normpath(os.path.join(_PROJECT_ROOT, common, "..")), "calibration_frames")
+
+
 def _frozen_frame(ticker: str, as_of: str, digest: str):
     """The as-drawn frozen basis for a graduated mark (calibration_frames/ by
     digest). Lazy import: frame_store is pure and the build-time-only door."""
-    from frame_store import load_frame
-    return load_frame(ticker, as_of, digest=digest)
+    import frame_store
+    frame_store.FRAMES_DIR = _frames_dir(frame_store)
+    return frame_store.load_frame(ticker, as_of, digest=digest)
 
 
 def setup_digest(setup: dict) -> str:

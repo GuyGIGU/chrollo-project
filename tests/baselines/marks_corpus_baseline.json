@@ -1,11 +1,11 @@
 {
-  "captured_at": "2026-10-30T14:22:38+00:00",
+  "captured_at": "2026-10-30T22:31:03+00:00",
   "breadth_pct": 0.5,
   "corpus_sha256": "6af20f545e9bd359533fe769e9a8397578751258e07259b0abc4ab5f4af1e2dd",
   "population": "guided-list",
   "marks_fingerprint": "4af116adee2b6035f12e9afe663e2a8f99a197b273b880463dbcad584de53086",
   "authorization": "operator GO 2026-07-24 \u2014 Guided List = THE engine-test standard; population follows the live marks DB since his 2026-09-08 ruling",
-  "engine_config_version": "8b7858f2725c1004b042d8fd122ae700b71b550e29d61876427dde0fa2f44abf",
+  "engine_config_version": "8d66938a7b2f8f18ffebd9057f5532a26ab74731a0e78fadfb50f3943c66b999",
   "fired_policy": {
     "window_sessions": 10,
     "event_tail_sessions": 5,
@@ -25,8 +25,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-03-30",
-      "tier": "A"
+      "first_fire": "2026-03-31",
+      "tier": "S"
     },
     {
       "key": "ANET:2026-09-25",
@@ -41,8 +41,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 620,
-      "first_fire": "2026-09-24",
-      "tier": "A"
+      "first_fire": "2026-09-14",
+      "tier": "S"
     },
     {
       "key": "ANET:2026-10-02",
@@ -57,8 +57,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 620,
-      "first_fire": "2026-09-24",
-      "tier": "A"
+      "first_fire": "2026-09-23",
+      "tier": "S"
     },
     {
       "key": "ANRO:2026-08-12",
@@ -73,8 +73,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "first_fire": "2026-08-03",
-      "tier": "A"
+      "first_fire": "2026-07-30",
+      "tier": "S"
     },
     {
       "key": "AVT:2026-04-08",
@@ -89,8 +89,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-03-31",
-      "tier": "A"
+      "first_fire": "2026-03-26",
+      "tier": "C"
     },
     {
       "key": "BODI:2026-04-21",
@@ -105,8 +105,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-04-10",
-      "tier": "A"
+      "first_fire": "2026-04-15",
+      "tier": "C"
     },
     {
       "key": "BWA:2026-05-05",
@@ -121,13 +121,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-04-27",
-      "tier": "B"
+      "first_fire": "2026-04-23",
+      "tier": "S"
     },
     {
       "key": "CBLL:2026-10-28",
       "ticker": "CBLL",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "e1bb8e2314f72b62766413fb0a344af2cb25697ffaf926639633ff58c58330e4",
       "windows": [
         [
@@ -138,7 +138,8 @@
       "spy_6m_return": 0.0,
       "bars": 513,
       "window_clamp": "walked 8/10 sessions \u2014 the frozen frame's lead-in cannot reproduce the live 2y basis before 2026-10-19",
-      "stage": "unreviewed-new-mark"
+      "first_fire": "2026-10-22",
+      "tier": "S"
     },
     {
       "key": "CLDT:2026-10-09",
@@ -153,8 +154,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 620,
-      "first_fire": "2026-10-08",
-      "tier": "B"
+      "first_fire": "2026-09-29",
+      "tier": "S"
     },
     {
       "key": "CLOV:2026-10-27",
@@ -169,13 +170,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "first_fire": "2026-10-16",
-      "tier": "B"
+      "first_fire": "2026-10-14",
+      "tier": "S"
     },
     {
       "key": "DDI:2026-08-10",
       "ticker": "DDI",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "f8cb0a51b4f8c452683ae9754ea5cb277ae4d0edffe857e9cbc36473449e0ad2",
       "windows": [
         [
@@ -185,12 +186,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "stage": "unreviewed-new-mark"
+      "first_fire": "2026-07-30",
+      "tier": "S"
     },
     {
       "key": "DDI:2026-09-30",
       "ticker": "DDI",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "4385957fb6a82b95626d9bcfb9d6f5856b7ff7267e54d9ce26554db3315ef3ec",
       "windows": [
         [
@@ -200,7 +202,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "stage": "unreviewed-new-mark"
+      "first_fire": "2026-09-17",
+      "tier": "S"
     },
     {
       "key": "DLX:2026-04-13",
@@ -215,7 +218,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-03-30",
+      "first_fire": "2026-04-02",
       "tier": "S"
     },
     {
@@ -231,7 +234,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-04-10",
+      "first_fire": "2026-04-09",
       "tier": "S"
     },
     {
@@ -247,8 +250,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-03-24",
-      "tier": "A"
+      "first_fire": "2026-03-18",
+      "tier": "S"
     },
     {
       "key": "DSGX:2026-10-08",
@@ -264,12 +267,12 @@
       "spy_6m_return": 0.0,
       "bars": 619,
       "first_fire": "2026-09-25",
-      "tier": "C"
+      "tier": "A"
     },
     {
       "key": "EGBN:2026-01-15",
       "ticker": "EGBN",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "6d25ebc268ae2fdfa2e2476af4cac4fb5a200b984606441c735a4b5d5df472a7",
       "windows": [
         [
@@ -279,7 +282,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "stage": "rail-placement"
+      "first_fire": "2026-01-02",
+      "tier": "S"
     },
     {
       "key": "EWTX:2026-03-31",
@@ -294,7 +298,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-03-19",
+      "first_fire": "2026-03-18",
       "tier": "S"
     },
     {
@@ -310,7 +314,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 620,
-      "first_fire": "2026-10-01",
+      "first_fire": "2026-09-30",
       "tier": "S"
     },
     {
@@ -326,8 +330,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-02-12",
-      "tier": "A"
+      "first_fire": "2026-02-11",
+      "tier": "S"
     },
     {
       "key": "JAZZ:2026-02-24",
@@ -358,8 +362,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-06-29",
-      "tier": "A"
+      "first_fire": "2026-06-17",
+      "tier": "S"
     },
     {
       "key": "MDT:2026-07-24",
@@ -374,7 +378,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "stage": "universe-gate"
+      "stage": "the universe door refuses it on every read day (3.77 daily ranges under its 200-day average), so the reader never sees the chart, 31/10/2026"
     },
     {
       "key": "MRK:2026-08-10",
@@ -389,7 +393,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "first_fire": "2026-08-04",
+      "first_fire": "2026-07-30",
       "tier": "B"
     },
     {
@@ -405,8 +409,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-05-18",
-      "tier": "B"
+      "first_fire": "2026-05-15",
+      "tier": "S"
     },
     {
       "key": "MSGS:2026-05-22",
@@ -421,8 +425,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "first_fire": "2026-05-21",
-      "tier": "A"
+      "first_fire": "2026-05-12",
+      "tier": "S"
     },
     {
       "key": "MTLS:2026-09-04",
@@ -437,7 +441,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 620,
-      "first_fire": "2026-09-03",
+      "first_fire": "2026-08-31",
       "tier": "S"
     },
     {
@@ -454,7 +458,7 @@
       "spy_6m_return": 0.0,
       "bars": 617,
       "first_fire": "2026-09-01",
-      "tier": "C"
+      "tier": "S"
     },
     {
       "key": "NGL:2026-01-20",
@@ -485,8 +489,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-04-16",
-      "tier": "A"
+      "first_fire": "2026-04-08",
+      "tier": "S"
     },
     {
       "key": "NKTR:2026-04-10",
@@ -501,13 +505,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "first_fire": "2026-04-09",
-      "tier": "A"
+      "first_fire": "2026-03-27",
+      "tier": "S"
     },
     {
       "key": "NOK:2026-02-17",
       "ticker": "NOK",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "849565f98c1ce7468b38378d53c9bf3a95a6ae46d793285b0336f8c4681d329a",
       "windows": [
         [
@@ -517,7 +521,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "stage": "rail-placement"
+      "first_fire": "2026-02-05",
+      "tier": "S"
     },
     {
       "key": "NTCT:2026-03-04",
@@ -532,13 +537,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-03-02",
-      "tier": "A"
+      "first_fire": "2026-02-23",
+      "tier": "S"
     },
     {
       "key": "OKTA:2026-09-03",
       "ticker": "OKTA",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "0c28e5a7c1ab76a8527a8a6f03d64bb286ac06ae0a2f3dc1fe97cbe45ab9a90a",
       "windows": [
         [
@@ -548,7 +553,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "stage": "unreviewed-new-mark"
+      "first_fire": "2026-09-02",
+      "tier": "S"
     },
     {
       "key": "ORMP:2026-04-13",
@@ -563,7 +569,7 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-04-02",
+      "first_fire": "2026-03-31",
       "tier": "S"
     },
     {
@@ -579,8 +585,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-04-30",
-      "tier": "A"
+      "first_fire": "2026-04-29",
+      "tier": "S"
     },
     {
       "key": "PKE:2026-04-07",
@@ -596,7 +602,7 @@
       "spy_6m_return": 0.0,
       "bars": 616,
       "first_fire": "2026-03-26",
-      "tier": "B"
+      "tier": "S"
     },
     {
       "key": "RGR:2026-03-19",
@@ -611,8 +617,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "first_fire": "2026-03-13",
-      "tier": "A"
+      "first_fire": "2026-03-09",
+      "tier": "S"
     },
     {
       "key": "ROIV:2026-06-17",
@@ -627,8 +633,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-06-04",
-      "tier": "B"
+      "first_fire": "2026-06-15",
+      "tier": "S"
     },
     {
       "key": "SGHT:2026-09-24",
@@ -643,8 +649,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "first_fire": "2026-09-15",
-      "tier": "A"
+      "first_fire": "2026-09-14",
+      "tier": "S"
     },
     {
       "key": "SILC:2026-04-13",
@@ -659,13 +665,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "first_fire": "2026-04-10",
+      "first_fire": "2026-04-02",
       "tier": "S"
     },
     {
       "key": "SKYT:2026-04-13",
       "ticker": "SKYT",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "dbe248d3c0056f04e40c0e152a23d2d8731e8d6664199482879b4cde94cda6ca",
       "windows": [
         [
@@ -675,12 +681,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 616,
-      "stage": "universe-gate"
+      "first_fire": "2026-04-13",
+      "tier": "S"
     },
     {
       "key": "ST:2026-04-17",
       "ticker": "ST",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "dcf1d69d098cd349f854879c5d9dad190f0798153c0b49a3da4debc306d3c9c2",
       "windows": [
         [
@@ -690,7 +697,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "stage": "lps-ceiling"
+      "first_fire": "2026-04-13",
+      "tier": "S"
     },
     {
       "key": "SYRE:2026-02-19",
@@ -705,13 +713,13 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-02-11",
-      "tier": "B"
+      "first_fire": "2026-02-05",
+      "tier": "S"
     },
     {
       "key": "TWLO:2026-09-21",
       "ticker": "TWLO",
-      "status": "miss",
+      "status": "hit",
       "setup_digest": "8177c5670182f84d6c341ca2b3bef3a35a1d160dc7840439d021fb726f17b0b8",
       "windows": [
         [
@@ -721,7 +729,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "stage": "unreviewed-new-mark"
+      "first_fire": "2026-09-08",
+      "tier": "C"
     },
     {
       "key": "UNF:2026-07-10",
@@ -737,7 +746,7 @@
       "spy_6m_return": 0.0,
       "bars": 619,
       "first_fire": "2026-06-29",
-      "tier": "A"
+      "tier": "S"
     },
     {
       "key": "VIK:2026-06-11",
@@ -752,8 +761,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 530,
-      "first_fire": "2026-06-03",
-      "tier": "A"
+      "first_fire": "2026-05-29",
+      "tier": "S"
     },
     {
       "key": "VLO:2026-07-08",
@@ -768,8 +777,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-07-07",
-      "tier": "A"
+      "first_fire": "2026-06-30",
+      "tier": "S"
     },
     {
       "key": "VTMX:2026-10-02",
@@ -800,8 +809,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 619,
-      "first_fire": "2026-09-11",
-      "tier": "S"
+      "first_fire": "2026-09-14",
+      "tier": "C"
     },
     {
       "key": "WTS:2026-06-12",
@@ -816,8 +825,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 618,
-      "first_fire": "2026-06-08",
-      "tier": "B"
+      "first_fire": "2026-06-01",
+      "tier": "S"
     },
     {
       "key": "YPF:2026-05-18",
@@ -832,8 +841,8 @@
       ],
       "spy_6m_return": 0.0,
       "bars": 617,
-      "first_fire": "2026-05-06",
-      "tier": "A"
+      "first_fire": "2026-05-05",
+      "tier": "S"
     }
   ]
 }

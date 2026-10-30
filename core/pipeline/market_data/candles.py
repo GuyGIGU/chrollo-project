@@ -14,7 +14,7 @@ established pattern for core modules the backend also imports).
 from __future__ import annotations
 
 from config import settings
-from engine_alpha.structure.context.htf import resample_ohlc
+from engine_alpha.metrics import resample_ohlc
 
 
 def clean_daily_frame(df):

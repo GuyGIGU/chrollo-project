@@ -33,7 +33,7 @@ def _run(args, tmp_path, cwd=REPO_ROOT):
 def test_help_names_every_flag(tmp_path):
     proc = _run(["-m", HARNESS, "--help"], tmp_path)
     assert proc.returncode == 0, proc.stderr
-    for flag in ("--ticker", "--variant", "--json", "--fired", "--prev"):
+    for flag in ("--ticker", "--json", "--fired", "--prev"):
         assert re.search(rf"(?<![\w-]){flag}(?![\w-])", proc.stdout), flag
 
 

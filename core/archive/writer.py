@@ -59,7 +59,6 @@ def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> No
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
 from core.archive.db_path import archive_db_path
-from engine_alpha.structure.context.htf import HTF_COLUMN_SQL, htf_archive_values
 from engine_alpha.two_eyes_archive import two_eyes_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
@@ -226,28 +225,51 @@ _NEW_COLUMNS: dict[str, str] = {
 # _NEW_COLUMNS <= _MIGRATIONS guard (test_archive_writer_columns_are_modeled_
 # and_migrated) stays satisfied without touching the legacy _MIGRATIONS list.
 
-# HTF (higher-timeframe) context columns — single source of truth in
-# engine_alpha.structure.context.htf so the writer / model / migrations / seed stay in sync.
-_NEW_COLUMNS.update(HTF_COLUMN_SQL)
-
-# Event Map tape-summary columns — single source in engine_alpha.structure.events.event_map.
-# MODEL-ONLY schema adds (see archive_models.SetupArchive): deliberately NOT
-# merged into _NEW_COLUMNS; the model-derived pass in _ensure_new_columns and
-# the backend's Track B auto-migration ADD them.
-from engine_alpha.structure.events.event_map import event_map_archive_values
-from engine_alpha.structure.events.event_vocabulary import sentence_archive_values
-# TA-grade family (grade pair + setup grades + flag-gated term points) and
-# the per-term sub-score fold — single source in engine_alpha.scoring.scoring
-# (same model-only convention).
-from engine_alpha.scoring.scoring import (
-    sub_score_archive_values,
-    ta_grade_archive_values,
+# The old engine's archive families, RETIRED with it (Fri 30/10/2026): the HTF
+# weekly/monthly read, the Event Map tape, the sentence tokens, the per-term
+# sub-scores, the old grade's raw sum and its chapters (everything the TA-grade
+# family wrote except ``ta_grade`` itself, which the new reader's grade fills),
+# the election trace and the strategy read. The columns stay on the model for
+# the rows the old reader wrote; every writer sets them to None on EVERY write
+# (``retired_columns_null``), so a re-scan over an old-reader date re-stamps the
+# row whole instead of keeping the old reader's values beside the new reader's.
+# A frozen literal: the producers that defined these names are gone.
+RETIRED_COLUMNS: tuple[str, ...] = (
+    # HTF (htf_archive_values)
+    "htf_w_stage2", "htf_w_trend_state", "htf_w_in_consol", "htf_w_phase",
+    "htf_w_box_r", "htf_w_box_s", "htf_w_box_width", "htf_w_reaccum", "htf_w_daily_nested",
+    "htf_m_stage2", "htf_m_trend_state", "htf_m_in_consol", "htf_m_phase",
+    "htf_m_box_r", "htf_m_box_s", "htf_m_box_width", "htf_m_reaccum", "htf_m_daily_nested",
+    # Event Map (event_map_archive_values)
+    "event_map_n_swings", "event_map_pre_box_trend", "event_map_n_labels", "event_map_n_committed",
+    "event_map_completed_s", "event_map_completed_r", "event_map_alternations",
+    "event_map_terminal_posture", "event_map_terminal_drift", "event_map_story_admitted",
+    "event_map_episode_nan_bars", "event_map_zone_coverage", "event_map_episode_profile",
+    "event_map_episodes",
+    # sentence tokens (sentence_archive_values)
+    "sentence_tokens", "sentence_n_tokens", "sentence_nan_bars",
+    # per-term sub-scores (sub_score_archive_values), the five story terms included
+    "score_box_tightness", "score_touch_density", "score_traversal_quality", "score_atr_squeeze",
+    "score_lps_tightness", "score_vol_contraction", "score_base_age", "score_uptrend_bonus",
+    "score_rs_bonus", "score_high_proximity", "score_breadth_bonus", "score_contraction",
+    "score_ascending_support", "score_adr", "score_setup_quality",
+    "score_spring", "score_story_s_tests", "score_story_r_rejections",
+    "score_story_alternations", "score_story_terminal_posture",
+    # the TA-grade family (ta_grade_archive_values) minus ta_grade
+    "ta_grade_raw", "setup_completeness", "setup_chronology", "setup_upthrust_terminal",
+    "lps_shrink_frac", "lps_window_classification", "story_richness_rate",
+    "trend_base_count", "inter_base_width_ratio", "fired_tags",
+    # election trace (election_trace_archive_values)
+    "election_trace",
+    # strategy read (strategy_archive_values)
+    "strategy_correction_depth_pct", "strategy_floor_above_ar",
 )
-# Election-trace evidence cell — single source in engine_alpha.structure.box.trace_export
-# (same model-only convention as the event_map family).
-from engine_alpha.structure.box.trace_export import election_trace_archive_values
-# Strategy-read family — single source in engine_alpha.structure.context.strategy_read.
-from engine_alpha.structure.context.strategy_read import strategy_archive_values
+
+
+def retired_columns_null() -> dict:
+    """``{column: None}`` for every retired column: what every writer splats so
+    an upsert over an old-reader row empties them."""
+    return {column: None for column in RETIRED_COLUMNS}
 
 
 def _ensure_new_columns(engine) -> None:
@@ -601,10 +623,6 @@ def archive_scan_results(
             )
 
             # Extract sub-scores
-            sub = row.get("_sub_scores", {})
-            if not isinstance(sub, dict):
-                sub = {}
-
             # Upsert: check if record exists for this (ticker, scan_date, universe_type)
             existing = (
                 session.query(SetupArchive)
@@ -638,10 +656,8 @@ def archive_scan_results(
                 breach_days=_measured(row.get("Breach Days"), int),
                 vol_contraction=_measured(row.get("_vol_contraction"), float),
                 tightness_ratio=_measured(row.get("_tightness_ratio"), float),
-                # Per-term sub-score columns — ONE registry-driven producer (task
-                # 6 fold; byte-identical to the former 15 literals). Flag-gated
-                # term points ride the ta_grade family splat below.
-                **sub_score_archive_values(sub),
+                # The 0-100 grade the scan ranks by; empty when the grade fell over.
+                ta_grade=_measured(row.get("_ta_grade"), float),
                 # Volume-around-touches signature + LPS shape/zone detail
                 r_touch_vol_z=row.get("_r_touch_vol_z"),
                 s_touch_vol_z=row.get("_s_touch_vol_z"),
@@ -805,25 +821,10 @@ def archive_scan_results(
                 stage2_trend_pass_count=row.get("_stage2_trend_pass_count"),
                 stage2_trend_pass=(int(bool(row.get("_stage2_trend_pass")))
                                    if row.get("_stage2_trend_pass") is not None else None),
-                # HTF (higher-timeframe) context — same engine on weekly/monthly bars
-                **htf_archive_values(row.get, prefixed=True),
-                # Event Map tape summary — NULL when EVENT_MAP_ENABLED is off
-                **event_map_archive_values(row.get, prefixed=True),
-                # Sentence-token family (consolidation-method Task 8) — NULL
-                # until the sentence measurement flag flips; refused reads NULL
-                # the whole family
-                **sentence_archive_values(row.get, prefixed=True),
-                # TA-grade family: the grade pair (always emitted since the
-                # 2026-08-22 legacy retirement; NULL = pre-flip epoch rows)
-                # + the three setup grades (NULL when the narrative abstained)
-                **ta_grade_archive_values(row.get, prefixed=True),
-                # Election-trace evidence — NULL when ELECTION_TRACE_EXPORT_ENABLED
-                # is off; never backfilled (the archived cell is what was shown)
-                **election_trace_archive_values(row.get, prefixed=True),
-                # Strategy read (held-through-correction) — NULL when dark
-                **strategy_archive_values(row.get, prefixed=True),
-                # The two-eyes reader's two boxes and their anchor DAYS —
-                # NULL on every row the old reader writes
+                # The old engine's families, emptied on every write (a re-scan
+                # over an old-reader date re-stamps the row whole)
+                **retired_columns_null(),
+                # The reader's two boxes and their anchor DAYS
                 **two_eyes_archive_values(row.get, prefixed=True),
                 # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
                 # Per-ticker fundamentals / RS-line / days-to-earnings come from the

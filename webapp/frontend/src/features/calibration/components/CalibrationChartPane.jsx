@@ -3,8 +3,6 @@ import { CHART_FONT, surfaceOf } from '../../../shared/charts/chartTheme';
 import {
   PRESERVED_LABEL,
   preservedTitle,
-  engineLine,
-  engineTitle,
   failureNotice,
   paneBody,
   paneTitle,
@@ -12,14 +10,12 @@ import {
 } from '../model/calibrationPaneText';
 
 // The calibration page's fixed, never-shifting chart pane: the retained chart
-// with its in-pane overlays (lookup failure, engine chip, refused-placement
-// notice, data warnings), or — before the first good lookup — the blank /
-// loading / failure message in the chart's own skin. Every state renders INSIDE
-// the pane so the operator's eyes never lose their place. Dumb — all state in
-// the parent.
+// with its in-pane overlays (lookup failure, refused-placement notice, data
+// warnings), or — before the first good lookup — the blank / loading / failure
+// message in the chart's own skin. Every state renders INSIDE the pane so the
+// operator's eyes never lose their place. Dumb — all state in the parent.
 function CalibrationChartPane({
   chartData, spec, loading, failure,
-  engineOn, engineRead, engineStatus,
   placeNotice, warningsOpen, onDismissWarnings,
 }) {
   return (
@@ -70,19 +66,6 @@ function CalibrationChartPane({
               background: 'rgba(23, 25, 34, 0.92)',
             }}>
               {failureNotice(failure)}
-            </div>
-          )}
-          {engineOn && (
-            // What the engine thinks, in words — rails land on the chart in
-            // engine ink; this chip carries the session/no-read verdict.
-            <div title={engineTitle(engineRead)} style={{
-              position: 'absolute', top: 8, right: 8, zIndex: 4,
-              fontSize: 11, fontFamily: CHART_FONT, color: 'var(--text-muted)',
-              fontVariantNumeric: 'tabular-nums',
-              background: 'rgba(23, 25, 34, 0.85)', padding: '3px 8px',
-              borderRadius: 6,
-            }}>
-              {engineLine(engineRead, engineStatus)}
             </div>
           )}
           {placeNotice && (

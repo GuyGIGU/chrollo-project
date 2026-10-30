@@ -32,10 +32,9 @@ def _safe_corr(xs: list[float], ys: list[float]) -> float:
     if mask.sum() < 5:
         return 0.0
     corr = float(np.corrcoef(xs_arr[mask], ys_arr[mask])[0, 1])
-    # corrcoef returns NaN when either series has zero variance (e.g. a sub-score
-    # that's constant across every archived setup). NaN isn't caught by the
-    # downstream `x or 0.0` idiom (NaN is truthy), so it poisons the weight
-    # normalization and turns every suggested weight into null. Neutralize here.
+    # corrcoef returns NaN when either series has zero variance (a metric that
+    # is constant across every archived setup). NaN is truthy, so it would
+    # slip past a downstream `x or 0.0`; neutralize here.
     return round(corr, 4) if not np.isnan(corr) else 0.0
 
 
@@ -244,8 +243,11 @@ def _overall_health_status(checks: list[dict]) -> str:
 def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Calibration analytics — the engine for refining the screener.
 
-    Returns tier performance, sub-score correlations with forward returns,
-    and setup type breakdown.
+    Returns tier performance, structural correlations with forward returns,
+    the setup-type breakdown and the market-regime split. The old engine's
+    sub-score correlations and the suggested re-weighting left with it
+    (retire-old-engine, decision C): the reader scores no sub-scores, so a
+    correlation over its rows would be a correlation of zeros.
     """
     # Episode-collapsed so continuation re-flags don't inflate tier win-rates /
     # expectancy — the same de-dup the /episodes table applies.
@@ -291,73 +293,10 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "epochs": len({s.engine_config_version or "?" for s in group}),
         }
 
-    # ── Sub-Score Correlations (20d + 60d) ──────────────────
-    # Two horizons are reported side-by-side: 20d ≈ swing-exit window,
-    # 60d ≈ position-exit window. A sub-score that predicts well at one
-    # horizon but not the other is useful information for re-weighting —
-    # if base_age correlates strongly at 60d but weakly at 20d, that's a
-    # "long-hold edge" signal, not a swing edge.
-    sub_score_fields = [
-        "score_box_tightness", "score_touch_density",
-        "score_atr_squeeze", "score_lps_tightness", "score_vol_contraction",
-        "score_base_age",
-    ]
     with_60d = [s for s in with_returns if s.fwd_return_60d is not None]
     fwd_20d_vals = [s.fwd_return_20d for s in with_returns]
-    fwd_60d_vals = [s.fwd_return_60d for s in with_60d]
 
-    sub_score_corr_20d: Dict[str, float] = {}
-    sub_score_corr_60d: Dict[str, float] = {}
-    for field in sub_score_fields:
-        short_name = field.replace("score_", "")
-        vals_20 = [getattr(s, field) or 0.0 for s in with_returns]
-        vals_60 = [getattr(s, field) or 0.0 for s in with_60d]
-        sub_score_corr_20d[short_name] = _safe_corr(vals_20, fwd_20d_vals)
-        sub_score_corr_60d[short_name] = _safe_corr(vals_60, fwd_60d_vals)
-
-    # ── Suggested Re-weighting ──────────────────────────────
-    # Average |corr| across 20d and 60d horizons → re-normalize to preserve
-    # the current total of the six caps (derived live from settings - never
-    # a hand-typed number; the old "128 pts" claim had drifted from a real 117).
-    # Sub-scores with negative or near-zero correlation get floored at a
-    # small positive (0.02) so they're not zeroed out by a single noisy
-    # archive — re-weighting is a *suggestion*, not auto-apply.
-    #
-    # Read the caps fresh from the root config/ files, isolated from the backend's
-    # sys.path (the one loader the scheduler and scan alerts use too).
-    from app.core_settings import load_core_settings
-    _cfg = load_core_settings()
-    current_weights = {
-        "box_tightness":   _cfg.SCORE_BOX_TIGHTNESS,
-        "touch_density":   _cfg.SCORE_TOUCH_DENSITY,
-        "atr_squeeze":     _cfg.SCORE_ATR_SQUEEZE,
-        "lps_tightness":   _cfg.SCORE_LPS_TIGHTNESS,
-        "vol_contraction": _cfg.SCORE_VOL_CONTRACTION,
-        "base_age":        _cfg.SCORE_BASE_AGE,
-    }
-    # The suggested-weights math + its adequacy gate live in
-    # core.archive.analyze.suggested_weights. This router is its ONLY caller: the
-    # CLI analysis flags candidate sub-scores but does not re-weight. It applies
-    # the signal-edge adequacy + minority-class guard (verdicts_trustworthy) —
-    # stronger than the old inline `n >= 30` check — and returns an EMPTY table on
-    # a winners-only / too-thin sample rather than fitting noise. Advisory display
-    # only: it never applies a weight.
-    #
-    # Imported lazily (like the settings load above) to keep the config-shadow
-    # concern local to this handler and off the backend's import path.
-    import pandas as pd
-
-    from core.archive.analyze import suggested_weights
-    _gate_df = pd.DataFrame(
-        [{c.name: getattr(s, c.name) for c in SetupArchive.__table__.columns}
-         for s in with_returns]
-    )
-    _suggestion = suggested_weights(
-        _gate_df, sub_score_corr_20d, sub_score_corr_60d, current_weights)
-    weights_table: List[Dict[str, Any]] = _suggestion["weights"]
-    weights_basis = _suggestion["basis"]
-
-    # Also correlate structural metrics (20d only — diagnostic, not re-weight input).
+    # Correlate the structural metrics (20d only — diagnostic).
     structural_corr = {}
     for field in ["box_width", "base_length", "touches", "atr_ratio", "vol_contraction"]:
         vals = [float(getattr(s, field) or 0) for s in with_returns]
@@ -396,10 +335,6 @@ def calibration_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "total_with_returns": len(with_returns),
         "total_with_60d_returns": len(with_60d),
         "tier_performance": tier_perf,
-        "sub_score_correlations_20d": sub_score_corr_20d,
-        "sub_score_correlations_60d": sub_score_corr_60d,
-        "suggested_weights": weights_table,
-        "weights_basis": weights_basis,
         "structural_correlations": structural_corr,
         "setup_type_breakdown": type_breakdown,
         "market_context": market_context,

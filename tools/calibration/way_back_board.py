@@ -138,7 +138,7 @@ def render(entry: dict, path: str, title: str) -> str:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from tools.research.full_package_render import _draw_bars
+    from tools.calibration.draw import _draw_bars
 
     read, w, days = entry["read"], entry["w"], entry["days"]
     prepared, end = read["prepared"], days.index(entry["day"])

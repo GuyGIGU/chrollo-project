@@ -52,7 +52,7 @@ def price_facts(frame, scan_date: str | None, session_day: str) -> dict:
     trading day the live quote belongs to (Change %); ``dist_52w_high`` =
     the engine's own 52-week measure at the last close (-0.07 = 7% below)."""
     import pandas as pd
-    from engine_alpha.structure.metrics.indicators import distance_to_52w_high_pct
+    from engine_alpha.metrics import distance_to_52w_high_pct
 
     out = {"basis": None, "prev_close": None, "dist_52w_high": None}
     if frame is None or frame.empty:

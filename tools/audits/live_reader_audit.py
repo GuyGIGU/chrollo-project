@@ -19,6 +19,7 @@ from tools._bootstrap import configure_path, refuse_sealed_output
 
 ROOT = Path(configure_path())
 
+from config import settings  # noqa: E402
 from engine_alpha import reader  # noqa: E402
 from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
 from engine_alpha.two_eyes_adapter import to_result  # noqa: E402
@@ -82,8 +83,6 @@ def inspect_frame(ticker, frame, expected, *, repeat=False):
 
 
 def audit(source: Path, *, repeat=False):
-    if reader.which_reader() != reader.READER_NEW:
-        raise ValueError('the active reader is old; this check requires the live new reader')
     payload_path = source / 'output/screener_data.json'
     payload = json.loads(payload_path.read_text(encoding='utf-8'))
     identity = payload['scan_identity']
@@ -111,7 +110,7 @@ def audit(source: Path, *, repeat=False):
             print(f"  {ticker}: {'; '.join(found)}", flush=True)
         if number % 25 == 0:
             print(f'Checked {number}/{len(tickers)} charts', flush=True)
-    return {'reader': reader.which_reader(), 'engine_config_version': current_hash,
+    return {'reader': settings.TWO_EYES_RULESET, 'engine_config_version': current_hash,
             'scan_identity': identity, 'checked': len(tickers), 'repeat': repeat,
             'passed': len(tickers) - len(issues), 'issues': issues,
             'scope': 'Saved US stock fires only; no negative-corpus or predictive claim.'}

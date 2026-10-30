@@ -3,34 +3,39 @@ Archive scan-vs-seed column-PARITY guard (hermetic — NO DB, NO scan).
 
 Sibling of ``test_archive_row_assembly.py`` (which checks each writer's assembled
 columns are a SUBSET of the ORM columns). This one checks the two writers against
-*each other*: an engine sub-score populated by one write path and forgotten in
-the other silently NULLs that column for a whole population.
+*each other*: a column populated by one write path and forgotten in the other
+silently NULLs that column for a whole population.
 
 That already happened: ``score_traversal_quality`` was archived by scan rows
 (``core/archive/writer.py``) but NULL in every seeded row until it was added to
-``core/archive/seed.py`` — the seed eval genuinely produces
-``sub_scores['traversal_quality']`` (scoring.py -> ``_sub_scores`` ->
-``seed_row_from_result`` strips to ``sub_scores``), it was just never mapped.
+``core/archive/seed.py``.
 
-The two writers assemble their rows differently now:
+The two writers assemble their rows differently:
 
-  * the live scan writer is still one hand-written ``values = dict(...)`` (plus
-    its ``htf_archive_values`` / ``sector_rank_columns`` ``**`` splats);
+  * the live scan writer is one hand-written ``values = dict(...)`` (plus its
+    ``two_eyes_archive_values`` / ``retired_columns_null`` / ``sector_rank_columns``
+    ``**`` splats);
   * the seed writer builds its row through the model-driven mapper —
     ``archive_row_from_result(best_result, overrides=dict(...))`` — so its
     populated columns are the mapper's auto-mapped flat columns PLUS the
-    ``overrides`` special-cases PLUS its ``htf_archive_values`` / ``fwd_returns``
-    ``**`` splats.
+    ``overrides`` special-cases PLUS its ``two_eyes_archive_values`` /
+    ``retired_columns_null`` / ``fwd_returns`` ``**`` splats.
 
 GUARD: compute each writer's FULL effective populated-column set (literal keys +
 resolved ``**`` splats, and for seed the mapper's auto-mapped columns too), then
 require their symmetric difference to be a SUBSET of an explicit intentional-
-divergence ALLOWLIST. Anything else — e.g. a new ``score_*`` sub-score wired into
-one path only — fails CI. The allowlist enumerates exactly the run-level context
-the scan computes but a historical replay cannot (``regime_*`` / ``scope_*`` /
-breadth) and the seed-only fields (forward-return outcomes computed immediately
-for a historical date, plus ``quality_label`` / ``notes`` / scan-row-absent
-anchors). Modelled on the manual path's ``_MANUAL_UNMAPPED_COLUMNS`` frozenset.
+divergence ALLOWLIST. Anything else fails CI. The allowlist enumerates exactly the
+run-level context the scan computes but a historical replay cannot (``regime_*`` /
+``scope_*`` / breadth) and the seed-only fields (forward-return outcomes computed
+immediately for a historical date, plus ``quality_label`` / ``notes`` /
+scan-row-absent anchors). Modelled on the manual path's ``_MANUAL_UNMAPPED_COLUMNS``
+frozenset.
+
+The old engine's families are RETIRED (Fri 30/10/2026, decision H): every writer
+sets their columns to None on every write through the ONE frozen literal
+``RETIRED_COLUMNS``, so a re-scan over an old-reader date re-stamps the row whole.
+This file pins that the literal covers every retired column (the whole ``score_*``
+family among them) and that both batch writers splat it.
 
 Fully self-contained: parses the two writer source files with ``ast`` and drives
 the pure splat/mapper helpers hermetically (no import-time execution of the
@@ -57,17 +62,9 @@ if _BACKEND_DIR not in sys.path:
 
 from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
+from core.archive.writer import RETIRED_COLUMNS, retired_columns_null  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
-from engine_alpha.scoring.scoring import (  # noqa: E402
-    sub_score_archive_values,
-    ta_grade_archive_values,
-)
-from engine_alpha.structure.events.event_map import event_map_archive_values  # noqa: E402
-from engine_alpha.structure.events.event_vocabulary import sentence_archive_values  # noqa: E402
-from engine_alpha.structure.context.htf import htf_archive_values  # noqa: E402
-from engine_alpha.structure.context.strategy_read import strategy_archive_values  # noqa: E402
 from engine_alpha.two_eyes_archive import two_eyes_archive_values  # noqa: E402
-from engine_alpha.structure.box.trace_export import election_trace_archive_values  # noqa: E402
 from core.archive.r_outcomes import R_COLUMNS  # noqa: E402
 
 
@@ -181,38 +178,8 @@ def _splat_names(func, var: str) -> list[str]:
 
 # ── Hermetic splat/mapper column resolvers ───────────────────────────────────
 
-def _htf_cols(*, prefixed: bool) -> frozenset[str]:
-    return frozenset(htf_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _event_map_cols(*, prefixed: bool) -> frozenset[str]:
-    return frozenset(
-        event_map_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _sentence_cols(*, prefixed: bool) -> frozenset[str]:
-    return frozenset(
-        sentence_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _ta_grade_cols(*, prefixed: bool) -> frozenset[str]:
-    return frozenset(
-        ta_grade_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _sub_score_cols() -> frozenset[str]:
-    return frozenset(sub_score_archive_values({}).keys())
-
-
-def _election_trace_cols(*, prefixed: bool) -> frozenset[str]:
-    return frozenset(
-        election_trace_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
-
-def _strategy_cols(*, prefixed: bool) -> frozenset[str]:
-    return frozenset(
-        strategy_archive_values((lambda _k: None), prefixed=prefixed).keys())
-
+def _retired_cols() -> frozenset[str]:
+    return frozenset(retired_columns_null().keys())
 
 
 def _two_eyes_cols(*, prefixed: bool) -> frozenset[str]:
@@ -249,51 +216,31 @@ def _mapper_auto_cols() -> frozenset[str]:
 
 def _scan_effective_cols() -> frozenset[str]:
     """Every column the live scan writer populates: its ``values`` literal keys +
-    its ``htf_archive_values`` (prefixed) + ``sector_rank_columns`` splats."""
+    its ``two_eyes_archive_values`` (prefixed) / ``retired_columns_null`` /
+    ``sector_rank_columns`` splats."""
     literal = _literal_kwargs(writer_mod.archive_scan_results, "values")
     splats = set(_splat_names(writer_mod.archive_scan_results, "values"))
-    assert splats == {"htf_archive_values", "event_map_archive_values",
-                      "sentence_archive_values",
-                      "ta_grade_archive_values", "sub_score_archive_values",
-                      "election_trace_archive_values",
-                      "strategy_archive_values",
-                      "two_eyes_archive_values",
+    assert splats == {"retired_columns_null", "two_eyes_archive_values",
                       "sector_rank_columns"}, (
         f"unexpected scan **splat(s): {sorted(splats)}; extend the parity guard."
     )
-    return (literal | _htf_cols(prefixed=True)
-            | _event_map_cols(prefixed=True)
-            | _sentence_cols(prefixed=True)
-            | _ta_grade_cols(prefixed=True)
-            | _sub_score_cols()
-            | _election_trace_cols(prefixed=True)
-            | _strategy_cols(prefixed=True) | _two_eyes_cols(prefixed=True)
+    return (literal | _retired_cols() | _two_eyes_cols(prefixed=True)
             | _sector_rank_cols())
 
 
 def _seed_effective_cols() -> frozenset[str]:
     """Every column the seed writer populates through the mapper: the mapper's
     auto-mapped flat columns + the ``overrides`` literal keys + its
-    ``htf_archive_values`` (unprefixed) + ``fwd_returns`` splats."""
+    ``two_eyes_archive_values`` (unprefixed) / ``retired_columns_null`` /
+    ``fwd_returns`` splats."""
     literal = _literal_kwargs(seed_mod.seed_archive, "overrides")
     splats = set(_splat_names(seed_mod.seed_archive, "overrides"))
-    assert splats == {"htf_archive_values", "event_map_archive_values",
-                      "sentence_archive_values",
-                      "ta_grade_archive_values", "sub_score_archive_values",
-                      "election_trace_archive_values",
-                      "strategy_archive_values",
-                      "two_eyes_archive_values",
+    assert splats == {"retired_columns_null", "two_eyes_archive_values",
                       "fwd_returns"}, (
         f"unexpected seed **splat(s): {sorted(splats)}; extend the parity guard."
     )
-    return (_mapper_auto_cols() | literal | _htf_cols(prefixed=False)
-            | _event_map_cols(prefixed=False)
-            | _sentence_cols(prefixed=False)
-            | _ta_grade_cols(prefixed=False)
-            | _sub_score_cols()
-            | _election_trace_cols(prefixed=False)
-            | _strategy_cols(prefixed=False) | _two_eyes_cols(prefixed=False)
-            | _fwd_return_cols())
+    return (_mapper_auto_cols() | literal | _retired_cols()
+            | _two_eyes_cols(prefixed=False) | _fwd_return_cols())
 
 
 def test_scan_and_seed_only_diverge_on_allowlist():
@@ -321,57 +268,29 @@ def test_scan_and_seed_only_diverge_on_allowlist():
     )
 
 
-def test_traversal_quality_now_populated_by_both_paths():
-    """Regression pin for the confirmed drift: score_traversal_quality must be
-    populated by BOTH write paths (the fix that motivated this guard).
-
-    Scan: an explicit ``score_traversal_quality=...`` key in its ``values``
-    literal. Seed: it lives in the mapper's ``_MANUAL_UNMAPPED_COLUMNS`` (the
-    manual route leaves it NULL), so the seed path must re-add it explicitly in
-    its ``overrides`` — assert it is present there so a future edit can't drop it
-    back to NULL for the seed population."""
-    # Task-6 fold: BOTH batch writers now populate it through the ONE nested-
-    # dict producer (sub_score_archive_values), so the original drift class —
-    # a literal dropped from one path — is structurally dead. The pin survives
-    # as: the producer covers the column, and both effective sets carry it.
-    assert "score_traversal_quality" in _sub_score_cols()
-    assert "score_traversal_quality" in _scan_effective_cols()
-    assert "score_traversal_quality" in _seed_effective_cols()
+def test_ta_grade_is_written_by_both_paths_and_is_not_retired():
+    """The one column of the old TA-grade family that lives on: the reader's 0-100 grade,
+    written from the row's own ``_ta_grade`` (scan) / ``ta_grade`` (seed) by name."""
+    assert "ta_grade" not in RETIRED_COLUMNS
+    assert "ta_grade" in _literal_kwargs(writer_mod.archive_scan_results, "values")
+    assert "ta_grade" in _literal_kwargs(seed_mod.seed_archive, "overrides")
 
 
-def test_all_score_subscores_covered_by_exactly_one_producer():
-    """The WHOLE ``score_*`` family must be VALUE-mapped by exactly one of the
-    two registry-driven producers — never left to the auto-mapper.
-
-    History: the sub-scores arrive NESTED under ``best_result["sub_scores"]``,
-    while the auto-mapper only tries the flat ``best_result.get("score_X")`` —
-    which silently resolved to None when a hand literal was dropped (the
-    score_traversal_quality bug, then generalized). The task-6 fold cures the
-    class structurally: ``sub_score_archive_values`` reads the NESTED dict
-    directly for every always-emitted term, and ``ta_grade_archive_values``
-    carries the flag-gated term points (flat, archive-ready names). This guard
-    keeps the cure honest: every ``score_*`` model column is covered by
-    exactly ONE producer (disjoint, no gaps) — a new registry term whose
-    column neither producer emits fails here at add time."""
-    score_cols = frozenset(c for c in _model_columns() if c.startswith("score_"))
-    assert len(score_cols) >= 15, (
-        f"expected the full score_* family (~20 columns); found only "
-        f"{sorted(score_cols)} — the model changed shape or the guard is stale."
-    )
-    sub_covered = _sub_score_cols()
-    ta_covered = frozenset(c for c in _ta_grade_cols(prefixed=False)
-                           if c.startswith("score_"))
-    assert not (sub_covered & ta_covered), (
-        f"columns claimed by BOTH producers: {sorted(sub_covered & ta_covered)}"
-        " — a dict() with a key from two splats raises TypeError in the writer."
-    )
-    uncovered = score_cols - sub_covered - ta_covered
-    assert not uncovered, (
-        f"score_* column(s) {sorted(uncovered)} are covered by NEITHER "
-        "sub_score_archive_values NOR ta_grade_archive_values — the column "
-        "would silently NULL for every population. Add the term's column to "
-        "the producer that owns its data shape."
-    )
+def test_the_retired_literal_covers_every_old_family_column_and_both_writers_splat_it():
+    """Decision H: the frozen literal names every column the seven retired families wrote
+    (the whole ``score_*`` family, the HTF, Event Map, sentence, election-trace and strategy
+    families, and the old grade's companions) — all real model columns, no duplicates — and
+    both batch writers splat it so an upsert over an old-reader row empties them."""
+    model = _model_columns()
+    retired = frozenset(RETIRED_COLUMNS)
+    assert len(RETIRED_COLUMNS) == len(retired) == 68
+    assert retired <= model, sorted(retired - model)
+    assert {c for c in model if c.startswith("score_")} <= retired
+    assert {c for c in model if c.startswith(("htf_", "event_map_", "sentence_", "strategy_"))} <= retired
+    assert {"election_trace", "ta_grade_raw", "fired_tags", "setup_chronology"} <= retired
+    assert "retired_columns_null" in _splat_names(writer_mod.archive_scan_results, "values")
+    assert "retired_columns_null" in _splat_names(seed_mod.seed_archive, "overrides")
+    assert retired_columns_null() == {c: None for c in RETIRED_COLUMNS}
 
 
 def _manual_overrides_dict():
@@ -387,82 +306,23 @@ def _manual_overrides_dict():
     raise AssertionError("manual route `overrides = {...}` literal not found")
 
 
-def test_manual_route_score_coverage_with_declared_exclusions():
-    """Closes the unguarded-manual-route gap (task 6): the THIRD writer's
-    score_* coverage is registry-driven, and its deliberate NULLs are DECLARED
-    twice-coherently — in the route's ``exclude`` and in the mapper's frozen
-    ``_MANUAL_UNMAPPED_COLUMNS`` — never hand-omitted. A new score_* column
-    neither producer covers on this path fails here at add time."""
-    from domains.archive.queries import _MANUAL_UNMAPPED_COLUMNS
+def test_manual_route_splats_only_the_readers_family():
+    """The THIRD writer (the manual add) carries the reader's own family through the ONE
+    producer and names no retired producer: a writer left to a raw model pass bypasses the
+    family's serialization, scrubbing and closed-set refusals (EC-30, per writer). The
+    mapper it builds its row through auto-maps every other model column from the result,
+    so the retired columns land NULL on a manual row by construction."""
     d = _manual_overrides_dict()
-    literal_keys = {k.value for k in d.keys
-                    if k is not None and isinstance(k, ast.Constant)}
     splat_calls = [v for k, v in zip(d.keys, d.values)
                    if k is None and isinstance(v, ast.Call)]
     splat_names = {c.func.id if isinstance(c.func, ast.Name)
                    else getattr(c.func, "attr", "?") for c in splat_calls}
-    assert "sub_score_archive_values" in splat_names, (
-        "the manual route no longer splats the ONE sub-score producer")
-    # BOTH family producers, not one (council review 2026-08-08, finding 1:
-    # the route shipped with only the sub-score splat, so fired_tags reached
-    # the model pass as a raw Python list — a guaranteed flag-on bind error —
-    # and the EC-19 closed-set refusals never ran on this writer).
-    assert "ta_grade_archive_values" in splat_names, (
-        "the manual route no longer splats the TA-grade family producer — "
-        "fired_tags would bind as a raw list and the closed-set refusals "
-        "would not guard this writer (2026-08-08 review, finding 1)")
-    # EC-30, per-writer: ALL SIX family producers the live and seed writers
-    # splat must ride the manual route too — a writer left to a raw model pass
-    # bypasses the family's serialization, scrubbing, and closed-set refusals
-    # (2026-08-19 review: event_map / election_trace / strategy were missing,
-    # the fourth occurrence of the same class).
-    required_producers = {
-        "sub_score_archive_values",
-        "ta_grade_archive_values",
-        "htf_archive_values",
-        "event_map_archive_values",
-        "sentence_archive_values",
-        "election_trace_archive_values",
-        "strategy_archive_values",
-        # The two-eyes reader's own family (build task 6): both boxes with
-        # their anchor DAYS, which box the LPS was read against, and the
-        # three-state mini flag. NULL on every row the old reader writes.
-        "two_eyes_archive_values",
-    }
-    missing_producers = required_producers - splat_names
-    assert not missing_producers, (
-        f"manual route is missing family-producer splat(s) "
-        f"{sorted(missing_producers)} — EC-30 requires the producer on EVERY "
-        "writer of the table, guarded per writer.")
-    # The declared exclusion, read from the route's own source.
-    declared_excl: set = set()
-    for call in splat_calls:
-        name = call.func.id if isinstance(call.func, ast.Name) \
-            else getattr(call.func, "attr", "?")
-        if name != "sub_score_archive_values":
-            continue
-        for kw in call.keywords:
-            if kw.arg == "exclude":
-                for node in ast.walk(kw.value):
-                    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-                        declared_excl.add(node.value)
-    assert declared_excl == {"score_traversal_quality"}, (
-        f"manual route's declared exclusion drifted: {sorted(declared_excl)}")
-    assert declared_excl <= _MANUAL_UNMAPPED_COLUMNS, (
-        "the route's exclusion and the mapper's frozen _MANUAL_UNMAPPED_COLUMNS "
-        "disagree — the two declarations of the same deliberate NULL must match")
-    # Full score_* coverage on this path: the sub producer (minus the declared
-    # exclusion) + the TA-grade family splat's score_* columns (produced, no
-    # longer left to the model pass) + any literal keys.
-    score_cols = {c for c in _model_columns() if c.startswith("score_")}
-    ta_flat = {c for c in _ta_grade_cols(prefixed=False) if c.startswith("score_")}
-    covered = ((_sub_score_cols() - declared_excl)
-               | (ta_flat - _MANUAL_UNMAPPED_COLUMNS)
-               | (literal_keys & score_cols))
-    missing = score_cols - covered - _MANUAL_UNMAPPED_COLUMNS
-    assert not missing, (
-        f"score_* column(s) {sorted(missing)} are neither produced nor "
-        "declared-unmapped on the manual route — a silent NULL population.")
+    assert "two_eyes_archive_values" in splat_names, (
+        "the manual route no longer splats the reader's family producer")
+    retired_producers = {"sub_score_archive_values", "ta_grade_archive_values", "htf_archive_values",
+                         "event_map_archive_values", "sentence_archive_values",
+                         "election_trace_archive_values", "strategy_archive_values"}
+    assert not (splat_names & retired_producers), sorted(splat_names & retired_producers)
 
 
 def test_allowlist_has_no_dead_entries():
