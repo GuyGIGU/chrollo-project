@@ -837,6 +837,17 @@ default as ours.
    range, not where they turn to the cent. On DSGX's mark of 08/10 his box is the reader's
    mini inside the climax pair (as was his EHC fix of 17/10; he redrew EHC on 24/10 at the
    bar of 10/09, 124.25 / 120.42, which no mini reaches).
+   Measured again on his word of Fri 30/10/2026 (*"Still on High/LOW values only but with out
+   being hung on extremes"*, *"some sort 'Close Enough' approach to count touches"*), this time
+   as an election and not a hand-over: every bar, in its own daily range, counts for a pair when
+   an end of it touches a rail within half that range and against it when the whole bar sits
+   beyond a rail, and the pair the bars respect most over a window is the box, the box shown
+   giving way only to a lead of three touches (and, in one form, only once its own touches had
+   stopped). On his 51 drawings with a trigger the fires held, 41 to 43 of 51, and his box to the
+   cent fell from 28 to between 3 and 17: the election wins the four shelf charts he drew that
+   night (ANET of 02/10, CLOV, DDI of 30/09, VTMX) and loses some twenty of his wide boxes to
+   tighter pairs inside them, for the reason above. It is built behind a switch, off; the first
+   respected pair stands, and the shelf inside a wide box is his eye's work at review.
 4. **The box's life.** A box ends only by what the bars do, and only into a new box: *"if the
    price continues to Rise/Fall with out recovering we can deduce that either that the
    consolidating structure we measured ended and the price began to trend"*, *"its tricky
@@ -897,7 +908,19 @@ default as ours.
    gone. His words on the step: *"after the base the price simply continued to consolidate
    at a higher price and so both resistance and support gradually shifted into the mini
    base and it serves as an extension of the original"*. What "beyond" is, how long "no
-   longer" is (his fifteen days) and which old rail it is read on are ours.
+   longer" is (his fifteen days) and which old rail it is read on are ours. On the same step he
+   ruled again on Fri 30/10/2026: *"it can read as a new base! that's the reason for it's black
+   box, it has its own anchors and the price respects it"*. So a later box with its own anchors
+   the bars respect is a box of its own, and the earlier one is the box before it in the record;
+   the far-rail rule stands as built, and what the reader shows on DSGX today (the June box, the
+   step as its mini) is a known miss of his drawing, not a ruling.
+   **The mini is sunset (Fri 30/10/2026).** His word: *"for now i want you to sun set, mini
+   consolidation detection, i find it to be hard to tune, lets focus on the simple core of the
+   reader for now"*. The second box inside the parent's right side is no longer read and the LPS
+   is read against the parent alone; the stage is kept whole behind a switch. Measured the same
+   night on his 51 drawings with a trigger: the same fires, the same boxes, the same triggers;
+   nothing moved on the junk charts or the reader pin. His ruling of Sun 20/09/2026 that both
+   boxes live stays on the record as the rule the stage was built to; the sunset is "for now".
    And his anchor rule: *"We can't start the anchor from the opposite direction of the trend
    if we are still inside that trend"* (Mon 27/07/2026). A box whose first anchor sat on a
    top inside a rise that had not ended — a pause on the way up — gives way to the box that

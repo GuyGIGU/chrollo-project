@@ -95,6 +95,14 @@ in ``two_eyes_numbers``, each read where the walk decides and each ON by default
 the other end of one wide bar is listed) and ``CLIMAX_BAR_OWN_REACTION`` (``pairs_from``: a pair opening on a
 trend end's climax bar may take its second anchor from that bar). A reading is measured as one switch off plus one run of
 ``tools.calibration.fires_board`` on his live drawings; none is ruled on.
+
+The election by respect (Fri 30/10/2026; ``RESPECT_ELECTS``, off by default): his direction after the mini stage,
+*"Still on High/LOW values only but with out being hung on extremes"* and *"we should have some sort 'Close Enough'
+approach to count touches"*. Among the pairs that are boxes the one the bars respect most is shown: each bar, in its
+own daily range, counts for a pair when an end of it touches a rail and against it when the whole bar sits beyond
+one (``respect_marks``), and a pair takes the shown box's place on the first day it leads by the margin over the days
+since the later of the two opened (``out_respected``). Under it the left-for-good, way-back and wraps hand-overs are
+not asked; the live-trend and tried-first hand-overs stay. The window, the margin and the area are OURS.
 """
 from __future__ import annotations
 
@@ -110,7 +118,8 @@ from engine_alpha.two_eyes.runs import _cmp
 __all__ = ["End", "Life", "Pair", "Walk", "bar_respects", "came_back", "came_back_to", "connects", "elect",
            "far_rail", "first_foot", "inside_a_live_trend", "knew_the_rails", "known_by", "left_for_good", "lies_beyond",
            "lives", "measure", "move_began", "poke_came_back", "poke_stayed_in",
-           "pairs_from", "rail_of", "record", "swing_ends", "trend_ends", "wraps", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD",
+           "out_respected", "pairs_from", "rail_of", "record", "respect_cum", "respect_marks", "swing_ends", "trend_ends",
+           "wraps", "CAME_BACK", "FIRST_BOX", "LEFT_FOR_GOOD", "RESPECTED",
            "TRIED_FIRST", "LIVE_TREND", "WRAPS", "LINES_NO_LPS", "UNFIT_TALL", "UNFIT_WHOLE_MOVE"]
 
 #: Why a listed pair can never be a box.
@@ -130,6 +139,9 @@ CAME_BACK = "the dip came back: the bars are back at both rails of the box it ha
 #: to match better with the ranges of the actual price action"*: a box the bars never came back to at one of its rails
 #: does not wrap them; the tighter pair inside it that they do come back to is the box (``wraps``).
 WRAPS = "the box was one bar's own high and low; the pair inside it the bars live in and come back to is the box"
+#: His direction of Fri 30/10/2026 (*"Still on High/LOW values only but with out being hung on extremes"*): the box is
+#: the pair the bars respect most, judged by touches in each bar's own range (``out_respected``; behind ``RESPECT_ELECTS``).
+RESPECTED = "the bars respect the pair more than the box before it: they touch its rails and it wraps them"
 
 RESISTANCE, SUPPORT = "R", "S"
 _BOTH = frozenset((RESISTANCE, SUPPORT))
@@ -438,6 +450,7 @@ class Life:
     why: str
     ended_bar: Optional[int] = None
     trend_end: Optional[dict] = None    # the trend end whose rise or fall swallowed the box before it
+    lead: Optional[int] = None          # by how many touches it led the box before it (the election by respect)
 
 
 def poke_came_back(shown: Pair, high, low, climax_bar: int, read_bar: int) -> Optional[bool]:
@@ -649,13 +662,69 @@ def came_back_to(old: Pair, shown: Pair, high, low, since: int, read_bar: int) -
     return int(days[back[0]]) if len(back) else None
 
 
+def respect_marks(high, low, ranges, R: float, S: float) -> tuple:
+    """His close-enough (Fri 30/10/2026), each bar in its OWN daily range: ``(on_r, on_s)``, for every bar +1 when an
+    end of it sits within ``RESPECT_AREA_RANGES`` of that rail and closer to it than to the other (a touch: resting,
+    stopping short or poking out slightly, his "whenever they are slightly poking out or not does not matter one
+    bit"), -1 when the whole bar sits beyond the rail by more than that (a bar the pair does not wrap: the one
+    judgment ``state.side`` makes of the right edge), 0 for a bar inside the box or short of the rail."""
+    area = float(M.RESPECT_AREA_RANGES) * np.asarray(ranges, dtype=float)
+    high, low = np.asarray(high, dtype=float), np.asarray(low, dtype=float)
+    on_r, on_s = _respects(high, low, R, S, area)
+    over, under = low > R + area, high < S - area
+    return on_r.astype(np.int8) - over.astype(np.int8), on_s.astype(np.int8) - under.astype(np.int8)
+
+
+def respect_cum(high, low, ranges, R: float, S: float) -> np.ndarray:
+    """The running sum of a pair's marks on both rails, with a leading zero: its score over bars ``a`` to ``d`` is
+    ``cum[d + 1] - cum[a]``."""
+    on_r, on_s = respect_marks(high, low, ranges, R, S)
+    return np.concatenate(([0], np.cumsum(on_r.astype(int) + on_s.astype(int))))
+
+
+def out_respected(shown: Pair, new: Pair, cum_shown, cum_new, since: int, read_bar: int) -> Optional[tuple]:
+    """The election by respect (Fri 30/10/2026; behind ``RESPECT_ELECTS``): the first day from ``since`` on, never
+    before ``new`` is a box, on which ``new`` leads the shown pair by ``RESPECT_MARGIN`` touches over the last
+    ``RESPECT_WINDOW_DAYS`` trading days: ``(day, lead)``, or None by the read day. ONE window for every pair, the
+    same days for all: a window that started at each pair's own opening made the lead non-transitive, so three pairs
+    could each beat the next round the ring on one day and the chain never moved on (measured Fri 30/10/2026 on his
+    SILC and ANRO). The margin is the incumbent's: on equality, and short of it,
+    the box shown stands, and the challenger's own score must reach the margin as well: a pair the bars never
+    visit does not out-respect a box they have run away from. Both pairs are scored over the SAME days, each bar in its own range, so neither buys respect
+    with a wide unit of its own (the one-bar box, his AMTB). A pair that opened earlier may win this way: the box
+    given up wins its place back when the bars come back to it (his STGW), an earlier tighter pair when they live in
+    it (his HCA)."""
+    if new.birth_bar is None:
+        return None
+    start = max(int(since), int(new.birth_bar))
+    if start > int(read_bar):
+        return None
+    window = int(M.RESPECT_WINDOW_DAYS)
+    if window < 1:
+        raise ValueError("the election by respect reads the last RESPECT_WINDOW_DAYS days: it must be at least 1")
+    days = np.arange(start, int(read_bar) + 1)
+    opens = np.maximum(0, days - (window - 1))
+    own, kept = cum_new[days + 1] - cum_new[opens], cum_shown[days + 1] - cum_shown[opens]
+    lead = own - kept
+    # The challenger must itself be respected, not merely untouched: a box the price has run away from scores
+    # under zero (every bar wholly beyond it counts against it), and a pair the bars never visit scores nothing,
+    # which would "lead" it. So its own score must reach the margin too. And the box shown gives way only once
+    # the bars have STOPPED respecting it (its own score under the margin): his sentence 9, a box stays a box
+    # while the bars come back to it, whatever tighter pair they also touch inside it. Measured without this
+    # clause on his 51 (Fri 30/10/2026): the fires held (42 of 51) but his box to the cent fell from 28 to 5-10,
+    # a tighter inner pair taking the place on some twenty of his drawings.
+    margin = float(M.RESPECT_MARGIN)
+    won = np.flatnonzero((lead >= margin) & (own >= margin) & (kept < margin))
+    return (int(days[won[0]]), int(lead[won[0]])) if len(won) else None
+
+
 def _key(pair: Pair) -> tuple:
     """The order boxes are tried in: the day the pair became a box, then the earlier opening, then the earlier
     second anchor, then the tighter; the feet last, so equal pairs never tie."""
     return (pair.birth_bar, pair.opening_bar, pair.second_bar, pair.height, pair.r_index, pair.s_index)
 
 
-def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True) -> tuple:
+def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True, ranges=None) -> tuple:
     """The box's life, read day by day on what each day knew. The first pair to become a box is shown. A pair
     that is a box takes its place when the shown pair was anchored inside a live trend (``inside_a_live_trend``:
     judged once that trend end is known) or on the first day the price has left it for good (``left_for_good``).
@@ -671,61 +740,97 @@ def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True) -> 
     first day the bars have come back to both its rails while none since the box opened has come back to one of
     the box's rails, read in the tighter pair's own range (``wraps``; his AMTB, Wed 28/10/2026: the box must wrap
     the bars). Every box handed over
-    stays, with the day its lines stop; the last one stands."""
+    stays, with the day its lines stop; the last one stands. Under ``RESPECT_ELECTS`` (Fri 30/10/2026) the
+    left-for-good, way-back and wraps hand-overs are not asked: a pair that is a box, whenever it opened, takes the
+    shown box's place on the first day the bars respect it more by the margin (``out_respected``, each bar in its
+    own daily range, ``ranges``); the live-trend and tried-first hand-overs stay."""
+    if M.RESPECT_ELECTS and ranges is None:
+        raise ValueError("the election by respect reads each bar's own daily range: pass ranges")
     born = sorted((p for p in pairs if p.birth_bar is not None), key=_key)
     if not born:
         return ()
-    out = []
-    shown, day, why, trend, before = born[0], int(born[0].birth_bar), FIRST_BOX, None, None
+    elects, cums = bool(M.RESPECT_ELECTS), {}
+
+    def cum(pair: Pair):
+        if pair.feet not in cums:
+            cums[pair.feet] = respect_cum(high, low, ranges, pair.R, pair.S)
+        return cums[pair.feet]
+
+    out, vetoed = [], set()
+    shown, day, why, trend, lead, before = born[0], int(born[0].birth_bar), FIRST_BOX, None, None, None
+    # The loop ends: every hand-over moves the day forward, or on one day raises the score of the box shown by the
+    # margin (the election: one window for all, so it cannot cycle), or vetoes one more pair (the live-trend kind).
+    # A chain longer than every pair could be handed over on every day is a cycle: refused out loud, never a hang
+    # (the read then counts as a crash, which is what a reader that cannot finish must say).
+    cap = (len(born) + 1) * (int(read_bar) + 2)
     while True:
+        if len(out) > cap:
+            tail = ", ".join(f"{life.pair.R:.2f}/{life.pair.S:.2f} on bar {life.shown_bar} ({life.why[:24]})"
+                             for life in out[-8:])
+            raise RuntimeError(f"the box's life does not end: {len(out)} hand-overs; the last: {tail}")
         best = None
         if why == LEFT_FOR_GOOD and before is not None and shown.S < before.R - before.area:
             # The shown pair lies under the box it took over from: the price had left that box downward.
             back = came_back_to(before, shown, high, low, day, read_bar)
             if back is not None:
-                best = ((back, ()), before, CAME_BACK, None)    # the empty key: it comes before a pair of that day
+                best = ((back, 0, ()), before, CAME_BACK, None, None)    # the empty key: before a pair of that day
         for pair in born:
             if best is not None and pair.birth_bar > best[0][0]:
                 break                   # born after the best day found: no later-born pair can come before it
             if pair.opening_bar == shown.opening_bar and pair.second_bar < shown.second_bar \
                     and int(pair.birth_bar) > day:
                 # The sibling tried before the shown pair (sentence 5) is a box: it takes the place on its birth.
-                order = (int(pair.birth_bar), _key(pair))
+                order = (int(pair.birth_bar), 0, _key(pair))
                 if best is None or order < best[0]:
-                    best = (order, pair, TRIED_FIRST, None)
+                    best = (order, pair, TRIED_FIRST, None, None)
+                continue
+            when = took = by = ahead = None
+            if elects and pair.feet in vetoed:
+                # Under the election a pair that gave way because it was anchored inside a live trend never comes
+                # back: his anchor rule is a veto, not a score (else the two hand-overs ping-pong on one day and the
+                # chain never moves on: measured on his SILC, Fri 30/10/2026).
                 continue
             if pair.opening_bar <= shown.opening_bar:
-                continue
-            # The day this pair would take the shown box's place: the day a trend end that swallowed the shown
-            # pair was known (never before the pair is a box), or the first day the price has left for good.
-            when = took = by = None
-            swallowed = inside_a_live_trend(shown, pair, trends, read_bar, high, low, known_rails)
-            if swallowed is not None:
-                when, took, by = max(int(pair.birth_bar), int(swallowed["known_bar"])), LIVE_TREND, swallowed
-                if swallowed["kind"] == "BC" and (swallowed["climax_bar"] > int(shown.birth_bar) or (
-                        known_rails and _run_over_a_known_pair(shown, swallowed, high, low))):
-                    # A run past the top of a box already born, or of a pair the bars knew, is judged on the last
-                    # of the fifteen days from its top (``poke_came_back``, ``poke_stayed_in``, by then known):
-                    # the rise takes the place no sooner.
-                    when = max(when, int(swallowed["climax_bar"]) + int(M.BOX_DAYS) - 1)
-            left = left_for_good(shown, pair, high, low, day, read_bar)
-            if left is not None and (when is None or left < when):
-                when, took, by = left, LEFT_FOR_GOOD, None
-            wrap = wraps(shown, pair, high, low, day, read_bar) if M.WRAP_TAKES_OVER else None
-            if wrap is not None and (when is None or wrap < when):
-                when, took, by = wrap, WRAPS, None
+                if not elects or pair.feet == shown.feet:
+                    continue            # as built, only a pair that opened later takes the place
+            else:
+                # The day this pair would take the shown box's place: the day a trend end that swallowed the shown
+                # pair was known (never before the pair is a box), or the first day the price has left for good.
+                swallowed = inside_a_live_trend(shown, pair, trends, read_bar, high, low, known_rails)
+                if swallowed is not None:
+                    when, took, by = max(int(pair.birth_bar), int(swallowed["known_bar"])), LIVE_TREND, swallowed
+                    if swallowed["kind"] == "BC" and (swallowed["climax_bar"] > int(shown.birth_bar) or (
+                            known_rails and _run_over_a_known_pair(shown, swallowed, high, low))):
+                        # A run past the top of a box already born, or of a pair the bars knew, is judged on the last
+                        # of the fifteen days from its top (``poke_came_back``, ``poke_stayed_in``, by then known):
+                        # the rise takes the place no sooner.
+                        when = max(when, int(swallowed["climax_bar"]) + int(M.BOX_DAYS) - 1)
+                if not elects:
+                    left = left_for_good(shown, pair, high, low, day, read_bar)
+                    if left is not None and (when is None or left < when):
+                        when, took, by = left, LEFT_FOR_GOOD, None
+                    wrap = wraps(shown, pair, high, low, day, read_bar) if M.WRAP_TAKES_OVER else None
+                    if wrap is not None and (when is None or wrap < when):
+                        when, took, by = wrap, WRAPS, None
+            if elects:
+                won = out_respected(shown, pair, cum(shown), cum(pair), day, read_bar)
+                if won is not None and (when is None or won[0] < when):
+                    when, took, by, ahead = won[0], RESPECTED, None, won[1]
             if when is None:
                 continue
-            order = (max(when, day), _key(pair))
+            order = (max(when, day), 0 if ahead is None else -ahead, _key(pair))
             if best is None or order < best[0]:
-                best = (order, pair, took, by)
+                best = (order, pair, took, by, ahead)
         if best is None:
-            out.append(Life(shown, shown_bar=day, why=why, trend_end=trend))
-            return tuple(out)
+            break
         out.append(Life(shown, shown_bar=day, why=why, ended_bar=max(best[1].opening_bar, shown.second_bar),
-                        trend_end=trend))
+                        trend_end=trend, lead=lead))
+        if best[2] == LIVE_TREND:
+            vetoed.add(shown.feet)
         before = shown
-        shown, day, why, trend = best[1], best[0][0], best[2], best[3]
+        shown, day, why, trend, lead = best[1], best[0][0], best[2], best[3], best[4]
+    out.append(Life(shown, shown_bar=day, why=why, trend_end=trend, lead=lead))
+    return tuple(out)
 
 
 @dataclass(frozen=True)
@@ -763,7 +868,7 @@ def elect(turns, far_turns, ranges, high, low, days=None, read_bar: Optional[int
     pairs = {}
     for pair in pairs_from(ends, walked, high, low, ranges, read_bar):
         pairs.setdefault(pair.feet, pair)
-    history = lives(pairs.values(), walked, high, low, read_bar)
+    history = lives(pairs.values(), walked, high, low, read_bar, ranges=ranges)
     return Walk(ends=tuple(trends), pairs=pairs, winner=history[-1].pair if history else None, turns=tuple(turns),
                 days=None if days is None else tuple(days), lives=history, swing_ends=tuple(ends))
 
@@ -817,6 +922,12 @@ def _hand_over_words(walk: Walk, life: Life, new: Life) -> str:
         return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: one bar's own high and low, "
                 f"and the bars never came back to one of its rails; {pair.R:.2f} / {pair.S:.2f}, the pair inside them "
                 f"they do come back to, took its place on {_when(walk, new.shown_bar)}")
+    elif new.why == RESPECTED:
+        since = _when(walk, max(old.opening_bar, pair.opening_bar))
+        return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: since {since} the bars respect "
+                f"{pair.R:.2f} / {pair.S:.2f} more, {new.lead} touches ahead (an end of a bar within "
+                f"{float(M.RESPECT_AREA_RANGES):g} of its day's range of a rail counts for the pair, a bar wholly beyond a "
+                f"rail against it), and it took its place on {_when(walk, new.shown_bar)}")
     elif new.why == TRIED_FIRST:
         which = "the earlier reaction low" if pair.top_first else "the earlier reaction high"
         return (f"the box {old.R:.2f} / {old.S:.2f} ended {_when(walk, life.ended_bar)}: {pair.R:.2f} / "

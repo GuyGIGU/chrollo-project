@@ -556,6 +556,82 @@ def test_the_switches_default_to_the_rule_as_built():
 
     assert (M.ONE_BAR_PAIR, M.GAP_BAR_LOW_IS_REACTION, M.WIDE_ENDS, M.CLIMAX_BAR_OWN_REACTION,
             M.WRAP_TAKES_OVER) == (True,) * 5
+    # His direction of Fri 30/10/2026, each a switch that defaults to the reader as built: the election by respect is
+    # off and the mini stage is on until the board says otherwise.
+    assert (M.RESPECT_ELECTS, M.MINI_ENABLED) == (False, False)
+
+
+def _shelf_chart() -> dict:
+    """A rise into a spike at 80 (bar 11), its reaction 70 (bar 14), the bars back at 80 (17) and 70 (20): the wide
+    box 80 / 70 is born on bar 25. From bar 23 on the bars settle on a shelf 76 / 73 and live there: his ANET, VTMX,
+    CLOV and CBLL of Fri 30/10/2026, where the reader hung a rail on the spike and he drew the shelf."""
+    shelf = [(23, 76.0), (26, 73.0), (29, 76.2), (32, 73.1), (35, 75.9), (38, 73.0), (41, 76.1), (44, 72.9),
+             (47, 76.0), (50, 73.1), (53, 75.8), (56, 73.2)]
+    return _chart(_RISE + [(17, 79.6), (20, 70.4)] + shelf)
+
+
+def test_respect_marks_count_a_touch_for_a_pair_and_a_bar_wholly_beyond_a_rail_against_it():
+    """His close-enough (Fri 30/10/2026), each bar in its OWN daily range: a rail 10 / 8, every bar's range 1 (an area
+    of half a point). An end within the area of the rail it is closest to is a touch (+1); a bar wholly beyond a rail
+    by more than the area counts against the pair (-1); a bar inside, or short of the area, counts nothing."""
+    from engine_alpha.two_eyes import walk
+
+    high = [10.2, 9.0, 11.0, 7.0, 8.4, 10.6]
+    low = [9.9, 8.6, 10.6, 6.5, 7.6, 9.2]
+    on_r, on_s = walk.respect_marks(high, low, np.ones(6), 10.0, 8.0)
+    assert on_r.tolist() == [1, 0, -1, 0, 0, 0]       # at R; inside; wholly over R; under S; at S; a poke past the area
+    assert on_s.tolist() == [0, 0, 0, -1, 1, 0]
+    # The area is the bar's OWN range: the same bars read in a range of two touch where they stopped short before.
+    wide_r, wide_s = walk.respect_marks(high, low, np.full(6, 2.0), 10.0, 8.0)
+    assert wide_r.tolist() == [1, 1, 1, 0, 0, 1] and wide_s.tolist() == [0, 1, 0, 1, 1, 0]
+    cum = walk.respect_cum(high, low, np.ones(6), 10.0, 8.0)
+    assert cum.tolist() == [0, 1, 1, 0, -1, 0, 0] and cum[6] - cum[0] == 0 and cum[2] - cum[0] == 1
+
+
+def test_under_the_election_by_respect_the_shelf_the_bars_live_on_takes_the_spike_boxs_place(monkeypatch):
+    """His direction of Fri 30/10/2026: *"Still on High/LOW values only but with out being hung on extremes"*. As
+    built the wide box 80 / 70 is shown for good: its spike rail is a swing's end the bars came back to once, and
+    the shelf inside it, 76 / 73, is only its mini. Under ``RESPECT_ELECTS`` the shelf is the box: over the days
+    since it opened the bars touch its two rails and never the spike's, so it leads by the margin on the day it is a
+    box (bar 37, its fifteenth) and takes the place; the hand-over is dated on what its own day knew, told the same
+    on every later day, and said in the trail. The margin is the incumbent's: raised out of reach, the wide box
+    stands."""
+    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha.two_eyes import walk
+
+    chart = _shelf_chart()
+    as_built = _elect(chart)
+    assert _box(as_built) == (80.0, 70.0) and len(as_built.lives) == 1 and _pair(as_built, 76.0, 73.0).birth_bar == 37
+    _switched(monkeypatch, RESPECT_ELECTS=True)
+    found = _elect(chart)
+    first, then = found.lives
+    assert (first.pair.R, first.pair.S, first.shown_bar, first.why, first.ended_bar) == (80.0, 70.0, 25, walk.FIRST_BOX, 23)
+    assert (then.pair.R, then.pair.S, then.shown_bar, then.why) == (76.0, 73.0, 44, walk.RESPECTED)
+    assert then.lead is not None and then.lead >= M.RESPECT_MARGIN
+    wide, tight = first.pair, then.pair
+    cum_wide = walk.respect_cum(chart["high"], chart["low"], chart["ranges"], wide.R, wide.S)
+    cum_tight = walk.respect_cum(chart["high"], chart["low"], chart["ranges"], tight.R, tight.S)
+    n = chart["n"]
+    assert cum_wide[n] - cum_wide[23] == 0, "the bars never touch the spike or the reaction low after the shelf opens"
+    assert walk.out_respected(wide, tight, cum_wide, cum_tight, 25, n - 1) == (44, then.lead)
+    assert walk.out_respected(wide, tight, cum_wide, cum_tight, 25, 43) is None, "not before the spike box's own touches fell under the margin"
+    assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (76.0, 73.0, 44)]
+    boxes, trail, _ = walk.record(found)
+    assert trail[0].stage == "hand-over" and "the bars respect 76.00 / 73.00 more" in trail[0].saying
+    assert f"{then.lead} touches ahead" in trail[0].saying and "80.00 / 70.00" in trail[0].saying
+    assert boxes[0].end_day is not None and boxes[-1].resistance.price == 76.0
+    # The margin is the incumbent's.
+    monkeypatch.setattr(M, "RESPECT_MARGIN", 1000)
+    assert _box(_elect(chart)) == (80.0, 70.0) and len(_elect(chart).lives) == 1
+    monkeypatch.setattr(M, "RESPECT_MARGIN", 3)
+    # The election reads each bar's own range: the walk refuses to run it without one.
+    with pytest.raises(ValueError, match="own daily range"):
+        walk.lives(found.pairs.values(), [], chart["high"], chart["low"], n - 1)
+    # The box whose rails the bars DO come back to keeps its place: a box of a climax and its reaction the bars keep
+    # touching is not out-respected by any pair inside it (the one-wide-bar chart: 80 / 76 over bars at 79.6 and 76.4).
+    kept, turns = _gap_climax_chart()
+    found = walk.elect(turns, turns, kept["ranges"], kept["high"], kept["low"], read_bar=kept["n"] - 1)
+    assert _box(found) == (80.0, 76.0) and len(found.lives) == 1
 
 
 def test_the_climax_bar_switch_off_never_takes_both_anchors_from_a_trend_ends_climax_bar(monkeypatch):
@@ -1350,7 +1426,7 @@ def test_read_fills_the_record_from_the_walk():
     boxes, trail, state = walk.record(result)
     assert state == "lines, no LPS yet"
     won = result.winner
-    inner = mini.find(result, high, low, len(prepared) - 1)
+    inner = mini.find(result, high, low, len(prepared) - 1, ranges=ranges) if M.MINI_ENABLED else ()
     if inner:
         mini_box, mini_step = mini.record(result, inner)
         boxes, trail = boxes + (mini_box,), trail + (mini_step,)
@@ -1376,8 +1452,9 @@ def test_read_fills_the_record_from_the_walk():
     # The LPS against the mini (task 13) when the mini became a box only after the pullback ended: the read says
     # so in a step of its own and reads the LPS against the parent. The chain above does not model it; NKTR does.
     # (Its LPS record is None on this day: the parent's read is what stands, the step is the pin.)
+    # Pinned only with the mini on: with the stage sunset (MINI_ENABLED off) there is no such step.
     nktr = next((k for k in frames if k.startswith("NKTR:")), None)
-    if nktr is not None:
+    if nktr is not None and M.MINI_ENABLED:
         later = two_eyes.read(nktr, frames[nktr])
         assert later.failed is False
         assert any(s.stage == "LPS" and "became a box only" in s.saying for s in later.trail), later.trail

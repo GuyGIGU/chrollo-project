@@ -203,3 +203,33 @@ CLIMAX_BAR_OWN_REACTION = True
 #: — a climax and its reaction, his SILC — keeps its place whatever sits inside it. Off: a pair inside or across the
 #: box never takes its place (the rule as built before Thu 29/10/2026).
 WRAP_TAKES_OVER = True
+
+# --- The election by respect and the mini's sunset (Fri 30/10/2026): his direction, each a switch ----------------
+# His words that night: *"for now i want you to sun set, mini consolidation detection, i find it to be hard to tune,
+# lets focus on the simple core of the reader for now. Lets follow your direction for the Engine, Still on High/LOW
+# values only but with out being hung on extremes"*, and on counting touches: *"we should have some sort 'Close
+# Enough' approach to count touches, plenty of the boxes work because most of the price action was in the area of
+# said rails and it means that they in fact respect that range ... every setup is unique regarding it's bar spread
+# ... the engine misses better more 'Correct' results because it found a more 'lazy' alternative"*. Both switches
+# default to the reader as built; a measurement flips them on the fires board.
+
+#: The box is the pair the bars RESPECT most, not the first pair to become one: among the pairs that are boxes, a
+#: pair takes the shown box's place on the first day it leads it by RESPECT_MARGIN touches over the last
+#: RESPECT_WINDOW_DAYS trading days (one window for every pair: the same days for all, or the lead is not transitive
+#: and the chain cycles), its own score reaching the margin too, each bar read in its OWN daily range, his "per stock" close-enough: +1 for a bar whose end sits within RESPECT_AREA_RANGES of the rail
+#: it is closest to (a touch; poking out slightly counts), -1 for a bar wholly beyond a rail by more than that (a
+#: bar the pair does not wrap), 0 for a bar inside (``walk.respect_marks``, ``walk.out_respected``). A pair that
+#: opened earlier may win this way too (the way back; his HCA's earlier pair). Under it the left-for-good, way-back
+#: and wraps hand-overs are not asked (the pair the bars live in wins in either direction); the live-trend and
+#: tried-first hand-overs stay. Off: the chain of hand-overs as built.
+RESPECT_ELECTS = False
+RESPECT_AREA_RANGES = 0.5
+RESPECT_MARGIN = 3
+RESPECT_WINDOW_DAYS = 30
+
+#: The mini stage: a second box inside the parent's right side, and the LPS read against it when its low is in,
+#: on or near it. Off: no mini is read and the LPS reads against the parent alone. OFF since Fri 30/10/2026 on his word
+#: (*"sun set, mini consolidation detection, i find it to be hard to tune"*), measured free that night: on his 51 with a
+#: trigger the same 43 fires, the same boxes, the same triggers; the junk's 47 fire days unchanged; the reader pin
+#: zero-diff. The stage is kept whole behind the switch.
+MINI_ENABLED = False

@@ -61,7 +61,7 @@ def is_a_mini(pair: Pair, parent: Pair) -> bool:
 # --------------------------------------------------------------------------- #
 # The mini's life, by the walk's own rule                                     #
 # --------------------------------------------------------------------------- #
-def find(found: Walk, high, low, read_bar: int) -> tuple:
+def find(found: Walk, high, low, read_bar: int, ranges=None) -> tuple:
     """Walk eligible inner pairs; return their history only if the last is a small box inside the parent."""
     chosen = candidates(found)
     if not chosen:
@@ -69,7 +69,7 @@ def find(found: Walk, high, low, read_bar: int) -> tuple:
     walked = [t for t in found.ends if t.get("foot_bar") is not None]
     # His HCA reading (a pair the bars knew stands through a run that came back) is not asked of inner pairs:
     # inside the parent every inner pair's rails are levels the bars knew, so it would say nothing there.
-    history = tuple(lives(chosen, walked, high, low, read_bar, known_rails=False))
+    history = tuple(lives(chosen, walked, high, low, read_bar, known_rails=False, ranges=ranges))
     if not history or not is_a_mini(history[-1].pair, found.winner):
         return ()
     return history

@@ -190,9 +190,12 @@ def test_his_frph_box_is_mostly_dead_space_and_his_unf_box_is_not(unf_and_frph):
     assert (frph["Dp"], unf["Dp"]) == (frph["D"], unf["D"]), "both read on the parent already"
 
 
-def test_the_parent_reading_takes_the_parents_dead_days_when_the_lps_was_read_against_the_mini():
+def test_the_parent_reading_takes_the_parents_dead_days_when_the_lps_was_read_against_the_mini(monkeypatch):
     """His VIK: the LPS is read against the mini, whose days after THE SOS of the parent are the mini's own push and
     pullback; the parent reading (beside the grade) takes the parent's base, where 1 day of 15 has no bar in the box."""
+    from engine_alpha import two_eyes_numbers as M
+
+    monkeypatch.setattr(M, "MINI_ENABLED", True)     # the stage is sunset (Fri 30/10/2026) and pinned here behind its switch
     from core.calibration.replay import fixture_frame, load_sealed_fixture
     from tools.calibration import core_board
     from tools.calibration.grade_probe import measures

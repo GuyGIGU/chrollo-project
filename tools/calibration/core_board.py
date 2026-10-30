@@ -90,7 +90,8 @@ def read_day(ticker: str, raw, day) -> dict:
     # against; with no LPS on the record (crossed, refused) the reader's one chooser says which band the
     # pullback's low sits in. Against the mini, the pullback is measured again on the mini's lines, as the read
     # does, with the same fall-back to the parent.
-    history = mini.find(found, high, low, len(prepared) - 1)
+    # As the read does: behind MINI_ENABLED (Fri 30/10/2026), and with each bar's range for the election by respect.
+    history = mini.find(found, high, low, len(prepared) - 1, ranges=ranges) if M.MINI_ENABLED else ()
     mini_pair = history[-1].pair if history else None
     if read.lps is not None:
         role = read.lps.read_against

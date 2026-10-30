@@ -44,6 +44,15 @@ def _walk_on_his_last_day(setup: dict):
     return found, days, prepared, cut
 
 
+@pytest.fixture(autouse=True)
+def _the_mini_stage_on(monkeypatch):
+    """The stage is sunset (``MINI_ENABLED`` off since Fri 30/10/2026, his word) and kept whole behind its switch: this
+    module pins the stage itself, so it reads with the switch ON. The one test of the sunset turns it off again."""
+    from engine_alpha import two_eyes_numbers as M
+
+    monkeypatch.setattr(M, "MINI_ENABLED", True)
+
+
 @pytest.fixture(scope="module")
 def his_minis() -> list:
     """His drawings that carry a mini, each with the walk on his last receding day."""
@@ -346,6 +355,24 @@ def test_a_fault_in_the_mini_leaves_the_parent_only_read_standing(his_40, monkey
     assert read.mini is None and read.boxes[-1] == read.parent
     said = [s for s in read.trail if s.stage == "mini"]
     assert len(said) == 1 and "could not be read" in said[0].saying and "on purpose" in said[0].saying
+
+
+def test_with_the_mini_switched_off_the_read_carries_no_mini_and_the_lps_reads_against_the_parent(his_40, monkeypatch):
+    """His word of Fri 30/10/2026: *"for now i want you to sun set, mini consolidation detection"*. ``MINI_ENABLED``
+    off: DSGN, whose LPS reads against the mini with it on, carries no mini box, no mini step, and its LPS is read
+    against the parent with no word for how it sat; the parent and its lines are what they were. Nothing is deleted:
+    the switch back is one line."""
+    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha.two_eyes import ROLE_MINI, ROLE_PARENT
+
+    row, with_mini = _read_his(his_40, "DSGN")
+    assert with_mini.mini is not None and with_mini.lps.read_against == ROLE_MINI
+    monkeypatch.setattr(M, "MINI_ENABLED", False)
+    row, read = _read_his(his_40, "DSGN")
+    assert read.failed is False and read.mini is None and not any(b.role == ROLE_MINI for b in read.boxes)
+    assert read.parent == with_mini.parent and read.boxes == with_mini.boxes[:-1]
+    assert read.lps is not None and read.lps.read_against == ROLE_PARENT and read.lps.how is None
+    assert not any(s.stage == "mini" for s in read.trail)
 
 
 def test_no_read_of_his_40_carries_the_minis_failure_step(his_40):

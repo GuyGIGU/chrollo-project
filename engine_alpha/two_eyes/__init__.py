@@ -96,10 +96,12 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         # says why, never `crashed`, because by his ruling the LPS may be read
         # against the mini (stage 6), so a bug in the mini must never cost a
         # fire.
+        # Behind ``MINI_ENABLED`` (his word, Fri 30/10/2026: "sun set, mini consolidation detection"): off, no mini is
+        # read and the LPS below reads against the parent alone.
         mini_box = mini_pair = None
-        if found.winner is not None:
+        if found.winner is not None and M.MINI_ENABLED:
             try:
-                history = mini.find(found, high, low, len(prepared) - 1)
+                history = mini.find(found, high, low, len(prepared) - 1, ranges=ranges)
                 if history:
                     mini_box, step = mini.record(found, history)
                     mini_pair = history[-1].pair

@@ -1163,11 +1163,14 @@ def test_an_etf_universe_that_fails_after_refusing_rows_still_counts(monkeypatch
     assert scan_job.run_all_universe_scans()["us_sectors"].n_refused == 2
 
 
-def test_his_dsgn_fills_both_boxes_through_the_real_writer(writer_on_a_scratch_db):
+def test_his_dsgn_fills_both_boxes_through_the_real_writer(writer_on_a_scratch_db, monkeypatch):
     """Build task 13: the stage that FINDS the mini exists. His DSGN drawing, read on his last receding day
     (Mon 30/03/2026) by the new reader itself, crosses the adapter into the real writer as one row with both
     pairs — his parent 10.31 / 9.00 and the size-eligible mini 10.745 / 9.82 with its own anchor days — one trigger, the LPS
     read against the mini, the flag 1."""
+    from engine_alpha import two_eyes_numbers as M
+
+    monkeypatch.setattr(M, "MINI_ENABLED", True)     # the stage is sunset (Fri 30/10/2026) and pinned here behind its switch
     from engine_alpha import two_eyes
     from core.calibration.replay import fixture_frame, load_sealed_fixture
     from tools.regression.marks_corpus import load_corpus, setup_key

@@ -196,10 +196,13 @@ def test_the_board_counts_the_names_that_move_night_to_night():
     assert f"committed names moved {total} times in {moves['same_box']} pairs of nights" in board
 
 
-def test_the_board_draws_the_mini_and_names_the_box_the_lps_was_read_against(tmp_path):
+def test_the_board_draws_the_mini_and_names_the_box_the_lps_was_read_against(tmp_path, monkeypatch):
     """DSGN (task 13): the mini thinner beside the parent and his band dotted red over its own days; the words
     name the mini and which box the LPS was read against and how; the pullback drawn is the one measured against
     the mini; the board's mini lines sit outside the strict headline."""
+    from engine_alpha import two_eyes_numbers as M
+
+    monkeypatch.setattr(M, "MINI_ENABLED", True)     # the stage is sunset (Fri 30/10/2026) and pinned here behind its switch
     from engine_alpha import two_eyes
     from tools.calibration import core_board
     from tools.regression.marks_corpus import load_corpus, setup_key
