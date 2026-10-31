@@ -2,7 +2,7 @@
 Shadow-output diff guard - proves a code change did NOT silently alter the
 screener's existing outputs.
 
-It runs the REAL per-ticker read (the reader door, ``engine_alpha.reader.evaluate_ticker``)
+It runs the REAL per-ticker read (the reader door, ``engine_alpha.gate.evaluate_ticker``)
 on a FROZEN input fixture (committed OHLCV frames + frozen market scalars),
 serializes the canonical output fields per ticker, and compares against a
 captured baseline.
@@ -51,7 +51,7 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
+from engine_alpha.gate import evaluate_ticker as _evaluate_ticker
 from core.archive.db_path import archive_db_path
 from core.calibration.replay import fired_window_walk
 

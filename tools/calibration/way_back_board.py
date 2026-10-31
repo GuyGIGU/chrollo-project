@@ -50,7 +50,7 @@ def failed_for(box, high, low, given_up: int, back: int) -> dict:
 def way_backs(found, high, low) -> list:
     """Every place given back in a read's history, oldest first, each measured (``failed_for``) with its index
     in the read's lives."""
-    from engine_alpha.two_eyes import walk
+    from engine_alpha.box import walk
 
     lives = list(getattr(found, "lives", None) or ())
     return [{"index": k, **failed_for(life.pair, high, low, int(lives[k - 1].shown_bar), int(life.shown_bar))}
@@ -59,7 +59,7 @@ def way_backs(found, high, low) -> list:
 
 def resting(found, high, low) -> Optional[dict]:
     """The place given back the shown box rests on (the approval pack's ``rests_on_the_way_back``), measured."""
-    from engine_alpha.two_eyes import walk
+    from engine_alpha.box import walk
 
     lives = list(getattr(found, "lives", None) or ())
     for k in range(len(lives) - 1, -1, -1):

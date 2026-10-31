@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from engine_alpha.two_eyes.line import Turn
+from engine_alpha.line import Turn
 
 _ROOT = str(REPO_ROOT)
 _DAY0 = dt.date(2026, 1, 5)

@@ -21,7 +21,7 @@ def test_sealed_alb_replays_through_both_public_paths():
 
     frames, _ = load_sealed_fixture()
     frame = frames['ALB:2026-04-13'].loc[:'2026-04-07']
-    result = audit.reader.scan_read('ALB', frame)
+    result = audit.gate.scan_read('ALB', frame)
     chart = {'two_eyes': result[audit.SCREEN_KEY], 'score': result['Score'],
              'ta_grade': result['_ta_grade'], 'tier': result['Tier']}
     assert audit.inspect_frame('ALB', frame, chart, repeat=True) == []
@@ -30,7 +30,7 @@ def test_sealed_alb_replays_through_both_public_paths():
 
 
 def test_future_anchor_and_a_lost_fire_are_failures(monkeypatch):
-    from engine_alpha.two_eyes.record import Box, Grade, Line, Lps, Read
+    from engine_alpha.record import Box, Grade, Line, Lps, Read
 
     day = dt.date(2026, 3, 6)
     read = Read('AAA', day, boxes=(Box(Line(100, day + dt.timedelta(days=1)), Line(90, day), day),),
@@ -39,7 +39,7 @@ def test_future_anchor_and_a_lost_fire_are_failures(monkeypatch):
     frame = pd.DataFrame(index=pd.DatetimeIndex([day]))
     def answer(*args, **kwargs):
         return read
-    monkeypatch.setattr(audit.reader, 'read_record', answer)
+    monkeypatch.setattr(audit.gate, 'read_record', answer)
     result = audit.to_result(read)
     chart = {'two_eyes': result[audit.SCREEN_KEY], 'score': 100, 'ta_grade': 100, 'tier': 'S'}
     assert 'box contains a future date' in audit.inspect_frame('AAA', frame, chart)

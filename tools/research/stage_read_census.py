@@ -1,6 +1,6 @@
 """Where the archive's fires sat in the stock's life cycle, and how they did (the stage read, Fri 16/10/2026).
 
-The stage read (``engine_alpha/stage_read.py``: Minervini's four stages on the weekly chart, and the week the
+The stage read (``engine_alpha/stock.py``: Minervini's four stages on the weekly chart, and the week the
 current stage-2 advance began) is display and archive only. Its one open question is his: whether stage-1 and
 stage-3 fires should leave Alpha's board (his theory: stage 1 is dead money, no buying; the stage-3 range carries
 his X). This census gives him the numbers for it, read-only against a COPY of the archive and the price cache:
@@ -41,7 +41,7 @@ except ModuleNotFoundError:
 configure_path()
 
 from core.archive.episodes import SetupRow, build_episodes        # noqa: E402
-from engine_alpha.stage_read import read_stage                    # noqa: E402
+from engine_alpha.stock import read_stage                    # noqa: E402
 
 HORIZON = 40                    # trading days after the fire day, the tightness study's
 TAILS = (0.25, 0.40)

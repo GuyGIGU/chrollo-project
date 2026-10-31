@@ -3255,6 +3255,286 @@
    "area": "tools",
    "similarity": 95,
    "source": "git"
+  },
+  {
+   "old": "engine_alpha/two_eyes/record.py",
+   "new": "engine_alpha/record.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes_numbers.py",
+   "new": "engine_alpha/numbers.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/freeze/manifest.py",
+   "new": "engine_alpha/stamp.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/lps.py",
+   "new": "engine_alpha/lps.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/state.py",
+   "new": "engine_alpha/state.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/walk.py",
+   "new": "engine_alpha/box/walk.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/mini.py",
+   "new": "engine_alpha/box/mini.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/runs.py",
+   "new": "tools/calibration/runs.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes_adapter.py",
+   "new": "engine_alpha/result.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes_archive.py",
+   "new": "engine_alpha/archive.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/frame.py",
+   "new": "engine_alpha/chart.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/line.py",
+   "new": "engine_alpha/line.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/grade.py",
+   "new": "engine_alpha/grade.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/story.py",
+   "new": "engine_alpha/story.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/metrics.py",
+   "new": "engine_alpha/stock.py",
+   "area": "engine",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_walk.py",
+   "new": "tests/engine/test_walk.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_mini.py",
+   "new": "tests/engine/test_mini.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_lps.py",
+   "new": "tests/engine/test_lps.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_story.py",
+   "new": "tests/engine/test_story.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_line_words.py",
+   "new": "tests/engine/test_story_words.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_grade.py",
+   "new": "tests/engine/test_grade.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_traits.py",
+   "new": "tests/engine/test_grade_traits.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_line.py",
+   "new": "tests/engine/test_line.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_swing_line.py",
+   "new": "tests/engine/test_line_turns.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_daily_range.py",
+   "new": "tests/engine/test_chart_daily_range.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_numbers.py",
+   "new": "tests/engine/test_numbers.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_adapter.py",
+   "new": "tests/engine/test_result.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_skeleton.py",
+   "new": "tests/engine/test_reader.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_two_eyes_runs.py",
+   "new": "tests/tooling/test_runs.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_stage_read.py",
+   "new": "tests/engine/test_stock_stage.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "tests/engine/test_metrics.py",
+   "new": "tests/engine/test_stock.py",
+   "area": "tests",
+   "similarity": 100,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)"
+  },
+  {
+   "old": "engine_alpha/two_eyes/daily_range.py",
+   "new": "engine_alpha/chart.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/market_sessions.py",
+   "new": "engine_alpha/chart.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/two_eyes/swing_line.py",
+   "new": "engine_alpha/line.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/two_eyes/clarity.py",
+   "new": "engine_alpha/grade.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/two_eyes/traits.py",
+   "new": "engine_alpha/grade.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/two_eyes/line_words.py",
+   "new": "engine_alpha/story.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/stage_read.py",
+   "new": "engine_alpha/stock.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/universe_door.py",
+   "new": "engine_alpha/gate.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
+  },
+  {
+   "old": "engine_alpha/two_eyes_roles.py",
+   "new": "engine_alpha/record.py",
+   "area": "engine",
+   "similarity": null,
+   "source": "manual: the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree); folded into the module it belongs with"
   }
  ],
  "dir_moves": [
@@ -3714,6 +3994,126 @@
   {
    "old": "tools.story_chain_candidates",
    "new": "tools.research.story_chain_candidates",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.record",
+   "new": "engine_alpha.record",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes_numbers",
+   "new": "engine_alpha.numbers",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.freeze.manifest",
+   "new": "engine_alpha.stamp",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.lps",
+   "new": "engine_alpha.lps",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.state",
+   "new": "engine_alpha.state",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.walk",
+   "new": "engine_alpha.box.walk",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.mini",
+   "new": "engine_alpha.box.mini",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.runs",
+   "new": "tools.calibration.runs",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes_adapter",
+   "new": "engine_alpha.result",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes_archive",
+   "new": "engine_alpha.archive",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.frame",
+   "new": "engine_alpha.chart",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.line",
+   "new": "engine_alpha.line",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.grade",
+   "new": "engine_alpha.grade",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.story",
+   "new": "engine_alpha.story",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.metrics",
+   "new": "engine_alpha.stock",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.daily_range",
+   "new": "engine_alpha.chart",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.market_sessions",
+   "new": "engine_alpha.chart",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.swing_line",
+   "new": "engine_alpha.line",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.clarity",
+   "new": "engine_alpha.grade",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.traits",
+   "new": "engine_alpha.grade",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes.line_words",
+   "new": "engine_alpha.story",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.stage_read",
+   "new": "engine_alpha.stock",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.universe_door",
+   "new": "engine_alpha.gate",
+   "root": "repo"
+  },
+  {
+   "old": "engine_alpha.two_eyes_roles",
+   "new": "engine_alpha.record",
    "root": "repo"
   }
  ],
@@ -4259,14 +4659,14 @@
    "root": "repo",
    "kind": "deleted",
    "report": true,
-   "text": "engine_alpha.scoring is gone: the old engine's scorer, taxonomy and tags (the trait table lives on in engine_alpha/two_eyes/traits.py); it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. See docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+   "text": "engine_alpha.scoring is gone: the old engine's scorer, taxonomy and tags (the trait table lives on in engine_alpha/grade.py); it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. See docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
   },
   {
    "module": "engine_alpha.evaluation",
    "root": "repo",
    "kind": "deleted",
    "report": true,
-   "text": "engine_alpha.evaluation is gone: the old engine's per-ticker chain (the sentinels live on in engine_alpha/sentinels.py, the universe door in engine_alpha/universe_door.py, the shared metrics in engine_alpha/metrics.py); it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. See docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+   "text": "engine_alpha.evaluation is gone: the old engine's per-ticker chain (the sentinels live on in engine_alpha/gate.py, the universe door in engine_alpha/gate.py, the shared metrics in engine_alpha/stock.py (the ATR in engine_alpha/chart.py)); it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. See docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
   },
   {
    "module": "engine_alpha.election_identity",
@@ -4287,7 +4687,7 @@
    "root": "repo",
    "kind": "deleted",
    "report": true,
-   "text": "engine_alpha.frames is gone: the daily-structure window rule (its one copy is engine_alpha/two_eyes/frame.py, which core/pipeline/market_data/downloads.py imports); it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. See docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+   "text": "engine_alpha.frames is gone: the daily-structure window rule (its one copy is engine_alpha/chart.py, which core/pipeline/market_data/downloads.py imports); it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. See docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
   },
   {
    "module": "config.engine",
@@ -4302,6 +4702,31 @@
    "kind": "deleted",
    "report": true,
    "text": "config.scoring is gone: the old engine's scoring weights and tier thresholds (RS_LOOKBACK_BARS went to config/market_context.py); it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. See docs/migrations/2026-09-domain-refactor.md, 'Deleted after the refactor'."
+  },
+  {
+   "module": "engine_alpha.two_eyes",
+   "root": "repo",
+   "kind": "split",
+   "report": true,
+   "text": "engine_alpha.two_eyes folded into engine_alpha itself (the engine tree, Sat 31/10/2026): read, Read, Box, Lps, Event, Step, crashed and the re-exports are engine_alpha.reader; the stages are engine_alpha.chart (frame, daily_range), engine_alpha.line (swing_line, line), engine_alpha.box.walk, engine_alpha.box.mini, engine_alpha.lps, engine_alpha.story (story, line_words), engine_alpha.grade (grade, clarity, traits), engine_alpha.state, engine_alpha.record; runs went to tools.calibration.runs."
+  },
+  {
+   "module": "engine_alpha.sentinels",
+   "root": "repo",
+   "kind": "split",
+   "report": true,
+   "names": {
+    "EVAL_ERROR": "engine_alpha.gate",
+    "WATCH_WIRE_STATES": "engine_alpha.record"
+   },
+   "text": "engine_alpha.sentinels was split (the engine tree, Sat 31/10/2026): EVAL_ERROR is engine_alpha.gate.EVAL_ERROR; WATCH_WIRE_STATES is engine_alpha.record.STATE_WORDS, the one copy of the ten words."
+  },
+  {
+   "module": "engine_alpha.reader",
+   "root": "repo",
+   "kind": "renamed",
+   "report": true,
+   "text": "engine_alpha.reader changed meaning (the engine tree, Sat 31/10/2026): the one door is engine_alpha.gate now (evaluate_ticker, scan_read, run_eval_chain, read_record, ReadFailed, NotRead, EVAL_ERROR, apply_baseline_filters); engine_alpha.reader holds the seven stages' read(). An old `from engine_alpha import reader` means the gate."
   }
  ],
  "deleted": [
@@ -4820,6 +5245,22 @@
   {
    "path": "engine_alpha/scoring/__init__.py",
    "why": "The package was the old engine; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: \"retire the old engine, from now on we focus on the new one\"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. An import under it is reported as gone."
+  },
+  {
+   "path": "engine_alpha/two_eyes/__init__.py",
+   "why": "The alpha reader's package folded into engine_alpha itself (the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)): read() and the record's re-exports are engine_alpha/reader.py; the stages are engine_alpha/{chart,line,box/,lps,story,grade,state}.py. Import `from engine_alpha import reader` and call `reader.read`."
+  },
+  {
+   "path": "engine_alpha/sentinels.py",
+   "why": "Split (the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)): EVAL_ERROR lives in engine_alpha/gate.py (the counted-failure sentinel beside the gate that returns it); the ten state words are engine_alpha.record.STATE_WORDS, the one copy."
+  },
+  {
+   "path": "engine_alpha/freeze/__init__.py",
+   "why": "The freeze package is gone (the engine tree, Sat 31/10/2026 (the operator: \"give better names ... if few code pieces are related then put them in its own folder in the engine folder\"; claude/engine-tree)): the engine config stamp is engine_alpha/stamp.py (manifest_hash, collect_manifest, ENGINE_SETTINGS_KEYS)."
+  },
+  {
+   "path": "engine_alpha/reader.py (the door)",
+   "why": "The door moved to engine_alpha/gate.py (the engine tree, Sat 31/10/2026) and the name reader.py was taken by the seven stages' read() the same day, so the porter cannot chain it: an old `from engine_alpha import reader` means the gate. Not a move row on purpose (test_no_new_name_in_the_map_matches_an_old_one)."
   }
  ]
 }

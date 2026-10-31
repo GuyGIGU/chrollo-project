@@ -44,7 +44,7 @@ except ImportError:  # invoked as a script from the repo root
     from tools._bootstrap import configure_path  # type: ignore
 _ROOT = configure_path(backend=True)
 
-from engine_alpha import two_eyes_numbers as M  # noqa: E402
+from engine_alpha import numbers as M  # noqa: E402
 from tools.regression.marks_corpus import DRAWN_EVENT_KEYS, setup_key, validate_setup  # noqa: E402
 
 NO_TRIGGER = "no trigger drawn"
@@ -256,7 +256,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     overrides = dict(parse_switch(text) for text in args.switch)
     from core.calibration.replay import load_sealed_fixture
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
 
     checkout = main_checkout()
     frames_dir = os.path.join(checkout, "calibration_frames")

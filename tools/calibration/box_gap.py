@@ -52,7 +52,7 @@ except ImportError:  # invoked as a script from the repo root
     from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path(backend=True)
 
-from engine_alpha.two_eyes import walk  # noqa: E402
+from engine_alpha.box import walk  # noqa: E402
 from tools.calibration import walk_board  # noqa: E402
 from tools.regression.marks_corpus import load_corpus, setup_key  # noqa: E402
 from core.calibration.replay import fixture_frame, load_sealed_fixture  # noqa: E402

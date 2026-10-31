@@ -21,7 +21,7 @@ _BACKEND_DIR = str(BACKEND_DIR)
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-from engine_alpha.sentinels import WATCH_WIRE_STATES  # noqa: E402
+from engine_alpha.record import STATE_WORDS as WATCH_WIRE_STATES  # noqa: E402
 from domains.archive import queries as archive_queries  # noqa: E402
 from domains.screener import chart_state  # noqa: E402
 
@@ -66,7 +66,7 @@ def test_a_read_that_raises_is_a_screen_state_never_one_of_his_words(monkeypatch
     """The two-eyes build, task 15: *"a failed or pending read is a screen state, never one of your ten words"*.
     It used to answer "no lines", the word for a chart that genuinely has none, so a broken read and an empty chart
     looked the same on the card."""
-    from engine_alpha import reader as door
+    from engine_alpha import gate as door
 
     frame = _frame()
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
@@ -86,8 +86,8 @@ def test_the_word_and_the_lines_are_the_readers(monkeypatch):
     beside a word that counts them."""
     import datetime as dt
 
-    from engine_alpha import reader as door
-    from engine_alpha.two_eyes import record
+    from engine_alpha import gate as door
+    from engine_alpha import record
 
     frame = _frame()
     box = record.Box(resistance=record.Line(101.25, dt.date(2026, 3, 2)), support=record.Line(98.5, dt.date(2026, 3, 4)),
@@ -109,7 +109,7 @@ def test_the_word_and_the_lines_are_the_readers(monkeypatch):
 
 def test_a_crashed_two_eyes_read_is_the_same_screen_state(monkeypatch):
     """The door's chain RAISES on a failed two-eyes read (its contract); the page says the read failed."""
-    from engine_alpha import reader as door
+    from engine_alpha import gate as door
 
     frame = _frame()
 
@@ -132,7 +132,7 @@ def test_every_state_the_service_returns_is_on_the_table(monkeypatch):
 def test_a_word_off_the_table_is_refused_loudly(monkeypatch):
     """The state word is checked against the closed table at the publisher: a slug the reader never speaks is a
     bug, surfaced as a failed read, never a card line."""
-    from engine_alpha import reader as door
+    from engine_alpha import gate as door
 
     frame = _frame()
 
@@ -149,8 +149,8 @@ def test_a_word_off_the_table_is_refused_loudly(monkeypatch):
 def test_a_word_with_no_box_carries_no_lines(monkeypatch):
     """A chart the reader read but drew no box on ("no lines") says its word and nothing else: no R, no S, no
     opening day — the old engine's lane facts (age, turns at each rail) left with it."""
-    from engine_alpha import reader as door
-    from engine_alpha.two_eyes import record
+    from engine_alpha import gate as door
+    from engine_alpha import record
 
     frame = _frame()
     read = record.Read(ticker="ABC", as_of=frame.index[-1].date(), boxes=(), state="no lines",

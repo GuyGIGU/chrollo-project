@@ -5,7 +5,7 @@ day — and what does the rule itself say of his own two anchors.
 Per drawing, on the reader's own line built on the frame cut at his day:
 
 * his two anchors on the line (the listing gate's reading: exact, by price, near, or not a turn);
-* THE BOX the reader shows on his last receding day (`engine_alpha.two_eyes.walk.elect`): HIS (both lines to the
+* THE BOX the reader shows on his last receding day (`engine_alpha.box.walk.elect`): HIS (both lines to the
   cent), CLOSE (both within half a daily range of his), OTHER, or NONE — and why it is shown: the first pair to
   become a box, or a hand-over (the box before it was anchored inside a live trend; the price left the box
   before it for good; a dip came back and the box took its place again);
@@ -45,11 +45,11 @@ except ImportError:  # invoked as a script from the repo root
     from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path(backend=True)
 
-from engine_alpha import two_eyes  # noqa: E402
-from engine_alpha.two_eyes import frame as two_eyes_frame  # noqa: E402
-from engine_alpha.two_eyes import line as two_eyes_line  # noqa: E402
-from engine_alpha import two_eyes_numbers as M  # noqa: E402
-from engine_alpha.two_eyes import walk  # noqa: E402
+from engine_alpha import reader  # noqa: E402
+from engine_alpha import chart as two_eyes_frame  # noqa: E402
+from engine_alpha import line as two_eyes_line  # noqa: E402
+from engine_alpha import numbers as M  # noqa: E402
+from engine_alpha.box import walk  # noqa: E402
 from tools.calibration.listing_gate import anchor_turns  # noqa: E402
 from tools.calibration.board_helpers import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
@@ -103,7 +103,7 @@ def score_setup(setup: dict, raw) -> dict:
     as_of = _date(setup["as_of"])
     cut = raw.loc[:pd.Timestamp(as_of)]
     started = time.perf_counter()
-    read = two_eyes.read(setup["ticker"], cut)
+    read = reader.read(setup["ticker"], cut)
     read_seconds = time.perf_counter() - started
     prepared = two_eyes_frame.prepare(cut)
     line = two_eyes_line.build(prepared)
@@ -234,7 +234,7 @@ def junk_rows() -> list:
     frames, _ = negative_corpus._load_fixture()
     rows = []
     for key, raw in frames.items():
-        read = two_eyes.read(key, raw)
+        read = reader.read(key, raw)
         box = read.parent
         high, low = float(raw["High"].iloc[-1]), float(raw["Low"].iloc[-1])
         if box is None:
@@ -242,7 +242,7 @@ def junk_rows() -> list:
             continue
         # ONE judgment of "the price has run on past the box": the reader's own (state.side). The board only
         # adds how far, in the box's ranges.
-        from engine_alpha.two_eyes import record as words, state as edge
+        from engine_alpha import record as words, state as edge
         where = edge.side(high, low, box.resistance.price, box.support.price, M.LINE_WORD_AREA_ATR * box.daily_range)
         beyond = 0.0
         if where == words.BEYOND_R:
@@ -250,7 +250,7 @@ def junk_rows() -> list:
         elif where == words.UNDER_S:
             beyond = -(box.support.price - high) / box.daily_range
         rows.append({"key": key, "box": box, "beyond": beyond,
-                     "earlier": sum(1 for b in read.boxes if b.role == two_eyes.ROLE_EARLIER), "read": read})
+                     "earlier": sum(1 for b in read.boxes if b.role == reader.ROLE_EARLIER), "read": read})
     return rows
 
 

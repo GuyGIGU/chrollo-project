@@ -20,10 +20,10 @@ from tools._bootstrap import configure_path, refuse_sealed_output
 ROOT = Path(configure_path())
 
 from config import settings  # noqa: E402
-from engine_alpha import reader  # noqa: E402
-from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.two_eyes_adapter import to_result  # noqa: E402
-from engine_alpha.two_eyes_archive import SCREEN_KEY  # noqa: E402
+from engine_alpha import gate  # noqa: E402
+from engine_alpha.stamp import manifest_hash  # noqa: E402
+from engine_alpha.result import to_result  # noqa: E402
+from engine_alpha.archive import SCREEN_KEY  # noqa: E402
 
 
 def same_read(left, right):
@@ -40,7 +40,7 @@ def same_read(left, right):
 def inspect_frame(ticker, frame, expected, *, repeat=False):
     """A cut frame and its saved chart, checked through the public reader door."""
     issues = []
-    read = reader.read_record(ticker, frame)
+    read = gate.read_record(ticker, frame)
     if read is None or read.failed or not read.fired:
         reason = None if read is None else read.refusal or read.state
         return issues + [f'saved fire no longer fires: {reason}']
@@ -73,7 +73,7 @@ def inspect_frame(ticker, frame, expected, *, repeat=False):
     elif read.grade.clarity is None or read.grade.clarity.get('method') is None:
         issues.append('clarity could not be composed')
     if repeat:
-        again = reader.scan_read(ticker, frame)
+        again = gate.scan_read(ticker, frame)
         if not isinstance(again, dict) or not same_read(again[SCREEN_KEY], result[SCREEN_KEY]):
             issues.append('repeated scan read differs from the public record')
     return issues

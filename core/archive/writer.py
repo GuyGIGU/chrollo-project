@@ -59,7 +59,7 @@ def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> No
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
 from core.archive.db_path import archive_db_path
-from engine_alpha.two_eyes_archive import two_eyes_archive_values
+from engine_alpha.archive import two_eyes_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
     "score_rs_bonus":       "FLOAT",
@@ -508,7 +508,7 @@ def archive_scan_results(
 
     # Frozen engine-config version stamped on every row written this run
     # (computed once — provenance only, never a computed engine field).
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
     engine_config_version = manifest_hash()
 
     # Fetch market context once for the whole scan (hard-bounded internally).

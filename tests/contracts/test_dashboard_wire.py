@@ -27,7 +27,7 @@ from core.pipeline.screening import dashboard as dashboard_module
 
 def _read(*, spring_day=None):
     """A fire as the reader hands it over: a parent, a mini, an LPS read against the mini, a grade."""
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
 
     d = dt.date
     events = () if spring_day is None else (record.Event(kind=record.SPRING, day=spring_day, price=89.0),)
@@ -53,7 +53,7 @@ def _frame(periods=60):
 def _payload(monkeypatch, *, overlay=None, frame=None) -> dict:
     """The per-ticker payload exactly as a scan would serialize it; an optional
     overlay injects the facts the scan attaches to a fire after the read."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     row = to_result(_read())
     row.update(overlay or {})
@@ -98,8 +98,8 @@ def test_the_panes_box_is_the_parent_never_the_mini():
 
 def test_a_row_without_the_readers_block_draws_no_chart(monkeypatch, capsys):
     """Every fire carries the block; a row without it is said and skipped, never a crash of the night's charts."""
-    from engine_alpha.two_eyes_adapter import to_result
-    from engine_alpha.two_eyes_archive import SCREEN_KEY
+    from engine_alpha.result import to_result
+    from engine_alpha.archive import SCREEN_KEY
 
     row = to_result(_read())
     del row[SCREEN_KEY]

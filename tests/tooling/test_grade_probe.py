@@ -124,7 +124,7 @@ def test_the_base_ends_the_day_before_the_soss_push_when_that_push_begins_after_
     """The dead days are counted over the base: from THE SOS's push on is the right side, never dead space."""
     import types
     import pandas as pd
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
     from tools.calibration.grade_probe import base_end
 
     days = pd.bdate_range("2026-01-05", periods=30)
@@ -193,7 +193,7 @@ def test_his_frph_box_is_mostly_dead_space_and_his_unf_box_is_not(unf_and_frph):
 def test_the_parent_reading_takes_the_parents_dead_days_when_the_lps_was_read_against_the_mini(monkeypatch):
     """His VIK: the LPS is read against the mini, whose days after THE SOS of the parent are the mini's own push and
     pullback; the parent reading (beside the grade) takes the parent's base, where 1 day of 15 has no bar in the box."""
-    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha import numbers as M
 
     monkeypatch.setattr(M, "MINI_ENABLED", True)     # the stage is sunset (Fri 30/10/2026) and pinned here behind its switch
     from core.calibration.replay import fixture_frame, load_sealed_fixture
@@ -257,7 +257,7 @@ def _bars(highs, lows, R, S, unit, opening, *events, turns=()):
 
 
 def _event(kind, first, last=None, day=None):
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
 
     def make(days):
         swing = kind != record.PHASE_D
@@ -272,7 +272,7 @@ def test_his_way_a_hair_beyond_a_line_is_respect_and_a_day_inside_a_named_swing_
     13/09/2026 ruling (*"a named event's swing is never docked, an unnamed lunge beyond a rail is"*): a day is empty
     only when its bar misses the box by more than the line's area, half a daily range, outside every named swing.
     Phase D is a day, not a swing: it pardons nothing."""
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
     from tools.calibration.grade_probe import his_way
 
     inside = (10.8, 10.2)
@@ -296,7 +296,7 @@ def test_the_hold_reads_the_lows_after_the_soss_top_against_the_supports_area_an
     """His COLM word (Thu 08/10/2026): *"base dosen't hold and dosen't answer for an LPS anywhere"*. After THE SOS's
     top, a low more than half a daily range under the support is the base not holding, a named last supper or not;
     a low a hair under it holds; the push's own days, before its top, are not read."""
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
     from tools.calibration.grade_probe import his_way
 
     def read(right_lows, *events, push_low=10.4, opening=0):
@@ -393,7 +393,7 @@ def test_the_fourth_hold_needs_the_fall_beyond_the_supports_area_and_under_the_b
     """His COLM word, *"reaches a lower level"*: a lower level than the base ever made. A dip beyond the support's
     area that stays over the spring's tip holds (his JAZZ, 13/09/2026: on the support rather than under it); a dip
     under the base's lowest low that stays inside the area holds; only a fall that is both does not."""
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
     from tools.calibration.grade_probe import his_way
 
     def read(base_low, right_low):
@@ -468,7 +468,7 @@ def test_a_named_events_span_forgives_only_its_own_swing_on_the_line():
     """His ruling (Fri 09/10/2026): *"I'd forgive only that swing," correct*. The reader names a spring over ten days
     under the box; the line turns inside them. Only the days from the line's last turn before the spring's tip to its
     first turn after it are forgiven: the leg down to the low and back up."""
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
     from tools.calibration.grade_probe import his_way
 
     inside, under = (10.8, 10.2), (9.3, 8.5)
@@ -558,7 +558,7 @@ def test_the_readers_own_grade_is_the_probes_fifth_reading(colm_fires, frph_fire
     """The grade entry in the reader (stage 7) is the reading measured here, not a re-typed cousin of it: on COLM's
     and FRPH's fire days and on his UNF, the record's grade is the probe's fifth reading read to the whole point, day
     for day."""
-    from engine_alpha.two_eyes.grade import whole_points
+    from engine_alpha.grade import whole_points
     from tools.calibration.grade_probe import fifth_grade, measures
 
     for row in (*colm_fires, *frph_fires, *unf_and_frph):

@@ -10,7 +10,7 @@ Public API:
     run_screener -> (ranked_results_df, market_data, tickers)
 
 ``run_screener`` is re-exported LAZILY (PEP 562): the eager import dragged
-``screener`` -> ``engine_alpha.reader`` -> the whole reading engine into
+``screener`` -> ``engine_alpha.gate`` -> the whole reading engine into
 every ``core.pipeline.*`` import — including the FastAPI boot path, which
 must stay engine-free (a backend restart must never pay the pandas/scipy
 engine import, and engine import failures must never block the journal).

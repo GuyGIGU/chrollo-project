@@ -10,7 +10,7 @@ import pandas as pd
 # everywhere, so one home for the rules means the engine's. Re-exported
 # here under the names this module has always published (two-eyes-reader
 # task 5) -- no caller changes, and there is still exactly one calendar.
-from engine_alpha.market_sessions import (  # noqa: F401
+from engine_alpha.chart import (  # noqa: F401
     NYSE_BUSINESS_DAY,
     NyseHolidayCalendar as _NyseHolidayCalendar,
     is_trading_session,

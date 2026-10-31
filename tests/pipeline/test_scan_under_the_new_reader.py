@@ -124,7 +124,7 @@ def scratch_archive(tmp_path, monkeypatch):
 
 
 def test_the_new_reader_reads_his_alb_through_the_whole_scan(scan, scratch_archive, capsys):
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
 
     results_df, _, _, market_context = scan(BIG)
 
@@ -159,22 +159,22 @@ def test_the_floor_takes_a_new_reader_fire_under_300m_after_the_read(scan):
 def test_the_scans_worker_is_the_doors_own_and_pickles_by_name(monkeypatch):
     """What the real process pool needs: a module-level function it can send to a spawned worker, and an answer it
     can send back (a chart the reader would not read comes back as a record, named, by value). The scan submits
-    ``reader.scan_read`` itself: substituting it is how every scan test here fakes the read."""
-    from engine_alpha import reader
+    ``gate.scan_read`` itself: substituting it is how every scan test here fakes the read."""
+    from engine_alpha import gate
 
-    assert pickle.loads(pickle.dumps(reader.scan_read)) is reader.scan_read
+    assert pickle.loads(pickle.dumps(gate.scan_read)) is gate.scan_read
     seen = []
 
     def spy(ticker, df, spy_6m, breadth):
         seen.append((ticker, len(df)))
         return None
 
-    monkeypatch.setattr(reader, "scan_read", spy)
+    monkeypatch.setattr(gate, "scan_read", spy)
     monkeypatch.setattr(screener_module, "ProcessPoolExecutor", _InlinePool)
     monkeypatch.setattr(screener_module, "as_completed", lambda futures: list(futures))
     results, errored = screener_module._evaluate_frames({"ALB": _alb()}, 0.0, None)
     assert (results, errored) == ([], 0) and seen == [("ALB", len(_alb()))]
-    refused = reader.NotRead("ALB", "a trading day is missing from the middle", "a trading day is missing ...")
+    refused = gate.NotRead("ALB", "a trading day is missing from the middle", "a trading day is missing ...")
     assert pickle.loads(pickle.dumps(refused)) == refused
 
 
@@ -239,10 +239,10 @@ def test_a_chart_the_new_reader_refuses_is_listed_by_name_and_reason_apart_from_
 
 
 def test_a_real_crash_under_the_new_reader_is_still_a_crash(scan, monkeypatch):
-    from engine_alpha import two_eyes
+    from engine_alpha import reader
 
-    monkeypatch.setattr(two_eyes, "read",
-                        lambda ticker, df, **k: two_eyes.crashed(ticker, None, "ZeroDivisionError: boom"))
+    monkeypatch.setattr(reader, "read",
+                        lambda ticker, df, **k: reader.crashed(ticker, None, "ZeroDivisionError: boom"))
     results_df, _, _, market_context = scan(BIG)
     assert results_df.empty
     assert market_context["_scan_metrics"]["counts"]["errored_tickers"] == 1, "the crash alert still hears it"

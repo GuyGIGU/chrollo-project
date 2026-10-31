@@ -50,9 +50,9 @@ from core.pipeline.market_data.market_calendar import MARKET_TZ  # noqa: E402
 from core.pipeline.market_data.market_data_health import eligible_tickers_for  # noqa: E402
 from core.pipeline.screening.screener import _prepare_ticker_frames  # noqa: E402
 from core.pipeline.universe.descriptor import resolve_universe  # noqa: E402
-from engine_alpha import reader  # noqa: E402
-from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
-from engine_alpha.sentinels import EVAL_ERROR  # noqa: E402
+from engine_alpha import gate  # noqa: E402
+from engine_alpha.stamp import manifest_hash  # noqa: E402
+from engine_alpha.gate import EVAL_ERROR  # noqa: E402
 
 LEDGER = "ledger.txt"
 CLEAN = "clean"
@@ -136,12 +136,12 @@ def load_night(panel_copy: str, meta_copy: str, universe=None) -> tuple:
 # --------------------------------------------------------------------------- #
 def _outcome(ticker: str, result) -> dict:
     return {"ticker": ticker, "fired": isinstance(result, dict), "crashed": result is EVAL_ERROR,
-            "not_read": result.reason if isinstance(result, reader.NotRead) else None}
+            "not_read": result.reason if isinstance(result, gate.NotRead) else None}
 
 
 def read_new(ticker: str, df, spy_6m_return: float, breadth_pct) -> dict:
     """The scan's own worker (it names a chart the reader would not read)."""
-    return _outcome(ticker, reader.scan_read(ticker, df, spy_6m_return, breadth_pct))
+    return _outcome(ticker, gate.scan_read(ticker, df, spy_6m_return, breadth_pct))
 
 
 def run_pass(worker, frames: dict, spy_6m_return: float, breadth_pct, workers: int) -> tuple:

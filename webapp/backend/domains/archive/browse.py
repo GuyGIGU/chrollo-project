@@ -307,7 +307,7 @@ def _two_eyes_block(setup, ratio: float) -> Dict[str, Any]:
     by the family's ONE shaper exactly as the scan's wire is, the prices rescaled onto today's candles like the old
     lines; which box the LPS was read against; and the grade the archive keeps, its score and its letter. The LPS's
     own days are not stored, so the archive's chart draws no LPS band."""
-    from engine_alpha.two_eyes_archive import two_eyes_archive_values, two_eyes_screen_boxes
+    from engine_alpha.archive import two_eyes_archive_values, two_eyes_screen_boxes
 
     stored = two_eyes_archive_values(lambda column: getattr(setup, column, None), prefixed=False)
     boxes = two_eyes_screen_boxes(stored)

@@ -64,7 +64,7 @@ from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.archive.writer import RETIRED_COLUMNS, retired_columns_null  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
-from engine_alpha.two_eyes_archive import two_eyes_archive_values  # noqa: E402
+from engine_alpha.archive import two_eyes_archive_values  # noqa: E402
 from core.archive.r_outcomes import R_COLUMNS  # noqa: E402
 
 

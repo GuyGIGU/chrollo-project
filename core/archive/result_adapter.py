@@ -1,6 +1,6 @@
 """Adapter: canonical live-evaluation result -> seed/archive-writer key shape.
 
-The live path (the reader door, ``engine_alpha.reader``, through ``two_eyes_adapter.to_result``)
+The live path (the reader door, ``engine_alpha.gate``, through ``two_eyes_adapter.to_result``)
 is the single source of truth for an evaluation result. It emits a dict whose internal fields
 are `_`-prefixed (e.g. ``_R``, ``_two_eyes_parent_r_price``) plus a few display-named fields
 (``Setup``, ``Score``, ``Current Price`` ...).

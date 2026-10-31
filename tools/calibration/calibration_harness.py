@@ -65,7 +65,7 @@ from domains.calibration.grading import (  # the production grading the chips sh
     _mark_dict,
     fired_one,
 )
-from engine_alpha.freeze.manifest import manifest_hash
+from engine_alpha.stamp import manifest_hash
 
 # The seal's projection is FROZEN (EC-9). Widening it rotates every pinned
 # fingerprint (guided_list_export), and that is an operator re-pin decision

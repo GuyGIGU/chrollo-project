@@ -8,7 +8,7 @@ FIRING tickers' last fire, the marks ratchet (``tools.regression.marks_corpus``)
 compares FIRES, the junk gate pins FIRE DAYS. A change that rewrites every event,
 moves a box an earlier read listed, or regrades a chart while every fire and
 trigger stays put passes all three. This instrument reads the charts with the
-reader itself (``engine_alpha.two_eyes.read`` - before the universe door and the
+reader itself (``engine_alpha.reader.read`` - before the universe door and the
 adapter, so a chart the door refuses is still read) and pins its record:
 
   * the boxes: role, R, S, the day each opened and the day each ended
@@ -63,8 +63,8 @@ _PROJECT_ROOT = configure_path(backend=True)
 
 from config import settings
 from core.calibration.replay import load_sealed_fixture
-from engine_alpha import two_eyes
-from engine_alpha.freeze.manifest import manifest_hash
+from engine_alpha import reader
+from engine_alpha.stamp import manifest_hash
 
 _BASELINE_DIR = os.path.join(_PROJECT_ROOT, "tests", "baselines")
 _BASELINE_PATH = os.path.join(_BASELINE_DIR, "reader_pin_baseline.json")
@@ -253,7 +253,7 @@ def run_pin() -> dict:
         charts: dict = {}
         for key in sorted(frames):
             df = frames[key]
-            read = two_eyes.read(ticker_of(key), df)
+            read = reader.read(ticker_of(key), df)
             charts[key] = {"digest": ohlcv_digest(df), "reading": jsonable(chart_record(read))}
         populations[pop] = charts
     return {"populations": populations}

@@ -183,6 +183,53 @@ Also on 2026-09-24, the Windows event-log resolver left `webapp/backend/services
 
 On Fri 23/10/2026 `webapp/frontend/src/features/screener/hooks/useScreenerData.js` moved again, to `webapp/frontend/src/shared/hooks/useScreenerData.js`, beside the shared scan store it subscribes to: Home and the Screener both use it, and Home no longer imports from the Screener feature (codex/engineering-quality). The row for `webapp/frontend/src/hooks/useScreenerData.js` below composes both moves and names the final home.
 
+### The engine tree (Sat 31/10/2026)
+
+The alpha reader was re-shelved by stage on the operator's word ("give better names ... if few code pieces are related then put them in its own folder in the engine folder"): `engine_alpha/two_eyes/` folded into `engine_alpha/` itself, four modules that sat outside the package for the old nightly path's sake came in, and seven modules were folded into the one they belong with. `engine_alpha/two_eyes/__init__.py` became `engine_alpha/reader.py` and the door `engine_alpha/reader.py` became `engine_alpha/gate.py`; neither is a move row, since the porter cannot chain a name that is old and new at once (both sit under Deleted with their new homes). The archive's `two_eyes_*` column names did not move.
+
+| Old path | New path |
+|---|---|
+| `engine_alpha/two_eyes/record.py` | `engine_alpha/record.py` |
+| `engine_alpha/two_eyes_numbers.py` | `engine_alpha/numbers.py` |
+| `engine_alpha/freeze/manifest.py` | `engine_alpha/stamp.py` |
+| `engine_alpha/two_eyes/lps.py` | `engine_alpha/lps.py` |
+| `engine_alpha/two_eyes/state.py` | `engine_alpha/state.py` |
+| `engine_alpha/two_eyes/walk.py` | `engine_alpha/box/walk.py` |
+| `engine_alpha/two_eyes/mini.py` | `engine_alpha/box/mini.py` |
+| `engine_alpha/two_eyes/runs.py` | `tools/calibration/runs.py` |
+| `engine_alpha/two_eyes_adapter.py` | `engine_alpha/result.py` |
+| `engine_alpha/two_eyes_archive.py` | `engine_alpha/archive.py` |
+| `engine_alpha/two_eyes/frame.py` | `engine_alpha/chart.py` |
+| `engine_alpha/two_eyes/line.py` | `engine_alpha/line.py` |
+| `engine_alpha/two_eyes/grade.py` | `engine_alpha/grade.py` |
+| `engine_alpha/two_eyes/story.py` | `engine_alpha/story.py` |
+| `engine_alpha/metrics.py` | `engine_alpha/stock.py` |
+| `tests/engine/test_two_eyes_walk.py` | `tests/engine/test_walk.py` |
+| `tests/engine/test_two_eyes_mini.py` | `tests/engine/test_mini.py` |
+| `tests/engine/test_two_eyes_lps.py` | `tests/engine/test_lps.py` |
+| `tests/engine/test_two_eyes_story.py` | `tests/engine/test_story.py` |
+| `tests/engine/test_two_eyes_line_words.py` | `tests/engine/test_story_words.py` |
+| `tests/engine/test_two_eyes_grade.py` | `tests/engine/test_grade.py` |
+| `tests/engine/test_two_eyes_traits.py` | `tests/engine/test_grade_traits.py` |
+| `tests/engine/test_two_eyes_line.py` | `tests/engine/test_line.py` |
+| `tests/engine/test_two_eyes_swing_line.py` | `tests/engine/test_line_turns.py` |
+| `tests/engine/test_two_eyes_daily_range.py` | `tests/engine/test_chart_daily_range.py` |
+| `tests/engine/test_two_eyes_numbers.py` | `tests/engine/test_numbers.py` |
+| `tests/engine/test_two_eyes_adapter.py` | `tests/engine/test_result.py` |
+| `tests/engine/test_two_eyes_skeleton.py` | `tests/engine/test_reader.py` |
+| `tests/engine/test_two_eyes_runs.py` | `tests/tooling/test_runs.py` |
+| `tests/engine/test_stage_read.py` | `tests/engine/test_stock_stage.py` |
+| `tests/engine/test_metrics.py` | `tests/engine/test_stock.py` |
+| `engine_alpha/two_eyes/daily_range.py` | `engine_alpha/chart.py` |
+| `engine_alpha/market_sessions.py` | `engine_alpha/chart.py` |
+| `engine_alpha/two_eyes/swing_line.py` | `engine_alpha/line.py` |
+| `engine_alpha/two_eyes/clarity.py` | `engine_alpha/grade.py` |
+| `engine_alpha/two_eyes/traits.py` | `engine_alpha/grade.py` |
+| `engine_alpha/two_eyes/line_words.py` | `engine_alpha/story.py` |
+| `engine_alpha/stage_read.py` | `engine_alpha/stock.py` |
+| `engine_alpha/universe_door.py` | `engine_alpha/gate.py` |
+| `engine_alpha/two_eyes_roles.py` | `engine_alpha/record.py` |
+
 ## Deleted after the refactor
 
 On 2026-09-25 the final-method branch (`claude/method-steps-7-12`) was merged onto this layout, and with it the operator's ruling of Sat 19/09/2026 (build step 12, point 25) that deletes the Power Play species lane. Eleven files the refactor had moved went with it: the engine module `engine_alpha/structure/context/power_play.py`, three tools (`tools/research/power_play_census.py`, `tools/regression/power_play_fixture.py`, `tools/research/power_play_sheets.py`) and seven test files. Their moves are no longer in the JSON's `file_moves` and `module_moves`, because the porter must never write a path that does not exist; each old path is in `deleted` instead, with the home it had, and the four modules (`engine_alpha.structure.power_play`, `tools.power_play_census`, `tools.power_play_fixture`, `tools.power_play_sheets`) are reported notes, so a branch that still imports one is told the module is gone rather than pointed at a file that is not there. Nothing replaces them: `POWER_PLAY_STORY_FORM_ENABLED` stays in `config/engine.py` for the contraction rescue, and the `pp_*` archive columns stay on the model.
@@ -196,6 +243,10 @@ On Fri 23/10/2026 the operator's Watchlist redesign (the Watchlist tab became a 
 On Sat 31/10/2026 the old engine retired on the operator's word of the night before (*"retire the old engine, from now on we focus on the new one"*; claude/retire-old-engine), and twenty-six more files the refactor had moved went with it, every one an instrument, audit or test that read the old engine past the reader door or measured it against the new one: `tests/tooling/test_doctrine_audit.py`, `tests/tooling/test_fold_parity.py`, `tests/tooling/test_near_miss_report.py`, `tests/tooling/test_rail_margin_evidence.py`, `tests/tooling/test_shelf_harness.py`, `tests/tooling/test_ta_grade_archive_replay.py`, `tools/research/bar_state_census.py`, `tools/calibration/calibration_stat_card.py`, `tools/research/correspondence_census.py`, `tools/audits/doctrine_audit.py`, `tools/research/event_map_census.py`, `tools/audits/event_map_chronology.py`, `tools/research/full_package_render.py`, `tools/audits/htf_audit.py`, `tools/research/miss_lane_census.py`, `tools/research/near_miss_census.py`, `tools/research/near_miss_report.py`, `tools/research/operator_marks_diff.py`, `tools/research/rail_area_census.py`, `tools/research/rail_margin_ab.py`, `tools/research/rail_margin_evidence.py`, `tools/research/shape_profile.py`, `tools/calibration/shelf_harness.py`, `tools/audits/structure_case_audit.py`, `tools/research/ta_grade_archive_replay.py`, `tools/audits/ta_grade_timing.py`. Their moves left `file_moves`, their old paths sit under `deleted`, and the twenty module moves among them became `deleted` notes, so a branch that still imports one is told it is gone. The two compatibility aliases `tools/calibration/replay.py` and `tools/calibration/agreement.py` went the same day (their last importers were among the deleted); `core.calibration.replay` and `core.calibration.agreement` are the names.
 
 The same day the deletion reached the engine itself and everything else that read it: 81 more files the refactor had moved went — the whole of `engine_alpha/structure/` (28 modules, every one the old engine's measurement: `engine_alpha/structure/events/box_events.py`, `engine_alpha/structure/box/box_gates.py`, `engine_alpha/structure/box/box_primitives.py`, `engine_alpha/structure/box/box_trace.py`, `engine_alpha/structure/narrative/bricks.py`, `engine_alpha/structure/narrative/chain.py`, `engine_alpha/structure/box/consolidation.py`, `engine_alpha/structure/events/displacement.py`, `engine_alpha/structure/events/event_map.py`, `engine_alpha/structure/events/event_vocabulary.py`, `engine_alpha/structure/box/gate_margins.py`, `engine_alpha/structure/context/htf.py`, `engine_alpha/structure/metrics/indicators.py`, `engine_alpha/structure/box/inner_box.py`, `engine_alpha/structure/lps/detection.py`, `engine_alpha/structure/events/market_structure.py`, `engine_alpha/structure/metrics/base.py`, `engine_alpha/structure/narrative/reader.py`, `engine_alpha/structure/box/near_miss.py`, `engine_alpha/structure/phases/phase_a.py`, `engine_alpha/structure/phases/phase_d.py`, `engine_alpha/structure/phases/phase_features.py`, `engine_alpha/structure/metrics/pivots.py`, `engine_alpha/structure/box/rail_qualification.py`, `engine_alpha/structure/context/scope.py`, `engine_alpha/structure/phases/segmentation.py`, `engine_alpha/structure/context/strategy_read.py`, `engine_alpha/structure/box/trace_export.py`), 47 test files written for that engine or for the switch between the two readers (`tests/archive/test_archive_feed_completeness.py`, `tests/engine/test_bricks.py`, `tests/regression/test_cause_veto_bite.py`, `tests/engine/test_chain.py`, `tests/engine/test_charter_measurements.py`, `tests/engine/test_core_logic.py`, `tests/engine/test_displacement.py`, `tests/engine/test_election_stability.py`, `tests/engine/test_election_surgery.py`, `tests/engine/test_event_map.py`, `tests/engine/test_event_vocabulary.py`, `tests/scoring/test_fired_tags.py`, `tests/engine/test_framing_identity.py`, `tests/engine/test_gate_leg_registry.py`, `tests/engine/test_gate_margins.py`, `tests/engine/test_htf.py`, `tests/archive/test_inner_position_archive.py`, `tests/engine/test_lps.py`, `tests/engine/test_lps_two_form_guards.py`, `tests/engine/test_market_structure.py`, `tests/engine/test_mini_consolidation_position.py`, `tests/engine/test_miss_program_lanes.py`, `tests/engine/test_narrative.py`, `tests/engine/test_narrative_surface_guards.py`, `tests/pipeline/test_near_miss_deferred.py`, `tests/engine/test_near_miss_guards.py`, `tests/archive/test_near_miss_outcomes.py`, `tests/engine/test_near_miss_ruling.py`, `tests/pipeline/test_near_miss_wiring.py`, `tests/engine/test_phase_a.py`, `tests/engine/test_phase_bins.py`, `tests/engine/test_rail_qualification.py`, `tests/engine/test_recovery_view.py`, `tests/engine/test_refusal_telemetry.py`, `tests/engine/test_resistance_contraction.py`, `tests/engine/test_scope_phase_d.py`, `tests/scoring/test_score_taxonomy.py`, `tests/scoring/test_scoring.py`, `tests/engine/test_seeding_refusals.py`, `tests/engine/test_story_pool.py`, `tests/engine/test_story_pool_guards.py`, `tests/engine/test_strategy_read.py`, `tests/archive/test_suggested_weights.py`, `tests/scoring/test_ta_grade_cascade.py`, `tests/engine/test_trace_export.py`, `tests/engine/test_trend_state.py`, `tests/engine/test_trend_terminal_floor.py`), 2 tools (`tools/regression/cause_veto_corpus.py`, `tools/regression/fold_parity.py`), the backend's calibration agreement module (`webapp/backend/domains/calibration/agreement.py`) and the three frontend files that called its two deleted routes or correlated the old scorer's sub-scores (`webapp/frontend/src/features/archive/components/ArchiveReweightingStrip.jsx`, `webapp/frontend/src/features/calibration/hooks/useEngineRead.js`, `webapp/frontend/src/features/calibration/hooks/useMarkAgreement.js`). Their moves left `file_moves`, their old paths sit under `deleted`, and the 31 module moves among them (three of them the packages `engine_alpha.structure.lps`, `.metrics` and `.narrative`) became `deleted` notes. Eight modules the refactor never moved went the same day and are notes too, so a branch that imports one is told it is gone: `engine_alpha.structure`, `engine_alpha.scoring`, `engine_alpha.evaluation`, `engine_alpha.election_identity`, `engine_alpha.stability`, `engine_alpha.frames`, `config.engine` and `config.scoring`; each note names where the piece the alpha reader kept lives now (the sentinels, the universe door, the shared metrics, the window rule, `rails_match`, the surviving settings). `engine_alpha/structure/__init__.py` and `engine_alpha/scoring/__init__.py` are under `deleted` so an import anywhere under either package is reported as gone.
+| `engine_alpha/two_eyes/__init__.py` | The package folded into `engine_alpha` itself (the engine tree, Sat 31/10/2026): `read()` is `engine_alpha/reader.py`; the stages are `chart.py`, `line.py`, `box/`, `lps.py`, `story.py`, `grade.py`, `state.py`. |
+| `engine_alpha/reader.py` (the door) | Moved to `engine_alpha/gate.py` (the engine tree, Sat 31/10/2026); `reader.py` now holds the seven stages' `read()`. |
+| `engine_alpha/sentinels.py` | Split (the engine tree, Sat 31/10/2026): `EVAL_ERROR` is in `engine_alpha/gate.py`; the ten state words are `engine_alpha.record.STATE_WORDS`. |
+| `engine_alpha/freeze/__init__.py` | The freeze package is gone (the engine tree, Sat 31/10/2026): the stamp is `engine_alpha/stamp.py`. |
 
 ## What was deleted, and why
 

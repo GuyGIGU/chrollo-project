@@ -8,7 +8,7 @@ This is the piece that knows the order of operations for a scan:
     3. broadcast market context to worker processes
     4. evaluate tickers in parallel and rank the passing setups
 
-The per-ticker read is the reader door's (``engine_alpha.reader``). Display and
+The per-ticker read is the reader door's (``engine_alpha.gate``). Display and
 persistence live further out (``output/`` and ``core.archive``); this module
 just returns the ranked DataFrame plus the raw market data.
 """
@@ -24,11 +24,11 @@ import pandas as pd
 from config import settings
 from core.pipeline.market_data.cache import _cache_paths
 from core.pipeline.data import get_market_context, get_provider, get_tickers
-from engine_alpha import reader
+from engine_alpha import gate
 # The scan's worker under its old name, for the instruments and tests that call
 # it directly. Both names lead to the same door.
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
-from engine_alpha.sentinels import EVAL_ERROR
+from engine_alpha.gate import evaluate_ticker as _evaluate_ticker
+from engine_alpha.gate import EVAL_ERROR
 from core.pipeline.market_data.market_data_health import (
     compute_market_data_health,
     eligible_tickers_for,
@@ -80,7 +80,7 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     reader reads neither.
 
     ``not_read_sink``: a list the reader's refusals land in: a chart whose frame
-    it would not read comes back from its worker as ``reader.NotRead``, by name
+    it would not read comes back from its worker as ``gate.NotRead``, by name
     and reason, and is listed here, never counted as a crash. Without a sink it
     is counted as one.
 
@@ -94,7 +94,7 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     errored = 0
     worker_count = min(os.cpu_count() or 4, len(ticker_frames)) if ticker_frames else 1
 
-    worker_fn = reader.scan_read
+    worker_fn = gate.scan_read
     # The night's ruleset, named ONCE: the results cross the pool boundary in a
     # fixed shape, so a per-ticker name would move the worker contract.
     print(f"Chart reader: {settings.TWO_EYES_RULESET}", flush=True)
@@ -116,10 +116,10 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
                 last_reported = pct
 
             result = future.result()
-            if isinstance(result, reader.NotRead) and not_read_sink is not None:
+            if isinstance(result, gate.NotRead) and not_read_sink is not None:
                 # A chart the reader would not read: named, not a crash.
                 not_read_sink.append(result)
-            elif result is EVAL_ERROR or isinstance(result, reader.NotRead):
+            elif result is EVAL_ERROR or isinstance(result, gate.NotRead):
                 # Swallowed eval crash — NOT a structural reject. Counted, not appended.
                 errored += 1
             elif result is not None:

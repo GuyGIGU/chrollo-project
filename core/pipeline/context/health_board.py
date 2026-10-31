@@ -11,9 +11,9 @@ those tabs become a useful "where is this in its cycle" board.
 Boundaries this module lives inside (see docs/archive/specs/market-sector-health-board.md and
 docs/health_board_state_audit.md):
 
-* It reads the member's box through the reader door (``engine_alpha.reader.read_record``:
+* It reads the member's box through the reader door (``engine_alpha.gate.read_record``:
   the frame contract, then the universe door, then the reader's parent box) and the
-  shared stock measures (``engine_alpha.metrics``: ``trend_template`` /
+  shared stock measures (``engine_alpha.stock``: ``trend_template`` /
   ``distance_to_52w_high_pct`` for posture / drawdown). It never scores, so the
   ``us_equities`` output cannot drift.
 * It measures and then judges; it assigns NO score / tier / trigger and writes
@@ -99,8 +99,8 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
     """Classify a single member's daily OHLCV frame into exactly one state.
 
     Pure and self-contained: it reads the member's box through the reader door
-    (``engine_alpha.reader.read_record``: the frame contract, then the universe
-    door, then the reader) and the shared stock measures (``engine_alpha.metrics``),
+    (``engine_alpha.gate.read_record``: the frame contract, then the universe
+    door, then the reader) and the shared stock measures (``engine_alpha.stock``),
     and returns one :class:`MemberHealth`. Raises :class:`InsufficientHistoryError`
     when the member is too short to read; any other degenerate input is routed to
     ``no_structure`` rather than a poisoned value. Never mutates the caller's frame.
@@ -119,9 +119,10 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
     """
     from config import settings  # lazy: config-vs-cwd shadowing trap
     from core.pipeline.market_data.downloads import _trim_to_period
-    from engine_alpha import reader
-    from engine_alpha import two_eyes_numbers as M
-    from engine_alpha.metrics import calculate_atr, distance_to_52w_high_pct, trend_template
+    from engine_alpha import gate
+    from engine_alpha import numbers as M
+    from engine_alpha.chart import calculate_atr
+    from engine_alpha.stock import distance_to_52w_high_pct, trend_template
 
     min_bars = int(settings.HEALTH_MIN_BARS)
     if df is None or len(df) < min_bars:
@@ -150,7 +151,7 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
 
     # 2. The box, through the door. None when the universe door refused the
     #    member or the reader holds no box; a read that failed is no box either.
-    box = _parent_box(reader, daily_df)
+    box = _parent_box(gate, daily_df)
     if box is not None:
         R, S = float(box.resistance.price), float(box.support.price)
         span = R - S
@@ -196,11 +197,11 @@ def classify_member(df: "pd.DataFrame") -> MemberHealth:
     return _boxless(HealthState.NO_STRUCTURE, drawdown)
 
 
-def _parent_box(reader, daily_df):
+def _parent_box(gate, daily_df):
     """The reader's parent box for this frame, or None: the universe door refused
     the member, the reader held no box, or the read failed (a failed read is said
     by the reader's own record; the board draws no box for it)."""
-    read = reader.read_record("", daily_df)
+    read = gate.read_record("", daily_df)
     if read is None or read.failed:
         return None
     box = read.parent

@@ -68,10 +68,10 @@ def _new_reader_reason(ticker, chart) -> dict:
     own trail as the detail — the box step, then every LPS step, said as the
     reader said them. Never "no box" for a chart it never read: the universe
     door's refusal is "not scanned", a refused read "the read failed"."""
-    from engine_alpha import reader  # noqa: PLC0415 - the ONE reader door
+    from engine_alpha import gate  # noqa: PLC0415 - the ONE reader door
 
     watch: dict = {}
-    read = reader.read_record(ticker, chart, watch=watch)
+    read = gate.read_record(ticker, chart, watch=watch)
     if read is None:
         return {"stage": "not scanned",
                 "detail": "the new reader never read this chart: the universe door "
@@ -173,7 +173,7 @@ def fired_for_marks(marks, *, compute=None, background=True) -> dict:
     — both for tests. mark dicts are extracted here (session live) so the worker
     never touches a detached ORM row.
     """
-    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from engine_alpha.stamp import manifest_hash  # noqa: PLC0415
     from domains.calibration.grading import _mark_dict  # noqa: PLC0415
     grader = compute or _live_fired
     mh = manifest_hash()

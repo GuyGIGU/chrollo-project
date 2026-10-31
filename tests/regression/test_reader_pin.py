@@ -2,7 +2,7 @@
 
 The pin is the fold acceptance for the alpha reader: what it SAYS about every committed fixture
 chart (the boxes, the LPS, the state word, the events, the grade, the trail's stage words), read
-with ``engine_alpha.two_eyes.read`` and compared field by field against
+with ``engine_alpha.reader.read`` and compared field by field against
 ``tests/baselines/reader_pin_baseline.json``. It is the only guard that can see a reading change
 that keeps every fire and trigger. The real check runs here over the three committed populations
 and as an explicit step in .github/workflows/quality.yml. It is hermetic - committed parquet +
@@ -90,7 +90,7 @@ def test_baseline_parses_and_covers_all_three_populations():
 def test_the_record_rounds_prices_to_the_cent_and_keeps_stage_words_only():
     """The record is the reader's facts, prices to the cent, the trail as stage words (never the
     sentences): a reworded sentence is not a reading change, a moved cent is."""
-    from engine_alpha.two_eyes.record import Box, Event, Grade, Line, Lps, Read, Step
+    from engine_alpha.record import Box, Event, Grade, Line, Lps, Read, Step
 
     box = Box(Line(10.123456, dt.date(2026, 1, 5)), Line(9.0, dt.date(2026, 1, 7)), dt.date(2026, 1, 5))
     read = Read(ticker="AAA", as_of=dt.date(2026, 3, 2), boxes=(box,),

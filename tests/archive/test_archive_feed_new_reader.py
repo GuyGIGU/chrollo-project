@@ -4,7 +4,7 @@ The old reader's gate (``test_archive_feed_completeness.py``) pins its own floor
 measurement columns and, since the flip, asks for the old reader by name. The new
 reader feeds a different set: the setup and its tier, the trend template the scan
 adds to every fire, the stock's ADR (from Tue 13/10/2026; empty on every new-reader
-row before), and its own family (``engine_alpha/two_eyes_archive.py``). The
+row before), and its own family (``engine_alpha/archive.py``). The
 old engine's measurement columns (the bins, the equilibrium, the traversal, the old
 LPS's geometry) are that engine's facts and stay NULL on a new-reader row by design
 (``docs/flag_ledger.md``, the reader's Retired row); the studies read the new stamp
@@ -19,8 +19,8 @@ import re
 import pytest
 
 from _paths import REPO_ROOT
-from engine_alpha import reader
-from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL
+from engine_alpha import gate
+from engine_alpha.archive import TWO_EYES_COLUMN_SQL
 from tools.regression.shadow_diff import _load_fixture
 
 _WRITER = REPO_ROOT / "core" / "archive" / "writer.py"
@@ -60,7 +60,7 @@ def test_a_new_reader_fire_feeds_every_floor_key():
         df = frames.get(ticker)
         if df is None:
             continue
-        r = reader.scan_read(ticker, df, spy_6m, breadth)
+        r = gate.scan_read(ticker, df, spy_6m, breadth)
         if isinstance(r, dict):
             result = r
             break

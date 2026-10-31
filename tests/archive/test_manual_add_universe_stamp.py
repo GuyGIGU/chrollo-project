@@ -76,7 +76,7 @@ def _call_add(db, monkeypatch, ticker="AAA", scan_date=SCAN_DATE):
     kwargs the route assembled — i.e. exactly what a live INSERT is built from)."""
     import core.archive.seed as seed_mod
     import core.pipeline.market_data.downloads as downloads
-    import engine_alpha.freeze.manifest as manifest_mod
+    import engine_alpha.stamp as manifest_mod
     import domains.archive.actions as actions_mod
 
     monkeypatch.setattr(downloads, "_batched_download",

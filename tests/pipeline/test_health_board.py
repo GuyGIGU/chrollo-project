@@ -152,26 +152,26 @@ def test_drawdown_is_classified_before_the_box(monkeypatch):
 
 def test_the_box_is_the_readers_parent_through_the_door(monkeypatch):
     """The board reads the reader's own record: what read_record holds as the parent is the box."""
-    from engine_alpha import reader
+    from engine_alpha import gate
 
     seen = {}
-    real = reader.read_record
+    real = gate.read_record
 
     def spy(ticker, df, **kwargs):
         read = real(ticker, df, **kwargs)
         seen["parent"] = read.parent
         return read
 
-    monkeypatch.setattr(reader, "read_record", spy)
+    monkeypatch.setattr(gate, "read_record", spy)
     mh = classify_member(_sealed("ANET:2026-09-25"))
     parent = seen["parent"]
     assert (mh.R, mh.S) == (round(parent.resistance.price, 2), round(parent.support.price, 2))
 
 
 def test_a_member_the_door_refuses_has_no_box(monkeypatch):
-    from engine_alpha import reader
+    from engine_alpha import gate
 
-    monkeypatch.setattr(reader, "read_record", lambda ticker, df, **k: None)
+    monkeypatch.setattr(gate, "read_record", lambda ticker, df, **k: None)
     mh = classify_member(_sealed("ANET:2026-09-25"))
     assert mh.state in (HealthState.TRENDING, HealthState.NO_STRUCTURE)
     assert mh.R is None and mh.S is None and mh.base_len == 0
@@ -180,7 +180,7 @@ def test_a_member_the_door_refuses_has_no_box(monkeypatch):
 def test_the_line_area_is_half_a_daily_range(monkeypatch):
     """near_resistance / near_support = the last close within LINE_WORD_AREA_ATR daily ranges of R or S:
     with no area at all his ALB (closing OVER R) reads as broken out, not coiled."""
-    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha import numbers as M
 
     monkeypatch.setattr(M, "LINE_WORD_AREA_ATR", 0.0)
     assert classify_member(_sealed("ALB:2026-04-13")).state is HealthState.POST_BREAKOUT_MARKUP

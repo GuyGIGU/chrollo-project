@@ -194,7 +194,7 @@ def _chart_payload(symbol, as_of, frame, raw, digest, warnings, anchor_close, so
     import pandas as pd
 
     from core.pipeline.market_data.downloads import _price_regime  # noqa: PLC0415 — lazy, yfinance-heavy chain
-    from engine_alpha.freeze.manifest import manifest_hash  # noqa: PLC0415
+    from engine_alpha.stamp import manifest_hash  # noqa: PLC0415
     from domains.market_data.service import chart_candles  # noqa: PLC0415
 
     candles, volumes = chart_candles(

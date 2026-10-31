@@ -44,7 +44,7 @@ from core.pipeline.json_safety import to_json_safe
 from core.pipeline.universe.descriptor import resolve_universe
 # Volume at a key point: ONE measure (EC-3), beside the archive column it also fills,
 # so the panel and the new reader's archive read the same number.
-from engine_alpha.two_eyes_archive import SCREEN_KEY, volume_vs_50d as _volume_vs_50d
+from engine_alpha.archive import SCREEN_KEY, volume_vs_50d as _volume_vs_50d
 
 PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 BACKEND_DIR = os.path.join(PROJECT_ROOT, "webapp", "backend")
@@ -167,7 +167,7 @@ def _leadership_read(row, df):
     52-week low and the 200-day average's one-month change in percent (archive
     names, archive values). The stage itself (1 to 4, on the weekly chart) and
     the week the advance began ride beside them (Fri 16/10/2026,
-    ``engine_alpha/stage_read.py``): a new-reader fire carries them, an
+    ``engine_alpha/stock.py``): a new-reader fire carries them, an
     old-reader fire leaves them empty."""
     return {
         'rs_rating': row.get('_rs_rating'),
@@ -418,7 +418,7 @@ def generate_dashboard(results_df, data=None, tickers=None, market_context=None,
     # Provenance for the concordance loop: the archive identity key's scan-level
     # half plus the engine version that produced this read. Lazy import mirrors
     # the writer's own manifest_hash call site.
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
     payload_body = {
         "chart_data": chart_data,
         "ordered_tickers": ordered_tickers,

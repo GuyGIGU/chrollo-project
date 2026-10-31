@@ -2180,7 +2180,7 @@ RS_RATING_LOOKBACK = 252
 _Ops / data-fetch knobs (cache TTLs, Yahoo rate limits, admission/quarantine,
 scheduler, dashboard) are deliberately NOT part of the engine identity — see
 the "DELIBERATELY EXCLUDED" block in
-[engine_alpha/freeze/manifest.py](../engine_alpha/freeze/manifest.py)._
+[engine_alpha/stamp.py](../engine_alpha/stamp.py)._
 <!-- END GENERATED: settings-quick-reference -->
 
 ---

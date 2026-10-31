@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from engine_alpha.two_eyes import walk
+from engine_alpha.box import walk
 from tools.calibration import box_gap, walk_board
 from tools.regression.marks_corpus import load_corpus, setup_key
 from core.calibration.replay import fixture_frame, load_sealed_fixture

@@ -43,7 +43,7 @@ _PROJECT_ROOT = configure_path(backend=True)
 
 import database  # noqa: E402  binds the live SQLite engine + SessionLocal
 
-from engine_alpha.freeze.manifest import manifest_hash  # noqa: E402
+from engine_alpha.stamp import manifest_hash  # noqa: E402
 
 # The shared judgments (EC-3): the harness's validated ORM loader + the SAME
 # canonicalization/fingerprint recipe it stamps on every report — never a

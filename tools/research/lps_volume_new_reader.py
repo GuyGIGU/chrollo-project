@@ -125,7 +125,7 @@ def lps_facts(frame: pd.DataFrame, pos: int, read) -> dict:
 
 def read_ticker(task) -> list:
     """One ticker's episodes: each read day by day, in order, until the reader fires."""
-    from engine_alpha import two_eyes
+    from engine_alpha import reader
     ticker, frame, episodes = task
     out = []
     for episode, days in episodes:
@@ -134,7 +134,7 @@ def read_ticker(task) -> list:
             pos = int(frame.index.searchsorted(pd.Timestamp(day), side="right")) - 1
             if pos < 0 or frame.index[pos] != pd.Timestamp(day):
                 continue
-            read = two_eyes.read(ticker, frame.iloc[:pos + 1])
+            read = reader.read(ticker, frame.iloc[:pos + 1])
             if first_state is None:
                 first_state = "failed" if read.failed else read.state
             if read.lps is not None:

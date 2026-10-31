@@ -5,7 +5,7 @@ The doc's quick-reference used to be a hand-maintained copy of
 ``config/settings.py`` values - a guaranteed-rot surface (it had already
 drifted: stale values, dozens of newer constants missing). This tool replaces
 it with a GENERATED block: the frozen engine-identity allow-list
-(``engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS`` - every constant that can move
+(``engine_alpha.stamp.ENGINE_SETTINGS_KEYS`` - every constant that can move
 a detector decision) rendered with its live settings value, in manifest order,
 stamped with the manifest hash. ``tests/tooling/test_docs_sync.py`` asserts the
 committed block matches this generator, so any settings/manifest change that
@@ -13,7 +13,7 @@ skips the doc fails the suite - the read-before-engine-work house rule,
 enforced.
 
 Ops/data-fetch knobs are deliberately absent - they are not engine identity
-(see the DELIBERATELY EXCLUDED block in engine_alpha/freeze/manifest.py).
+(see the DELIBERATELY EXCLUDED block in engine_alpha/stamp.py).
 
 Usage:
     python -m tools.maintenance.settings_reference --write   # regenerate the doc block in place
@@ -40,7 +40,7 @@ _END = "<!-- END GENERATED: settings-quick-reference -->"
 def render_block() -> str:
     """The full generated block (markers included), built from live settings."""
     from config import settings
-    from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS, manifest_hash
+    from engine_alpha.stamp import ENGINE_SETTINGS_KEYS, manifest_hash
 
     lines = [f"{key} = {getattr(settings, key)!r}" for key in ENGINE_SETTINGS_KEYS]
     body = "\n".join(lines)
@@ -61,7 +61,7 @@ def render_block() -> str:
         "_Ops / data-fetch knobs (cache TTLs, Yahoo rate limits, admission/quarantine,\n"
         "scheduler, dashboard) are deliberately NOT part of the engine identity — see\n"
         "the \"DELIBERATELY EXCLUDED\" block in\n"
-        "[engine_alpha/freeze/manifest.py](../engine_alpha/freeze/manifest.py)._\n"
+        "[engine_alpha/stamp.py](../engine_alpha/stamp.py)._\n"
         f"{_END}"
     )
 

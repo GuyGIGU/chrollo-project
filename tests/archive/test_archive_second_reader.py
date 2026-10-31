@@ -164,7 +164,7 @@ def test_a_result_line_from_before_the_count_existed_reads_as_zero_refused():
 def test_the_new_family_is_one_producer_and_every_column_is_nullable():
     """EC-30: a column family rides EVERY writer through ONE producer."""
     import archive_models
-    from engine_alpha.two_eyes_archive import (TWO_EYES_COLUMN_SQL,
+    from engine_alpha.archive import (TWO_EYES_COLUMN_SQL,
                                                two_eyes_archive_values)
 
     columns = {c.name: c for c in archive_models.SetupArchive.__table__.columns}
@@ -181,7 +181,7 @@ def test_the_family_carries_both_boxes_with_their_anchor_days():
     """Bar offsets cannot be redrawn once the two-year window slides past
     them; a DAY can. Two boxes of the same shape, because his mini and its
     parent are one setup."""
-    from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL
+    from engine_alpha.archive import TWO_EYES_COLUMN_SQL
 
     for box in ("parent", "mini"):
         for part in ("r_price", "r_anchor_date", "s_price", "s_anchor_date",
@@ -196,7 +196,7 @@ def test_nothing_measured_is_stored_empty_and_never_as_a_number():
     """The whole family is NULL under the old reader — and NULL, not 0.0 and
     not "". A zero price is a made-up price, and a made-up number in an
     archive column is indistinguishable from a measured one forever after."""
-    from engine_alpha.two_eyes_archive import two_eyes_archive_values
+    from engine_alpha.archive import two_eyes_archive_values
 
     empty = two_eyes_archive_values(lambda key: None, prefixed=True)
     assert set(empty.values()) == {None}, \
@@ -206,7 +206,7 @@ def test_nothing_measured_is_stored_empty_and_never_as_a_number():
 def test_the_lps_box_word_is_a_closed_set_that_refuses_an_invented_word():
     """EC-22: every value in a closed-set label column has a committed
     producing test, and a word off the set never reaches the column."""
-    from engine_alpha.two_eyes_archive import (TWO_EYES_LPS_BOXES,
+    from engine_alpha.archive import (TWO_EYES_LPS_BOXES,
                                                two_eyes_archive_values)
 
     assert TWO_EYES_LPS_BOXES == ("parent", "mini", "earlier")
@@ -224,7 +224,7 @@ def test_the_mini_flag_has_three_states_not_two():
     """Yes, no, and "the reader that wrote this row never looked" — which is
     every row in the archive today. A two-state flag would quietly claim all
     of them had no mini."""
-    from engine_alpha.two_eyes_archive import two_eyes_archive_values
+    from engine_alpha.archive import two_eyes_archive_values
 
     def flag(value):
         return two_eyes_archive_values(
@@ -244,7 +244,7 @@ def _fired_read(*, with_mini: bool, lps_box: str = "parent", parent_end=None):
     that crossing is what this proves."""
     import datetime as dt
 
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
 
     d = dt.date
     boxes = [record.Box(resistance=record.Line(100.0, d(2026, 1, 5)),
@@ -262,7 +262,7 @@ def _fired_read(*, with_mini: bool, lps_box: str = "parent", parent_end=None):
 
 
 def _archive_one(writer_on_a_scratch_db, read):
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     writer_mod, rows_in_the_archive = writer_on_a_scratch_db
     refused: dict = {}
@@ -495,7 +495,7 @@ def test_a_fresh_database_refuses_an_off_set_word_even_past_the_producer(tmp_pat
 def test_the_mini_flag_refuses_anything_but_yes_or_no(value):
     """int() stored a 2 as a 2 and truncated 0.7 to 0 — "no mini" — a
     different fact made up out of a bad number."""
-    from engine_alpha.two_eyes_archive import two_eyes_archive_values
+    from engine_alpha.archive import two_eyes_archive_values
 
     with pytest.raises(ValueError):
         two_eyes_archive_values({"_two_eyes_has_mini": value}.get, prefixed=True)
@@ -504,7 +504,7 @@ def test_the_mini_flag_refuses_anything_but_yes_or_no(value):
 def test_a_day_column_holds_a_day():
     """A timestamp is cut to its day, not stored with a clock time the market
     never traded at; a string that is not a day is refused."""
-    from engine_alpha.two_eyes_archive import two_eyes_archive_values
+    from engine_alpha.archive import two_eyes_archive_values
 
     out = two_eyes_archive_values(
         {"_two_eyes_parent_opened_date": pd.Timestamp("2026-01-05 09:30")}.get,
@@ -724,7 +724,7 @@ def test_a_read_built_from_a_date_index_still_archives_as_days(writer_on_a_scrat
     fire. The record cuts them to days on the way in."""
     import datetime as dt
 
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
 
     ts = pd.Timestamp
     box = record.Box(resistance=record.Line(100.0, ts("2026-01-05")),
@@ -748,8 +748,8 @@ def test_the_archives_lps_words_are_the_records_own_tuple_and_its_check():
     import re
 
     import archive_models
-    from engine_alpha.two_eyes import record
-    from engine_alpha.two_eyes_archive import TWO_EYES_LPS_BOXES
+    from engine_alpha import record
+    from engine_alpha.archive import TWO_EYES_LPS_BOXES
 
     assert TWO_EYES_LPS_BOXES is record.ROLES
     check = next(c for c in archive_models.SetupArchive.__table__.constraints
@@ -761,7 +761,7 @@ def test_the_scan_prints_a_new_reader_row_before_it_archives_it(capsys):
     """The terminal table is printed BEFORE the archive runs, with no guard.
     A value the new reader leaves empty made it raise, and the first night
     the reader fired would have lost its archive at the print."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
     from core.pipeline.screening.terminal import print_results
 
     print_results(pd.DataFrame([to_result(_fired_read(with_mini=False))]))
@@ -1023,8 +1023,8 @@ def test_the_seed_and_manual_writers_fill_the_family_from_their_own_row_shape():
 
     from core.archive import seed
     from core.archive.result_adapter import seed_row_from_result
-    from engine_alpha.two_eyes_adapter import to_result
-    from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL, two_eyes_archive_values
+    from engine_alpha.result import to_result
+    from engine_alpha.archive import TWO_EYES_COLUMN_SQL, two_eyes_archive_values
     from domains.archive import actions as archive_actions
 
     # The bars through the LPS's last day: the family's LPS volume is measured on
@@ -1097,17 +1097,17 @@ def test_his_dsgn_fills_both_boxes_through_the_real_writer(writer_on_a_scratch_d
     (Mon 30/03/2026) by the new reader itself, crosses the adapter into the real writer as one row with both
     pairs — his parent 10.31 / 9.00 and the size-eligible mini 10.745 / 9.82 with its own anchor days — one trigger, the LPS
     read against the mini, the flag 1."""
-    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha import numbers as M
 
     monkeypatch.setattr(M, "MINI_ENABLED", True)     # the stage is sunset (Fri 30/10/2026) and pinned here behind its switch
-    from engine_alpha import two_eyes
+    from engine_alpha import reader
     from core.calibration.replay import fixture_frame, load_sealed_fixture
     from tools.regression.marks_corpus import load_corpus, setup_key
 
     setup = next(s for s in load_corpus() if s["ticker"] == "DSGN")
     frames, _ = load_sealed_fixture()
     raw = fixture_frame(frames, setup_key(setup), "DSGN")
-    read = two_eyes.read("DSGN", raw.loc[:pd.Timestamp("2026-03-30")])
+    read = reader.read("DSGN", raw.loc[:pd.Timestamp("2026-03-30")])
     assert read.fired and read.mini is not None
     stored = _archive_one(writer_on_a_scratch_db, read)
     assert (round(stored.two_eyes_parent_r_price, 2), stored.two_eyes_parent_r_anchor_date) == (10.31, "2025-12-05")

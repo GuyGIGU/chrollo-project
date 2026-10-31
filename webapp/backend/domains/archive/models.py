@@ -473,7 +473,7 @@ class SetupArchive(Base):
     strategy_floor_above_ar = Column(Integer, nullable=True)
 
     # ── The two-eyes reader's family — dark until that reader is switched on ──
-    # Owning declaration in engine_alpha/two_eyes_archive.py (TWO_EYES_COLUMN_SQL),
+    # Owning declaration in engine_alpha/archive.py (TWO_EYES_COLUMN_SQL),
     # splatted by all three writers through the ONE producer. Two boxes of the
     # same shape, because his mini and its parent are one setup read at two
     # distances; each line carries the DAY it was anchored, which survives the
@@ -540,14 +540,14 @@ class SetupArchive(Base):
     fund_grade = Column(String, nullable=True)              # A/B/C/D; NULL = not enough data (or before 2026-10-12)
     fund_grade_score = Column(Float, nullable=True)         # share of the known checks passed (0..1)
     fund_sheet_json = Column(Text, nullable=True)           # the whole sheet as shown: EPS, quarters, revisions, reactions, quality, the checks
-    # The stage read (2026-10-16, display + archive only; engine_alpha/stage_read.py): the stock's life cycle on its
+    # The stage read (2026-10-16, display + archive only; engine_alpha/stock.py): the stock's life cycle on its
     # weekly chart. NULL on old-reader rows and on every row before 2026-10-16.
     cycle_stage = Column(Integer, nullable=True)            # 1 neglect, 2 advance, 3 top, 4 decline
     advance_start = Column(String, nullable=True)           # ISO Friday of the week the current stage-2 advance began (stage 2 only)
     advance_weeks = Column(Integer, nullable=True)          # completed weeks from that week to the week read, both counted
 
     # ── Engine provenance (frozen-config reproducibility) ────────
-    # sha256 of the frozen engine-config manifest (engine_alpha/freeze/manifest.py) that
+    # sha256 of the frozen engine-config manifest (engine_alpha/stamp.py) that
     # produced this row. Lets a freeze + backtest trace any signal to the exact
     # config version and detect silent drift. Nullable: pre-existing rows have
     # no stamp. Pure provenance — never a computed engine field.
@@ -640,7 +640,7 @@ class SetupArchive(Base):
         # was read inside, and the three-state mini flag. Fresh-DB defence
         # like the siblings — the live DB gains these columns by ADD COLUMN,
         # which cannot carry a CHECK, so there the one producer's refusal
-        # (engine_alpha/two_eyes_archive.py) is the guard.
+        # (engine_alpha/archive.py) is the guard.
         CheckConstraint(
             "two_eyes_lps_read_against IS NULL OR "
             "two_eyes_lps_read_against IN ('parent', 'mini', 'earlier')",

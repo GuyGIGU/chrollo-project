@@ -31,12 +31,12 @@ if _BACKEND_DIR not in sys.path:
 from core.archive.db_path import archive_db_path
 from config import settings
 from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
-from engine_alpha import reader
+from engine_alpha import gate
 from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 from core.archive.writer import retired_columns_null
-from engine_alpha.two_eyes_archive import two_eyes_archive_values
+from engine_alpha.archive import two_eyes_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -178,15 +178,15 @@ def _evaluate_at_date(df: pd.DataFrame, spy_6m_return: float = 0.0) -> Optional[
     live screener uses, then re-key the canonical result to the unprefixed shape the
     seed archive writer consumes.
 
-    Delegates through the reader door (``engine_alpha.reader.run_eval_chain``) so that "replay at T ==
+    Delegates through the reader door (``engine_alpha.gate.run_eval_chain``) so that "replay at T ==
     live at T" holds by construction rather than by a recall test. Seed runs with
     ``breadth_pct=None`` (there is no live universe-breadth at a historical replay
     date), matching the prior behaviour. ``seed_row_from_result`` is the single
     boundary translating the canonical contract to the writer's historical key names.
     """
     try:
-        result = reader.run_eval_chain("", df, spy_6m_return, None)
-    except reader.ReadFailed:
+        result = gate.run_eval_chain("", df, spy_6m_return, None)
+    except gate.ReadFailed:
         # A read that fell over is not "no setup": the caller says so (the
         # manual add names the reason, the seed counts it). Council review
         # 2026-10-09, finding 3.
@@ -236,7 +236,7 @@ def _best_day(df_full: pd.DataFrame, target_date: pd.Timestamp, spy_close_series
 
         try:
             result = _evaluate_at_date(df_slice, spy_6m_return=spy_6m)
-        except reader.ReadFailed as exc:
+        except gate.ReadFailed as exc:
             failed_reads.append(f"{eval_date:%Y-%m-%d}: {exc}")
             continue
         if result is not None:
@@ -306,7 +306,7 @@ def seed_archive(
 
     # Frozen engine-config version stamped on every seeded row (computed once —
     # provenance only, never a computed engine field).
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
     engine_config_version = manifest_hash()
 
     # Batch download all tickers

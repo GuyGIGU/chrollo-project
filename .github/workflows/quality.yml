@@ -127,7 +127,7 @@ jobs:
       # Reader pin. Offline + deterministic, HARD gate, ~1 min.
       # Reads 105 committed fixture charts (the 52 sealed marks, the 16 junk
       # charts, and all 37 shadow charts INCLUDING the ones that do not fire)
-      # with the alpha reader itself (engine_alpha.two_eyes.read) and fails on any
+      # with the alpha reader itself (engine_alpha.reader.read) and fails on any
       # change to what it SAYS about a chart: the boxes, the LPS, the state word,
       # the events, the grade letter and score, the trail's stage words. It is the
       # only guard that can see that: shadow_diff freezes nine canonical fields of

@@ -346,8 +346,7 @@ def test_shadow_guard_fails_when_ticker_drops_out():
 
 
 @pytest.mark.parametrize("engine_dir, pattern", [
-    ("two_eyes", "**/*.py"),   # the reader's package
-    ("", "*.py"),              # the door, the adapter, the archive family, the metrics, the sentinels
+    ("", "**/*.py"),           # the whole engine, the box folder included (Sat 31/10/2026)
 ])
 def test_engines_do_not_import_archive(engine_dir, pattern):
     base = ROOT / "engine_alpha" / engine_dir

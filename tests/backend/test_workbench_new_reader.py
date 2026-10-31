@@ -39,12 +39,12 @@ def _loader(frame):
 
 
 def test_the_miss_shows_the_readers_box_and_its_reason_from_its_own_trail(monkeypatch):
-    from engine_alpha import two_eyes
+    from engine_alpha import reader
     from webapp.backend import frame_store
 
     ticker, as_of = MISSED
     frame = _frame(ticker, as_of)
-    read = two_eyes.read(ticker, frame.loc[:pd.Timestamp(as_of)])
+    read = reader.read(ticker, frame.loc[:pd.Timestamp(as_of)])
     box = next(s.saying for s in read.trail if s.stage == "box")
     lps = next(s.saying for s in read.trail if s.stage == "LPS")
     assert box.startswith("R 324.73") and "S 290.49" in box          # his box, as the reader drew it
@@ -68,9 +68,9 @@ def test_a_chart_the_reader_refused_is_a_failed_read_never_no_box():
 
 
 def test_a_chart_the_universe_door_refused_is_not_scanned_never_no_box(monkeypatch):
-    from engine_alpha import universe_door
+    from engine_alpha import gate
 
-    monkeypatch.setattr(universe_door, "apply_baseline_filters_with_reason",
+    monkeypatch.setattr(gate, "apply_baseline_filters_with_reason",
                         lambda df: (None, ("sma200", "under its 200-day average")))
     ticker, as_of = MISSED
     reason = fired._miss_reason(_mark(ticker, as_of), frame_loader=_loader(_frame(ticker, as_of)))

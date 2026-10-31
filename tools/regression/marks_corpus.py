@@ -80,9 +80,9 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path(backend=True)
 
 from config import settings
-from engine_alpha.freeze.manifest import manifest_hash
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
-from engine_alpha.sentinels import EVAL_ERROR
+from engine_alpha.stamp import manifest_hash
+from engine_alpha.gate import evaluate_ticker as _evaluate_ticker
+from engine_alpha.gate import EVAL_ERROR
 
 # The shared replay layer owns fixture paths + loading (Task 6 fold).
 # No dual-form fallback needed: configure_path() above already put the repo
@@ -376,7 +376,7 @@ def load_sealed_standard() -> tuple[list[dict], dict, dict]:
     drawings file the bars were not sealed for, and ``stamp`` names exactly what a report measured: the
     drawings' seal and fingerprint and the engine version that read them."""
     from core.calibration.replay import load_sealed_fixture
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
 
     frames, baseline = load_sealed_fixture()
     seal = corpus_sha256()

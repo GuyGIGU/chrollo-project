@@ -40,9 +40,9 @@ import pandas as pd
 
 from config import settings
 from core.pipeline.market_data.downloads import _trim_to_period
-from engine_alpha import reader, universe_door
-from engine_alpha.metrics import calculate_atr
-from engine_alpha.sentinels import EVAL_ERROR
+from engine_alpha import gate
+from engine_alpha.chart import calculate_atr
+from engine_alpha.gate import EVAL_ERROR
 
 # Sealed-corpus fixture paths (written by `tools.regression.marks_corpus --build-fixture`,
 # read by every replay consumer). The corpus tool aliases these.
@@ -89,13 +89,13 @@ def prepared_frame_with_reason(
     raw: pd.DataFrame, as_of,
 ) -> tuple[tuple[pd.DataFrame, float] | None, tuple[str, dict] | None]:
     """The frame as of one eval date, reasoned: slice to ``as_of``, ask the ONE
-    universe door (``engine_alpha.universe_door``), trim to the daily reading
+    universe door (``engine_alpha.gate``), trim to the daily reading
     window and carry the daily range (``ATR_10``), the last bar's as the
     frame's. Returns ``((df, atr), None)`` on pass or ``(None, (gate, samples))``
     naming the FIRST failing universe gate (a refusal is a named operational
     outcome, never a bare silence). The reasonless ``prepared_frame`` derives
     from this."""
-    admitted, reason = universe_door.apply_baseline_filters_with_reason(raw.loc[:pd.Timestamp(as_of)])
+    admitted, reason = gate.apply_baseline_filters_with_reason(raw.loc[:pd.Timestamp(as_of)])
     if admitted is None:
         return None, reason
     df = _trim_to_period(admitted[0], settings.DAILY_STRUCTURE_PERIOD).copy()
@@ -310,7 +310,7 @@ def fired_window_walk(ticker: str, frozen: pd.DataFrame, spy_6m: float,
     ``evaluate`` defaults to the reader door's ``evaluate_ticker``; a consumer
     passes its own module-bound name so its tests can monkeypatch that
     binding exactly as they always have."""
-    evaluate = evaluate or reader.evaluate_ticker
+    evaluate = evaluate or gate.evaluate_ticker
     as_of = frozen.index[-1] if as_of is None else as_of
     sessions, note = fired_window_sessions(frozen, as_of, [])
     out = {"window": [sessions[0].date().isoformat(), sessions[-1].date().isoformat()]

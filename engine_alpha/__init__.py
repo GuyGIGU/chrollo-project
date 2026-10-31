@@ -1,10 +1,10 @@
-"""Engine Alpha — Chrollo's chart-reading engine as a standalone package.
+"""The alpha reader: a chart in, one record out.
 
-The pure frame->reading chain: the alpha reader (``two_eyes``, measure and judgment in one
-record), its adapter to the scan's result shape, the one door (``reader``), the universe
-door, the shared metrics and the frozen settings manifest (engine identity).
-Other components (pipeline, webapp, tools, tests) SUMMON the engine through
-this package; the engine imports nothing back from them. Its only sanctioned
-outward reads are ``config.settings`` (the mutable-singleton override seam)
-and the documented flag-gated advisory seam in the eval chain.
+Stage by stage, in the order the reader reads: ``chart`` (the frame and the daily range), ``line`` (the
+swing line), ``box/`` (the walk: which pair of lines is the box, and its life), ``lps`` (the last pullback and
+its trigger), ``story`` (the words), ``grade`` (the letter and the traits), ``state`` (the state word);
+``reader.read`` runs them into one ``record.Read``. ``gate`` is the one way in for every caller, ``result``
+and ``archive`` are what the reader hands out, ``stock`` is the stock's own facts, ``numbers`` every number the
+reader reads and ``stamp`` the engine config version. A leaf: it imports nothing from the pipeline, the
+webapp or the tools; ``config.settings`` is its one outward read.
 """

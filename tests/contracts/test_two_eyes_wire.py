@@ -35,7 +35,7 @@ for _p in (str(ROOT), str(ROOT / "webapp" / "backend")):
 # A two-eyes fire, built by hand: a parent, a mini, an LPS read against the mini, a grade                          #
 # --------------------------------------------------------------------------- #
 def _read(*, grade=True, width_frac=None, mini=True, score=92.3, letter="S", spring_day=None):
-    from engine_alpha.two_eyes import record
+    from engine_alpha import record
 
     d = dt.date
     events = () if spring_day is None else (record.Event(kind=record.SPRING, day=spring_day, price=89.0),)
@@ -58,7 +58,7 @@ def _read(*, grade=True, width_frac=None, mini=True, score=92.3, letter="S", spr
 # The adapter: the score and the tier are the grade's                          #
 # --------------------------------------------------------------------------- #
 def test_the_score_and_the_tier_are_the_grades():
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     result = to_result(_read())
     assert result["Score"] == pytest.approx(92.3) and result["Tier"] == "S"
@@ -70,7 +70,7 @@ def test_the_score_and_the_tier_are_the_grades():
 
 def test_a_read_whose_grade_fell_over_keeps_the_dark_placeholder():
     """A grade never costs a fire: the read stands with no grade, and the score column cannot be empty."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     result = to_result(_read(grade=False))
     assert (result["Score"], result["Tier"], result["_ta_grade"]) == (0.0, "", None)
@@ -80,7 +80,7 @@ def test_a_read_whose_grade_fell_over_keeps_the_dark_placeholder():
 def test_the_old_engines_price_ceiling_never_touches_the_new_letter():
     """The OLD engine caps S at a box 15% of its price tall (it alone held SIMO at A on Fri 02/10/2026). The new
     reader's letter is its grade's, whatever the box's height."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     result = to_result(_read(width_frac=0.30))
     assert result["Box Width"] == pytest.approx(0.30)
@@ -91,7 +91,7 @@ def test_the_old_engines_price_ceiling_never_touches_the_new_letter():
 # The adapter: the ONE dated block the screen reads                             #
 # --------------------------------------------------------------------------- #
 def test_the_block_carries_dates_and_prices_and_nothing_to_work_out():
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     block = to_result(_read())["_wire_two_eyes"]
     assert block["boxes"] == [
@@ -111,8 +111,8 @@ def test_the_block_carries_dates_and_prices_and_nothing_to_work_out():
 def test_the_block_carries_the_story_the_reader_named():
     """The grade panel tells the story left to right (Tue 13/10/2026): each word with its day, its price, its
     swing's first and last day, its size in daily ranges and whether it has settled, oldest first."""
-    from engine_alpha.two_eyes import record
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha import record
+    from engine_alpha.result import to_result
 
     d = dt.date
     events = (
@@ -140,8 +140,8 @@ def test_the_block_carries_the_story_the_reader_named():
 def test_the_screens_boxes_are_the_archive_familys_own():
     """One shaper, one family: the boxes on the scan's wire are the boxes the archive stores, shaped by the same
     function the archive's chart uses."""
-    from engine_alpha.two_eyes_adapter import to_result
-    from engine_alpha.two_eyes_archive import two_eyes_archive_values, two_eyes_screen_boxes
+    from engine_alpha.result import to_result
+    from engine_alpha.archive import two_eyes_archive_values, two_eyes_screen_boxes
 
     result = to_result(_read())
     assert result["_wire_two_eyes"]["boxes"] == two_eyes_screen_boxes(
@@ -150,8 +150,8 @@ def test_the_screens_boxes_are_the_archive_familys_own():
 
 def test_the_screen_draws_no_earlier_box():
     """Ours (task 15): an earlier box is each night's own telling (the known limit) and the archive keeps none."""
-    from engine_alpha.two_eyes import record
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha import record
+    from engine_alpha.result import to_result
 
     read = _read(mini=False)
     earlier = record.Box(resistance=record.Line(120.0, dt.date(2025, 9, 1)), support=record.Line(110.0, dt.date(2025, 9, 3)),
@@ -231,7 +231,7 @@ LEADERSHIP_KEYS = ("rs_rating", "stage2_trend_pass_count", "stage2_52w_low_pct",
 
 def test_new_reader_producer_matches_core_chart_contract(monkeypatch):
     from domains.screener.schemas import ScreenerChart
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     ScreenerChart.model_validate(_payload(monkeypatch, to_result(_read())))
 
@@ -239,7 +239,7 @@ def test_new_reader_producer_matches_core_chart_contract(monkeypatch):
 def test_a_two_eyes_fire_keeps_its_chart_and_carries_the_one_block(monkeypatch):
     """The old payload cast the old engine's bar counts with int(), which a two-eyes row leaves empty: the chart was
     dropped by its own try, silently, the moment the row had a tier (the build log's note of task 6)."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     result = to_result(_read())
     chart = _payload(monkeypatch, result)
@@ -253,7 +253,7 @@ def test_every_surface_shows_one_grade_number(monkeypatch):
     the archive keeps the score. A grade rounded at the wire beside its unrounded twin split the real night of Thu
     08/10/2026 (NVEC, 500/11: 46 on the card, 45 in the panel), as it would any score whose fraction sits in
     [.45, .5) (the task-15 blind check's P1)."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     result = to_result(_read(score=500 / 11, letter="B"))
     chart = _payload(monkeypatch, result)
@@ -263,7 +263,7 @@ def test_every_surface_shows_one_grade_number(monkeypatch):
 
 def test_parent_length_counts_real_sessions_even_when_the_grade_window_ends_earlier(monkeypatch):
     from core.pipeline.screening.dashboard import _two_eyes_base_length
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     frame = _frame()
     read = _read()
@@ -278,7 +278,7 @@ def test_parent_length_counts_real_sessions_even_when_the_grade_window_ends_earl
 
 
 def test_the_new_reader_chart_carries_its_parent_session_count(monkeypatch):
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     row = to_result(_read())
     chart = _payload(monkeypatch, row)
@@ -288,7 +288,7 @@ def test_the_new_reader_chart_carries_its_parent_session_count(monkeypatch):
 def test_the_old_families_are_not_carried_on_a_two_eyes_row(monkeypatch):
     """Absent, not null: a family the new reader does not fill says nothing about the row. A null here is what a
     panel reads as "this row predates the read"; the old sub-scores came over as zeros, measured-looking."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     chart = _payload(monkeypatch, to_result(_read()))
     assert tuple(sorted(chart)) == TWO_EYES_WIRE_KEYS
@@ -318,7 +318,7 @@ _STOCK = {"_rs_rating": 84.21, "_stage2_trend_pass_count": 6, "_stage2_52w_low_p
 def test_a_two_eyes_fire_carries_the_leadership_read(monkeypatch):
     """Once a new-reader fire skipped the whole leadership block on the live screen (the old shape's `continue`).
     The stock's read does not depend on the reader: the row's facts reach the card as they are."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     new = _payload(monkeypatch, {**to_result(_read()), **_STOCK})
     assert {k: new[k] for k in LEADERSHIP_KEYS if k != "dollar_volume_50d"} == {
@@ -333,11 +333,11 @@ def test_a_two_eyes_fire_carries_the_stocks_adr(monkeypatch):
     showed a dash. The ADR is the stock's, not the setup's: his ALB on Tue 07/04/2026 carries ONE number on the row
     the archive writes and on the card, the one formula and window (4.99%, the number the old chain read too)."""
     from core.calibration.replay import load_sealed_fixture
-    from engine_alpha import reader
+    from engine_alpha import gate
 
     frames, _ = load_sealed_fixture()
     alb = frames["ALB:2026-04-13"].loc[:pd.Timestamp("2026-04-07")]
-    new = reader.evaluate_ticker("ALB", alb)
+    new = gate.evaluate_ticker("ALB", alb)
     assert isinstance(new, dict) and "_wire_two_eyes" in new, "the reader fires on his ALB that day"
     assert round(new["_adr_pct"], 2) == 4.99
 
@@ -363,7 +363,7 @@ def test_volume_at_key_points_is_read_on_the_new_readers_own_lps_and_spring_days
     """The LPS pullback: its five days' average (50) against the 50-day average ending on its last day (99) = 0.51x.
     The spring: its day (300) against the 50 days ending on it (104) = 2.88x. The old reader's own facts riding on
     the row (a dry-up of 0.9 and a spring on another day) are never read for a new-reader fire."""
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     row = {**to_result(_read(spring_day=dt.date(2026, 2, 10))),
            "_vol_contraction": 0.9, "_bin_c_event_date": "2026-01-15"}
@@ -373,7 +373,7 @@ def test_volume_at_key_points_is_read_on_the_new_readers_own_lps_and_spring_days
 
 
 def test_a_new_reader_fire_with_no_spring_shows_a_dash_never_the_old_readers_spring(monkeypatch):
-    from engine_alpha.two_eyes_adapter import to_result
+    from engine_alpha.result import to_result
 
     row = {**to_result(_read()), "_bin_c_event_date": "2026-02-10"}
     chart = _payload(monkeypatch, row, _quiet_frame())

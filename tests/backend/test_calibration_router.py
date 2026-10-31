@@ -740,7 +740,7 @@ def test_fired_non_box_is_untested_without_compute():
 
 def test_fired_sync_grades_and_caches(monkeypatch):
     reset_fired_cache()
-    monkeypatch.setattr("engine_alpha.freeze.manifest.manifest_hash", lambda: "LIVE")
+    monkeypatch.setattr("engine_alpha.stamp.manifest_hash", lambda: "LIVE")
     calls = []
 
     def grader(md):
@@ -757,7 +757,7 @@ def test_fired_sync_grades_and_caches(monkeypatch):
 
 def test_fired_degrades_a_throwing_grade(monkeypatch):
     reset_fired_cache()
-    monkeypatch.setattr("engine_alpha.freeze.manifest.manifest_hash", lambda: "LIVE")
+    monkeypatch.setattr("engine_alpha.stamp.manifest_hash", lambda: "LIVE")
 
     def boom(_md):
         raise RuntimeError("pipeline exploded")
@@ -769,7 +769,7 @@ def test_fired_degrades_a_throwing_grade(monkeypatch):
 def test_fired_cache_keys_on_birth_stamp(monkeypatch):
     from datetime import datetime, timezone
     reset_fired_cache()
-    monkeypatch.setattr("engine_alpha.freeze.manifest.manifest_hash", lambda: "LIVE")
+    monkeypatch.setattr("engine_alpha.stamp.manifest_hash", lambda: "LIVE")
     calls = []
 
     def grader(_md):
@@ -787,7 +787,7 @@ def test_fired_cache_keys_on_birth_stamp(monkeypatch):
 def test_fired_pool_returns_pending_then_settles(monkeypatch):
     import time
     reset_fired_cache()
-    monkeypatch.setattr("engine_alpha.freeze.manifest.manifest_hash", lambda: "LIVE")
+    monkeypatch.setattr("engine_alpha.stamp.manifest_hash", lambda: "LIVE")
     gate = threading.Event()
 
     def slow(_md):

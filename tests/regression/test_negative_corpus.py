@@ -231,7 +231,7 @@ def test_negative_gate_bites_on_eval_error(no_pins, monkeypatch):
     let a change that crashes on (and thereby hides) junk charts keep the gate
     green.
     """
-    from engine_alpha.sentinels import EVAL_ERROR
+    from engine_alpha.gate import EVAL_ERROR
 
     _frames, meta = negative_corpus._load_fixture()
     poisoned = meta["cases"][0]["ticker"]
@@ -291,7 +291,7 @@ def test_negative_gate_bites_on_a_non_final_window_day(no_pins, monkeypatch, cap
 def test_negative_gate_bites_on_a_non_final_eval_error_day(no_pins, monkeypatch, capsys):
     """A crash on an EARLIER window day (clean on the frozen day) fails the
     gate and is named by its day - a crash is neither a rejection nor a fire."""
-    from engine_alpha.sentinels import EVAL_ERROR
+    from engine_alpha.gate import EVAL_ERROR
 
     case, key, df = _first_case()
     days = _window_days(df)
@@ -367,7 +367,7 @@ def test_a_pinned_day_that_goes_quiet_is_named_and_not_failed(monkeypatch, capsy
 def test_the_final_day_is_pinnable_and_the_silent_chart_is_pinned_empty(monkeypatch, tmp_path):
     """``--pin-known-fires`` pins EVERY fire day, the frozen day included (DBD fires on its last day), writes an
     empty list for a silent chart, writes LF, and refuses outright on a crash."""
-    from engine_alpha.sentinels import EVAL_ERROR
+    from engine_alpha.gate import EVAL_ERROR
 
     case, key, df = _first_case()
     days = _window_days(df)

@@ -14,7 +14,7 @@ _ROOT = str(REPO_ROOT)
 
 
 def test_the_switches_are_the_walks_bools_and_a_switch_is_zero_or_one():
-    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha import numbers as M
     from tools.calibration import fires_board
 
     names = fires_board.switch_names()
@@ -32,7 +32,7 @@ def test_the_switches_are_the_walks_bools_and_a_switch_is_zero_or_one():
 
 
 def test_an_override_holds_for_the_run_and_is_put_back_even_when_the_run_breaks():
-    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha import numbers as M
     from tools.calibration import fires_board
 
     assert M.ONE_BAR_PAIR is True

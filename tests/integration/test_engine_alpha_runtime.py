@@ -27,13 +27,13 @@ def _run(code: str, cwd: Path) -> subprocess.CompletedProcess:
 
 
 def test_the_scans_worker_and_the_sentinel_pickle_by_name():
-    from engine_alpha.reader import evaluate_ticker, scan_read
-    from engine_alpha.sentinels import EVAL_ERROR
+    from engine_alpha.gate import evaluate_ticker, scan_read
+    from engine_alpha.gate import EVAL_ERROR
     assert pickle.loads(pickle.dumps(scan_read)) is scan_read
     assert pickle.loads(pickle.dumps(evaluate_ticker)) is evaluate_ticker
     assert pickle.loads(pickle.dumps(EVAL_ERROR)) is EVAL_ERROR
-    assert scan_read.__module__ == "engine_alpha.reader"
-    assert EVAL_ERROR.__class__.__module__ == "engine_alpha.sentinels"
+    assert scan_read.__module__ == "engine_alpha.gate"
+    assert EVAL_ERROR.__class__.__module__ == "engine_alpha.gate"
 
 
 def test_spawned_child_resolves_the_pickled_worker(tmp_path):
@@ -41,16 +41,16 @@ def test_spawned_child_resolves_the_pickled_worker(tmp_path):
     # win32): unpickle the worker + sentinel bytes and confirm they resolve
     # to the SAME objects the child imports by name — `result is EVAL_ERROR`
     # in the pool parent depends on exactly this identity.
-    from engine_alpha.reader import scan_read
-    from engine_alpha.sentinels import EVAL_ERROR
+    from engine_alpha.gate import scan_read
+    from engine_alpha.gate import EVAL_ERROR
     blob = tmp_path / "worker.pkl"
     blob.write_bytes(pickle.dumps((scan_read, EVAL_ERROR)))
     code = (
         "import pickle, sys\n"
         f"sys.path.insert(0, {str(ROOT)!r})\n"
         f"fn, err = pickle.loads(open({str(blob)!r}, 'rb').read())\n"
-        "import engine_alpha.reader as reader\n"
-        "import engine_alpha.sentinels as sentinels\n"
+        "import engine_alpha.gate as reader\n"
+        "import engine_alpha.gate as sentinels\n"
         "assert fn is reader.scan_read, 'worker resolved to a different object'\n"
         "assert err is sentinels.EVAL_ERROR, 'sentinel resolved to a different object'\n"
     )
@@ -65,7 +65,7 @@ def test_engine_imports_from_the_backend_decoy_cwd():
     code = (
         "import sys\n"
         f"sys.path.insert(0, {str(ROOT)!r})\n"
-        "import engine_alpha.reader, engine_alpha.two_eyes\n"
+        "import engine_alpha.gate, engine_alpha.reader\n"
         "from config import settings\n"
         "assert hasattr(settings, 'MIN_PRICE'), 'wrong config module resolved'\n"
     )
@@ -112,7 +112,7 @@ def _imported_names(path: Path):
 
 def test_engine_alpha_is_a_leaf_package():
     files = sorted((ROOT / "engine_alpha").rglob("*.py"))
-    assert len(files) >= 25, "glob went vacuous — the engine package is missing files"
+    assert len(files) >= 15, "glob went vacuous — the engine package is missing files"
     offences = []
     for f in files:
         for name in _imported_names(f):

@@ -4,7 +4,7 @@ Negative-corpus precision gate - the junk charts' fire days are PINNED.
 Sixteen charts the operator or a documented dissection labeled as junk are frozen
 into a committed fixture (``tests/baselines/negative_corpus.parquet`` +
 ``negative_corpus_meta.json``) and replayed through the reader door
-(``engine_alpha.reader.evaluate_ticker``) on every day of the fired-policy window
+(``engine_alpha.gate.evaluate_ticker``) on every day of the fired-policy window
 the marks ratchet grades (``core.calibration.replay.fired_window_walk``: the last
 ``FIRED_WINDOW_SESSIONS`` trading days ending at the frozen day, every clamp
 named). The engine's other guards are one-directional: the shadow fixture
@@ -49,8 +49,8 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from engine_alpha.reader import evaluate_ticker as _evaluate_ticker
-from engine_alpha.universe_door import apply_baseline_filters
+from engine_alpha.gate import evaluate_ticker as _evaluate_ticker
+from engine_alpha.gate import apply_baseline_filters
 from core.calibration.replay import (
     FIRED_WALK_MAX_SESSIONS,
     FIRED_WINDOW_SESSIONS,
@@ -322,7 +322,7 @@ def pin_known_fires() -> dict:
         print(f"  {key}: " + (f"pinned {_fires_line(walk)}" if walk["fires"] else "silent"))
     if problems:
         raise RuntimeError("Refusing to pin known fires:\n  " + "\n  ".join(problems))
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
 
     out = {
         "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -466,7 +466,7 @@ def build_fixture(cache_path: str = _CACHE_PATH) -> dict:
     os.makedirs(_BASELINE_DIR, exist_ok=True)
     combined = pd.concat(frames, axis=1)  # MultiIndex columns: (ticker, field)
     combined.to_parquet(_FIXTURE_PARQUET, engine=settings.PARQUET_ENGINE)
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
 
     meta = {
         "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),

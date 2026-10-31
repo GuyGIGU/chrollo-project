@@ -52,7 +52,7 @@ import numpy as np                                           # noqa: E402
 import pandas as pd                                          # noqa: E402
 
 from config import settings                                  # noqa: E402
-from engine_alpha.freeze.manifest import manifest_hash       # noqa: E402
+from engine_alpha.stamp import manifest_hash       # noqa: E402
 
 
 def load_panel(path=None, tickers=None):

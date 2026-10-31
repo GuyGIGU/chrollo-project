@@ -17,7 +17,7 @@ identity registers must have an entry, and every entry must name such a flag.
 
 The old engine's 39 dark lanes and the reader switch that replaced the reader
 left this contract when that engine retired (Sat 31/10/2026): the alpha reader
-has no flags, only its numbers (engine_alpha/two_eyes_numbers.py, hashed into
+has no flags, only its numbers (engine_alpha/numbers.py, hashed into
 the version stamp). What remains enrolled is the advisory post-pass.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from config import settings
-from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
+from engine_alpha.stamp import ENGINE_SETTINGS_KEYS
 from tools.regression.shadow_diff import CANONICAL_FIELDS
 
 # The declared additive field sets — result-row keys each lane may ADD.
@@ -126,7 +126,7 @@ def test_the_flipped_live_exemption_names_only_live_enrolled_engine_flags():
 
 def test_the_reader_has_no_switch_and_no_dark_lane():
     """The alpha reader is read as built: its numbers are in the version stamp
-    (engine_alpha/two_eyes_numbers.py) and no boolean on settings chooses a
+    (engine_alpha/numbers.py) and no boolean on settings chooses a
     reader or arms a lane inside it. A reader flag added to settings would land
     in the manifest first, and then here."""
     assert not hasattr(settings, "TWO_EYES_READER_ENABLED")

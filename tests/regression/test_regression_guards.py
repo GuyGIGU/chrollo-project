@@ -112,7 +112,7 @@ def test_run_fixture_drops_eval_error_without_raising(monkeypatch):
     Bite proof: make ``core.calibration.replay.fired_window_walk`` file EVAL_ERROR under
     ``fires`` and this test raises AttributeError.
     """
-    from engine_alpha.sentinels import EVAL_ERROR
+    from engine_alpha.gate import EVAL_ERROR
 
     poisoned, _days = _one_fixture_ticker()
 

@@ -44,12 +44,12 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         _sys.path.insert(0, _root)
 
     from core.archive.seed import SEED_HISTORY_DAYS, _evaluate_at_date
-    from engine_alpha.reader import ReadFailed
+    from engine_alpha.gate import ReadFailed
     from core.archive.forward_returns import FORWARD_RETURN_DOWNLOAD_DAYS, _compute_returns
     from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
     from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
-    from engine_alpha.freeze.manifest import manifest_hash
-    from engine_alpha.two_eyes_archive import two_eyes_archive_values
+    from engine_alpha.stamp import manifest_hash
+    from engine_alpha.archive import two_eyes_archive_values
     from archive_models import (
         SetupArchive,
         get_market_context,

@@ -37,11 +37,13 @@ except ImportError:  # invoked as a script from the repo root
     from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path(backend=True)
 
-from engine_alpha import two_eyes  # noqa: E402
-from engine_alpha.universe_door import apply_baseline_filters_with_reason  # noqa: E402
-from engine_alpha.two_eyes import lps, mini, walk  # noqa: E402
-from engine_alpha.two_eyes_adapter import graded_read  # noqa: E402
-from engine_alpha import two_eyes_numbers as M  # noqa: E402
+from engine_alpha import reader  # noqa: E402
+from engine_alpha.gate import apply_baseline_filters_with_reason  # noqa: E402
+from engine_alpha import lps  # noqa: E402
+from engine_alpha import record  # noqa: E402
+from engine_alpha.box import mini, walk
+from engine_alpha.result import graded_read  # noqa: E402
+from engine_alpha import numbers as M  # noqa: E402
 from tools.calibration.board_helpers import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression import negative_corpus  # noqa: E402
 from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
@@ -70,16 +72,16 @@ def read_day(ticker: str, raw, day) -> dict:
     """One day's read as the scan would make it, with the pullback the reader measured (fired or refused)."""
     cut = raw.loc[:pd.Timestamp(day)]
     started = time.perf_counter()
-    read = graded_read(two_eyes.read(ticker, cut))
+    read = graded_read(reader.read(ticker, cut))
     seconds = time.perf_counter() - started
     admitted, reason = apply_baseline_filters_with_reason(cut)
     out = {"day": _date(day), "read": read, "seconds": seconds, "door": None if admitted is not None else reason[0],
            "fired": bool(read.fired and admitted is not None), "pullback": None, "prepared": None, "raw": raw}
     if read.failed or read.parent is None:
         return out
-    prepared = two_eyes.prepare(cut)
-    line = two_eyes.build_line(prepared)
-    ranges = prepared[two_eyes.DAILY_RANGE].to_numpy(dtype=float)
+    prepared = reader.prepare(cut)
+    line = reader.build_line(prepared)
+    ranges = prepared[reader.DAILY_RANGE].to_numpy(dtype=float)
     far = line.far(M.FAR_VIEW_FLOOR_RANGES)
     high, low = prepared["High"].to_numpy(dtype=float), prepared["Low"].to_numpy(dtype=float)
     found = walk.elect(line.committed, [t for t in far if t.committed], ranges, high, low,
@@ -96,14 +98,14 @@ def read_day(ticker: str, raw, day) -> dict:
     if read.lps is not None:
         role = read.lps.read_against
     else:
-        role = mini.lps_box(against.low, mini_pair)[0] if against is not None else two_eyes.ROLE_PARENT
-    if role == two_eyes.ROLE_MINI and mini_pair is not None:
+        role = mini.lps_box(against.low, mini_pair)[0] if against is not None else reader.ROLE_PARENT
+    if role == reader.ROLE_MINI and mini_pair is not None:
         inner = lps.read(high, low, ranges, line.committed, R=mini_pair.R, S=mini_pair.S, box_unit=mini_pair.unit,
                          born_bar=mini_pair.birth_bar)
         if inner is not None and inner.end_bar >= inner.born_bar:
             against = inner
         else:
-            role = two_eyes.ROLE_PARENT
+            role = reader.ROLE_PARENT
     out.update(prepared=prepared, won=won, found=found, line=line, pullback=against, mini_pair=mini_pair,
                lps_box=role)
     return out
@@ -150,7 +152,7 @@ def score_setup(setup: dict, raw) -> dict:
         # His pair's own unit, as the reader measures a pair: the range of its second anchor's day.
         prepared = on_last["prepared"]
         second = max(pd.Timestamp(setup["anchors"]["R"]), pd.Timestamp(setup["anchors"]["S"]))
-        unit = float(prepared[two_eyes.DAILY_RANGE].loc[second])
+        unit = float(prepared[reader.DAILY_RANGE].loc[second])
     read = on_last["read"]
     # A mark carried with no buy (CLDT, Fri 09/10/2026) is scored on its lines and its pullback, never on a trigger.
     his_trigger = on_last["fired"] and read.lps.end_day == last and setup.get("trigger_price") is not None and \
@@ -221,9 +223,9 @@ def format_board(rows: list) -> str:
 # The story (stage 5) and the state word, against what he drew                #
 # --------------------------------------------------------------------------- #
 #: His drawn event kinds (as the standard names them) and the reader's word for each.
-_HIS_EVENTS = (("sos", two_eyes.record.SOS, "THE SOS"), ("phase_c", two_eyes.record.SPRING, "the spring"),
-               ("last_supper", two_eyes.record.LAST_SUPPER, "the last supper"),
-               ("spring_test", two_eyes.record.SPRING_TEST, "the spring test (listed, never scored)"))
+_HIS_EVENTS = (("sos", record.SOS, "THE SOS"), ("phase_c", record.SPRING, "the spring"),
+               ("last_supper", record.LAST_SUPPER, "the last supper"),
+               ("spring_test", record.SPRING_TEST, "the spring test (listed, never scored)"))
 
 
 def story_hits(setup: dict, raw, read) -> list:
@@ -262,7 +264,7 @@ def format_story(rows: list, junk: Optional[list] = None) -> str:
         misses = ", ".join(f"{key.split(':')[0]} ({_day(day)})" for key, day, hit in got if not hit) or "none"
         out.append(f"  {name}: {sum(hit for _, _, hit in got)} of {len(got)} · misses: {misses}")
     named = [(r["ticker"], e.day) for r in rows for e in r["on_last"]["read"].events
-             if e.kind == two_eyes.record.UPTHRUST]
+             if e.kind == record.UPTHRUST]
     out.append("  THE upthrust is named on: " + (", ".join(f"{t} {_day(d)}" for t, d in named) or "none"))
     tally = {}
     for r in rows:
@@ -289,7 +291,7 @@ def name_moves(setups: list, frames: dict, back: int = 10) -> dict:
         end = raw.index.get_loc(pd.Timestamp(his_last_lps_day(setup)))
         before = None
         for i in range(max(0, end - back), len(raw)):
-            read = two_eyes.read(setup["ticker"], raw.iloc[:i + 1])
+            read = reader.read(setup["ticker"], raw.iloc[:i + 1])
             out["nights"] += 1
             box = None if read.parent is None else (read.parent.resistance, read.parent.support,
                                                     read.parent.opened_day)
@@ -329,9 +331,9 @@ def grade_moves(setups: list, frames: dict, back: int = 10) -> dict:
         end = raw.index.get_loc(pd.Timestamp(his_last_lps_day(setup)))
         before, letters = None, []
         for i in range(max(0, end - back), len(raw)):
-            read = graded_read(two_eyes.read(setup["ticker"], raw.iloc[:i + 1]))
+            read = graded_read(reader.read(setup["ticker"], raw.iloc[:i + 1]))
             out["nights"] += 1
-            sos = next((e for e in read.events if e.kind == two_eyes.record.SOS), None)
+            sos = next((e for e in read.events if e.kind == record.SOS), None)
             out["provisional_sos_nights"] += sos is not None and not sos.committed
             letter = None if read.grade is None else read.grade.letter
             letters.append(letter or "-")
@@ -390,7 +392,7 @@ def format_mini(rows: list) -> list:
         if r["setup"].get("mini"):
             out.append(f"      your drawn mini on {r['key']}: {mini_verdict(r)}")
     named = [r for r in rows if r["on_last"]["read"].lps is not None
-             and r["on_last"]["read"].lps.read_against == two_eyes.ROLE_MINI]
+             and r["on_last"]["read"].lps.read_against == reader.ROLE_MINI]
     hows = Counter(r["on_last"]["read"].lps.how for r in named)
     out.append(f"      the LPS read against the mini on {len(named)}"
                + (" (" + " · ".join(f"{k} {v}" for k, v in sorted(hows.items())) + ")" if named else ""))
@@ -509,7 +511,7 @@ def _render(plt, draw_bars, row: dict, path: str, title: str, words: str, his: O
                         color=_HIS, fontsize=8)
         if his.get("trigger_price") and at(_date(his.get("trigger"))) is not None:
             ax.plot([at(_date(his["trigger"]))], [his["trigger_price"]], marker="^", ms=10, color=_HIS, zorder=7)
-    for earlier in (b for b in read.boxes if b.role == two_eyes.ROLE_EARLIER):
+    for earlier in (b for b in read.boxes if b.role == reader.ROLE_EARLIER):
         if earlier.end_day is not None and earlier.end_day >= shown[0]:
             _draw_box(ax, earlier, at, shown[0], None, _EARLIER, 1.2)
     _draw_box(ax, box, at, shown[0], at(row["day"]), _BOX, 1.7, "reader's")
@@ -531,9 +533,9 @@ def _render(plt, draw_bars, row: dict, path: str, title: str, words: str, his: O
             ax.plot([at(mark["day"])], [mark["price"]], marker="v", ms=9, color=_LPS, zorder=7)
     # The story: each word the reader names, in the reader's colour at its day and price (lighter while it is
     # provisional); his drawn spans as red strokes along the top, each with his word.
-    short = {two_eyes.record.SPRING: "spring", two_eyes.record.SPRING_TEST: "test", two_eyes.record.UPTHRUST: "UT",
-             two_eyes.record.SOS: "SOS", two_eyes.record.LAST_SUPPER: "LS", two_eyes.record.PHASE_D: "D opens"}
-    over = (two_eyes.record.UPTHRUST, two_eyes.record.SOS, two_eyes.record.LAST_SUPPER)
+    short = {record.SPRING: "spring", record.SPRING_TEST: "test", record.UPTHRUST: "UT",
+             record.SOS: "SOS", record.LAST_SUPPER: "LS", record.PHASE_D: "D opens"}
+    over = (record.UPTHRUST, record.SOS, record.LAST_SUPPER)
     for n, event in enumerate(read.events):
         if at(event.day) is None:
             continue

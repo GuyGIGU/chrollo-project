@@ -21,7 +21,7 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import webapp.backend.frame_store as frame_store  # noqa: E402
-from engine_alpha.sentinels import EVAL_ERROR  # noqa: E402
+from engine_alpha.gate import EVAL_ERROR  # noqa: E402
 from core.calibration.replay import (  # noqa: E402
     FIRED_EVENT_TAIL_SESSIONS,
     FIRED_WALK_MAX_SESSIONS,
@@ -304,7 +304,7 @@ def test_fired_default_evaluate_wires_the_frozen_scalars_in_order(session, monke
     # Every other test injects a fake evaluate; this pins the PRODUCTION
     # closure — argument order matters because a swapped pair would stamp
     # Tier/Score under a fictitious +50% SPY regime with no error anywhere.
-    from engine_alpha import reader
+    from engine_alpha import gate
     _add_mark(session)
     calls = []
 
@@ -312,7 +312,7 @@ def test_fired_default_evaluate_wires_the_frozen_scalars_in_order(session, monke
         calls.append((ticker, spy_6m_return, breadth_pct))
         return _fire_result()
 
-    monkeypatch.setattr(reader, "evaluate_ticker", _capture)
+    monkeypatch.setattr(gate, "evaluate_ticker", _capture)
     frag = fired_one(load_marks(session)[0], [{}], frame_loader=_loader(_FROZEN))[0]
     assert frag["fired"] is True
     assert calls == [("BODI", 0.0, 0.5)]  # spy_6m first, breadth second
@@ -487,7 +487,7 @@ def test_run_fired_stamps_policy_and_merges_the_fragment_into_the_row(
 
     import database
     import frame_store as bare_frame_store
-    from engine_alpha import reader
+    from engine_alpha import gate
     from tools.calibration import calibration_harness as harness
 
     monkeypatch.setattr(frame_store, "FRAMES_DIR", str(tmp_path))
@@ -499,7 +499,7 @@ def test_run_fired_stamps_policy_and_merges_the_fragment_into_the_row(
     def _fires(ticker, sliced, spy_6m_return, breadth_pct):
         return _fire_result()
 
-    monkeypatch.setattr(reader, "evaluate_ticker", _fires)
+    monkeypatch.setattr(gate, "evaluate_ticker", _fires)
     out = tmp_path / "report.json"
     harness.run(None, str(out), fired=True)
     report = json.loads(out.read_text(encoding="utf-8"))

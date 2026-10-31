@@ -19,8 +19,8 @@ configure_path(backend=True)
 
 from config import settings
 from domains.calibration import frame_store
-from engine_alpha import two_eyes
-from engine_alpha.two_eyes_adapter import graded_read
+from engine_alpha import reader
+from engine_alpha.result import graded_read
 
 
 def compare(source: Path) -> dict:
@@ -36,7 +36,7 @@ def compare(source: Path) -> dict:
     rows = []
 
     def assess(group, key, ticker, day, frame):
-        raw = two_eyes.read(ticker, frame.loc[:pd.Timestamp(day)])
+        raw = reader.read(ticker, frame.loc[:pd.Timestamp(day)])
         scored = graded_read(raw)
         g, old = scored.grade, raw.grade
         rows.append({'group': group, 'key': key, 'ticker': ticker, 'day': day,

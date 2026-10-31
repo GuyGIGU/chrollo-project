@@ -42,9 +42,9 @@ def _chart_with_a_hole():
 
 def test_the_seeds_re_read_says_a_failed_read_instead_of_no_setup():
     from core.archive import seed
-    from engine_alpha import reader
+    from engine_alpha import gate
 
-    with pytest.raises(reader.ReadFailed, match="missing from the middle"):
+    with pytest.raises(gate.ReadFailed, match="missing from the middle"):
         seed._evaluate_at_date(_chart_with_a_hole())
 
 
@@ -85,12 +85,12 @@ def test_any_other_error_still_skips_the_day_as_before(monkeypatch):
     import pandas as pd
 
     from core.archive import seed
-    from engine_alpha import reader
+    from engine_alpha import gate
 
     def broken(*args, **kwargs):
         raise ValueError("some other fault")
 
-    monkeypatch.setattr(reader, "run_eval_chain", broken)
+    monkeypatch.setattr(gate, "run_eval_chain", broken)
     best, day, failed = seed._best_day(_chart_with_a_hole(), pd.Timestamp(SCAN_DATE), None)
     assert (best, day, failed) == (None, None, [])
     assert seed._window_words("ALB", SCAN_DATE, best, failed).endswith("screener did not fire in -10/+3d window.")

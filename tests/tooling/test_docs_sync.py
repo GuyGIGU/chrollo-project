@@ -4,7 +4,7 @@ registers cannot go back to citing code by line number.
 docs/strategy_alpha.md's quick-reference was hand-maintained and had already
 drifted (stale values, newer constants missing). It is now a GENERATED block
 (``tools.maintenance.settings_reference``) built from the frozen engine-identity allow-list
-(``engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS``) + live ``config/settings.py``
+(``engine_alpha.stamp.ENGINE_SETTINGS_KEYS``) + live ``config/settings.py``
 values. This test asserts the committed doc matches the generator, so any
 settings or manifest change that skips regenerating the doc fails the suite -
 "update strategy_alpha.md in the same change", enforced.

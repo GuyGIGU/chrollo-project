@@ -30,10 +30,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 # The scan's read is substituted at the DOOR, not on the screener module: the
-# scan hands its pool the door's own worker (`reader.scan_read`), so
+# scan hands its pool the door's own worker (`gate.scan_read`), so
 # `screener._evaluate_ticker` is only a re-export and patching it controls nothing.
-import engine_alpha.reader as reader
-from engine_alpha.sentinels import EVAL_ERROR
+import engine_alpha.gate as gate
+from engine_alpha.gate import EVAL_ERROR
 import core.pipeline.screening.screener as screener
 import core.pipeline.telemetry.scan_metrics as scan_metrics
 
@@ -118,7 +118,7 @@ def test_evaluate_frames_counts_error_not_reject_and_keeps_fire(monkeypatch):
             return None                        # legitimate structural reject
         return fire                            # a normal fire
 
-    monkeypatch.setattr(reader, "scan_read", _fake_eval)
+    monkeypatch.setattr(gate, "scan_read", _fake_eval)
 
     frames = {
         "BOOM": _price_frame(),
@@ -140,7 +140,7 @@ def test_evaluate_frames_clean_run_reports_zero_errored(monkeypatch):
     def _fake_eval(ticker, df, spy, breadth):
         return None if ticker == "REJECT" else {"Ticker": ticker, "Score": 1}
 
-    monkeypatch.setattr(reader, "scan_read", _fake_eval)
+    monkeypatch.setattr(gate, "scan_read", _fake_eval)
 
     frames = {"A": _price_frame(), "REJECT": _price_frame(), "B": _price_frame()}
     results, errored = screener._evaluate_frames(frames, 0.0, None)
@@ -155,14 +155,14 @@ def test_evaluate_frames_count_is_per_call_not_carried_over(monkeypatch):
     monkeypatch.setattr(screener, "ProcessPoolExecutor", _SyncExecutor)
     monkeypatch.setattr(screener, "as_completed", _as_completed_passthrough)
     monkeypatch.setattr(
-        reader, "scan_read",
+        gate, "scan_read",
         lambda t, df, spy, breadth: EVAL_ERROR,
     )
     _, errored = screener._evaluate_frames({"X": _price_frame()}, 0.0, None)
     assert errored == 1
     # A subsequent clean call reports 0 — the prior 1 does not leak forward.
     monkeypatch.setattr(
-        reader, "scan_read",
+        gate, "scan_read",
         lambda t, df, spy, breadth: {"Ticker": t, "Score": 1},
     )
     _, errored = screener._evaluate_frames({"Y": _price_frame()}, 0.0, None)

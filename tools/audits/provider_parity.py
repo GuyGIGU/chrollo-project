@@ -16,7 +16,7 @@ It compares two "sources" on two layers:
      mismatch* (the whole series off by a near-constant multiple — the classic
      "vendor B back-adjusts splits differently" tell that perturbs geometry).
 
-  2. ENGINE PARITY — runs the REAL per-ticker read (the reader door, `engine_alpha.reader.evaluate_ticker`) on
+  2. ENGINE PARITY — runs the REAL per-ticker read (the reader door, `engine_alpha.gate.evaluate_ticker`) on
      each source's frames and diffs the same canonical output fields the shadow
      guard freezes (Setup/Score/Tier/box/LPS/R/S/trigger). Both sides are fed
      IDENTICAL market scalars (computed from the left/reference panel) so a
@@ -62,9 +62,9 @@ except ModuleNotFoundError:  # a direct script run: put the repo root on sys.pat
 _PROJECT_ROOT = configure_path()
 
 from config import settings
-from engine_alpha.sentinels import EVAL_ERROR
+from engine_alpha.gate import EVAL_ERROR
 from core.pipeline.market_data.providers import available_providers, get_provider
-from engine_alpha.reader import evaluate_ticker
+from engine_alpha.gate import evaluate_ticker
 from tools.regression.shadow_diff import CANONICAL_FIELDS, canonical_fields
 
 # Tolerances. PRICE_REL_TOL mirrors "noise" (sub-0.1% is rounding/feed jitter);

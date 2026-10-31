@@ -1,14 +1,14 @@
 """Word recall: his drawn event words against the words on the line (build step 5 of the final method).
 
-For each of his box marks, the words the NEW reader's word rules (``engine_alpha.two_eyes.line_words``, copied
+For each of his box marks, the words the NEW reader's word rules (``engine_alpha.story``, copied
 from the old engine at task 7 of the two-eyes-reader build) read on his read day, on the READER's own line
-(``engine_alpha.two_eyes.line``, no scalar fallback) and in his box's own daily range (the range of the day his
+(``engine_alpha.line``, no scalar fallback) and in his box's own daily range (the range of the day his
 second line was anchored: the unit the story measures a box's words in since task 12b), through the one assembly
 the story runs (``line_words.assemble``; council review of Fri 09/10/2026, finding 13), against the words he drew. It CALLS the reader and never
 re-types a rule (EC-18). Read-only: the marks DB is opened ``mode=ro&immutable=1``, so no pragma, no WAL write and
 no commit can reach it. Not in pytest: CI has no marks DB.
 
-The engine basis is the reader's own record of the chart on his fire day (``engine_alpha.reader.read_record``):
+The engine basis is the reader's own record of the chart on his fire day (``engine_alpha.gate.read_record``):
 its parent box, its LPS and its mini, in the box's own daily range. The words and the line it reads on that
 box are the same rules as on his rails. (Until 31/10/2026 this basis was the old engine's election; the old
 engine is retired.)
@@ -61,10 +61,10 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 import database  # noqa: E402
-from engine_alpha import reader  # noqa: E402  (the door: the reader's own record)
-from engine_alpha.two_eyes import line_words  # noqa: E402
-from engine_alpha.two_eyes.line import build as build_line  # noqa: E402
-from engine_alpha.two_eyes.daily_range import calculate_atr  # noqa: E402
+from engine_alpha import gate  # noqa: E402  (the door: the reader's own record)
+from engine_alpha import story as line_words  # noqa: E402
+from engine_alpha.line import build as build_line  # noqa: E402
+from engine_alpha.chart import calculate_atr  # noqa: E402
 from tools.calibration.calibration_harness import load_box_marks  # noqa: E402
 from core.calibration.replay import session_pos  # noqa: E402
 from webapp.backend import frame_store  # noqa: E402
@@ -97,7 +97,7 @@ def _line(frame):
 
 
 def _reader_box(idx, box, read_bar: int):
-    """The reader's box (``engine_alpha.two_eyes.record.Box``) in the words' shape: bars of ``idx``."""
+    """The reader's box (``engine_alpha.record.Box``) in the words' shape: bars of ``idx``."""
     start = session_pos(idx, box.opened_day.isoformat())
     R, S = float(box.resistance.price), float(box.support.price)
     return SimpleNamespace(start_bar=start, base_len=read_bar - start + 1, R=R, S=S, box_width=(R - S) / S,
@@ -211,7 +211,7 @@ def read_mark(mk):
     if last:
         fire = last[1]
         wf = work.iloc[:fire + 1]
-        record = reader.read_record(mk.ticker, raw.iloc[:fire + 1])
+        record = gate.read_record(mk.ticker, raw.iloc[:fire + 1])
         box = None if record is None or record.failed else record.parent
         if box is not None:
             eng_box = _reader_box(idx, box, fire)

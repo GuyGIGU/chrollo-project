@@ -1,6 +1,6 @@
 """Manifest invariants (the engine-freeze track).
 
-The frozen-config manifest (engine_alpha/freeze/manifest.py): determinism, ops-knob exclusion, the
+The frozen-config manifest (engine_alpha/stamp.py): determinism, ops-knob exclusion, the
 "a listed key vanished" guard, and provenance completeness — every setting the reader's eval path reads
 is hashed into engine_config_version. The old engine's geometry invariants (support under resistance,
 phases in order, the zigzag's alternation) left with that engine on Sat 31/10/2026; the alpha reader's
@@ -17,7 +17,7 @@ import config.settings as settings
 
 # ── Frozen-config manifest contract ──────────────────────────────────────────
 def test_manifest_hash_is_deterministic():
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
 
     h1 = manifest_hash()
     h2 = manifest_hash()
@@ -27,7 +27,7 @@ def test_manifest_hash_is_deterministic():
 
 
 def test_manifest_includes_engine_excludes_ops():
-    from engine_alpha.freeze.manifest import collect_manifest
+    from engine_alpha.stamp import collect_manifest
 
     m = collect_manifest()
     # representative engine constants are present
@@ -44,7 +44,7 @@ def test_manifest_includes_engine_excludes_ops():
 def test_manifest_raises_when_listed_key_vanishes(monkeypatch):
     """The contract must not silently rot: a listed key that no longer exists
     on settings raises, rather than dropping silently from the hash."""
-    import engine_alpha.freeze.manifest as mod
+    import engine_alpha.stamp as mod
 
     monkeypatch.setattr(
         mod, "ENGINE_SETTINGS_KEYS",
@@ -58,7 +58,7 @@ def test_manifest_json_is_canonical_sorted():
     """manifest_json is stable, sorted, and round-trips to collect_manifest."""
     import json
 
-    from engine_alpha.freeze.manifest import collect_manifest, manifest_json
+    from engine_alpha.stamp import collect_manifest, manifest_json
 
     js = manifest_json()
     parsed = json.loads(js)
@@ -85,21 +85,14 @@ ALLOWED_OPS_EXCLUSIONS = frozenset(
 # The engine's decision-making eval path. Every ``settings.NAME`` read here can
 # move which setups fire / how they are graded / what a fire carries — the
 # hashable engine identity — EXCEPT the ops knobs enumerated above.
-# engine_alpha/two_eyes/ is GLOBBED (every module, see _engine_eval_path_sources), not
+# engine_alpha/ is GLOBBED whole (every module, see _engine_eval_path_sources), not
 # hand-listed: a new stage is covered the day it lands and cannot be forgotten
-# here (the reader reads its numbers from two_eyes_numbers, never settings — a
-# settings read inside it would surface here first). The door, the adapter and
-# the pipeline conductor stay explicit. The Lane-C entry modules (scan_context /
+# here (the reader reads its numbers from engine_alpha.numbers, never settings — a
+# settings read inside it would surface here first). The pipeline conductor stays explicit. The Lane-C entry modules (scan_context /
 # advisory) DELEGATE their tuning reads to helper modules, so those helpers are
 # listed too — else a lookback/lag knob read one import-hop away escapes the scan
 # (the engine-α second-pass audit gap, 2026-07-06).
 _ENGINE_EVAL_PATH_MODULES = (
-    "engine_alpha.reader",
-    "engine_alpha.two_eyes_adapter",
-    "engine_alpha.universe_door",
-    "engine_alpha.stage_read",
-    "engine_alpha.metrics",
-    "engine_alpha.two_eyes_archive",
     "core.pipeline.screening.screener",
     "core.regime.scan_context",
     "core.regime.rs_line",
@@ -111,15 +104,15 @@ _ENGINE_EVAL_PATH_MODULES = (
 
 def _engine_eval_path_sources():
     """Source files of the engine eval path: the explicit conductor modules
-    plus EVERY ``engine_alpha/two_eyes/**/*.py`` (globbed recursively)."""
+    plus EVERY ``engine_alpha/**/*.py`` (globbed recursively)."""
     import importlib
     from pathlib import Path
 
-    import engine_alpha.two_eyes
+    import engine_alpha
 
     paths = [Path(importlib.import_module(m).__file__)
              for m in _ENGINE_EVAL_PATH_MODULES]
-    reader_files = sorted(Path(engine_alpha.two_eyes.__file__).parent.rglob("*.py"))
+    reader_files = sorted(Path(engine_alpha.__file__).parent.rglob("*.py"))
     # A non-recursive glob once matched only __init__.py and silently emptied
     # this guard. Keep it from going vacuous.
     assert len(reader_files) >= 15, reader_files
@@ -132,7 +125,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     unless it is one of the explicitly enumerated ops-only exclusions.
 
     The eval path (the door + the adapter + the universe door + the screener +
-    ALL of engine_alpha/two_eyes/) is the layer that decides which setups fire,
+    ALL of engine_alpha/) is the layer that decides which setups fire,
     how they are graded and what a fire carries — every constant it touches
     changes archived output and MUST bump the manifest hash. This static-source
     scan (over the ``settings.NAME``, ``getattr(settings, "NAME")``, and
@@ -145,7 +138,7 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     """
     import re
 
-    from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
+    from engine_alpha.stamp import ENGINE_SETTINGS_KEYS
 
     # Union settings reads across the whole eval path, matching both the direct
     # attribute form (``settings.NAME``) and the string-literal getattr form
@@ -170,8 +163,8 @@ def test_every_scoring_settings_symbol_is_in_manifest():
     unaccounted = sorted(referenced - set(ENGINE_SETTINGS_KEYS) - ALLOWED_OPS_EXCLUSIONS)
     assert not unaccounted, (
         "score/structure-affecting settings read by the engine eval path "
-        f"({', '.join(_ENGINE_EVAL_PATH_MODULES)} + engine_alpha/two_eyes/**) are absent from "
-        "engine_alpha.freeze.manifest.ENGINE_SETTINGS_KEYS (so flipping them would change "
+        f"({', '.join(_ENGINE_EVAL_PATH_MODULES)} + engine_alpha/**) are absent from "
+        "engine_alpha.stamp.ENGINE_SETTINGS_KEYS (so flipping them would change "
         "engine output WITHOUT bumping engine_config_version, corrupting archive "
         f"provenance): {unaccounted}. Add them to the manifest allow-list, or, if "
         "one is genuinely an ops-only knob, to ALLOWED_OPS_EXCLUSIONS with a reason."

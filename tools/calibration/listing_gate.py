@@ -55,10 +55,10 @@ except ImportError:  # invoked as a script from the repo root
     from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 _ROOT = configure_path(backend=True)
 
-from engine_alpha.two_eyes import frame as two_eyes_frame  # noqa: E402
-from engine_alpha.two_eyes import line as two_eyes_line  # noqa: E402
-from engine_alpha import two_eyes_numbers as M  # noqa: E402
-from engine_alpha.two_eyes.runs import runs_on_the_line  # noqa: E402
+from engine_alpha import chart as two_eyes_frame  # noqa: E402
+from engine_alpha import line as two_eyes_line  # noqa: E402
+from engine_alpha import numbers as M  # noqa: E402
+from tools.calibration.runs import runs_on_the_line  # noqa: E402
 from tools.calibration.board_helpers import his_last_lps_day, rails_close  # noqa: E402
 from tools.regression.marks_corpus import (load_corpus, load_sealed_standard, setup_key,  # noqa: E402
                                            stamp_line)
@@ -190,7 +190,7 @@ def reaction_on_the_line(turns, end: dict, own_end_left_out: bool = False,
     turns instead of the far view's. With ``own_end_left_out`` a valley the climax bar itself carries (a wide
     bar's own low) is skipped, so the reaction starts on the bars after it. With ``area`` (a price) an undercut
     smaller than the area is the same low. The fine index, or None while the reaction is undecided."""
-    from engine_alpha.two_eyes.runs import _reaction
+    from tools.calibration.runs import _reaction
 
     kind = "peak" if end["kind"] == "BC" else "valley"
     climax = next((i for i, t in enumerate(turns) if t.bar == end["climax_bar"] and t.kind == kind), None)

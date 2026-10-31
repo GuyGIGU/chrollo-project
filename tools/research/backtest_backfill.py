@@ -54,7 +54,7 @@ from core.archive.forward_returns import (
 )
 from core.archive.seed import _evaluate_at_date, _close_series, _ticker_frame
 from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
-from engine_alpha.reader import ReadFailed
+from engine_alpha.gate import ReadFailed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.backtest_backfill")
@@ -384,7 +384,7 @@ def run_backfill(db_path: str, cadence: str = "weekly",
         all_tickers = all_tickers[:limit]
 
     engine, Session = _open_scratch_db(db_path)
-    from engine_alpha.freeze.manifest import manifest_hash
+    from engine_alpha.stamp import manifest_hash
     ecv = manifest_hash()
 
     done = _done_tickers(engine) if resume else set()

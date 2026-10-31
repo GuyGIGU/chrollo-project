@@ -25,7 +25,7 @@ def rows() -> dict:
 
 
 def test_the_box_is_his_close_or_other_against_his_two_lines():
-    from engine_alpha.two_eyes import Box, Line
+    from engine_alpha.reader import Box, Line
     from tools.calibration import core_board
 
     day = dt.date(2026, 3, 2)
@@ -41,7 +41,7 @@ def test_the_box_is_his_close_or_other_against_his_two_lines():
 
 
 def test_a_drawing_is_scored_on_his_last_receding_day_and_the_silence_is_named(rows):
-    from engine_alpha.two_eyes import lps
+    from engine_alpha import lps
     from tools.calibration import core_board
 
     syre = rows["SYRE:2026-02-19"]
@@ -85,7 +85,7 @@ def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
     leg it names is the leg the door names."""
     import pandas as pd
 
-    from engine_alpha import reader
+    from engine_alpha import gate
     from tools.calibration import core_board
     from tools.regression.marks_corpus import load_corpus
     from core.calibration.replay import load_sealed_fixture
@@ -96,7 +96,7 @@ def test_the_board_and_the_one_door_agree_on_every_one_of_his_drawings():
     assert len(got) == len(drawings) >= 37    # the population follows his drawings (his ruling, Tue 08/09/2026)
     for row in got:
         watch, on_last = {}, row["on_last"]
-        result = reader.evaluate_ticker(row["ticker"], row["raw"].loc[:pd.Timestamp(row["last"])], watch=watch)
+        result = gate.evaluate_ticker(row["ticker"], row["raw"].loc[:pd.Timestamp(row["last"])], watch=watch)
         assert isinstance(result, dict) == on_last["fired"], row["key"]
         assert (watch["state"] == "not scanned") == (on_last["door"] is not None), row["key"]
         assert on_last["door"] is None or watch["why"] == on_last["door"], row["key"]
@@ -109,10 +109,10 @@ def test_a_junk_chart_is_read_on_every_day_of_its_window_and_aef_fires_on_its_fi
     """AEF: the pullback he refused runs from Wed 03/06/2026. Since the wrap rule of Thu 29/10/2026 the one-bar box
     of April (9.04 / 8.66) gives way to the pair inside it, so 9.98 / 9.57 is shown and the pullback's first day
     fires at 10.00 (as on the rule of Thu 01/10/2026); from the second day on it is refused each day by his own
-    sentence (tests/engine/test_two_eyes_lps.py)."""
+    sentence (tests/engine/test_lps.py)."""
     import datetime as dt
 
-    from engine_alpha.two_eyes import lps
+    from engine_alpha import lps
     from tools.calibration import core_board
     from tools.regression import negative_corpus
 
@@ -199,10 +199,10 @@ def test_the_board_draws_the_mini_and_names_the_box_the_lps_was_read_against(tmp
     """DSGN (task 13): the mini thinner beside the parent and his band dotted red over its own days; the words
     name the mini and which box the LPS was read against and how; the pullback drawn is the one measured against
     the mini; the board's mini lines sit outside the strict headline."""
-    from engine_alpha import two_eyes_numbers as M
+    from engine_alpha import numbers as M
 
     monkeypatch.setattr(M, "MINI_ENABLED", True)     # the stage is sunset (Fri 30/10/2026) and pinned here behind its switch
-    from engine_alpha import two_eyes
+    from engine_alpha import reader
     from tools.calibration import core_board
     from tools.regression.marks_corpus import load_corpus, setup_key
     from core.calibration.replay import fixture_frame, load_sealed_fixture
@@ -211,7 +211,7 @@ def test_the_board_draws_the_mini_and_names_the_box_the_lps_was_read_against(tmp
     setup = next(s for s in load_corpus() if s["ticker"] == "DSGN")
     row = core_board.score_setup(setup, fixture_frame(frames, setup_key(setup), "DSGN"))
     on_last = row["on_last"]
-    assert on_last["read"].mini is not None and on_last["lps_box"] == two_eyes.ROLE_MINI
+    assert on_last["read"].mini is not None and on_last["lps_box"] == reader.ROLE_MINI
     assert on_last["pullback"].born_bar == on_last["mini_pair"].birth_bar
     words = core_board._words(on_last["read"], on_last["door"])
     assert "The mini: R 10.74" in words and "read against the mini, in" in words

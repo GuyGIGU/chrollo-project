@@ -66,7 +66,7 @@ def _box_unit(frame: pd.DataFrame, box) -> float | None:
     """The box's own daily range, frozen at its birth; the 14-day daily range on its opening day when not stored."""
     if box.daily_range is not None and np.isfinite(box.daily_range) and box.daily_range > 0:
         return float(box.daily_range)
-    from engine_alpha.two_eyes.daily_range import calculate_atr
+    from engine_alpha.chart import calculate_atr
     opened = int(frame.index.searchsorted(pd.Timestamp(box.opened_day)))
     atr = calculate_atr(frame.iloc[:opened + 1], 14)
     value = float(atr.iloc[-1]) if len(atr) else float("nan")
@@ -77,7 +77,7 @@ def base_facts(frame: pd.DataFrame, pos: int, read) -> dict:
     """The six facts of the parent box (the grade's box), read on ``frame`` up to ``pos`` (the fire day), and the
     outcome after it. The base is the grade's own: the box's opening day to the day before THE SOS's push, else to
     the fire day (the pre-registration's amendment)."""
-    from engine_alpha.two_eyes.grade import ending_sos
+    from engine_alpha.grade import ending_sos
     box = read.parent
     index = frame.index
     high, low, close = (frame[c].to_numpy(float) for c in ("High", "Low", "Close"))
@@ -121,7 +121,7 @@ def base_facts(frame: pd.DataFrame, pos: int, read) -> dict:
 
 def read_ticker(task) -> list:
     """One ticker's episodes: each read day by day, in order, until the reader fires."""
-    from engine_alpha import two_eyes
+    from engine_alpha import reader
     ticker, frame, episodes = task
     out = []
     for episode, days in episodes:
@@ -130,7 +130,7 @@ def read_ticker(task) -> list:
             pos = int(frame.index.searchsorted(pd.Timestamp(day), side="right")) - 1
             if pos < 0 or frame.index[pos] != pd.Timestamp(day):
                 continue
-            read = two_eyes.read(ticker, frame.iloc[:pos + 1])
+            read = reader.read(ticker, frame.iloc[:pos + 1])
             if first_state is None:
                 first_state = "failed" if read.failed else read.state
             if read.fired:

@@ -97,10 +97,10 @@ except ImportError:  # invoked as a script from the repo root
     from tools._bootstrap import configure_path, refuse_sealed_output  # type: ignore
 configure_path(backend=True)
 
-from engine_alpha import two_eyes  # noqa: E402
-from engine_alpha import two_eyes_numbers as M  # noqa: E402
-from engine_alpha.two_eyes import record  # noqa: E402
-from engine_alpha.two_eyes.grade import whole_points  # noqa: E402
+from engine_alpha import reader  # noqa: E402
+from engine_alpha import numbers as M  # noqa: E402
+from engine_alpha import record  # noqa: E402
+from engine_alpha.grade import whole_points  # noqa: E402
 from tools.calibration.core_board import junk_rows, run_board  # noqa: E402
 from tools.regression.marks_corpus import load_corpus, load_sealed_standard  # noqa: E402
 from core.calibration.replay import load_sealed_fixture  # noqa: E402
@@ -136,7 +136,7 @@ BAR = ("BMRN", "FRPH", "COLM")
 
 def the_box(row: dict, named: bool = True):
     """The pair the measures read: the box the LPS was read against, or (``named=False``) the parent."""
-    if named and row.get("lps_box") == two_eyes.ROLE_MINI and row.get("mini_pair") is not None:
+    if named and row.get("lps_box") == reader.ROLE_MINI and row.get("mini_pair") is not None:
         return row["mini_pair"]
     return row["won"]
 

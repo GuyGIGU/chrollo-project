@@ -137,7 +137,7 @@ def test_the_resolver_sees_the_double_rewrite():
     for gone in ("from routers import calibration\n", "import routers." + "archive\n", "import schemas\n"):
         assert unresolved_imports(gone), gone
     assert not unresolved_imports("from core.pipeline.universe import ticker_admission\n")
-    assert not unresolved_imports("from engine_alpha.two_eyes import read, Read\n")
+    assert not unresolved_imports("from engine_alpha.reader import read, Read\n")
     # The old engine's packages are gone (Sat 31/10/2026): an import under one must read as unresolved.
     assert unresolved_imports("from engine_alpha.structure.narrative import bricks, read_structure\n")
 
@@ -169,7 +169,7 @@ def test_new_style_imports_are_left_alone():
     source = ("from core.pipeline.universe import ticker_admission, tickers\n"
               "from core.pipeline.universe import descriptor as universe_mod\n"
               "from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE\n"
-              "from engine_alpha.two_eyes import read\n"
+              "from engine_alpha.reader import read\n"
               "from tools.regression.shadow_diff import CANONICAL_FIELDS\n")
     assert amm.rewrite(MM, "tests/pipeline/test_example.py", source)[0] == source
 
