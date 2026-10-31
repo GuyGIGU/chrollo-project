@@ -1,7 +1,7 @@
 """The way-back board (task 6 of the two-eyes go-live plan): how long a box had failed before the reader gave it its
 place back, on his drawings and on the junk fires, measured before his FRPH ruling of Fri 09/10/2026 is built.
 
-The reader gives a box its place back (``walk.came_back_to``) on the first day the bars are back at both its lines
+The reader gives a box its place back (``handover.came_back_to``) on the first day the bars are back at both its lines
 after the price left it downward and a lower box took its place — however long ago. His FRPH ruling: a box that
 failed into a lower level that became its own thing for two months is not tied to the box any more. Per read that
 RESTS on a way back (``approval_pack.rests_on_the_way_back``), on his buy day and on his last receding day, and on
@@ -50,22 +50,22 @@ def failed_for(box, high, low, given_up: int, back: int) -> dict:
 def way_backs(found, high, low) -> list:
     """Every place given back in a read's history, oldest first, each measured (``failed_for``) with its index
     in the read's lives."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, walk
 
     lives = list(getattr(found, "lives", None) or ())
     return [{"index": k, **failed_for(life.pair, high, low, int(lives[k - 1].shown_bar), int(life.shown_bar))}
-            for k, life in enumerate(lives) if life.why == walk.CAME_BACK and k >= 1]
+            for k, life in enumerate(lives) if life.why == handover.CAME_BACK and k >= 1]
 
 
 def resting(found, high, low) -> Optional[dict]:
     """The place given back the shown box rests on (the approval pack's ``rests_on_the_way_back``), measured."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, walk
 
     lives = list(getattr(found, "lives", None) or ())
     for k in range(len(lives) - 1, -1, -1):
-        if lives[k].why == walk.CAME_BACK:
+        if lives[k].why == handover.CAME_BACK:
             return next(w for w in way_backs(found, high, low) if w["index"] == k)
-        if lives[k].why in (walk.LIVE_TREND, walk.FIRST_BOX, walk.WRAPS):
+        if lives[k].why in (handover.LIVE_TREND, handover.FIRST_BOX, handover.WRAPS):
             return None
     return None
 

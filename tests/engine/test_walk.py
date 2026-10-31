@@ -85,12 +85,12 @@ def _chart(points, tail: int = 3, spread: float = 0.2, unit: float = 2.0) -> dic
 def _elect(chart: dict, far_bars=None, read_bar=None):
     """The walk on a hand-built chart as a reader standing on ``read_bar`` has it; the far view is the line's
     own turns on ``far_bars`` (every turn by default)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     turns = chart["turns"]
     far = [t for t in turns if far_bars is None or t.bar in far_bars]
     if read_bar is not None:
-        turns, far = walk.known_by(turns, read_bar), walk.known_by(far, read_bar)
+        turns, far = pairs.known_by(turns, read_bar), pairs.known_by(far, read_bar)
     return walk.elect(turns, far, chart["ranges"], chart["high"], chart["low"], read_bar=read_bar,
                       days=tuple(_day(i) for i in range(chart["n"])))
 
@@ -246,7 +246,7 @@ def test_his_picture_each_end_of_a_bar_counts_for_the_rail_it_is_closest_to():
     """The bars he marked on Sat 26/09/2026, on a box 100 / 90 with a two-point daily range (the area is one), and
     his answer to sentence 6: a bar's come-back counts "as respect to the respective rail that bar is closest
     too"."""
-    from engine_alpha.box.walk import bar_respects, rail_of
+    from engine_alpha.box.pairs import bar_respects, rail_of
 
     R, S, area = 100.0, 90.0, 1.0
     # Red: the anchor bar, its high on resistance and its low on support — it respects both.
@@ -273,12 +273,12 @@ def test_his_picture_each_end_of_a_bar_counts_for_the_rail_it_is_closest_to():
     assert bar_respects(94.9, 94.2, 96.0, 94.0, area) == {"S"}       # its high is 1.1 from resistance, 0.9 from support
     assert bar_respects(95.6, 94.4, 96.0, 94.0, area) == {"R", "S"}
     # The walk reads whole arrays of bars: bar for bar the same picture, on the wide box and on the one-range box.
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     bars = [(100.0, 90.0), (90.9, 89.4), (90.8, 90.1), (90.3, 89.7), (99.6, 96.0), (100.7, 97.0), (103.0, 100.6),
             (96.0, 94.0), (88.5, 86.0), (94.9, 94.2), (95.6, 94.4), (95.0, 95.0), (97.5, 92.5)]
     highs, lows = np.array([h for h, _ in bars]), np.array([l for _, l in bars])
     for top, bottom in ((100.0, 90.0), (96.0, 94.0)):
-        on_r, on_s = walk._respects(highs, lows, top, bottom, area)
+        on_r, on_s = pairs._respects(highs, lows, top, bottom, area)
         for (high, low), r, s in zip(bars, on_r, on_s):
             assert {rail for rail, hit in (("R", r), ("S", s)) if hit} == bar_respects(high, low, top, bottom, area), \
                 (high, low, top, bottom)
@@ -291,7 +291,7 @@ def test_a_rail_sits_only_on_a_swings_end_and_one_wide_bar_gives_two():
     """His ruling on the reader's PBT box: "we only start to anchor from the end point of previous swings ... your
     Pick came from the middle of a swing in the direction of the trend". A turn of the line is a swing's end when
     the bar on neither side beats it; the other end of one wide bar counts when the bar's first end is one."""
-    from engine_alpha.box.walk import swing_ends
+    from engine_alpha.box.pairs import swing_ends
 
     high = np.array([10.0, 11.0, 12.0, 11.4, 11.0, 12.6, 13.0, 12.2, 11.8, 12.0, 11.9])
     low = np.array([9.0, 10.2, 11.2, 10.4, 10.0, 10.8, 11.0, 11.5, 11.0, 11.4, 11.2])
@@ -323,7 +323,7 @@ def test_a_rail_sits_only_on_a_swings_end_and_one_wide_bar_gives_two():
 # Stage 2: the end of the trend                                               #
 # --------------------------------------------------------------------------- #
 def test_the_trend_end_is_a_run_of_the_far_view_that_ended_and_its_walk_starts_on_the_first_end_of_its_level():
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_BOX)
     found = _elect(chart)
@@ -352,12 +352,12 @@ def test_the_trend_end_is_a_run_of_the_far_view_that_ended_and_its_walk_starts_o
     # The level is the rail area around the climax, one point here: with the climax at 81.2 the 80 of bar 11 is
     # no longer of its level and the walk starts on the climax's own bar; and a climax that is no swing's end
     # (nothing of its run within the area) starts no walk.
-    ends = walk.swing_ends(poked["turns"], poked["high"], poked["low"], poked["n"] - 1)
-    assert ends[walk.first_foot(ends, rise, poked["ranges"])].bar == 11
-    assert ends[walk.first_foot(ends, dict(rise, climax_price=81.2), poked["ranges"])].bar == 14
-    assert walk.first_foot(ends, dict(rise, climax_price=82.5), poked["ranges"]) is None
+    ends = pairs.swing_ends(poked["turns"], poked["high"], poked["low"], poked["n"] - 1)
+    assert ends[pairs.first_foot(ends, rise, poked["ranges"])].bar == 11
+    assert ends[pairs.first_foot(ends, dict(rise, climax_price=81.2), poked["ranges"])].bar == 14
+    assert pairs.first_foot(ends, dict(rise, climax_price=82.5), poked["ranges"]) is None
     # ... and only swing ends of its own run: a run that began after bar 11 does not reach back to it.
-    assert ends[walk.first_foot(ends, dict(rise, start_bar=12), poked["ranges"])].bar == 14
+    assert ends[pairs.first_foot(ends, dict(rise, start_bar=12), poked["ranges"])].bar == 14
 
 
 # --------------------------------------------------------------------------- #
@@ -367,7 +367,7 @@ def test_a_pair_is_two_swing_ends_a_swing_connects_and_a_dismembered_pairing_is_
     """Sentence 5 and his answer: "One rail may stay while the other moves" — "only if a swing connects between
     them, we cannot allow for dismemberd anchor paring". From the first bar to the second the top is the highest
     high and the low the lowest low."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     # The climax 80 (bar 11), its reaction low 70 (bar 14), a lower high 76 (bar 17), a LOWER low 68 (bar 20), a
     # lower high 75 (bar 23) and a HIGHER low 71 (bar 26).
@@ -388,8 +388,8 @@ def test_a_pair_is_two_swing_ends_a_swing_connects_and_a_dismembered_pairing_is_
     ends = {(e.bar, e.kind): e for e in found.swing_ends}
     for p in found.pairs.values():
         first, second = sorted((ends[(p.r_bar, "peak")], ends[(p.s_bar, "valley")]), key=lambda e: (e.bar, e.index))
-        assert walk.connects(chart["high"], chart["low"], first, second), (p.R, p.S)
-    assert not walk.connects(chart["high"], chart["low"], ends[(11, "peak")], ends[(26, "valley")])
+        assert pairs.connects(chart["high"], chart["low"], first, second), (p.R, p.S)
+    assert not pairs.connects(chart["high"], chart["low"], ends[(11, "peak")], ends[(26, "valley")])
     # The pairs open in order: no pair opens before the one listed before it.
     opens = [p.opening_bar for p in found.pairs.values()]
     assert opens == sorted(opens)
@@ -406,15 +406,15 @@ def test_a_counter_move_that_took_back_the_whole_move_before_it_is_listed_and_ne
     """Sentence 4 and his answer: "if a counter move is bigger it contributes already to a new counter trend!"
     The move before a top began at the lowest low since the price was last above it (for a low, the highest high
     since the price was last below it), by bars alone."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_BOX)
     found = _elect(chart)
     ends = {(e.bar, e.kind): e for e in found.swing_ends}
     # The move into the climax began at the decline's low, 50; the move into the reaction low 70 began at the
     # climax, 80 — the price was last below 70 before bar 11.
-    assert walk.move_began(chart["high"], chart["low"], ends[(11, "peak")]) == 50.0
-    assert walk.move_began(chart["high"], chart["low"], ends[(14, "valley")]) == 80.0
+    assert pairs.move_began(chart["high"], chart["low"], ends[(11, "peak")]) == 50.0
+    assert pairs.move_began(chart["high"], chart["low"], ends[(14, "valley")]) == 80.0
     # The climax and its reaction: the counter move took back ten of thirty points. A pair.
     root = _pair(found, 80.0, 70.0)
     assert root.unfit is None and root.top_first and root.began == 50.0
@@ -422,15 +422,15 @@ def test_a_counter_move_that_took_back_the_whole_move_before_it_is_listed_and_ne
     # took back the whole decline: the rise had begun, and the pair is never a box.
     turned = _pair(found, 60.0, 50.0)
     assert not turned.top_first and turned.began == 58.0
-    assert turned.unfit == walk.UNFIT_WHOLE_MOVE and turned.birth_bar is None
+    assert turned.unfit == pairs.UNFIT_WHOLE_MOVE and turned.birth_bar is None
     # Inside the box: the low 70.6 with the top 78.8 after it took back a part of the fall from 79.5; the low
     # 70.4 after the top 78.8 took back the whole rise from 70.6.
     assert _pair(found, 78.8, 70.6).unfit is None
-    assert _pair(found, 78.8, 70.4).unfit == walk.UNFIT_WHOLE_MOVE
+    assert _pair(found, 78.8, 70.4).unfit == pairs.UNFIT_WHOLE_MOVE
 
 
 def test_a_pair_under_one_daily_range_tall_is_listed_but_never_a_box_and_each_pair_has_its_own_unit():
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     # After the reaction low a one-and-a-half-point bounce (71.5), then the base.
     chart = _chart(_RISE + [(16, 71.5), (18, 70.2), (21, 79.5), (24, 70.5), (27, 79.2), (30, 71), (33, 78.8)])
@@ -438,7 +438,7 @@ def test_a_pair_under_one_daily_range_tall_is_listed_but_never_a_box_and_each_pa
     chart["ranges"][-1] = 6.0               # the read day is wide; no pair measures in it
     found = _elect(chart)
     tiny = _pair(found, 71.5, 70.0)
-    assert tiny.unfit == walk.UNFIT_TALL and tiny.birth_bar is None
+    assert tiny.unfit == pairs.UNFIT_TALL and tiny.birth_bar is None
     root = _pair(found, 80.0, 70.0)
     assert root.unit == 2.5 and root.area == 1.25 and root.birth_bar is not None
     assert _box(found) == (80.0, 70.0) and all(p.unit != 6.0 for p in found.pairs.values())
@@ -448,7 +448,7 @@ def test_one_wide_bar_is_a_pair_read_in_whichever_order_makes_it_a_counter_move(
     """Sentence 3: "The two ends can be one wide bar's own high and low" (DRTS, FOSL, MSGS, MTLS). The daily bars
     do not say which end of the bar printed first, and the line's order inside a bar is a convention of ours; the
     pair is read in whichever order makes its second end a counter move."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     # The climax bar itself: four points tall, its own low the end of the move off the top (MSGS, FOSL). The low
     # is no swing's end by the bar before it — that bar is lower, the rise came through it — and counts as the
@@ -516,7 +516,7 @@ def test_a_one_bar_climax_box_the_bars_never_came_back_to_gives_way_to_the_tight
     pictures, the BC / AR box first, then the box found later. Only a ONE-BAR box gives way this way: a box of two
     bars, the climax and its reaction, keeps its place whatever sits inside it (his SILC, 21.70 / 19.35, whose top
     the bars came back to only loosely). Read day by day with no memory, told the same on every later day."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_RISE[:-1] + [(14, 74.5), (17, 77.5), (20, 74.6), (23, 77.3), (26, 74.4), (29, 77.4), (32, 74.7),
                                  (35, 77.2), (38, 74.5), (41, 77.3), (44, 74.6)])
@@ -526,12 +526,12 @@ def test_a_one_bar_climax_box_the_bars_never_came_back_to_gives_way_to_the_tight
     one_bar = _pair(found, 80.0, 72.0)
     assert (one_bar.r_bar, one_bar.s_bar, one_bar.unit, one_bar.birth_bar) == (11, 11, 8.0, 25)
     first, then = found.lives[0], found.lives[-1]
-    assert (first.pair.R, first.pair.S, first.shown_bar, first.why) == (80.0, 72.0, 25, walk.FIRST_BOX)
-    assert then.why == walk.WRAPS and then.pair.R == 77.5 and 74.4 <= then.pair.S <= 74.6, then
+    assert (first.pair.R, first.pair.S, first.shown_bar, first.why) == (80.0, 72.0, 25, handover.FIRST_BOX)
+    assert then.why == handover.WRAPS and then.pair.R == 77.5 and 74.4 <= then.pair.S <= 74.6, then
     assert then.pair.opening_bar <= one_bar.birth_bar and then.pair.height < one_bar.height
     assert then.shown_bar == then.pair.birth_bar and first.ended_bar == then.pair.opening_bar
-    assert walk.wraps(one_bar, then.pair, chart["high"], chart["low"], 25, chart["n"] - 1) == then.shown_bar
-    assert walk.wraps(one_bar, then.pair, chart["high"], chart["low"], 25, then.shown_bar - 1) is None
+    assert handover.wraps(one_bar, then.pair, chart["high"], chart["low"], 25, chart["n"] - 1) == then.shown_bar
+    assert handover.wraps(one_bar, then.pair, chart["high"], chart["low"], 25, then.shown_bar - 1) is None
     # Told the same on every later day: the hand-over is dated on what its own day knew.
     shown = _shown_day_by_day(chart)
     assert shown[0] == (80.0, 72.0, 25) and shown[1][:2] == (then.pair.R, then.pair.S) and len(shown) == 2
@@ -574,17 +574,17 @@ def test_respect_marks_count_a_touch_for_a_pair_and_a_bar_wholly_beyond_a_rail_a
     """His close-enough (Fri 30/10/2026), each bar in its OWN daily range: a rail 10 / 8, every bar's range 1 (an area
     of half a point). An end within the area of the rail it is closest to is a touch (+1); a bar wholly beyond a rail
     by more than the area counts against the pair (-1); a bar inside, or short of the area, counts nothing."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     high = [10.2, 9.0, 11.0, 7.0, 8.4, 10.6]
     low = [9.9, 8.6, 10.6, 6.5, 7.6, 9.2]
-    on_r, on_s = walk.respect_marks(high, low, np.ones(6), 10.0, 8.0)
+    on_r, on_s = handover.respect_marks(high, low, np.ones(6), 10.0, 8.0)
     assert on_r.tolist() == [1, 0, -1, 0, 0, 0]       # at R; inside; wholly over R; under S; at S; a poke past the area
     assert on_s.tolist() == [0, 0, 0, -1, 1, 0]
     # The area is the bar's OWN range: the same bars read in a range of two touch where they stopped short before.
-    wide_r, wide_s = walk.respect_marks(high, low, np.full(6, 2.0), 10.0, 8.0)
+    wide_r, wide_s = handover.respect_marks(high, low, np.full(6, 2.0), 10.0, 8.0)
     assert wide_r.tolist() == [1, 1, 1, 0, 0, 1] and wide_s.tolist() == [0, 1, 0, 1, 1, 0]
-    cum = walk.respect_cum(high, low, np.ones(6), 10.0, 8.0)
+    cum = handover.respect_cum(high, low, np.ones(6), 10.0, 8.0)
     assert cum.tolist() == [0, 1, 1, 0, -1, 0, 0] and cum[6] - cum[0] == 0 and cum[2] - cum[0] == 1
 
 
@@ -597,7 +597,7 @@ def test_under_the_election_by_respect_the_shelf_the_bars_live_on_takes_the_spik
     on every later day, and said in the trail. The margin is the incumbent's: raised out of reach, the wide box
     stands."""
     from engine_alpha import numbers as M
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _shelf_chart()
     as_built = _elect(chart)
@@ -605,16 +605,16 @@ def test_under_the_election_by_respect_the_shelf_the_bars_live_on_takes_the_spik
     _switched(monkeypatch, RESPECT_ELECTS=True)
     found = _elect(chart)
     first, then = found.lives
-    assert (first.pair.R, first.pair.S, first.shown_bar, first.why, first.ended_bar) == (80.0, 70.0, 25, walk.FIRST_BOX, 23)
-    assert (then.pair.R, then.pair.S, then.shown_bar, then.why) == (76.0, 73.0, 44, walk.RESPECTED)
+    assert (first.pair.R, first.pair.S, first.shown_bar, first.why, first.ended_bar) == (80.0, 70.0, 25, handover.FIRST_BOX, 23)
+    assert (then.pair.R, then.pair.S, then.shown_bar, then.why) == (76.0, 73.0, 44, handover.RESPECTED)
     assert then.lead is not None and then.lead >= M.RESPECT_MARGIN
     wide, tight = first.pair, then.pair
-    cum_wide = walk.respect_cum(chart["high"], chart["low"], chart["ranges"], wide.R, wide.S)
-    cum_tight = walk.respect_cum(chart["high"], chart["low"], chart["ranges"], tight.R, tight.S)
+    cum_wide = handover.respect_cum(chart["high"], chart["low"], chart["ranges"], wide.R, wide.S)
+    cum_tight = handover.respect_cum(chart["high"], chart["low"], chart["ranges"], tight.R, tight.S)
     n = chart["n"]
     assert cum_wide[n] - cum_wide[23] == 0, "the bars never touch the spike or the reaction low after the shelf opens"
-    assert walk.out_respected(wide, tight, cum_wide, cum_tight, 25, n - 1) == (44, then.lead)
-    assert walk.out_respected(wide, tight, cum_wide, cum_tight, 25, 43) is None, "not before the spike box's own touches fell under the margin"
+    assert handover.out_respected(wide, tight, cum_wide, cum_tight, 25, n - 1) == (44, then.lead)
+    assert handover.out_respected(wide, tight, cum_wide, cum_tight, 25, 43) is None, "not before the spike box's own touches fell under the margin"
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (76.0, 73.0, 44)]
     boxes, trail, _ = walk.record(found)
     assert trail[0].stage == "hand-over" and "the bars respect 76.00 / 73.00 more" in trail[0].saying
@@ -626,7 +626,7 @@ def test_under_the_election_by_respect_the_shelf_the_bars_live_on_takes_the_spik
     monkeypatch.setattr(M, "RESPECT_MARGIN", 3)
     # The election reads each bar's own range: the walk refuses to run it without one.
     with pytest.raises(ValueError, match="own daily range"):
-        walk.lives(found.pairs.values(), [], chart["high"], chart["low"], n - 1)
+        handover.lives(found.pairs.values(), [], chart["high"], chart["low"], n - 1)
     # The box whose rails the bars DO come back to keeps its place: a box of a climax and its reaction the bars keep
     # touching is not out-respected by any pair inside it (the one-wide-bar chart: 80 / 76 over bars at 79.6 and 76.4).
     kept, turns = _gap_climax_chart()
@@ -640,7 +640,7 @@ def test_the_climax_bar_switch_off_never_takes_both_anchors_from_a_trend_ends_cl
     true climax's end and its reaction, but when choosing a box, a single bar can represent the climax and the
     reaction for that box's root swing" — the switch names the first half; on by default, the second). A one-bar
     pair on any other bar is still listed; ``ONE_BAR_PAIR`` is the switch for all of them."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart, turns = _gap_climax_chart()
     high, low, ranges = chart["high"], chart["low"], chart["ranges"]
@@ -663,7 +663,7 @@ def test_the_one_bar_pair_switch_off_never_pairs_an_end_with_the_other_end_of_it
     """``ONE_BAR_PAIR`` off: sentence 3's pair is not listed (his AMTB, Wed 28/10/2026: "rather than this
     abomination" of the climax bar's own high and low). The wide end itself is still a swing's end and may pair
     with ends on other bars; only the pairing with its own bar's other end is refused, in ``pairs_from``."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     for chart, turns in (_gap_climax_chart(), _wide_bar_later_chart()):
         high, low, ranges = chart["high"], chart["low"], chart["ranges"]
@@ -684,7 +684,7 @@ def test_the_gap_bar_switch_off_reads_a_gap_bars_own_low_as_where_the_rise_lande
     clear of the bar before (its low over that bar's high) gives no wide valley end, and from its top the running
     low leaves the bar's own low out, so a later low can be the reaction. A wide bar that did not gap is read as
     built."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart, turns = _gap_climax_chart()
     high, low, ranges = chart["high"], chart["low"], chart["ranges"]
@@ -709,19 +709,19 @@ def test_the_gap_bar_switch_off_reads_a_gap_bars_own_low_as_where_the_rise_lande
 def test_the_wide_ends_switch_off_lists_no_other_end_of_a_wide_bar(monkeypatch):
     """``WIDE_ENDS`` off: sentence 3 is off whole — the other end of one wide bar is no swing's end at all, so it
     pairs with nothing, on its own bar or any other (the W reading of Sat 24/10/2026, for scale)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     high = np.array([10.0, 11.0, 12.0, 11.4, 11.0, 12.6, 13.0, 12.2, 11.8, 12.0, 11.9])
     low = np.array([9.0, 10.2, 11.2, 10.4, 10.0, 10.8, 11.0, 11.5, 11.0, 11.4, 11.2])
     turns = [_turn(2, "peak", 12.0), _turn(4, "valley", 10.0), _turn(5, "peak", 12.6, know=5),
              _turn(5, "valley", 10.8, know=6), _turn(6, "peak", 13.0, know=6), _turn(6, "valley", 11.0, know=8),
              _turn(8, "valley", 11.0, know=9), _turn(9, "peak", 12.0, know=False)]
-    as_built = walk.swing_ends(turns, high, low, read_bar=10)
+    as_built = pairs.swing_ends(turns, high, low, read_bar=10)
     assert [(e.bar, e.kind, e.wide) for e in as_built] == [(2, "peak", False), (4, "valley", False),
                                                              (6, "peak", False), (6, "valley", True),
                                                              (8, "valley", False)]
     _switched(monkeypatch, WIDE_ENDS=False)
-    assert [(e.bar, e.kind, e.wide) for e in walk.swing_ends(turns, high, low, read_bar=10)] == [
+    assert [(e.bar, e.kind, e.wide) for e in pairs.swing_ends(turns, high, low, read_bar=10)] == [
         (2, "peak", False), (4, "valley", False), (6, "peak", False), (8, "valley", False)]
     chart, turns = _gap_climax_chart()
     found = walk.elect(turns, turns, chart["ranges"], chart["high"], chart["low"], read_bar=chart["n"] - 1)
@@ -737,7 +737,7 @@ def test_the_bars_come_back_to_the_rail_the_pair_opened_on_and_then_to_the_other
     it, and resting on it is respect: "Silc supposed to work due the much respect of the support". The rail the
     pair opened on comes first; the other rail counts from that day on, so the price has been at the other rail in
     between: a reaction low the base never returns to is no respected rail ("why would DRTS move away")."""
-    from engine_alpha.box.walk import came_back
+    from engine_alpha.box.pairs import came_back
 
     #                  0      1      2      3      4      5      6
     high = np.array([100.0, 97.0, 93.0, 99.4, 97.0, 96.0, 101.2])
@@ -802,7 +802,7 @@ def test_a_run_past_a_rail_never_unmakes_a_pair_by_itself():
     daily ranges over its resistance; the bars come back to both rails, and on its fifteenth day it is the box.
     Then the later pair, the first after the run's own top that the bars come back to, is a box too, and the far
     view by then says the rise ended on that top: the later pair takes its place — his other reading."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_RUN_PAST_THE_RAIL)
     found = _elect(chart)
@@ -816,8 +816,8 @@ def test_a_run_past_a_rail_never_unmakes_a_pair_by_itself():
     rise = found.ends[1]
     assert (rise["kind"], rise["climax_price"], rise["start_bar"], rise["known_bar"]) == ("BC", 86.0, 3, 23)
     first, later = found.lives
-    assert (first.pair.R, first.pair.S, first.shown_bar, first.why) == (80.0, 70.0, 25, walk.FIRST_BOX)
-    assert (later.pair.R, later.pair.S, later.shown_bar, later.why) == (79.5, 70.5, 33, walk.LIVE_TREND)
+    assert (first.pair.R, first.pair.S, first.shown_bar, first.why) == (80.0, 70.0, 25, handover.FIRST_BOX)
+    assert (later.pair.R, later.pair.S, later.shown_bar, later.why) == (79.5, 70.5, 33, handover.LIVE_TREND)
     assert later.trend_end["climax_price"] == 86.0
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (79.5, 70.5, 33)]
 
@@ -830,11 +830,11 @@ def test_the_first_pair_to_become_a_box_is_shown_and_its_own_legs_inside_it_neve
     stays a box through dips under support and pokes over resistance that come back". The box's own legs inside it
     never take its place (from Thu 29/10/2026 one box gives way inside: a box that is ONE bar's own high and low, to the
     pair inside it the bars live in — the test after the switches' tests)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_BOX)
     found = _elect(chart)
-    assert _box(found) == (80.0, 70.0) and len(found.lives) == 1 and found.lives[0].why == walk.FIRST_BOX
+    assert _box(found) == (80.0, 70.0) and len(found.lives) == 1 and found.lives[0].why == handover.FIRST_BOX
     # Pairs born later inside it — the box's own legs — never take its place.
     inside = [p for p in found.pairs.values() if p.birth_bar is not None and (p.R, p.S) != (80.0, 70.0)]
     assert len(inside) >= 4 and all(p.birth_bar > 25 and p.R <= 80.0 and p.S >= 70.0 for p in inside)
@@ -845,7 +845,7 @@ def test_the_first_pair_to_become_a_box_is_shown_and_its_own_legs_inside_it_neve
     found = _elect(pokes)
     poke = _pair(found, 84.0, 72.0)
     assert poke.birth_bar == 50 and poke.opening_bar > found.winner.opening_bar
-    assert walk.left_for_good(found.winner, poke, pokes["high"], pokes["low"], 0, pokes["n"] - 1) is None
+    assert handover.left_for_good(found.winner, poke, pokes["high"], pokes["low"], 0, pokes["n"] - 1) is None
     assert _shown_day_by_day(pokes) == [(80.0, 70.0, 25)]
 
 
@@ -854,14 +854,14 @@ def test_the_box_gives_way_only_when_the_price_left_it_and_the_bars_no_longer_co
     94 / 88 lies beyond the box 80 / 70 — its support over the box's resistance area — and from the day it opened
     the bars never came back to both rails of the old box: on the day it is a box by his rules, it takes the old
     box's place. The old box stays in the record, its lines stopping where the new one opens."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     from engine_alpha import record
 
     chart = _chart(_BOX_THEN_BREAKOUT)
     found = _elect(chart)
     old, new = found.lives
     assert (old.pair.R, old.pair.S, old.shown_bar, old.ended_bar) == (80.0, 70.0, 25, 35)
-    assert (new.pair.R, new.pair.S, new.shown_bar, new.why) == (94.0, 88.0, 49, walk.LEFT_FOR_GOOD)
+    assert (new.pair.R, new.pair.S, new.shown_bar, new.why) == (94.0, 88.0, 49, handover.LEFT_FOR_GOOD)
     assert new.pair.birth_bar == 49 and new.ended_bar is None
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (94.0, 88.0, 49)]
     boxes, trail, state = walk.record(found)
@@ -882,25 +882,25 @@ def test_the_box_gives_way_only_when_the_price_left_it_and_the_bars_no_longer_co
     box, above = _pair(_elect(failed), 80.0, 70.0), _pair(_elect(failed), 94.0, 88.0)
     assert above.birth_bar == 52 and above.S >= box.R - box.area
     assert _box(_elect(failed, read_bar=52)) == _box(_elect(failed, read_bar=57)) == (80.0, 70.0)
-    assert walk.left_for_good(box, above, high, low, 0, 57) is None
+    assert handover.left_for_good(box, above, high, low, 0, 57) is None
     # Judged on every day, not once: the price went back up and for fifteen days the bars hung on the rails
     # above — the last bar at the old support is bar 43, and bar 58 is the fifteenth day after it. That day the
     # price has left the box, and the pair above takes its place.
-    assert walk.left_for_good(box, above, high, low, 0, last) == 58
-    assert walk.left_for_good(box, above, high, low, 60, last) == 60        # never before the day asked from
+    assert handover.left_for_good(box, above, high, low, 0, last) == 58
+    assert handover.left_for_good(box, above, high, low, 60, last) == 60        # never before the day asked from
     assert _shown_day_by_day(failed) == [(80.0, 70.0, 25), (94.0, 88.0, 58)]
     # Beyond means resting on the old rail's area or further: were the old resistance at 89, the base above
     # (support 88) would rest on its area; at 89.1, a tenth of a point more, it lies across the box and never
     # takes its place.
     high, low, last = chart["high"], chart["low"], chart["n"] - 1
-    assert walk.left_for_good(old.pair, new.pair, high, low, 0, last) == 49     # never before it is a box
+    assert handover.left_for_good(old.pair, new.pair, high, low, 0, last) == 49     # never before it is a box
     from dataclasses import replace
-    assert walk.left_for_good(replace(old.pair, R=89.0), new.pair, high, low, 0, last) == 49
-    assert walk.left_for_good(replace(old.pair, R=89.1), new.pair, high, low, 0, last) is None
+    assert handover.left_for_good(replace(old.pair, R=89.0), new.pair, high, low, 0, last) == 49
+    assert handover.left_for_good(replace(old.pair, R=89.1), new.pair, high, low, 0, last) is None
     # ... and only a pair that opened LATER: the old box never takes the new one's place back.
-    assert walk.left_for_good(new.pair, old.pair, high, low, 0, last) is None
+    assert handover.left_for_good(new.pair, old.pair, high, low, 0, last) is None
     # A read day before the newer pair is a box: no day yet.
-    assert walk.left_for_good(old.pair, new.pair, high, low, 0, 48) is None
+    assert handover.left_for_good(old.pair, new.pair, high, low, 0, 48) is None
 
 
 def test_a_box_never_gives_way_to_rails_the_bars_have_left():
@@ -910,26 +910,26 @@ def test_a_box_never_gives_way_to_rails_the_bars_have_left():
     been back at the box's resistance — and none has been near the pair above since bar 42: the price is under
     the box. The box does not give way to rails the bars have left. It gives way on bar 65 to the pair the bars
     do hang on, under it."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_RUN_ABOVE_THEN_UNDER_THE_BOX)
     high, low, last = chart["high"], chart["low"], chart["n"] - 1
     found = _elect(chart)
     box, above, under = _pair(found, 80.0, 70.0), _pair(found, 94.0, 88.0), _pair(found, 68.6, 66.0)
     assert (above.r_back, above.s_back, above.birth_bar) == (41, 42, 49) and above.S >= box.R - box.area
-    on_r, on_s = walk._respects(high, low, 80.0, 70.0, box.area)
+    on_r, on_s = pairs._respects(high, low, 80.0, 70.0, box.area)
     assert on_s[45] and on_r[48] and not on_r[49:].any()             # the last bar at the box's resistance: 48
-    hang_r, hang_s = walk._respects(high, low, 94.0, 88.0, above.area)
+    hang_r, hang_s = pairs._respects(high, low, 94.0, 88.0, above.area)
     assert not hang_r[42:].any() and not hang_s[43:].any()            # no bar at the pair above after bar 42
-    assert walk.left_for_good(box, above, high, low, 0, last) is None
+    assert handover.left_for_good(box, above, high, low, 0, last) is None
     assert (under.birth_bar, under.R <= box.S + box.area) == (65, True)
-    assert walk.left_for_good(box, under, high, low, 0, last) == 65
+    assert handover.left_for_good(box, under, high, low, 0, last) == 65
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (68.6, 66.0, 65)]
     assert [(life.pair.R, life.pair.S) for life in found.lives] == [(80.0, 70.0), (68.6, 66.0)]
 
 
 def test_the_mirror_a_decline_out_of_the_box_hands_over_to_a_new_box_below():
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     mirrored = [(bar, 160.0 - price) for bar, price in _BOX_THEN_BREAKOUT]
     chart = _chart(mirrored)
@@ -937,7 +937,7 @@ def test_the_mirror_a_decline_out_of_the_box_hands_over_to_a_new_box_below():
     assert _shown_day_by_day(chart) == [(90.0, 80.0, 25), (72.0, 66.0, 49)]
     old, new = found.lives
     assert not old.pair.top_first and not new.pair.top_first        # each opens on support, after a decline
-    assert new.why == walk.LEFT_FOR_GOOD and old.ended_bar == 35
+    assert new.why == handover.LEFT_FOR_GOOD and old.ended_bar == 35
     assert "below" in walk.record(found)[1][0].saying
 
 
@@ -947,7 +947,7 @@ def test_a_box_anchored_inside_a_live_trend_gives_way_to_the_trend_ends_own_box(
     pause 70 / 66 is a box by the rules on bar 22. The rise goes on to 80 and the base forms on 80 / 68.5, whose
     support is back inside the pause box: the price never left it for good. Once the far view says the rise ended
     at 80, and 80 / 68.5 is a box, it takes the pause's place."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_PAUSE_INSIDE_A_RISE)
     found = _elect(chart, _PAUSE_FAR)
@@ -957,24 +957,24 @@ def test_a_box_anchored_inside_a_live_trend_gives_way_to_the_trend_ends_own_box(
     pause, base = found.lives
     assert (pause.pair.R, pause.pair.S, pause.shown_bar, pause.ended_bar) == (70.0, 66.0, 22, 24)
     assert (base.pair.R, base.pair.S, base.pair.birth_bar, base.shown_bar, base.why) == \
-        (80.0, 68.5, 38, 38, walk.LIVE_TREND)
+        (80.0, 68.5, 38, 38, handover.LIVE_TREND)
     assert base.trend_end["climax_bar"] == 24
     # Not by the other rule: the base's support is inside the pause box, a point and a half under its resistance.
-    assert walk.left_for_good(pause.pair, base.pair, chart["high"], chart["low"], 0, chart["n"] - 1) is None
-    assert walk.inside_a_live_trend(pause.pair, base.pair, found.ends, 38) is rise
+    assert handover.left_for_good(pause.pair, base.pair, chart["high"], chart["low"], 0, chart["n"] - 1) is None
+    assert handover.inside_a_live_trend(pause.pair, base.pair, found.ends, 38) is rise
     assert _shown_day_by_day(chart, _PAUSE_FAR) == [(70.0, 66.0, 22), (80.0, 68.5, 38)]
     assert "a rise that had not ended" in walk.record(found)[1][0].saying
     # Judged once the trend end is KNOWN: a far view that sees the rise end only on bar 43 keeps the pause box
     # until that day, though 80 / 68.5 is a box from bar 38.
     late = _PAUSE_FAR - {30, 33, 36, 39}
     assert _elect(chart, late).ends[1]["known_bar"] == 43
-    assert walk.inside_a_live_trend(pause.pair, base.pair, _elect(chart, late).ends, 42) is None
+    assert handover.inside_a_live_trend(pause.pair, base.pair, _elect(chart, late).ends, 42) is None
     assert _shown_day_by_day(chart, late) == [(70.0, 66.0, 22), (80.0, 68.5, 43)]
     # A rise swallows a pair that opened on a TOP inside it; the box 80 / 70 of the first chart opened on the
     # rise's own end, and the decline that follows it inside the box began after it: it swallows nothing.
     box = _elect(_chart(_BOX))
     assert box.ends[2]["kind"] == "SC" and box.ends[2]["start_bar"] > box.winner.opening_bar
-    assert all(walk.inside_a_live_trend(box.winner, p, box.ends, 99) is None
+    assert all(handover.inside_a_live_trend(box.winner, p, box.ends, 99) is None
                for p in box.pairs.values() if p.birth_bar is not None and p.opening_bar > box.winner.opening_bar)
 
 
@@ -985,7 +985,7 @@ def test_a_spring_under_a_box_that_opened_on_a_top_does_not_unmake_it():
     rise had ended, and no fall refutes that — so the box stands through the spring, though a pair that opens
     after it is a box by the rules too. The same fall does swallow a pair that opened on a LOW inside it: that
     low claimed the fall had ended."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_SPRING_UNDER_A_LATER_BOX)
     found = _elect(chart, _SPRING_FAR)
@@ -995,11 +995,11 @@ def test_a_spring_under_a_box_that_opened_on_a_top_does_not_unmake_it():
     box, later = found.winner, _pair(found, 76.4, 72.6)
     assert (box.R, box.S, box.top_first, box.opening_bar, box.birth_bar) == (77.0, 72.0, True, 17, 31)
     assert fall["start_bar"] < box.opening_bar < fall["foot_bar"] <= later.opening_bar and later.birth_bar == 52
-    assert walk.inside_a_live_trend(box, later, found.ends, chart["n"] - 1) is None
+    assert handover.inside_a_live_trend(box, later, found.ends, chart["n"] - 1) is None
     assert _shown_day_by_day(chart, _SPRING_FAR) == [(77.0, 72.0, 31)]
     low_first = _pair(found, 77.0, 70.0)
     assert not low_first.top_first and fall["start_bar"] < low_first.opening_bar < fall["foot_bar"]
-    assert walk.inside_a_live_trend(low_first, later, found.ends, chart["n"] - 1) is fall
+    assert handover.inside_a_live_trend(low_first, later, found.ends, chart["n"] - 1) is fall
 
 
 def test_a_poke_over_a_box_already_born_does_not_put_it_inside_a_live_trend():
@@ -1012,7 +1012,7 @@ def test_a_poke_over_a_box_already_born_does_not_put_it_inside_a_live_trend():
     the box was born swallows nothing: the box was a box before the price ran past its top. The mirror is NOT
     built: on his WTS the base he drew came after such a fall, and the hand-over to the fall's end is what reaches
     it (measured Sat 18/10/2026: 26 / 10 / 4 on his sealed 40 with the rise side alone, WTS lost with both)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_POKE_OVER_A_BORN_BOX)
     found = _elect(chart, _POKE_FAR)
@@ -1024,22 +1024,22 @@ def test_a_poke_over_a_box_already_born_does_not_put_it_inside_a_live_trend():
     assert (box.opening_bar, box.birth_bar, poke.opening_bar, poke.birth_bar) == (11, 25, 41, 56)
     assert rise["start_bar"] < box.opening_bar < rise["foot_bar"] <= poke.opening_bar and rise["climax_bar"] > box.birth_bar
     # Not by the other rule either: the poke's pair lies across the box, not beyond it.
-    assert walk.left_for_good(box, poke, chart["high"], chart["low"], 0, chart["n"] - 1) is None
+    assert handover.left_for_good(box, poke, chart["high"], chart["low"], 0, chart["n"] - 1) is None
     # The poke came back: within the fifteen days from its top the bars were back at the box's resistance (bar 43,
     # on the way down) and at its support (bar 44). Judged once, on the last of those days; not before.
     high, low = chart["high"], chart["low"]
-    assert walk.poke_came_back(box, high, low, 41, 54) is None
-    assert walk.poke_came_back(box, high, low, 41, 55) is True
+    assert handover.poke_came_back(box, high, low, 41, 54) is None
+    assert handover.poke_came_back(box, high, low, 41, 55) is True
     # So the box stands: by the bars' geometry alone the rise swallows it, with the bars read it does not.
-    assert walk.inside_a_live_trend(box, poke, found.ends, chart["n"] - 1) is rise
-    assert walk.inside_a_live_trend(box, poke, found.ends, chart["n"] - 1, high, low) is None
+    assert handover.inside_a_live_trend(box, poke, found.ends, chart["n"] - 1) is rise
+    assert handover.inside_a_live_trend(box, poke, found.ends, chart["n"] - 1, high, low) is None
     assert _box(found) == (80.0, 70.0) and len(found.lives) == 1
     assert _shown_day_by_day(chart, _POKE_FAR) == [(80.0, 70.0, 25)]
     # A run that did NOT come back is the rise going on: the pause chart (his VLO) hands over as before, and no
     # sooner than the last of the fifteen days from its top (bar 24 + 14 = 38, the day 80 / 68.5 is a box).
     pause = _chart(_PAUSE_INSIDE_A_RISE)
     found_pause = _elect(pause, _PAUSE_FAR)
-    assert walk.poke_came_back(_pair(found_pause, 70.0, 66.0), pause["high"], pause["low"], 24, 38) is False
+    assert handover.poke_came_back(_pair(found_pause, 70.0, 66.0), pause["high"], pause["low"], 24, 38) is False
     assert _shown_day_by_day(pause, _PAUSE_FAR) == [(70.0, 66.0, 22), (80.0, 68.5, 38)]
     # The mirror: the same chart upside down, the box opening on a low after a decline, the "poke" a dip under its
     # support that the far view calls the decline's end. The fall still swallows it (his WTS).
@@ -1048,8 +1048,8 @@ def test_a_poke_over_a_box_already_born_does_not_put_it_inside_a_live_trend():
     low_box, dip = _pair(down, 90.0, 80.0), _pair(down, 89.4, 77.8)
     fall = down.ends[1]
     assert not low_box.top_first and fall["kind"] == "SC" and fall["climax_bar"] > low_box.birth_bar
-    assert walk.inside_a_live_trend(low_box, dip, down.ends, mirrored["n"] - 1, mirrored["high"], mirrored["low"]) is fall
-    assert _box(down) == (89.4, 77.8) and down.lives[-1].why == walk.LIVE_TREND
+    assert handover.inside_a_live_trend(low_box, dip, down.ends, mirrored["n"] - 1, mirrored["high"], mirrored["low"]) is fall
+    assert _box(down) == (89.4, 77.8) and down.lives[-1].why == handover.LIVE_TREND
 
 
 def test_a_run_past_the_top_of_a_pair_the_bars_knew_does_not_put_it_inside_a_live_trend():
@@ -1063,7 +1063,7 @@ def test_a_run_past_the_top_of_a_pair_the_bars_knew_does_not_put_it_inside_a_liv
     September lows at 423), and in the fifteen days from the run's top the bars lived in his box, not over it.
     His "tighter" is true of HCA but separates nothing: on every chart where he drew the run's pair the old box was
     tighter too (measured Sat 24/10/2026), and asking it costs his ACCO."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_RUN_PAST_A_PAIR_THE_BARS_KNEW)
     high, low = chart["high"], chart["low"]
@@ -1079,27 +1079,27 @@ def test_a_run_past_the_top_of_a_pair_the_bars_knew_does_not_put_it_inside_a_liv
     assert box.second_bar < rise["climax_bar"] < box.birth_bar
     # The bars knew its rails: in the thirty days before it opened, a high at its resistance on two bars and a low at
     # its support on three, each within a quarter of a daily range.
-    assert walk.knew_the_rails(box, high, low)
+    assert handover.knew_the_rails(box, high, low)
     # The run came back to both rails, and the bars' middles sat in the box more often than over it: judged once, on
     # the last of the fifteen days from the run's top (bar 28 + 14).
-    assert walk.poke_stayed_in(box, high, low, 28, 41) is None
-    assert walk.poke_stayed_in(box, high, low, 28, 42) is True
+    assert handover.poke_stayed_in(box, high, low, 28, 41) is None
+    assert handover.poke_stayed_in(box, high, low, 28, 42) is True
     # By the bars' geometry alone the rise swallows it; with the bars read it does not.
-    assert walk.inside_a_live_trend(box, later, found.ends, chart["n"] - 1) is rise
-    assert walk.inside_a_live_trend(box, later, found.ends, chart["n"] - 1, high, low) is None
+    assert handover.inside_a_live_trend(box, later, found.ends, chart["n"] - 1) is rise
+    assert handover.inside_a_live_trend(box, later, found.ends, chart["n"] - 1, high, low) is None
     # Bars that touch both rails but LIVE over the box (his MSGS): the rise goes on, and takes the place.
     over_high, over_low = high.copy(), low.copy()
     over_high[29:43], over_low[29:43] = 82.0, 80.5
     over_high[35], over_low[35] = 80.0, 70.2
-    assert walk.poke_came_back(box, over_high, over_low, 28, 42) is True
-    assert walk.poke_stayed_in(box, over_high, over_low, 28, 42) is False
-    assert walk.inside_a_live_trend(box, later, found.ends, chart["n"] - 1, over_high, over_low) is rise
+    assert handover.poke_came_back(box, over_high, over_low, 28, 42) is True
+    assert handover.poke_stayed_in(box, over_high, over_low, 28, 42) is False
+    assert handover.inside_a_live_trend(box, later, found.ends, chart["n"] - 1, over_high, over_low) is rise
     # Bars that stay in the box but never come back to its support: not the box's own poke either.
     shy_high, shy_low = high.copy(), low.copy()
     shy_high[28:43], shy_low[28:43] = 79.0, 72.5
     shy_high[28] = 86.0
-    assert walk.poke_came_back(box, shy_high, shy_low, 28, 42) is False
-    assert walk.poke_stayed_in(box, shy_high, shy_low, 28, 42) is False
+    assert handover.poke_came_back(box, shy_high, shy_low, 28, 42) is False
+    assert handover.poke_stayed_in(box, shy_high, shy_low, 28, 42) is False
     # Judged on the fifteenth day from the run's top, so the rise takes the place no sooner: a pair that opened on
     # the run's way up (after the rise's foot) and is a box on bar 38 takes it on bar 42, and a reader standing on
     # bar 41 still shows the box (else a later reader would date the hand-over on a day that showed the box).
@@ -1107,17 +1107,17 @@ def test_a_run_past_the_top_of_a_pair_the_bars_knew_does_not_put_it_inside_a_liv
     walked = [t for t in found.ends if t.get("foot_bar") is not None]
     early = replace(later, opening_bar=29, birth_bar=38)
     assert rise["foot_bar"] <= early.opening_bar
-    told = walk.lives([box, early], walked, over_high, over_low, chart["n"] - 1)
+    told = handover.lives([box, early], walked, over_high, over_low, chart["n"] - 1)
     assert [(life.pair.R, life.shown_bar) for life in told] == [(80.0, 37), (79.5, 42)]
-    assert [life.shown_bar for life in walk.lives([box, early], walked, over_high, over_low, 41)] == [37]
+    assert [life.shown_bar for life in handover.lives([box, early], walked, over_high, over_low, 41)] == [37]
     # The mirror, a fall under a pair the bars knew that came back, is not built (his WTS): the fall swallows it.
     mirrored = _chart([(bar, 160.0 - price) for bar, price in _RUN_PAST_A_PAIR_THE_BARS_KNEW])
     down = _elect(mirrored)
-    assert walk.knew_the_rails(_pair(down, 90.0, 80.0), mirrored["high"], mirrored["low"])
-    assert down.lives[-1].why == walk.LIVE_TREND and down.lives[-1].trend_end["kind"] == "SC"
+    assert handover.knew_the_rails(_pair(down, 90.0, 80.0), mirrored["high"], mirrored["low"])
+    assert down.lives[-1].why == handover.LIVE_TREND and down.lives[-1].trend_end["kind"] == "SC"
     # The same run past a NEW pair (his ALB; his ORMP, where he drew the run's top): the rise takes the place.
     alb = _chart(_RUN_PAST_THE_RAIL)
-    assert not walk.knew_the_rails(_pair(_elect(alb), 80.0, 70.0), alb["high"], alb["low"])
+    assert not handover.knew_the_rails(_pair(_elect(alb), 80.0, 70.0), alb["high"], alb["low"])
     assert _shown_day_by_day(alb) == [(80.0, 70.0, 25), (79.5, 70.5, 33)]
 
 
@@ -1137,7 +1137,7 @@ def test_a_box_is_left_only_through_its_far_rail_so_a_spring_that_came_back_neve
     it serves as an extension of the original")."""
     from dataclasses import replace
 
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_SPRING_THEN_A_STEP_UP)
     high, low, last = chart["high"], chart["low"], chart["n"] - 1
@@ -1147,21 +1147,21 @@ def test_a_box_is_left_only_through_its_far_rail_so_a_spring_that_came_back_neve
     # The pause pair opened before the box (bar 8), so sentence 10's "newer pair" never means it. His DSGX's lower
     # pair opened eleven days after the box did (12/06 to the box's 01/06): read the pause as if it had, a day after.
     below = replace(pause, opening_bar=12)
-    assert walk.lies_beyond(below, box) and below.R <= box.S + box.area and not (below.S >= box.R - box.area)
+    assert handover.lies_beyond(below, box) and below.R <= box.S + box.area and not (below.S >= box.R - box.area)
     # Bar 52: both of the lower pair's rails in the window, the box's support not, its resistance yes.
     window = np.array([52])
-    assert walk._back_at_both(below, high, low, 12, window)[0] and not walk._back_at_both(box, high, low, 12, window)[0]
-    assert walk._respects(high[38:53], low[38:53], box.R, box.S, box.area)[0].any()
+    assert handover._back_at_both(below, high, low, 12, window)[0] and not handover._back_at_both(box, high, low, 12, window)[0]
+    assert pairs._respects(high[38:53], low[38:53], box.R, box.S, box.area)[0].any()
     # The far rail for a pair below is the resistance, which the bars keep coming back to: never left downward.
-    assert walk.left_for_good(box, below, high, low, 0, last) is None
+    assert handover.left_for_good(box, below, high, low, 0, last) is None
     # The mirror, upside down: a box 90 / 80 after a decline, a poke to 94 that touches a pair ABOVE it (94 / 89),
     # then the price steps down with its lows still at the box's support. The far rail for a pair above is the
     # support, which the bars keep coming back to: never left upward.
     mirrored = _chart([(bar, 160.0 - price) for bar, price in _SPRING_THEN_A_STEP_UP])
     down = _elect(mirrored)
     low_box, above = _pair(down, 90.0, 80.0), replace(_pair(down, 94.0, 89.0), opening_bar=12)
-    assert walk.lies_beyond(above, low_box) and above.S >= low_box.R - low_box.area
-    assert walk.left_for_good(low_box, above, mirrored["high"], mirrored["low"], 0, mirrored["n"] - 1) is None
+    assert handover.lies_beyond(above, low_box) and above.S >= low_box.R - low_box.area
+    assert handover.left_for_good(low_box, above, mirrored["high"], mirrored["low"], 0, mirrored["n"] - 1) is None
     # The chart itself: the box stands, read day by day with no memory.
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25)]
     # A box the price really left upward is still left: the breakout chart hands over on bar 49 as before, because
@@ -1176,7 +1176,7 @@ def test_a_shown_line_moves_back_only_when_a_dip_came_back_read_day_by_day_with_
     — and each is judged on what its own day knew: a reader with no memory, standing on any day, tells the same
     history up to that day as one standing later — also when the trend end that takes a box's place is known
     only after the newer pair is a box (the pause chart with the far view that sees the rise end late)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     came_back = 0
     for points, far in ((_BOX, None), (_RUN_PAST_THE_RAIL, None), (_BOX_THEN_BREAKOUT, None),
@@ -1188,11 +1188,11 @@ def test_a_shown_line_moves_back_only_when_a_dip_came_back_read_day_by_day_with_
         chart = _chart(points)
         last = _elect(chart, far)
         told = [(life.pair.feet, life.shown_bar) for life in last.lives]
-        came_back += sum(1 for life in last.lives if life.why == walk.CAME_BACK)
+        came_back += sum(1 for life in last.lives if life.why == handover.CAME_BACK)
         for day in range(chart["n"]):
             on_day = _elect(chart, far, read_bar=day)
             assert [(life.pair.feet, life.shown_bar) for life in on_day.lives] == [t for t in told if t[1] <= day], day
-            opens = [life.pair.opening_bar for life in on_day.lives if life.why != walk.CAME_BACK]
+            opens = [life.pair.opening_bar for life in on_day.lives if life.why != handover.CAME_BACK]
             assert opens == sorted(set(opens)), f"the shown line moved back by bar {day}"
     assert came_back == 1       # the dip chart, once: no other chart of these gives a place back
 
@@ -1224,14 +1224,14 @@ def test_the_climax_and_its_reaction_take_the_place_of_a_lower_sibling_shown_bef
     back at the reaction low too, the climax and its reaction (80 / 70) is a box, and it takes the place: it was
     tried before the pair to its right. Read day by day with no memory. A pair that opened on ANOTHER anchor
     still never comes back (the test below: his ROIV)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_REACTION_ANSWERED_AFTER_A_LOWER_SIBLING)
     found = _elect(chart)
     lower, reaction = _pair(found, 80.0, 65.6), _pair(found, 80.0, 70.0)
     assert (lower.opening_bar, lower.birth_bar) == (11, 28) and (reaction.opening_bar, reaction.birth_bar) == (11, 30)
     assert _box(found) == (80.0, 70.0)
-    assert found.lives[-1].why == walk.TRIED_FIRST and found.lives[-2].pair.feet == lower.feet
+    assert found.lives[-1].why == handover.TRIED_FIRST and found.lives[-2].pair.feet == lower.feet
     assert _shown_day_by_day(chart)[-2:] == [(80.0, 65.6, 28), (80.0, 70.0, 30)]
     # The record says why, and the lower sibling stays in it as an earlier box.
     boxes, trail, _ = walk.record(found)
@@ -1248,7 +1248,7 @@ def test_a_dip_that_comes_back_gives_the_box_its_place_back():
     fifteen days hold no bar at the dip pair's support any more (its last was bar 53): the dip came back, and the
     box takes its place back that day - the way back is a hand-over, judged by both halves of his sentence 10
     (his STGW, Fri 23/10/2026). Read with no memory, every day tells the same history."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     from engine_alpha import record
 
     chart = _chart(_DIP_THAT_CAME_BACK)
@@ -1256,31 +1256,31 @@ def test_a_dip_that_comes_back_gives_the_box_its_place_back():
     found = _elect(chart)
     box, dip, again = found.lives
     assert (box.pair.R, box.pair.S, box.shown_bar, box.ended_bar) == (80.0, 70.0, 25, 35)
-    assert (dip.pair.R, dip.pair.S, dip.shown_bar, dip.why) == (68.0, 62.0, 49, walk.LEFT_FOR_GOOD)
+    assert (dip.pair.R, dip.pair.S, dip.shown_bar, dip.why) == (68.0, 62.0, 49, handover.LEFT_FOR_GOOD)
     assert dip.pair.R <= box.pair.S + box.pair.area                      # it rests on the old support's area
-    assert (again.pair.feet, again.shown_bar, again.why, again.ended_bar) == (box.pair.feet, 68, walk.CAME_BACK, None)
+    assert (again.pair.feet, again.shown_bar, again.why, again.ended_bar) == (box.pair.feet, 68, handover.CAME_BACK, None)
     assert dip.ended_bar == dip.pair.second_bar == 38                    # its lines never ran on
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (68.0, 62.0, 49), (80.0, 70.0, 68)]
     # The day itself: the first on which the bars SINCE the box was given up, and of the last fifteen days, were
     # back at both its rails — at its support on bar 55, at its resistance on bar 57 — and no longer at the dip
     # pair's support (bar 53, out of the fifteen-day window on bar 68).
-    assert walk.came_back_to(box.pair, dip.pair, high, low, 49, last) == 68
-    assert walk.came_back_to(box.pair, dip.pair, high, low, 49, 67) is None
-    on_r, on_s = walk._respects(high, low, 80.0, 70.0, box.pair.area)
+    assert handover.came_back_to(box.pair, dip.pair, high, low, 49, last) == 68
+    assert handover.came_back_to(box.pair, dip.pair, high, low, 49, 67) is None
+    on_r, on_s = pairs._respects(high, low, 80.0, 70.0, box.pair.area)
     assert not on_r[36:57].any() and on_r[57] and not on_s[33:55].any() and on_s[55]
-    at_dip_s = walk._respects(high, low, 68.0, 62.0, dip.pair.area)[1]
+    at_dip_s = pairs._respects(high, low, 68.0, 62.0, dip.pair.area)[1]
     assert at_dip_s[53] and not at_dip_s[54:].any()
     # Only the bars AFTER the day asked from count, on both halves: asked from bar 54, the bar at the dip pair's
     # support on bar 53 is not the price still there, and the box is back on bar 57; asked from bar 55, the bar at
     # the support that day is not the price coming back, and the next one at the support is bar 60.
-    assert walk.came_back_to(box.pair, dip.pair, high, low, 54, last) == 57
-    assert walk.came_back_to(box.pair, dip.pair, high, low, 55, last) == 60
+    assert handover.came_back_to(box.pair, dip.pair, high, low, 54, last) == 57
+    assert handover.came_back_to(box.pair, dip.pair, high, low, 55, last) == 60
     # ... and both rails within fifteen days of each other: on quiet bars in the middle of the box, one at the
     # resistance on bar 2 and one at the support on bar 20 are no come-back; with the next bar at the resistance,
     # bar 22, they are.
     quiet_high, quiet_low = np.full(30, 75.2), np.full(30, 74.8)
     quiet_high[[2, 22]], quiet_low[20] = (79.5, 79.6), 70.4
-    assert walk.came_back_to(box.pair, dip.pair, quiet_high, quiet_low, 0, 29) == 22
+    assert handover.came_back_to(box.pair, dip.pair, quiet_high, quiet_low, 0, 29) == 22
     # The record keeps what each night showed, and says why: the dip pair as an earlier box whose lines never ran
     # on, the box again as the parent.
     boxes, trail, _ = walk.record(found)
@@ -1307,26 +1307,26 @@ def test_the_box_given_up_takes_its_place_back_only_as_it_was_lost_so_a_run_thro
     bar 53: the box stands through the run and the rest, and takes its place back on bar 68, the first day fifteen
     days hold no bar at that support. The dip chart, whose dip pair's support was last touched on bar 53 too,
     tells the same: the box is back on bar 68, not 57. Read with no memory, every day tells the same history."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_RUN_THROUGH_THE_PAIR_ABOVE)
     high, low, last = chart["high"], chart["low"], chart["n"] - 1
     found = _elect(chart)
     box, dip, again = found.lives
     assert (box.pair.R, box.pair.S, box.shown_bar, box.ended_bar) == (80.0, 70.0, 25, 35)
-    assert (dip.pair.R, dip.pair.S, dip.shown_bar, dip.why) == (68.0, 62.0, 49, walk.LEFT_FOR_GOOD)
-    assert (again.pair.feet, again.shown_bar, again.why) == (box.pair.feet, 68, walk.CAME_BACK)
+    assert (dip.pair.R, dip.pair.S, dip.shown_bar, dip.why) == (68.0, 62.0, 49, handover.LEFT_FOR_GOOD)
+    assert (again.pair.feet, again.shown_bar, again.why) == (box.pair.feet, 68, handover.CAME_BACK)
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (68.0, 62.0, 49), (80.0, 70.0, 68)]
     # The bars are back at both rails of the old pair by bar 59 - and the dip pair's support is still in the window.
-    on_r, on_s = walk._respects(high, low, 80.0, 70.0, box.pair.area)
+    on_r, on_s = pairs._respects(high, low, 80.0, 70.0, box.pair.area)
     assert on_r[57] and on_s[59] and not on_r[50:57].any()
-    at_dip_s = walk._respects(high, low, 68.0, 62.0, dip.pair.area)[1]
+    at_dip_s = pairs._respects(high, low, 68.0, 62.0, dip.pair.area)[1]
     assert at_dip_s[53] and not at_dip_s[54:].any()
-    assert walk.far_rail(box.pair, dip.pair) == walk.SUPPORT
+    assert handover.far_rail(box.pair, dip.pair) == pairs.SUPPORT
     for day in range(59, 68):
-        assert walk.came_back_to(box.pair, dip.pair, high, low, 49, day) is None, day
-    assert walk.came_back_to(box.pair, dip.pair, high, low, 49, 68) == 68
-    assert walk.came_back_to(box.pair, dip.pair, high, low, 49, last) == 68
+        assert handover.came_back_to(box.pair, dip.pair, high, low, 49, day) is None, day
+    assert handover.came_back_to(box.pair, dip.pair, high, low, 49, 68) == 68
+    assert handover.came_back_to(box.pair, dip.pair, high, low, 49, last) == 68
     # No memory: every day tells the history the last day tells of it.
     told = [(life.pair.feet, life.shown_bar) for life in found.lives]
     for day in range(chart["n"]):
@@ -1340,16 +1340,16 @@ def test_the_box_given_up_comes_before_a_pair_that_would_take_the_place_the_same
     not been back at the dip pair: it would take the dip pair's place. The same day the bars are back at both
     rails of the box the reader gave up. The dip came back: the box takes its place back first, and the pair
     inside it is its own leg."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_DIP_BACK_THE_DAY_A_PAIR_ABOVE_IS_A_BOX)
     high, low, last = chart["high"], chart["low"], chart["n"] - 1
     found = _elect(chart)
     box, dip, shelf = _pair(found, 80.0, 70.0), _pair(found, 68.0, 62.0), _pair(found, 76.0, 72.0)
     assert shelf.birth_bar == 70 and shelf.S >= dip.R - dip.area and shelf.R < box.R and shelf.S > box.S
-    assert walk.left_for_good(dip, shelf, high, low, 49, last) == 70 == walk.came_back_to(box, dip, high, low, 49, last)
+    assert handover.left_for_good(dip, shelf, high, low, 49, last) == 70 == handover.came_back_to(box, dip, high, low, 49, last)
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (68.0, 62.0, 49), (80.0, 70.0, 70)]
-    assert found.lives[-1].why == walk.CAME_BACK and len(found.lives) == 3
+    assert found.lives[-1].why == handover.CAME_BACK and len(found.lives) == 3
 
 
 def test_a_fall_back_into_the_box_under_it_is_the_newer_boxs_own_dip():
@@ -1358,19 +1358,19 @@ def test_a_fall_back_into_the_box_under_it_is_the_newer_boxs_own_dip():
     spring under his box is at both rails of the box under it (giving the place back there loses his box and
     silences the fire on his day). The bars are back at both rails of the old box on bar 58, and the box above
     stands."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     chart = _chart(_SPRING_INTO_THE_BOX_UNDER_IT)
     found = _elect(chart)
     old, above = found.lives
     assert (old.pair.R, old.pair.S) == (80.0, 70.0) and (above.pair.R, above.pair.S, above.shown_bar) == (94.0, 88.0, 49)
-    assert above.why == walk.LEFT_FOR_GOOD and above.pair.S >= old.pair.R - old.pair.area
-    assert walk.came_back_to(old.pair, above.pair, chart["high"], chart["low"], 49, chart["n"] - 1) == 58
+    assert above.why == handover.LEFT_FOR_GOOD and above.pair.S >= old.pair.R - old.pair.area
+    assert handover.came_back_to(old.pair, above.pair, chart["high"], chart["low"], 49, chart["n"] - 1) == 58
     assert _shown_day_by_day(chart) == [(80.0, 70.0, 25), (94.0, 88.0, 49)]
 
 
 def test_the_record_carries_the_box_its_trail_and_the_state_and_keep_listing_adds_words_only():
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     from engine_alpha import record
 
     chart = _chart(_BOX)
@@ -1409,7 +1409,7 @@ def test_read_fills_the_record_from_the_walk():
     from engine_alpha import reader
     from engine_alpha import numbers as M
     from engine_alpha import chart as frame_module, grade, line as line_module, lps, story
-    from engine_alpha.box import mini, walk
+    from engine_alpha.box import handover, mini, pairs, walk
     from core.calibration.replay import load_sealed_fixture
 
     frames, _ = load_sealed_fixture()
@@ -1489,7 +1489,7 @@ def _walk_on(prepared, read_bar=None):
     the same read for any earlier day."""
     from engine_alpha import numbers as M
     from engine_alpha import chart as frame_module, line as line_module
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     line = line_module.build(prepared)
     ranges = prepared[frame_module.DAILY_RANGE].to_numpy(dtype=float)
@@ -1497,7 +1497,7 @@ def _walk_on(prepared, read_bar=None):
     far = line.far(M.FAR_VIEW_FLOOR_RANGES)
 
     def on(day: int):
-        return walk.elect(walk.known_by(line.turns, day), walk.known_by(far, day), ranges, high, low, read_bar=day)
+        return walk.elect(pairs.known_by(line.turns, day), pairs.known_by(far, day), ranges, high, low, read_bar=day)
 
     return on(len(prepared) - 1 if read_bar is None else read_bar), on
 
@@ -1789,7 +1789,7 @@ def test_his_own_pair_is_a_pair_the_rule_lists_and_a_box_by_it_on_his_drawings(h
     back a part only, at least a daily range tall, the bars back on both rails and fifteen days by his buy day —
     on every drawing but the eight named. And sentences 9 and 10 on his own box: by his buy day no later pair
     takes its place by the reader's two rules, but on the nine named."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     not_listed, gives_way = [], {}
     for row in his_reads:
@@ -1809,11 +1809,11 @@ def test_his_own_pair_is_a_pair_the_rule_lists_and_a_box_by_it_on_his_drawings(h
         # to the rail they open on.
         assert row["r_bar"] == row["s_bar"] or pair.top_first == (row["r_bar"] < row["s_bar"]), \
             f"{key}: read as opening on the other rail"
-        for other in sorted((p for p in row["on_buy"].pairs.values() if p.birth_bar is not None), key=walk._key):
+        for other in sorted((p for p in row["on_buy"].pairs.values() if p.birth_bar is not None), key=handover._key):
             if other.opening_bar > pair.opening_bar and (
-                    walk.left_for_good(pair, other, row["high"], row["low"], pair.birth_bar, row["buy_bar"])
+                    handover.left_for_good(pair, other, row["high"], row["low"], pair.birth_bar, row["buy_bar"])
                     is not None
-                    or walk.inside_a_live_trend(pair, other, row["on_buy"].ends, row["buy_bar"]) is not None):
+                    or handover.inside_a_live_trend(pair, other, row["on_buy"].ends, row["buy_bar"]) is not None):
                 gives_way.setdefault(key, (round(other.R, 2), round(other.S, 2)))
     assert sorted(not_listed) == sorted(_HIS_PAIR_NOT_LISTED)
     assert gives_way == _HIS_BOX_GIVES_WAY_BEFORE_HIS_BUY
@@ -1955,12 +1955,12 @@ def test_silc_and_drts_as_he_said_them_on_the_pictures(his_reads):
     DRTS move away as it almost perfectly respect both boundaries" — the climax and its reaction low (7.89 / 6.23)
     are no box while the base forms, because the bars never return to that low before the spring of March; the
     reader's box stays within half a daily range of his."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     from tools.calibration.board_helpers import rails_close
 
     silc = next(r for r in his_reads if r["key"] == "SILC:2026-04-13")
     pair, days = silc["his_pair"], silc["days"]
-    resting = walk._respects(silc["high"], silc["low"], pair.R, pair.S, pair.area)[1]
+    resting = pairs._respects(silc["high"], silc["low"], pair.R, pair.S, pair.area)[1]
     assert resting[pair.s_bar + 1:days.index(dt.date(2026, 3, 23)) + 1].all()      # never off the support's area
     assert (days[pair.r_back], days[pair.s_back]) == (dt.date(2026, 2, 9), dt.date(2026, 2, 9))
     assert pair.birth_bar == pair.fifteenth and days[pair.birth_bar] == dt.date(2026, 2, 25)
@@ -1989,7 +1989,7 @@ def test_roiv_the_dip_of_late_march_came_back_and_the_box_of_march_stands(his_re
     gave up (30.03 / 28.31: the top of Thu 05/03 and the low of Fri 06/03, one swing before his, both lines within
     half a daily range of his) and it takes its place back; it stands on his last receding day and on his buy
     day. No pair that is a box sits on the dip's low (25.95) nor on the poke's high (32.79)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     from tools.calibration.board_helpers import rails_close
 
     roiv = next(r for r in his_reads if r["key"] == "ROIV:2026-06-17")
@@ -2005,7 +2005,7 @@ def test_roiv_the_dip_of_late_march_came_back_and_the_box_of_march_stands(his_re
     assert shown(night(2026, 4, 10)) == shown(night(2026, 4, 13)) == (28.39, 27.12)
     back = night(2026, 4, 14)
     assert shown(back) == (30.03, 28.31)
-    assert back.lives[-1].why == walk.CAME_BACK and days[back.lives[-1].shown_bar] == dt.date(2026, 4, 14)
+    assert back.lives[-1].why == handover.CAME_BACK and days[back.lives[-1].shown_bar] == dt.date(2026, 4, 14)
     for found in (roiv["result"], roiv["on_buy"]):
         assert shown(found) == (30.03, 28.31) and days[found.lives[-1].shown_bar] == dt.date(2026, 4, 14)
     box = roiv["result"].winner
@@ -2028,7 +2028,7 @@ def test_mtls_the_box_of_june_does_not_give_way_to_the_rails_of_the_july_run(his
     nor would be until the gap of Thu 27/08/2026: the bars do not hang on those rails, and the box does not give
     way to them. It stands on his last receding day and on his buy day, and the lows of his last receding days
     rest on its resistance."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     mtls = next(r for r in his_reads if r["key"] == "MTLS:2026-09-04")
     days, found, high, low = mtls["days"], mtls["result"], mtls["high"], mtls["low"]
@@ -2041,12 +2041,12 @@ def test_mtls_the_box_of_june_does_not_give_way_to_the_rails_of_the_july_run(his
     assert days[found.lives[-1].shown_bar] == dt.date(2026, 6, 22) and mtls["on_buy"].winner.feet == june.feet
     july = next(p for p in found.pairs.values() if (round(p.R, 2), round(p.S, 2)) == (7.50, 7.01))
     assert days[july.birth_bar] == dt.date(2026, 7, 22) and july.S >= june.R - june.area
-    at_r, _ = walk._respects(high, low, june.R, june.S, june.area)
+    at_r, _ = pairs._respects(high, low, june.R, june.S, june.area)
     fifth = bar(2026, 8, 5)
     assert at_r[fifth - 15] and not at_r[fifth - 14:fifth + 1].any()     # the June resistance: last on Wed 15/07
-    hang_r, _ = walk._respects(high, low, july.R, july.S, july.area)
+    hang_r, _ = pairs._respects(high, low, july.R, july.S, july.area)
     assert hang_r[bar(2026, 7, 6)] and not hang_r[bar(2026, 7, 7):bar(2026, 8, 26) + 1].any() and hang_r[bar(2026, 8, 27)]
-    assert walk.left_for_good(june, july, high, low, found.lives[-1].shown_bar, mtls["buy_bar"]) is None
+    assert handover.left_for_good(june, july, high, low, found.lives[-1].shown_bar, mtls["buy_bar"]) is None
     for night in (fifth, bar(2026, 8, 7), bar(2026, 8, 27)):
         assert mtls["on"](night).winner.feet == june.feet, f"{days[night]:%a %d/%m/%Y}"
     receding = low[bar(2026, 8, 28):mtls["last_bar"] + 1]
@@ -2061,7 +2061,7 @@ def test_the_boxes_life_on_his_drawings_moves_by_the_three_rules_and_goes_back_o
     anchor, the earlier second anchor: his GFR), or BACK to the box given up, when the price had
     left it downward and the bars are back at both its rails. And the box shown on his last receding day is still
     the box on his buy day, on every drawing but the one named."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     hand_overs, came_back, changed_on_his_buy_day = 0, 0, []
     for row in his_reads:
@@ -2072,38 +2072,38 @@ def test_the_boxes_life_on_his_drawings_moves_by_the_three_rules_and_goes_back_o
             assert on_day == [t for t in told if t[1] <= day], f"{key}: {row['days'][day]:%a %d/%m/%Y} told otherwise"
         for i, (old, new) in enumerate(zip(result.lives, result.lives[1:])):
             assert new.shown_bar >= new.pair.birth_bar and old.ended_bar is not None
-            if new.why == walk.CAME_BACK:
+            if new.why == handover.CAME_BACK:
                 # Back to the box the reader gave up to the pair under it, the day the bars were back at both
                 # its rails.
-                assert i >= 1 and result.lives[i - 1].pair.feet == new.pair.feet and old.why == walk.LEFT_FOR_GOOD, key
+                assert i >= 1 and result.lives[i - 1].pair.feet == new.pair.feet and old.why == handover.LEFT_FOR_GOOD, key
                 assert old.pair.R <= new.pair.S + new.pair.area, f"{key}: a place given back after a run up"
-                assert walk.came_back_to(new.pair, old.pair, row["high"], row["low"], old.shown_bar,
+                assert handover.came_back_to(new.pair, old.pair, row["high"], row["low"], old.shown_bar,
                                          new.shown_bar) == new.shown_bar, key
                 came_back += 1
                 continue
-            if new.why == walk.TRIED_FIRST:
+            if new.why == handover.TRIED_FIRST:
                 # A sibling off the same opening anchor with an earlier second anchor, the day it is a box.
                 assert new.pair.opening_bar == old.pair.opening_bar and new.pair.second_bar < old.pair.second_bar, key
                 assert new.shown_bar == new.pair.birth_bar > old.shown_bar, key
                 hand_overs += 1
                 continue
             assert new.pair.opening_bar > old.pair.opening_bar, f"{key}: the shown line moved back"
-            if new.why == walk.WRAPS:
+            if new.why == handover.WRAPS:
                 # A one-bar box gives way to the tighter pair inside or across it, opened while it was forming, the
                 # day the bars hang on its rails and have never come back to one of the box's.
                 assert old.pair.r_bar == old.pair.s_bar, key
-                assert not walk.lies_beyond(new.pair, old.pair) and new.pair.height < 0.8 * old.pair.height, key
+                assert not handover.lies_beyond(new.pair, old.pair) and new.pair.height < 0.8 * old.pair.height, key
                 assert new.pair.opening_bar <= old.pair.birth_bar, key
-                assert walk.wraps(old.pair, new.pair, row["high"], row["low"], old.shown_bar,
+                assert handover.wraps(old.pair, new.pair, row["high"], row["low"], old.shown_bar,
                                   new.shown_bar) == new.shown_bar, key
                 hand_overs += 1
                 continue
-            if new.why == walk.LEFT_FOR_GOOD:
-                assert walk.left_for_good(old.pair, new.pair, row["high"], row["low"], old.shown_bar,
+            if new.why == handover.LEFT_FOR_GOOD:
+                assert handover.left_for_good(old.pair, new.pair, row["high"], row["low"], old.shown_bar,
                                           new.shown_bar) == new.shown_bar, key
             else:
-                assert new.why == walk.LIVE_TREND and new.trend_end["known_bar"] <= new.shown_bar, key
-                assert walk.inside_a_live_trend(old.pair, new.pair, result.ends, new.shown_bar) is not None, key
+                assert new.why == handover.LIVE_TREND and new.trend_end["known_bar"] <= new.shown_bar, key
+                assert handover.inside_a_live_trend(old.pair, new.pair, result.ends, new.shown_bar) is not None, key
             hand_overs += 1
         assert row["on_buy"].winner is not None, f"{key}: no lines on his buy day"
         if row["on_buy"].winner.feet != result.winner.feet:
@@ -2115,7 +2115,7 @@ def test_the_boxes_life_on_his_drawings_moves_by_the_three_rules_and_goes_back_o
 
 
 def test_keep_listing_is_pinned_identical_on_every_chart(prepared_frames):
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
 
     for key, prepared in prepared_frames.items():
         result, _ = _walk_on(prepared)
@@ -2131,7 +2131,7 @@ def test_ewtx_and_ngl_read_as_box_breakout_new_box_with_the_earlier_box_kept(his
     last receding day the record holds his box as the parent, and the box the price broke out of below it as an
     earlier box, ended; the trail opens with the hand-over. On NGL the earlier box is his January drawing's
     level (10.29 / 9.38)."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     from engine_alpha import record
 
     for key, january in (("EWTX:2026-03-31", None), ("NGL:2026-04-20", (10.29, 9.38))):
@@ -2162,7 +2162,7 @@ def test_a_range_price_left_long_ago_is_no_candidate_on_bmrn_and_ohi():
     (a bar's high or low inside the area of one of its rails), never the dead-space box, and the boxes the price
     left are in the record as earlier boxes, ended."""
     from engine_alpha import reader
-    from engine_alpha.box.walk import bar_respects
+    from engine_alpha.box.pairs import bar_respects
     from tools.regression import negative_corpus
 
     frames, _ = negative_corpus._load_fixture()
@@ -2187,7 +2187,7 @@ def test_the_read_equals_the_knowable_order_replay_at_every_hand_over_on_every_c
     that day shows the one it says took its place (two hand-overs can fall on one day: the pair between them is
     in the record and was never the box of a night); and only the last box is the parent. It does NOT read a new
     window every night, as the scan does: the tests at the end of this file do."""
-    from engine_alpha.box import walk
+    from engine_alpha.box import handover, pairs, walk
     from engine_alpha import record
 
     hand_overs = 0

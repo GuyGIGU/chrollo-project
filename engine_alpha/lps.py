@@ -43,7 +43,7 @@ import numpy as np
 
 from engine_alpha import numbers as M
 from engine_alpha.record import CROSSED, FIRED, LINES_NO_LPS, ROLE_PARENT, Lps, Step
-from engine_alpha.box.walk import known_by
+from engine_alpha.box.pairs import known_by
 
 __all__ = ["Pullback", "read", "record", "recedes", "run_top", "window_top", "sellers_rising", "share_under",
            "swing_top", "SENTENCES", "SELLERS_RISING", "SLICE", "UNDER_SUPPORT", "OVER_RESISTANCE",

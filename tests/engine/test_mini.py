@@ -24,7 +24,7 @@ def _iso(value) -> dt.date:
 def _walk_on_his_last_day(setup: dict):
     """The walk on his drawing, read on his last receding day, as the reader runs it."""
     from engine_alpha.reader import build_line, prepare
-    from engine_alpha.box import walk
+    from engine_alpha.box import pairs, walk
     from engine_alpha import numbers as M
     from engine_alpha.chart import DAILY_RANGE
     from core.calibration.replay import fixture_frame, load_sealed_fixture
@@ -273,7 +273,7 @@ _BOX_WITH_A_REST_AT_THE_TOP = [(0, 58), (1, 52), (2, 56), (3, 50), (5, 60), (6, 
 def test_a_rest_exactly_eighty_percent_tall_is_not_a_mini():
     """The parent remains 80 / 70; the 84 / 76 rest is exactly 80% as tall."""
     from test_walk import _chart, _elect
-    from engine_alpha.box import mini, walk
+    from engine_alpha.box import mini, pairs, walk
 
     chart = _chart(_BOX_WITH_A_REST_AT_THE_TOP)
     found = _elect(chart)
@@ -331,7 +331,7 @@ def test_the_read_carries_the_mini_beside_the_parent(his_40):
     after the walk's own (earlier..., parent); the parent, the LPS and the fire are byte for byte what they were;
     the trail says the mini after the box and before the LPS."""
     from engine_alpha.reader import ROLE_MINI, ROLE_PARENT
-    from engine_alpha.box import walk
+    from engine_alpha.box import pairs, walk
 
     row, read = _read_his(his_40, "DSGN")
     assert read.failed is False and read.fired and read.lps.trigger_price == pytest.approx(10.70, abs=0.005)

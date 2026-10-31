@@ -89,77 +89,26 @@ def read(ticker: str, df, *, as_of=None, keep_listing: bool = False) -> Read:
         found = walk.elect(line.committed, [t for t in far if t.committed], ranges, high, low,
                            days=days, read_bar=len(prepared) - 1)
         boxes, trail, state = walk.record(found, keep_listing=keep_listing)
-        # The mini: a second box inside the parent's right side, read
-        # with the walk's own functions and put on the record LAST, after the
-        # walk's (earlier..., parent). A fault here leaves the parent-only
-        # read standing with a step that
-        # says why, never `crashed`, because by his ruling the LPS may be read
-        # against the mini (stage 6), so a bug in the mini must never cost a
-        # fire.
-        # Behind ``MINI_ENABLED`` (his word, Fri 30/10/2026: "sun set, mini consolidation detection"): off, no mini is
-        # read and the LPS below reads against the parent alone.
-        mini_box = mini_pair = None
+        # The mini (off, ``MINI_ENABLED``; his word of Fri 30/10/2026: "sun set, mini consolidation detection"): a
+        # second box inside the parent's right side, on the record after the walk's boxes. Its faults are its own:
+        # the parent-only read stands with a step that says why, because the LPS may be read against the mini.
+        mini_pair = None
         if found.winner is not None and M.MINI_ENABLED:
-            try:
-                history = mini.find(found, high, low, len(prepared) - 1, ranges=ranges)
-                if history:
-                    mini_box, step = mini.record(found, history)
-                    mini_pair = history[-1].pair
-                    boxes, trail = boxes + (mini_box,), trail + (step,)
-            except Exception as exc:                  # the parent-only read stands; the trail says why
-                mini_box, mini_pair, trail = None, None, trail + mini.could_not_be_read(exc)
-        # Stage 6: the last run of receding days against the box
-        # shown, its trigger at the last day's high, refused only by his four
-        # sentences. Read on the bars' highs and lows: no close decides it.
+            mini_box, mini_pair, steps = mini.read(found, high, low, ranges, len(prepared) - 1)
+            boxes, trail = boxes + (() if mini_box is None else (mini_box,)), trail + steps
+        # Stage 6: the last run of receding days against the box shown, its trigger at the last day's high, refused
+        # only by his four sentences. Read on the bars' highs and lows: no close decides it.
         pullback = None
         if found.winner is not None:
             pullback = lps.read(high, low, ranges, line.committed, R=found.winner.R, S=found.winner.S,
                                 box_unit=found.winner.unit, born_bar=found.winner.birth_bar)
-        # The LPS against the mini, on his condition: when the
-        # pullback's low is in, on or near the mini (the mini's own area), it
-        # is measured again against the mini's lines and stamped with which
-        # box and how; its window and trigger are the bars' and do not move.
-        # Away from the mini, a mini that became a box only after the pullback
-        # ended, or a fault on the mini's side: the parent's read, with a
-        # sentence — never "no LPS", never a crashed read.
-        against, how, extra = ROLE_PARENT, None, ()
-        parent_pullback = pullback
+        the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1)
         if pullback is not None and mini_pair is not None:
-            try:                                      # the chooser is the mini's side too
-                against, how = mini.lps_box(pullback.low, mini_pair)
-                if against == ROLE_MINI:
-                    inner = lps.read(high, low, ranges, line.committed, R=mini_pair.R, S=mini_pair.S,
-                                     box_unit=mini_pair.unit, born_bar=mini_pair.birth_bar)
-                    if inner is None or inner.end_bar < inner.born_bar:
-                        extra = (Step("LPS", f"the pullback's low {pullback.low:.2f} sits {how} the mini "
-                                             f"{mini_pair.R:.2f} / {mini_pair.S:.2f}, but the mini became a box "
-                                             f"only on {days[mini_pair.birth_bar]:%a %d/%m/%Y}, after the pullback "
-                                             f"ended: read against the parent"),)
-                        against, how = ROLE_PARENT, None
-                    else:
-                        pullback = inner
-            except Exception as exc:                  # the parent's read stands; the trail says why
-                extra = (Step("LPS", f"the mini's side of the LPS could not be read: {type(exc).__name__}: "
-                                     f"{exc}; read against the parent"),)
-                against, how, pullback = ROLE_PARENT, None, parent_pullback
-        try:
-            the_lps, said, word = lps.record(pullback, days, read_bar=len(prepared) - 1, read_against=against, how=how)
-        except Exception as exc:
-            if against != ROLE_MINI:                  # stage 6's own record: as before the mini, not guarded here
-                raise
-            the_lps, said, word = lps.record(parent_pullback, days, read_bar=len(prepared) - 1)
-            extra = extra + (Step("LPS", f"the LPS record against the mini could not be made: {type(exc).__name__}: "
-                                         f"{exc}; read against the parent"),)
-        # The archive tie: "mini" is said only
-        # with a stored mini. The mini's pair and its box are set together, so
-        # this cannot happen by construction; if it ever does, the parent's
-        # read stands, with a sentence — inside the guard, never a raise on
-        # the record or in the adapter, which the door calls unguarded.
-        if the_lps is not None and the_lps.read_against == ROLE_MINI and not any(b.role == ROLE_MINI for b in boxes):
-            the_lps, said, word = lps.record(parent_pullback, days, read_bar=len(prepared) - 1)
-            extra = extra + (Step("LPS", "the LPS was read against the mini but no mini box is on the record: "
-                                         "read against the parent"),)
-        trail, state = trail + said + extra, word or state
+            # A pullback whose low is in, on or near the mini is read against the mini's lines (his condition); any
+            # fault on the mini's side leaves the parent's read, with a sentence.
+            the_lps, said, word, pullback = mini.read_lps(pullback, mini_pair, high, low, ranges, line.committed,
+                                                          days, len(prepared) - 1, boxes)
+        trail, state = trail + said, word or state
         # Stage 5: the story, the words the drawing printed against the box shown. It runs AFTER the
         # fire is decided and inside its own guard: a word never costs a fire, a bug in a word rule included.
         # It reads the whole line (the forming turn is what makes a word provisional), the box shown and no

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from engine_alpha.box import walk
+from engine_alpha.box import handover, walk
 from tools.calibration import box_gap, walk_board
 from tools.regression.marks_corpus import load_corpus, setup_key
 from core.calibration.replay import fixture_frame, load_sealed_fixture
@@ -31,10 +31,10 @@ def test_every_drawing_has_one_cause_in_words():
     born = SimpleNamespace(unfit=None, birth_bar=9, r_back=3, s_back=4)
     assert box_gap.cause(_row("NONE", his_pair=born)) == "no box shown"
     shown = SimpleNamespace(birth_bar=7)
-    assert box_gap.cause(_row(his_pair=born, box=shown, why=walk.FIRST_BOX)) == \
+    assert box_gap.cause(_row(his_pair=born, box=shown, why=handover.FIRST_BOX)) == \
         "his pair is a box, another was a box first"
-    assert box_gap.cause(_row(his_pair=born, box=shown, why=walk.LIVE_TREND)) == \
-        f"his pair is a box, another is shown by a hand-over: {walk.LIVE_TREND}"
+    assert box_gap.cause(_row(his_pair=born, box=shown, why=handover.LIVE_TREND)) == \
+        f"his pair is a box, another is shown by a hand-over: {handover.LIVE_TREND}"
 
 
 def test_a_fix_is_read_as_a_drawing_on_the_chart_he_fixed():

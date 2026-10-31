@@ -187,7 +187,7 @@ CLIMAX_BAR_OWN_REACTION = True
 #: meaningfully tighter pair inside or across it (under the mini bar, 80% of its height), opened while it was still
 #: forming, takes its place on the first day the bars have come back to both its rails while none since the box
 #: opened has come back to one of the box's rails (a come-back: a bar at the rail after the bars had left it; the
-#: root swing's own bars at it are none), read in the tighter pair's own daily range (`walk.wraps`). A two-bar box
+#: root swing's own bars at it are none), read in the tighter pair's own daily range (`handover.wraps`). A two-bar box
 #: — a climax and its reaction, his SILC — keeps its place whatever sits inside it. Off: a pair inside or across the
 #: box never takes its place (the rule as built before Thu 29/10/2026).
 WRAP_TAKES_OVER = True
@@ -206,7 +206,7 @@ WRAP_TAKES_OVER = True
 #: RESPECT_WINDOW_DAYS trading days (one window for every pair: the same days for all, or the lead is not transitive
 #: and the chain cycles), its own score reaching the margin too, each bar read in its OWN daily range, his "per stock" close-enough: +1 for a bar whose end sits within RESPECT_AREA_RANGES of the rail
 #: it is closest to (a touch; poking out slightly counts), -1 for a bar wholly beyond a rail by more than that (a
-#: bar the pair does not wrap), 0 for a bar inside (``walk.respect_marks``, ``walk.out_respected``). A pair that
+#: bar the pair does not wrap), 0 for a bar inside (``handover.respect_marks``, ``handover.out_respected``). A pair that
 #: opened earlier may win this way too (the way back; his HCA's earlier pair). Under it the left-for-good, way-back
 #: and wraps hand-overs are not asked (the pair the bars live in wins in either direction); the live-trend and
 #: tried-first hand-overs stay. Off: the chain of hand-overs as built.
