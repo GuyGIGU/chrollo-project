@@ -14,7 +14,7 @@ Maintenance rules:
   keys the lane may ADD, or the EMPTY set when its whole surface is the canonical
   fields the shadow guard and the ratchet already own. **The test enforces this rule**
   (since 2026-09-25): it fails when a default-off `*_ENABLED` key in
-  `engine_alpha/freeze/manifest.py`'s `ENGINE_SETTINGS_KEYS` has no entry, and when an entry
+  `engine_alpha/stamp.py`'s `ENGINE_SETTINGS_KEYS` has no entry, and when an entry
   names anything but a default-off engine flag (a flag enrolled while dark that has since
   flipped live without dissolving stays enrolled by name, in the test's
   `ENROLLED_THEN_FLIPPED_LIVE`; the switch that REPLACED the reader instead of adding a lane,
@@ -28,7 +28,7 @@ Maintenance rules:
 - Flips/deletions move the row to *Retired* (keep the evidence trail).
 - Live flags (`FUNDAMENTALS_ENABLED`, `HEALTH_BOARD_ENABLED`, ...) are
   deliberately NOT here — they are engine identity (frozen in
-  `engine_alpha/freeze/manifest.py`), not pending decisions. A live flag whose
+  `engine_alpha/stamp.py`), not pending decisions. A live flag whose
   validation window has closed gets **FOLDED** (the conditional is removed and
   the behavior becomes unconditional engine code; the settings key survives
   untouched until the next manifest rotation retires it) — the weeks-validated
@@ -151,7 +151,20 @@ one engine. Between them, phase 1 of the retirement re-homed the surviving knobs
 payload, re-pinned by running one scan then `--check --repeat`. There is no switch left in the stamp: a ruleset
 bump is the one way to move it by hand.
 
-- **A ruleset string is spent once used.** `tests/engine/test_two_eyes_adapter.py`
+**#7, 2026-10-31: THE ENGINE TREE, a declared epoch.** The alpha reader's package `engine_alpha/two_eyes/` folded
+into `engine_alpha/` itself, every file named for what it does (`gate.py` the one way in, `reader.py` the seven
+stages, `box/` the walk, `result.py` the result row, `numbers.py`, `stamp.py`; `docs/engine_reference.md`, "The
+tree"). What rotated the stamp: the ruleset key renamed `ALPHA_RULESET` (was `TWO_EYES_RULESET`) and bumped to
+`alpha-0.13.0-the-tree`, and the reader's numbers block renamed `ALPHA_NUMBERS` (was `TWO_EYES_METHOD_NUMBERS`);
+no setting and no number changed. The stamp is
+`d4238fb90790c03f608a97f8460deabfa7ef2b5bf1cb7cd80594fbea5bd3396d`, by
+`.\.venv\Scripts\python.exe -m engine_alpha.stamp --hash` in that tree. The reading is unchanged (his board 43 of
+51, the junk 47 fire days, the reader pin zero-diff over 105 charts, the four ratchets PASS), so a study treats
+`3f3aefb5` and `d4238fb9` as one reader (and, by #6, `80f2ec31` with them); no night ran under `3f3aefb5`. The
+archive's `two_eyes_*` column names stay. The saved payload still carries `80f2ec31…`: one scan after the deploy
+re-pins the audit.
+
+- **A ruleset string is spent once used.** `tests/engine/test_result.py`
   (`SPENT_RULESETS`, `test_a_ruleset_string_is_never_reused`) lists every string ever committed,
   oldest first, and fails when the one in `config/reader.py` is not the newest of them: going back
   to a spent string fails, and so does a new string nobody appended. A bump appends.

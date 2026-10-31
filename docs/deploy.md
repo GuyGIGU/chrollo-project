@@ -579,7 +579,8 @@ rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and 
      The screen returns to the stamp `8cae6fd9`, the old reader's fires; the bad night's rows stay
      in the archive under `cdb7ee2d`, and the studies leave them out by name
      (`.\.venv\Scripts\python.exe -m core.archive.analyze --leave-out-stamp cdb7ee2d`, the same flag on
-     `tools.research.backtest_engine`). A later re-flip bumps `TWO_EYES_RULESET` first, never reusing
+     `tools.research.backtest_engine`). A later re-flip bumps `ALPHA_RULESET` (`config\reader.py`; the stamp by
+     `.\.venv\Scripts\python.exe -m engine_alpha.stamp --hash`) first, never reusing
      a string (the suite refuses a spent one).
    - **Undo 2, the join reverted** (the last resort, after undo 1):
      ```powershell

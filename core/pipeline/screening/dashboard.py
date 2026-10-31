@@ -203,7 +203,7 @@ def _timeframe_box(block):
     }
 
 
-def _two_eyes_chart(row, block, tf_set, sector_etf, df, group=None):
+def _alpha_chart(row, block, tf_set, sector_etf, df, group=None):
     """A fire's chart (build task 15 of the two-eyes reader).
 
     The frame's own candles, the verdicts every row carries (the lines, the
@@ -232,7 +232,7 @@ def _two_eyes_chart(row, block, tf_set, sector_etf, df, group=None):
         'S': round(float(row['_S']), 2),
         # Trading sessions in the parent box through this read, not the
         # grade's shorter, pre-SOS base_days window.
-        'base_len': _two_eyes_base_length(block, df),
+        'base_len': _alpha_base_length(block, df),
         'tier': row['Tier'],
         'score': row['Score'],
         'setup': row['Setup'],
@@ -249,11 +249,11 @@ def _two_eyes_chart(row, block, tf_set, sector_etf, df, group=None):
         'spring_volume_ratio': _volume_vs_50d(df, row.get('_spring_date')),
         **{key: row.get('_' + key) for key in ADVISORY_KEYS},
         'ta_grade': _round_opt(row.get('_ta_grade'), 1),
-        'two_eyes': block,
+        'alpha': block,
     }
 
 
-def _two_eyes_base_length(block, df):
+def _alpha_base_length(block, df):
     parent = next((box for box in block['boxes'] if box['role'] == 'parent'), None)
     if parent is None or df.empty:
         return None
@@ -316,7 +316,7 @@ def _extract_chart_data(data, results_df, tickers, universe_type=None):
             if not isinstance(block, dict):
                 print(f"  Chart data error on {ticker}: the row carries no {SCREEN_KEY} block")
                 continue
-            chart_data[ticker] = _two_eyes_chart(
+            chart_data[ticker] = _alpha_chart(
                 row, block, tf_set,
                 _sector_etf_for_ticker(ticker, sector_etf_cache), df, groups.get(ticker))
         except Exception as e:

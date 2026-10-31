@@ -31,8 +31,8 @@ def test_manifest_includes_engine_excludes_ops():
 
     m = collect_manifest()
     # representative engine constants are present
-    for key in ("MIN_PRICE", "TWO_EYES_RULESET", "DAILY_STRUCTURE_PERIOD",
-                "ADR_WINDOW", "RS_LOOKBACK_BARS", "TWO_EYES_METHOD_NUMBERS"):
+    for key in ("MIN_PRICE", "ALPHA_RULESET", "DAILY_STRUCTURE_PERIOD",
+                "ADR_WINDOW", "RS_LOOKBACK_BARS", "ALPHA_NUMBERS"):
         assert key in m, f"engine constant {key} missing from manifest"
     # ops / observability knobs are excluded
     for key in ("MARKET_DATA_PROVIDER", "YAHOO_RATE_LIMIT_PER_SEC",

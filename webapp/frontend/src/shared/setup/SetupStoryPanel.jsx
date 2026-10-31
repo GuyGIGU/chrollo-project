@@ -217,7 +217,7 @@ export default function SetupStoryPanel({ data, note, onRegionChange, regions = 
   const rows = storyRows(data, regions);
   const warnings = warningItems(data);
   // The grade cell's words are resolved in ONE pure place (setupStoryRows.gradeCell): the old grade, an old row
-  // from before it, or the two-eyes reader's own grade — never the old grade's words on a new reader's row.
+  // from before it, or the alpha reader's own grade — never the old grade's words on a new reader's row.
   const grade = gradeCell(data);
   const [engaged, setEngaged] = useState(null);
   const header = (
@@ -231,11 +231,11 @@ export default function SetupStoryPanel({ data, note, onRegionChange, regions = 
     </div>
   );
 
-  // A row the two-eyes reader wrote has none of the old grade's chapters (Tue 13/10/2026: the panel showed a grade
+  // A row the alpha reader wrote has none of the old grade's chapters (Tue 13/10/2026: the panel showed a grade
   // and one "not graded" LPS). It tells its own read instead: the box, the story's words, the mini, the LPS.
   // It sits in the chart's own card, right under the three panes (Fri 17/10/2026: "I need to see both the
   // chart and the highlights it provides in the same screen"), so the lens never scrolls between the two.
-  if (data?.two_eyes) {
+  if (data?.alpha) {
     return (
       <section className="lens-read">
         <div className="stock-lens-section-header">

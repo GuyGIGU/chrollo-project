@@ -40,7 +40,7 @@ jobs:
       - name: Check generated API contracts
         run: python -m tools.audits.api_contracts --check
       - name: Test response contracts, scan producers and shared browser fixture
-        run: python -m pytest tests/contracts/test_api_responses.py tests/contracts/test_dashboard_wire.py tests/contracts/test_two_eyes_wire.py -q
+        run: python -m pytest tests/contracts/test_api_responses.py tests/contracts/test_dashboard_wire.py tests/contracts/test_alpha_wire.py -q
 
   verify:
     runs-on: ubuntu-latest

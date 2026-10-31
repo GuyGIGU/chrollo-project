@@ -49,7 +49,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
     from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
     from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE
     from engine_alpha.stamp import manifest_hash
-    from engine_alpha.archive import two_eyes_archive_values
+    from engine_alpha.archive import alpha_archive_values
     from archive_models import (
         SetupArchive,
         get_market_context,
@@ -215,7 +215,7 @@ def add_setup_manually(payload: ManualSetupIn, db: Session = Depends(get_db)):
         "notes": payload.notes,
         # EC-30: the family rides EVERY writer through the one producer,
         # so the closed-set refusal guards this route too.
-        **two_eyes_archive_values(result.get, prefixed=False),
+        **alpha_archive_values(result.get, prefixed=False),
         # Forward-return / triple-barrier outcomes computed above
         **fwd_returns,
     }

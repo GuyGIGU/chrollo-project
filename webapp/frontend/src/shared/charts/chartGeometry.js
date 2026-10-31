@@ -16,7 +16,7 @@
 // chartTheme palette (also pure).
 
 import { CHART_COLORS } from './chartTheme.js';
-import { colorLpsCandles, rootSwingRange, twoEyesBox } from './chartPhaseOverlay.js';
+import { colorLpsCandles, rootSwingRange, alphaBox } from './chartPhaseOverlay.js';
 
 // null / '' -> null (NOT 0). Number(null) === 0 would draw a phantom rail at
 // price 0 on any timeframe with no box. This is the canonical copy used by the
@@ -241,11 +241,11 @@ export const setupIndexes = (data) => {
   return { baseEnd, baseStart, candles, forwardBars };
 };
 
-// The base's length in bars for the framing math. A two-eyes row carries no bar counts: its base runs from the bar
+// The base's length in bars for the framing math. A alpha row carries no bar counts: its base runs from the bar
 // its box opened on (located by the day) to the base's end; every other row keeps its own base_len.
 const framedBaseLen = (data, candles, baseEnd) => {
-  if (!data?.two_eyes) return barCount(data.base_len);
-  const parent = twoEyesBox(data, candles, 'parent');
+  if (!data?.alpha) return barCount(data.base_len);
+  const parent = alphaBox(data, candles, 'parent');
   return parent ? Math.max(0, baseEnd - parent.openIndex + 1) : null;
 };
 
@@ -381,7 +381,7 @@ export const marketFocusLogicalRange = (candles, visibleBars) => {
 // R/S/mid are emitted unconditionally (matching both prior sites); the inner
 // box only when all three inner fields are finite.
 export const boxRailSpecs = (data) => {
-  if (data?.two_eyes) return datedRailSpecs(data);
+  if (data?.alpha) return datedRailSpecs(data);
   const candles = data.candles || [];
   const { baseStart } = setupIndexes(data);
   // A candles-only payload (the Watchlist page's clean chart) carries no box:
@@ -421,7 +421,7 @@ export const boxRailSpecs = (data) => {
   return specs;
 };
 
-// The two-eyes reader's rails (build task 15): the ONE dated-lines helper. The wire carries each line's price and
+// The alpha reader's rails (build task 15): the ONE dated-lines helper. The wire carries each line's price and
 // the day it was anchored; this locates the days on the shipped candles and draws each line from ITS OWN anchor day
 // (his PBT drawings: a line starts where it was anchored) to the box's last day — the last candle while it lives.
 // The setup's box draws as the old rails do (with the midline from its first day), its mini as the thin inner rails.
@@ -429,7 +429,7 @@ export const boxRailSpecs = (data) => {
 const datedRailSpecs = (data) => {
   const candles = data.candles || [];
   const specs = [];
-  const parent = twoEyesBox(data, candles, 'parent');
+  const parent = alphaBox(data, candles, 'parent');
   if (parent) {
     specs.push(
       { kind: 'rail', startIndex: parent.rIndex, endIndex: parent.endIndex, value: parent.r },
@@ -437,7 +437,7 @@ const datedRailSpecs = (data) => {
       { kind: 'mid', startIndex: parent.openIndex, endIndex: parent.endIndex, value: (parent.r + parent.s) / 2 },
     );
   }
-  const mini = twoEyesBox(data, candles, 'mini');
+  const mini = alphaBox(data, candles, 'mini');
   if (mini) {
     specs.push(
       { kind: 'inner', startIndex: mini.rIndex, endIndex: mini.endIndex, value: mini.r },

@@ -16,7 +16,7 @@ Pure function, no I/O. The only new surface introduced by the live/seed unificat
 Rule:
   * Most fields: strip a single leading underscore (``_eq_r_touches`` -> ``eq_r_touches``,
     ``_stage2_trend_pass`` -> ``stage2_trend_pass``, ``_two_eyes_*`` -> ``two_eyes_*`` which
-    ``two_eyes_archive_values(..., prefixed=False)`` then reads).
+    ``alpha_archive_values(..., prefixed=False)`` then reads).
   * A small set of fields are renamed, not just unprefixed (display names and a handful of
     anchor/length fields). Those are listed in ``_CANONICAL_TO_SEED`` and applied last so
     they win over the strip pass.

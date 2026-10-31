@@ -2,14 +2,16 @@
 
 **2026-10-31 The old engine retired (branch `claude/retire-old-engine`, not merged; deployment
 pending):** his word, late Fri 30/10/2026: *"retire the old engine, from now on we focus on the new
-one obviously!"*. One reader: the alpha reader (`engine_alpha/two_eyes/`) behind the one door
-(`engine_alpha/reader.py`), no switch. `engine_alpha/structure/`, `engine_alpha/scoring/`,
+one obviously!"*. One reader: the alpha reader (`engine_alpha/`) behind the gate
+(`engine_alpha/gate.py`), no switch. `engine_alpha/structure/`, `engine_alpha/scoring/`,
 `evaluation.py`, `config/engine.py`, `config/scoring.py`, the near-miss writer and the old ratchets
 and audits are deleted (170 files; the engine 24,163 lines to 5,565; the suite 3,676 tests to 2,367).
 Nothing the reader says moved: his board 43 of 51, the junk 47 fire days, the reader pin zero-diff.
-Engine stamp `3f3aefb5…`, ruleset `two-eyes-0.12.0-one-reader`, a declared epoch. The weekly and
+Engine stamp `d4238fb9…` (the retirement's `3f3aefb5…` rotated once more the same day by the tree, the
+rename of the reader's files; [`engine_reference.md`](engine_reference.md), "The tree"), ruleset
+`alpha-0.13.0-the-tree`, a declared epoch. The weekly and
 monthly panes carry the parent box's own rails; the health board reads the reader's parent box through
-the door; the archive writers NULL the retired column families on every write; the frontend lost only
+the gate; the archive writers NULL the retired column families on every write; the frontend lost only
 the calibration engine overlay, the agreement chip and the sub-score panels. The saved payload of 30/10
 carries the old stamp, so `tools.audits.live_reader_audit --check` refuses until the first scan after
 the deploy re-pins it (then `--check --repeat`). Record and decisions A to H: [`engine_reference.md`](engine_reference.md), "The old engine retired";
@@ -19,7 +21,7 @@ the ruling row in [`decisions.md`](decisions.md).
 pending):** the US-stocks universe keeps the NASDAQ directory's fund rows (it used to drop
 every `ETF == 'Y'` row), minus the leveraged / inverse daily products by name
 (`leveraged_fund` in the admission ledger). On the directory of 28/10/2026 that is 4,911
-funds beside the 5,892 stocks. The door and the reader judge them as stocks; nothing else
+funds beside the 5,892 stocks. The gate and the reader judge them as stocks; nothing else
 moved. The change lands at the next daily refresh of `config/tickers.csv`, and that first
 refresh fetches two years of history for every new name. FBT, the chart that raised it,
 is on the curated ETF list as well.
@@ -119,11 +121,14 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
 
 ## Engine, scoring, research
 
-- **Engine (Sat 31/10/2026): the alpha reader is the one reader.** Config hash `3f3aefb5…`
-  (`python -m engine_alpha.freeze.manifest --hash`), ruleset `two-eyes-0.12.0-one-reader`; the manifest
-  holds 29 settings (the door's floors in `config/universe.py`, the reader's own in `config/reader.py`,
-  the fundamentals, RS-line and sector-ranking knobs) plus every number in `two_eyes_numbers.py`. The old
-  engine and its knobs are gone ([`engine_reference.md`](engine_reference.md), "The old engine retired"); the live stamp before was `80f2ec31…`
+- **Engine (Sat 31/10/2026): the alpha reader is the one reader, in its tree.** Config hash `d4238fb9…`
+  (`python -m engine_alpha.stamp --hash`), ruleset `alpha-0.13.0-the-tree`; the manifest
+  holds 29 settings (the gate's floors in `config/universe.py`, the reader's own in `config/reader.py`,
+  the fundamentals, RS-line and sector-ranking knobs) plus every number in `engine_alpha/numbers.py`
+  (the `ALPHA_NUMBERS` block). The old
+  engine and its knobs are gone ([`engine_reference.md`](engine_reference.md), "The old engine retired"); the
+  reader's files are named for what each does, `engine_alpha/two_eyes/` folded into `engine_alpha/` ("The
+  tree"; the retirement's stamp `3f3aefb5…` ran no night); the live stamp before was `80f2ec31…`
   (the scan of 30/10). Reader pin passes (`python -m tools.regression.reader_pin --check`, rebuilt on the
   reader's own record over 105 charts); the marks ratchet reads 51 of his 52; the junk gate pins 47 days.
   The retired lanes: the near-miss lane (its table read-only history), the watch and rescue lanes, the
@@ -180,7 +185,7 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   from the sheets; until then a group reads as the names seen firing).
 - **The stage read** (2026-10-16, built for his book stops; display and archive only, no flag): every
   fire of the live reader carries the stock's stage on its weekly chart (1 neglect, 2 advance, 3 top,
-  4 decline) and the week its stage-2 advance began (`engine_alpha/stage_read.py`; archived as
+  4 decline) and the week its stage-2 advance began (`engine_alpha/stock.py`, `read_stage`; archived as
   `cycle_stage`, `advance_start`, `advance_weeks`), shown in the detail panel's Leadership section.
   It gates nothing, and by his ruling (16/10/2026) stage-1 and stage-3 fires stay on the board, the
   stage shown only. The base count and the inter-base width still wait on where the first leg ends. Live after `update_dashboard.bat` and
@@ -199,7 +204,7 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   outcome run (or the Archive's Update Forward Returns button).
 - **Scoring:** retired with the old engine on Sat 31/10/2026. The tier is the reader's grade letter
   (S/A/B/C, from the dead space and the hold) and the score its place within the letter from his traits
-  (`two_eyes/grade.py`, `two_eyes/traits.py`; the weights in `two_eyes_numbers.py`). The 62 / 52 / 42 / 32
+  (`engine_alpha/grade.py`; the weights in `engine_alpha/numbers.py`). The 62 / 52 / 42 / 32
   ladder, `S_MAX_BOX_WIDTH`, the sub-scores and the RS / uptrend weights are gone with `config/scoring.py`;
   the RS/uptrend answer owed in [`asks.md`](asks.md) is moot.
 - **Engine rewrite (history; the reader went live 10/10 and became the one reader 31/10):** the final method (`claude/method-steps-7-12` with `claude/sos-session`) is merged
@@ -241,7 +246,7 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 
 | State | `*_ENABLED` flags (value in `config/*.py`) |
 |---|---|
-| LIVE, engine | none left as flags: the reader has no `*_ENABLED` setting. Its rules built to be measured are bools in `two_eyes_numbers.py` (`MINI_ENABLED` off, `RESPECT_ELECTS` off, `WRAP_TAKES_OVER` on), recorded in `decisions.md`. The old engine's live flags (`CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `EVENT_MAP`, `SENTENCE_ARCHIVE`) went with it on 2026-10-31 |
+| LIVE, engine | none left as flags: the reader has no `*_ENABLED` setting. Its rules built to be measured are bools in `engine_alpha/numbers.py` (`MINI_ENABLED` off, `RESPECT_ELECTS` off, `WRAP_TAKES_OVER` on), recorded in `decisions.md`. The old engine's live flags (`CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `EVENT_MAP`, `SENTENCE_ARCHIVE`) went with it on 2026-10-31 |
 | LIVE, advisory (display + archive, never scored) | `FUNDAMENTALS` (2026-10-03) |
 | LIVE, infrastructure | `HEALTH_BOARD`, `TICKER_ADMISSION`, `YAHOO_RATE_LIMIT`, `QUARANTINE` |
 | DARK, kill-by 2026-11-30 | `RS_LINE`, `SECTOR_RANKING` (Lane C enrichment, outside the reader; [`flag_ledger.md`](flag_ledger.md)) |
@@ -250,7 +255,7 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 ## Known limitations
 
 - The marks ratchet reads 51 of his 52 drawings (`python -m tools.regression.marks_corpus --check`;
-  MDT of 24/07 the door refuses, 3.77 ranges under the 200-day) and reports **STALE** whenever he
+  MDT of 24/07 the gate refuses, 3.77 ranges under the 200-day) and reports **STALE** whenever he
   redraws, until `--build-fixture` is run from the calibration frames (never `guided_list_export`).
 - On his day, 43 of his 51 drawings fire at his trigger (the board); the eight misses are the
   reader's open work ([`decisions.md`](decisions.md), the rows of October). The old engine's open

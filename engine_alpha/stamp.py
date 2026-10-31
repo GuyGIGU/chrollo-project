@@ -14,7 +14,7 @@ the reader reads instead of settings.
 
 The old engine's knobs (config/engine.py, config/scoring.py) left this list when
 that engine retired (Sat 31/10/2026, the operator's word): the hash rotated once,
-a declared epoch, and ``TWO_EYES_RULESET`` bumped to ``two-eyes-0.12.0-one-reader``.
+a declared epoch, and ``ALPHA_RULESET`` bumped to ``two-eyes-0.12.0-one-reader``.
 
 Design rules (deliberate, audited):
 
@@ -56,8 +56,8 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "MIN_YEARLY_RETURN",
     "MIN_MARKET_CAP",
     # The reader: its hand-bumped ruleset string, the daily window its stock facts are read on, the ADR window
-    # (the reader's own numbers ride as the TWO_EYES_METHOD_NUMBERS block below)
-    "TWO_EYES_RULESET",
+    # (the reader's own numbers ride as the ALPHA_NUMBERS block below)
+    "ALPHA_RULESET",
     "DAILY_STRUCTURE_PERIOD",
     "ADR_WINDOW",
     # Relative strength against SPY: the lookback of the excess-return read (the seed's and the scan's SPY 6m)
@@ -166,7 +166,7 @@ def collect_manifest() -> Dict[str, Any]:
     # run its door, which loads every stage (council review 2026-10-09, finding 1).
     from engine_alpha import numbers
 
-    manifest["TWO_EYES_METHOD_NUMBERS"] = {
+    manifest["ALPHA_NUMBERS"] = {
         name: _canonical(value)
         for name, value in vars(numbers).items() if name.isupper()}
     return manifest

@@ -13,8 +13,8 @@ cannot rot when a module is renamed. If you need to know which function does a t
 question belongs in the reference.)*
 
 > **RULE — read this before touching the reading engine.** Any change to chart-reading
-> algorithm code (the alpha reader `engine_alpha/two_eyes/`, its adapter and door, its numbers in
-> `engine_alpha/two_eyes_numbers.py`, or the door's floors and the reading window in `config/universe.py` /
+> algorithm code (the alpha reader `engine_alpha/`, its gate `gate.py` and result row `result.py`, its numbers in
+> `engine_alpha/numbers.py`, or the gate's floors and the reading window in `config/universe.py` /
 > `config/reader.py`) **starts by reading this document —
 > the Reading Model section at minimum — and lands with it updated in the same change**
 > when behavior moves. This file is the source of truth for *how Chrollo understands a

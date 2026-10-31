@@ -61,7 +61,7 @@ def inspect_frame(ticker, frame, expected, *, repeat=False):
         if any(d is not None and d > day for d in dates):
             issues.append('event contains a future date')
     result = to_result(read)
-    if not same_read(result[SCREEN_KEY], expected['two_eyes']):
+    if not same_read(result[SCREEN_KEY], expected['alpha']):
         issues.append('dated reading differs from the saved scan')
     for actual, saved, label in [(result['Score'], expected['score'], 'score'),
                                  (result['_ta_grade'], expected['ta_grade'], 'technical grade'),
@@ -107,7 +107,7 @@ def audit(source: Path, *, repeat=False):
             print(f"  {ticker}: {'; '.join(found)}", flush=True)
         if number % 25 == 0:
             print(f'Checked {number}/{len(tickers)} charts', flush=True)
-    return {'reader': settings.TWO_EYES_RULESET, 'engine_config_version': current_hash,
+    return {'reader': settings.ALPHA_RULESET, 'engine_config_version': current_hash,
             'scan_identity': identity, 'checked': len(tickers), 'repeat': repeat,
             'passed': len(tickers) - len(issues), 'issues': issues,
             'scope': 'Saved US stock fires only; no negative-corpus or predictive claim.'}

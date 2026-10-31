@@ -39,7 +39,7 @@ def evaluate_ticker(ticker: str, df: pd.DataFrame,
     never raised). The two market arguments are the pool's fixed call shape; the reader reads neither.
     """
 
-    result = _two_eyes(ticker, df, watch)[1]
+    result = _read(ticker, df, watch)[1]
     return EVAL_ERROR if isinstance(result, NotRead) else result
 
 def scan_read(ticker: str, df: pd.DataFrame,
@@ -51,9 +51,9 @@ def scan_read(ticker: str, df: pd.DataFrame,
     not read comes back as :class:`NotRead`, by name and reason, so the night lists it apart from the crashes
     (``EVAL_ERROR``, which still alert). Module-level, so the pool pickles it by name.
     """
-    return _two_eyes(ticker, df, None)[1]
+    return _read(ticker, df, None)[1]
 
-def _two_eyes(ticker: str, df, watch: Optional[dict]):
+def _read(ticker: str, df, watch: Optional[dict]):
     """The reader, through its adapter — the ONE place it is called.
 
     The universe door stands BEFORE the read, and it is the one door
@@ -84,7 +84,7 @@ def _two_eyes(ticker: str, df, watch: Optional[dict]):
         return read, result.to_result(read)
     if admitted is None and refused is None:
         if watch is not None:
-            watch.update(two_eyes=True, state="not scanned", why=reason[0])
+            watch.update(alpha=True, state="not scanned", why=reason[0])
         return None, None
     read = result.graded_read(reader.read(ticker, df),
                                         frame=None if admitted is None else admitted[0])
@@ -103,7 +103,7 @@ def run_eval_chain(ticker: str, df: pd.DataFrame,
     crash, the page says the read failed. Both want the exception
     (:class:`ReadFailed`), not a sentinel.
     """
-    read, result = _two_eyes(ticker, df, watch)
+    read, result = _read(ticker, df, watch)
     if read is not None and read.failed:
         raise ReadFailed(f"two-eyes reader refused {ticker}: {read.refusal}")
     return result
@@ -119,7 +119,7 @@ def read_record(ticker: str, df: pd.DataFrame, *, watch: Optional[dict] = None):
     refused the chart, which the reader then never read; the leg is in
     ``watch["why"]``.
     """
-    read, _ = _two_eyes(ticker, df, watch)
+    read, _ = _read(ticker, df, watch)
     return read
 
 

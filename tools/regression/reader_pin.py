@@ -266,7 +266,7 @@ def capture_baseline() -> dict:
     snapshot = run_pin()
     snapshot["captured_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     snapshot["engine_config_version"] = manifest_hash()
-    snapshot["ruleset"] = settings.TWO_EYES_RULESET
+    snapshot["ruleset"] = settings.ALPHA_RULESET
     os.makedirs(_BASELINE_DIR, exist_ok=True)
     # LF forced: tests/baselines/*.json is .gitattributes-pinned to LF so byte
     # digests are checkout-independent; Windows text mode would write CRLF.

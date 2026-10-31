@@ -182,7 +182,7 @@ guard `_vol_dry_refused` behind `if not holding_shelf:` — *"the shelf form is 
 | **Re-accumulation** | An accumulation process occurring **already inside a trend** — usually with a prior consolidation behind it | The ordinary continuation base |
 
 > ⚠️ **Correction to an earlier claim in this file: genesis accumulation is NOT out of scope.**
-> The SMA-200 gate (the universe door, `engine_alpha/universe_door.py`; before Sat 31/10/2026 the old
+> The SMA-200 gate (the gate's floors, `engine_alpha/gate.py`; before Sat 31/10/2026 the old
 > engine's `evaluation.py:104-107`, and structurally its `box_primitives.py:60-64`, where
 > `collect_root_anchors` returned `[]` below the 200-day) does not block a genesis base. It blocks
 > **firing early in one** — in Phase A/B while price is still under its 200-day, down near the SC.

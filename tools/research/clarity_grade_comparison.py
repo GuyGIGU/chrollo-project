@@ -75,7 +75,7 @@ def compare(source: Path) -> dict:
         print(group, summary[group], flush=True)
         if facts:
             print(pd.DataFrame(facts)[['main_swing_share', 'rail_alignment_error']].describe().round(3).to_string(), flush=True)
-    return {'ruleset': settings.TWO_EYES_RULESET, 'summary': summary, 'rows': rows}
+    return {'ruleset': settings.ALPHA_RULESET, 'summary': summary, 'rows': rows}
 
 
 def main():

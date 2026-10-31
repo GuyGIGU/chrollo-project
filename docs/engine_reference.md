@@ -37,13 +37,16 @@ and the door's old branches (`which_reader`, `scan_worker`, `read_box`, `NotThis
 (`cause_veto_corpus`, `fold_parity`, `doctrine_audit`, `yardstick`, `approval_pack`, `parallel_night`, the
 censuses): 170 files, the engine from 24,163 lines to 5,565, the suite from 3,676 tests to 2,367. Nothing
 the reader says moved: his board 43 of 51 fire at his trigger with the same boxes, the junk 47 fire days
-over 16 charts, the reader pin zero-diff. **Where each borrowed piece lives now:** the failed-read
-sentinel `EVAL_ERROR` and the state-word table in `engine_alpha/sentinels.py`; ATR, ADR%, the 52-week
-distance, the trend template and the weekly/monthly resample in `engine_alpha/metrics.py`; the baseline
-gate in `engine_alpha/universe_door.py` (its two dark exceptions, the 50-day dip and the bottoming-base
-lane, deleted: off, they read exactly as it does); the trait table in `engine_alpha/two_eyes/traits.py`
-(was `scoring/clarity.py`); the door's floors in `config/universe.py` and the reader's ruleset, window
-and ADR window in `config/reader.py`; the clarity and stage numbers in `two_eyes_numbers.py` (so the
+over 16 charts, the reader pin zero-diff. **Where each borrowed piece lives now** (the tree's names, the
+next section; that morning's were `sentinels.py`, `metrics.py`, `universe_door.py`, `two_eyes/traits.py`
+and `two_eyes_numbers.py`)**:** the failed-read
+sentinel `EVAL_ERROR` in `engine_alpha/gate.py` and the state-word table in `engine_alpha/record.py`; ATR
+in `engine_alpha/chart.py`; ADR%, the 52-week
+distance, the trend template and the weekly/monthly resample in `engine_alpha/stock.py`; the baseline
+gate in `engine_alpha/gate.py` (its two dark exceptions, the 50-day dip and the bottoming-base
+lane, deleted: off, they read exactly as it does); the trait table in `engine_alpha/grade.py`
+(was `scoring/clarity.py`); the gate's floors in `config/universe.py` and the reader's ruleset, window
+and ADR window in `config/reader.py`; the clarity and stage numbers in `numbers.py` (so the
 stamp covers them); `RS_LOOKBACK_BARS` in `config/market_context.py`; `rails_match` in
 `core/calibration/agreement.py`. **What reads what now (the decisions, ours, named so he can overturn
 them):** the weekly and monthly panes carry the parent box's own R and S — a box is a price pair; it
@@ -56,11 +59,12 @@ write, so a re-scan over an old-reader date re-stamps the row whole (H). **The r
 marks ratchet grades the alpha reader on his 52 drawings (51 fire on some day of their window; MDT the
 door refuses); the junk gate PINS the 47 fire days of the 16 junk charts and fails on a new day, on GOOD
 firing, on a crash or a missing frame; the shadow fixture freezes nine canonical fields of the 36 fleet
-tickers that fire; the reader pin is rebuilt on `two_eyes.read` over the 105 fixture charts (boxes, LPS,
+tickers that fire; the reader pin is rebuilt on `reader.read` over the 105 fixture charts (boxes, LPS,
 state, events, grade, stage words) and is the fold acceptance; `tools.audits.live_reader_audit --check`
 is the manual run-slot after a reader change. **The epoch:** `engine_config_version` `3f3aefb5…` (the
 live stamp before it `80f2ec31…`), ruleset `two-eyes-0.12.0-one-reader`, the manifest down to 29
-settings plus the reader's numbers. The saved payload of 30/10 carries the old stamp, so the audit
+settings plus the reader's numbers (rotated once more the same day by the tree, the next section:
+`d4238fb9…`, ruleset `alpha-0.13.0-the-tree`). The saved payload of 30/10 carries the old stamp, so the audit
 refuses until the first scan after the deploy; the operator re-pins by running one scan (the nightly, or
 `run_screener.py`) and then `python -m tools.audits.live_reader_audit --check --repeat`. The sections
 below that describe the old engine — its cascade, its gates, its LPS, its score — are kept as the record
@@ -69,20 +73,111 @@ of what was built and measured, each marked at its heading; the one reader's own
 
 ---
 
+## The tree (Sat 31/10/2026)
+
+His words, the same Saturday: *"give better names (Engine Related, that are easy to understand of the purpose
+of said code piece) if few code peices are related then put them in its own folder in the engine folder"*;
+*"don't use 'two eyes' use alpha for it"*; on the name of the one way in: *"yes change it to gate"*. The alpha
+reader's package `engine_alpha/two_eyes/` folded into `engine_alpha/` itself, every file named for what it
+does, one folder (`box/`) where a few pieces are related. The word "door" is retired: say "the gate". The
+tree now, 18 files and one folder:
+
+```
+engine_alpha/
+  __init__.py    the package docstring only (the boot path imports the stamp; the stages must not load then)
+  gate.py        THE GATE, the one way in for every caller: evaluate_ticker, scan_read, run_eval_chain,
+                 read_record, ReadFailed, NotRead; the floors a stock passes before its chart is read
+                 (apply_baseline_filters, apply_baseline_filters_with_reason); EVAL_ERROR
+  reader.py      read(ticker, df): the seven stages, one call each
+  record.py      Read, Box, Lps, Event, Grade, Step; the box roles (parent, mini, earlier); STATE_WORDS,
+                 the one copy of the ten state words; the story words
+  numbers.py     every number the reader reads, one line of why each; the stamp hashes them
+  stamp.py       the engine config version: manifest_hash, collect_manifest, ENGINE_SETTINGS_KEYS;
+                 python -m engine_alpha.stamp --hash
+  chart.py       stage 1: the frame contract and the reading window (check, prepare, DAILY_RANGE,
+                 FrameRefused), the daily range (calculate_atr, the ONE copy), the NYSE calendar
+  line.py        stage 1: where price turned (turn_line, turn_line_floors); the swing line and its far
+                 view (Turn, SwingLine, build)
+  box/           stages 2 to 4, the walk
+    pairs.py     his eye for a rail (rail_of, bar_respects, came_back), the swings' end points
+                 (swing_ends), the end of the trend (trend_ends, first_foot), every pair a swing
+                 connects (Pair, measure, pairs_from), known_by
+    handover.py  when the shown box gives way and to which pair: inside_a_live_trend, left_for_good,
+                 wraps, came_back_to, out_respected (the election by respect), poke_came_back,
+                 knew_the_rails, poke_stayed_in; Life and lives (the chain day by day); the
+                 why-sentences FIRST_BOX, TRIED_FIRST, LIVE_TREND, LEFT_FOR_GOOD, CAME_BACK, WRAPS, RESPECTED
+    walk.py      the stage's face: Walk, elect, record and the words of the trail
+    mini.py      the second box inside the parent and the LPS read against it (off, MINI_ENABLED):
+                 find, record, read, read_lps, lps_box
+  story.py       stage 5: the word rules (THE SOS, the upthrust, the last supper, the spring and its
+                 test, Phase C and D) and the dated events they make
+  lps.py         stage 6: the last pullback, his four refusals, its trigger
+  grade.py       stage 7: the letter from dead space and the hold (integrity), the clarity facts (clean
+                 swings, rails, right-side contraction), the traits that place the score within the letter
+  state.py       the state word, decided last
+  stock.py       the stock's own facts, not the box's: adr_pct, distance_to_52w_high_pct, trend_template,
+                 resample_ohlc, the weekly stage read_stage
+  result.py      the Read as the scan's result row (to_result, REQUIRED_KEYS, graded_read, fill_watch)
+                 and the screen block
+  archive.py     the archive column family: alpha_archive_values, alpha_screen_boxes, ALPHA_COLUMN_SQL,
+                 ALPHA_LPS_BOXES, SCREEN_KEY = "_wire_alpha", volume_vs_50d
+tools/calibration/runs.py   took two_eyes/runs.py (one calibration tool reads it)
+```
+
+**Where each old file went:** `two_eyes/__init__.py` → `reader.py`; `reader.py` + `universe_door.py` +
+`sentinels.py` → `gate.py`; `two_eyes/record.py` + `two_eyes_roles.py` → `record.py`; `two_eyes_numbers.py` →
+`numbers.py`; `freeze/manifest.py` → `stamp.py`; `two_eyes/frame.py` + `two_eyes/daily_range.py` +
+`market_sessions.py` → `chart.py`; `two_eyes/line.py` + `two_eyes/swing_line.py` → `line.py`; `two_eyes/runs.py`
++ `two_eyes/walk.py` → `box/pairs.py`, `box/handover.py`, `box/walk.py`; `two_eyes/mini.py` → `box/mini.py`;
+`two_eyes/story.py` + `two_eyes/line_words.py` → `story.py`; `two_eyes/lps.py` → `lps.py`; `two_eyes/grade.py` +
+`two_eyes/clarity.py` + `two_eyes/traits.py` → `grade.py`; `two_eyes/state.py` → `state.py`; `metrics.py` +
+`stage_read.py` → `stock.py`; `two_eyes_adapter.py` → `result.py`; `two_eyes_archive.py` → `archive.py`.
+
+**Deleted rather than moved:** the second ATR copy (`metrics.py`'s; `chart.calculate_atr` is the one), the
+second copy of the state words (`sentinels.WATCH_WIRE_STATES`, folded into `record.STATE_WORDS`),
+`label_market_structure` and `turns_at_rails` (nothing but tests called them), the `freeze/` folder; `runs.py`
+went to the tools (`tools/calibration/runs.py`).
+
+**Names on the wire:** the chart's block in the dashboard payload is `alpha` (was `two_eyes`); the result row's
+key is `_wire_alpha` (was `_wire_two_eyes`); the chart-state sink is `watch["alpha"]`. The ruleset setting is
+`ALPHA_RULESET = "alpha-0.13.0-the-tree"` in `config/reader.py` (was `TWO_EYES_RULESET =
+"two-eyes-0.12.0-one-reader"`); the stamp's numbers block is `ALPHA_NUMBERS` (was `TWO_EYES_METHOD_NUMBERS`).
+Frontend: `shared/setup/alphaStory.js` (was `twoEyesStory.js`), the `twoEyes*` identifiers are `alpha*`. The
+tests took the modules' names (`tests/engine/test_walk.py`, `test_lps.py`, `test_story.py`, `test_story_words.py`,
+`test_grade.py`, `test_grade_traits.py`, `test_line.py`, `test_line_turns.py`, `test_chart_daily_range.py`,
+`test_numbers.py`, `test_result.py`, `test_reader.py`, `test_mini.py`, `test_stock.py`, `test_stock_stage.py`;
+`tests/contracts/test_alpha_wire.py`; `tests/tooling/test_runs.py`).
+
+**The database column names did NOT change:** `two_eyes_parent_*`, `two_eyes_mini_*`, `two_eyes_lps_read_against`,
+`two_eyes_has_mini`, `two_eyes_lps_volume_ratio`, `two_eyes_clarity_json` stay as they are — a migration is not a
+cleanup.
+
+**The epoch:** the engine config hash rotated once,
+`d4238fb90790c03f608a97f8460deabfa7ef2b5bf1cb7cd80594fbea5bd3396d` (`d4238fb9…`; the retirement's `3f3aefb5…`
+before it, no night run under it), moved by the ruleset key's rename and bump and the numbers block's rename,
+nothing else (#7 in [`flag_ledger.md`](flag_ledger.md), "The engine stamps of the flip"). Nothing the reader says
+moved: the reader pin zero-diff over 105 charts, his board 43 of 51 at his trigger, the junk charts' 47 fire days,
+the four ratchets PASS. The manual run-slot after a reader change is unchanged: `python -m
+tools.audits.live_reader_audit --check --repeat`. The dated paragraphs below keep the names of their day
+(`two_eyes/walk.py`, `two_eyes_adapter`, ...); the table "Where each step lives" and the overview that follow are
+the current layout.
+
+---
+
 ## Where each step lives
 
-| Reading step | Implementation (the alpha reader, `engine_alpha/two_eyes/`) |
+| Reading step | Implementation (the alpha reader, `engine_alpha/`; `reader.read` calls each stage once) |
 |---|---|
-| The frame | `frame.check` / `frame.prepare`: two years of daily bars that are a chart, or a refusal by name |
-| 1 · the line | `line.build` on `swing_line.turn_line`: ONE swing line, a turn committing when price backs off by 0.75 of the bar's own range; the far view is the same line from further back |
-| 2 · the end of the trend | `runs.runs_on_the_line`: each run's climax and reaction, decided first; `walk.trend_ends` / `walk.pairs_from` open the pairs from them |
+| The frame | `chart.check` / `chart.prepare`: two years of daily bars that are a chart, or a refusal by name |
+| 1 · the line | `line.build` on `line.turn_line`: ONE swing line, a turn committing when price backs off by 0.75 of the bar's own range; the far view is the same line from further back |
+| 2 · the end of the trend | `pairs.trend_ends`: each run's climax and reaction, decided first on the far view; `pairs.swing_ends` / `pairs.pairs_from` open the pairs from them |
 | 3 · the pair, answered and alive | `walk.elect`: two rails on the ends of earlier swings, one moved in front of the other; a pair is a box when both rails are answered |
-| 4 · the box's life | `walk.lives` and its hand-overs (`came_back_to`, `wraps`, `far_rail`, `left_for_good`); `mini.find` reads the smaller box inside (off, `MINI_ENABLED`) |
-| 5 · the story | `story.read` over `line_words.assemble`: the SOS, the upthrust, the last supper, Phase C and its test, where Phase D opens, each in the box's own daily range |
+| 4 · the box's life | `handover.lives` and its hand-overs (`came_back_to`, `wraps`, `far_rail`, `left_for_good`, `out_respected`); `mini.find` reads the smaller box inside (off, `MINI_ENABLED`) |
+| 5 · the story | `story.read` over `story.assemble`: the SOS, the upthrust, the last supper, Phase C and its test, where Phase D opens, each in the box's own daily range |
 | 6 · the LPS and the trigger | `lps.read`: the run of receding days against the box shown, the trigger at its high; `fired` / `crossed` are final |
-| 7 · the grade | `grade.read` (the letter: the dead space and the hold) and `traits.trait_rows` + `traits.compose_grade` (the place within it; `clarity.py` measures the swings and the rails) |
+| 7 · the grade | `grade.read` (the letter: the dead space and the hold) and `grade.trait_rows` + `grade.compose_grade` (the place within it; `grade.measure` reads the clarity facts, the swings and the rails) |
 | the state word | `state.decide`, last, one closed table |
-| the result row | `two_eyes_adapter.graded_read` / `to_result`; the archive columns from `two_eyes_archive` |
+| the result row | `result.graded_read` / `to_result`; the archive columns from `archive.alpha_archive_values` |
 
 *The old engine's table (retired Sat 31/10/2026), kept as the record:*
 
@@ -101,20 +196,20 @@ of what was built and measured, each marked at its heading; the one reader's own
 
 ```
 Phase 0  Universe & data acquisition          core.pipeline.data            public API
-The frame contract                             engine_alpha.two_eyes.frame   (check, prepare)
-The universe door                              engine_alpha.universe_door    (apply_baseline_filters_with_reason)
-The read, stages 1 to 7 and the state word     engine_alpha.two_eyes         (read -> Read)
-The result row and the screen block            engine_alpha.two_eyes_adapter (graded_read, to_result)
+The frame contract                             engine_alpha.chart            (check, prepare)
+The gate                                       engine_alpha.gate             (apply_baseline_filters_with_reason)
+The read, stages 1 to 7 and the state word     engine_alpha.reader           (read -> Read)
+The result row and the screen block            engine_alpha.result           (graded_read, to_result)
 Archive  Persist + forward-return backfill     core.archive                  (writer / forward_returns / seed)
 ```
 
 The code is organized as one reader plus a conductor (see [core/MAP.md](../core/MAP.md)):
-**`engine_alpha/two_eyes/`** = the alpha reader (measure and judgment in one record, in his order),
-**`engine_alpha/reader.py`** = the one door (the frame contract, the universe door, then the read),
+**`engine_alpha/reader.py`** and its stage files = the alpha reader (measure and judgment in one record, in his order),
+**`engine_alpha/gate.py`** = the gate (the frame contract, the floors, then the read),
 **`core/pipeline/`** = the conductor that wires them together, with **`core/archive/`** as the
 measuring-stick tooling. Orchestrated by `run_screener()` in
 [core/pipeline/screening/screener.py](../core/pipeline/screening/screener.py), running
-`engine_alpha.reader.scan_read` per ticker in a `ProcessPoolExecutor`.
+`engine_alpha.gate.scan_read` per ticker in a `ProcessPoolExecutor`.
 
 ---
 
@@ -354,9 +449,9 @@ Alongside the existing states it distinguishes:
 
 ## Phase 1 — Baseline Universe Filter
 
-*Live, as the universe door: `apply_baseline_filters_with_reason()` in `engine_alpha/universe_door.py` since Sat 31/10/2026 (before that in `evaluation.py`). The five legs below stand; the 50-day-dip exception and the bottoming-base lane went with the old engine, and the ATR attach and everything after it in this section is the old engine's record.*
+*Live, as the gate's floors: `apply_baseline_filters_with_reason()` in `engine_alpha/gate.py` since Sat 31/10/2026 (that morning `universe_door.py`, folded into the gate the same day; before that in `evaluation.py`). The five legs below stand; the 50-day-dip exception and the bottoming-base lane went with the old engine, and the ATR attach and everything after it in this section is the old engine's record.*
 
-`apply_baseline_filters()` (`engine_alpha/universe_door.py`).
+`apply_baseline_filters()` (`engine_alpha/gate.py`).
 
 Reject the ticker entirely if any check fails. Run in this order:
 
@@ -996,12 +1091,13 @@ was built and measured, and as the source the copies are taken from.
 
 ## The two-eyes reader — the alpha reader, the one reader since Sat 31/10/2026 (built dark beside the old engine from Sun 20/09/2026)
 
-The reader lives in `engine_alpha/two_eyes/` (a leaf: it imports nothing outside the package but its
-own numbers), behind the one door `engine_alpha/reader.py`. It was built dark beside the old engine
+The reader lives in `engine_alpha/` (since the tree of Sat 31/10/2026, "The tree" at the top; in
+`engine_alpha/two_eyes/` until that day; a leaf: it imports nothing outside the package but its
+own numbers), behind the gate `engine_alpha/gate.py` (`reader.py` until the tree). It was built dark beside the old engine
 behind the switch `TWO_EYES_READER_ENABLED`, flipped live on his word on Sat 10/10/2026, and on Sat
 31/10/2026 the old engine, the switch and the old reader's freeze were deleted ("The old engine retired"
-at the top): there is one reader, and the door always answers with it. Its numbers are its own
-(`two_eyes_numbers.py`, hashed into the version stamp); its proven pieces arrived by copy (task 7) and
+at the top): there is one reader, and the gate always answers with it. Its numbers are its own
+(`numbers.py`, hashed into the version stamp); its proven pieces arrived by copy (task 7) and
 have changed on purpose since. Stage by stage, in his order; a stage's rules are in the theory, its
 mechanics here. The paragraphs below are dated and stay as written: a sentence about "the old reader"
 or "the switch" in them is the record of that day.
@@ -1448,7 +1544,7 @@ Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as 
 
 ## ADR% Absolute Volatility
 
-`adr_pct()` (`engine_alpha/metrics.py` since Sat 31/10/2026; before that `structure/metrics/indicators.py`) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
+`adr_pct()` (`engine_alpha/stock.py` since the tree of Sat 31/10/2026, `metrics.py` that morning; before that `structure/metrics/indicators.py`) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
 
 ```
 ADR%(20) = 100 × (mean(High / Low over the last 20 bars) - 1)
@@ -1488,7 +1584,7 @@ These are bookkeeping (not score gates) intentionally: the volume signature at t
 
 ## Region (Bin) Features & Trend Template (Stage 2A)
 
-*The bin features are the old engine's (retired Sat 31/10/2026; their `_bin_*` columns are NULL from then on, decision H). The trend template and the stage read below are live: `engine_alpha/metrics.py` and `engine_alpha/stage_read.py`, attached to every fire by the adapter.*
+*The bin features are the old engine's (retired Sat 31/10/2026; their `_bin_*` columns are NULL from then on, decision H). The trend template and the stage read below are live: `engine_alpha/stock.py`, attached to every fire by `result.py`.*
 
 Two measure-only layers. Both are **descriptive, never scored and never gated** —
 every value is an underscore-prefixed result field persisted to the archive
@@ -1638,7 +1734,7 @@ heuristic boxes before any later scoring or anchoring change is considered.
 
 ### Minervini Stage-2 trend template
 
-`trend_template()` (`engine_alpha/metrics.py` since Sat 31/10/2026; before that
+`trend_template()` (`engine_alpha/stock.py` since the tree of Sat 31/10/2026, `metrics.py` that morning; before that
 `structure/metrics/indicators.py`) records the classic price/MA leadership template as raw context, computed
 self-contained from the daily frame:
 
@@ -1731,13 +1827,13 @@ surfaced by `core/archive/analyze.py` in the fingerprint + correlation sections.
 
 ### The stage read (built Fri 16/10/2026, display + archive only)
 
-`engine_alpha/stage_read.py` reads the STOCK's life-cycle stage (1 neglect, 2 advance, 3 top,
+`stock.read_stage` (`engine_alpha/stock.py`; `stage_read.py` until the tree of Sat 31/10/2026) reads the STOCK's life-cycle stage (1 neglect, 2 advance, 3 top,
 4 decline) on its weekly chart, and the week its current stage-2 advance began; the theory and the
 measurements are in [strategy_alpha.md](strategy_alpha.md), "Reading the stage". It lives at the top
 of `engine_alpha/` (it was kept out of the old reader's frozen trees, which are gone since Sat
-31/10/2026); it imports only pandas, numpy, the reader's numbers (`two_eyes_numbers.py`, the four
+31/10/2026); it imports only pandas, numpy, the reader's numbers (`numbers.py`, the four
 `STAGE_*` since the retirement; `config.settings` before it) and the session calendar
-(`engine_alpha/market_sessions.py`).
+(`engine_alpha/chart.py`).
 
 - `completed_weeks(daily)`: weeks ending Friday (high, low, last close), the forming week dropped
   unless the frame's last day is its last session (the next NYSE session falls in a later week, so a
@@ -1761,8 +1857,8 @@ of `engine_alpha/` (it was kept out of the old reader's frozen trees, which are 
   read still says 2. A stage-3 read of a top on its fire days needs the topping-base signature, which
   needs the advance's earlier bases (the first leg's end, his).
 
-**Where it rides.** `two_eyes_adapter.stock_stage(frame)`, beside `stock_trend`, on the WHOLE frame the
-universe door admitted (the cache's five years; never the two-year reading window), so every fire of
+**Where it rides.** `result.stock_stage(frame)`, beside `stock_trend`, on the WHOLE frame the
+gate admitted (the cache's five years; never the two-year reading window), so every fire of
 the live reader carries `_cycle_stage`, `_advance_start`, `_advance_weeks` (the old reader's fires did
 not, until it retired on Sat 31/10/2026; since then every fire is the alpha reader's). The wire carries them in the
 leadership read (`dashboard._leadership_read`: `cycle_stage`, `advance_start`, `advance_weeks`, for
@@ -1771,7 +1867,7 @@ both chart shapes); the detail panel's Leadership section shows "Stage" and "Adv
 model-only columns (`setup_archive.cycle_stage`, `advance_start`, `advance_weeks`; the Lane E pattern:
 the additive migrator adds them from the model at the next boot; the scan writer maps them, the seed
 and the manual add take them through the model-driven mapper). The four `STAGE_*` numbers were settings
-off the version stamp (they move no fire) until Sat 31/10/2026; they are in `two_eyes_numbers.py` now,
+off the version stamp (they move no fire) until Sat 31/10/2026; they are in `numbers.py` now,
 so the stamp covers them. Cost: about 12 ms a fire.
 
 **The census.** `python -m tools.research.stage_read_census --db COPY --cache COPY [--json ...]` reads
@@ -1806,7 +1902,7 @@ Gate: `tests/archive/test_analyze_anchor_seam.py`.
 
 ## Outputs
 
-*The old engine's result shape. The adapter still speaks it for the keys the scan, the archive and the screen read (`two_eyes_adapter.REQUIRED_KEYS`); the old-only families below (`_bin_*`, `_trav_*`, `_eq_*`, `_sub_scores`, the inner/Phase-D fields, the narrative block) are gone from the row since Sat 31/10/2026, and the archive writers NULL their columns on every write (decision H).*
+*The old engine's result shape. `result.py` still speaks it for the keys the scan, the archive and the screen read (`result.REQUIRED_KEYS`); the old-only families below (`_bin_*`, `_trav_*`, `_eq_*`, `_sub_scores`, the inner/Phase-D fields, the narrative block) are gone from the row since Sat 31/10/2026, and the archive writers NULL their columns on every write (decision H).*
 
 `_evaluate_ticker()` returned one dict per qualifying ticker. Public fields surfaced to terminal/dashboard: `Ticker`, `Tier`, `Setup`, `Score`, `Current Price`, `Base Len`, `Box Width`, `Touches`, `ATR Ratio`, `LPS Length`, `Breach Days`. Underscore-prefixed fields feed the chart renderer and the archive but are not displayed in the terminal.
 
@@ -2090,7 +2186,7 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 - Upserts on `(ticker, scan_date)` — re-running the same day updates rather than duplicates.
 - `autoflush=False` on the session: avoids the "database is locked" path where a per-row existence query would auto-flush pending UPDATEs while the webapp holds a read lock.
 - Attaches **market context** to every row: `spy_trend`, `vix_level`, `sector_etf`, `sector_trend` (sector ETF mapped per ticker, 50d trend pulled at scan_date). Sector lookups are cached per ticker within a run.
-- New archive columns are **model-only** registrations (AP-7): declare the `Column` on `SetupArchive`, emit the `_key` from the adapter (`engine_alpha/two_eyes_adapter.py`, or the family's producer `two_eyes_archive.py`), add the `row.get` line here — the boot pass and this writer's second pass derive the `ALTER TABLE`s from `SetupArchive.__table__`; the legacy `_NEW_COLUMNS` hand list does not grow. The `eq_*` outside-bar family (2026-09-05) travelled this route; `eq_terminal_run_form` is a closed set (`box_gates.TERMINAL_RUN_FORMS`) with a fresh-DB CHECK like `inner_position`.
+- New archive columns are **model-only** registrations (AP-7): declare the `Column` on `SetupArchive`, emit the `_key` from the result row (`engine_alpha/result.py`, or the family's producer `engine_alpha/archive.py`), add the `row.get` line here — the boot pass and this writer's second pass derive the `ALTER TABLE`s from `SetupArchive.__table__`; the legacy `_NEW_COLUMNS` hand list does not grow. The `eq_*` outside-bar family (2026-09-05) travelled this route; `eq_terminal_run_form` is a closed set (`box_gates.TERMINAL_RUN_FORMS`) with a fresh-DB CHECK like `inner_position`.
 
 ### `seed_archive()` ([core/archive/seed.py](../core/archive/seed.py))
 - Bootstrap mechanism for known-winner setups defined in `SEED_SETUPS = [(ticker, trigger_date), ...]`.
@@ -2124,15 +2220,15 @@ The screener writes every output to a SQLite-backed setup archive (`webapp/backe
 
 ## Settings Quick-Reference
 
-Each knob's default lives in one domain file under `config/`: the universe door's floors in
+Each knob's default lives in one domain file under `config/`: the gate's floors in
 `config/universe.py`, the reader's ruleset, reading window and ADR window in `config/reader.py`, and the
 rest in `config/enrichment.py`, `config/archive.py`, `config/market_data.py`, `config/market_context.py`
 and `config/runtime.py` (`config/engine.py` and `config/scoring.py` went with the old engine on Sat
 31/10/2026). Code reads every knob through `config.settings`, which re-exports those defaults and is the
 one namespace that scoped overrides and tests patch. So edit a default in its domain file, and read it
 as `settings.NAME`. A new knob goes in its domain file and in `config/settings.py`'s import list. The
-numbers the reader itself reads are NOT settings: they are `engine_alpha/two_eyes_numbers.py`, one plain
-line each, and ride the stamp as the `TWO_EYES_METHOD_NUMBERS` block. The block below lists the
+numbers the reader itself reads are NOT settings: they are `engine_alpha/numbers.py`, one plain
+line each, and ride the stamp as the `ALPHA_NUMBERS` block. The block below lists the
 engine-identity subset (`ENGINE_SETTINGS_KEYS`) with the values `config.settings` serves, whichever file
 owns them.
 
@@ -2143,7 +2239,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `3f3aefb5a4c12d3bf1e3aaeeb12f8708d186a6bd7bc5e7292c980da67951f812`_
+_engine_config_version: `d4238fb90790c03f608a97f8460deabfa7ef2b5bf1cb7cd80594fbea5bd3396d`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -2151,7 +2247,7 @@ MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50000
 MIN_YEARLY_RETURN = -0.2
 MIN_MARKET_CAP = 300000000
-TWO_EYES_RULESET = 'two-eyes-0.12.0-one-reader'
+ALPHA_RULESET = 'alpha-0.13.0-the-tree'
 DAILY_STRUCTURE_PERIOD = '2y'
 ADR_WINDOW = 20
 RS_LOOKBACK_BARS = 126
@@ -2298,7 +2394,7 @@ against forward outcomes before loosening or hardening anything.
 
 ## Experimental clarity grade — 2026-10-22 (replaced 2026-10-29 by the trait table)
 
-**2026-10-29.** `engine_alpha/two_eyes/traits.py` (until Sat 31/10/2026 `engine_alpha/scoring/clarity.py`) holds the trait table (the two-eyes table row "7 · the grade: a letter and a place within it"): the integrity letter stands, the traits place the score within it. `SCORE_CLARITY_*` are retired (removed from config, settings and the manifest allow-list); the `CLARITY_*` anchors feed the swings and rails rows; the trait weights, bands and anchors are `TRAIT_*` in `two_eyes_numbers.py`. The record below is the reading it replaced.
+**2026-10-29.** `engine_alpha/grade.py` (the trait table was `engine_alpha/two_eyes/traits.py` from the retirement to the tree, both Sat 31/10/2026; until then `engine_alpha/scoring/clarity.py`) holds the trait table (the two-eyes table row "7 · the grade: a letter and a place within it"): the integrity letter stands, the traits place the score within it. `SCORE_CLARITY_*` are retired (removed from config, settings and the manifest allow-list); the `CLARITY_*` anchors feed the swings and rails rows; the trait weights, bands and anchors are `TRAIT_*` in `numbers.py`. The record below is the reading it replaced.
 
 The operator authorized building and activating the first experimental version today, accepting changed results. `two_eyes/clarity.py` measures the existing fine/far line on the parent base; no new swing algorithm or detection threshold. `two_eyes/grade.py` remains the integrity reader. The raw reader carries facts beside that integrity grade; `two_eyes_adapter.graded_read` composes the technical grade once, and the public reader door and adapter both use it. `scoring/clarity.py` judges facts only. All budgets/reference scales live in `config/scoring.py`, are re-exported by settings and included in the engine manifest. The ruleset is `two-eyes-0.10.0-clarity`. The legacy freeze still fingerprints every prior reader file and pins its prior settings digest; it excludes only this new scorer and its five new-reader-only settings, with a separate test proving those settings leave the legacy identity unchanged.
 

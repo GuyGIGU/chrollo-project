@@ -28,8 +28,9 @@ books — it never places trades.**
 
 ## 🧮 Engine rules (the screener's prime directive)
 - **Read [`docs/strategy_alpha.md`](docs/strategy_alpha.md) BEFORE touching any chart-reading algorithm code**
-  (the alpha reader `engine_alpha/two_eyes/`, its adapter `engine_alpha/two_eyes_adapter.py`, the one door
-  `engine_alpha/reader.py`, its numbers in `engine_alpha/two_eyes_numbers.py`, or the door's floors and the
+  (the alpha reader `engine_alpha/` — its stages `reader.py`, `chart.py`, `line.py`, `box/`, `lps.py`,
+  `story.py`, `grade.py`, `state.py` — the gate `engine_alpha/gate.py`, the result row `engine_alpha/result.py`,
+  its numbers in `engine_alpha/numbers.py`, or the gate's floors and the
   reading window in `config/universe.py` / `config/reader.py`) — its
   Reading Model section is the source of truth for *how Chrollo understands a chart*, not just a mirror
   of the code. **Update it in the same change** when behavior moves; doc/engine drift is a defect.
@@ -52,19 +53,19 @@ books — it never places trades.**
   deliberately RETIRED (creek, ice, BU/BUEC, Mini-BC — describe the event plainly instead), and
   the levers already tested-DEAD. Textbook fidelity is not a success criterion; **never open a change whose whole
   justification is "canon has this and we don't."**
-- **One reader, in his order; the adapter speaks, the pipeline coordinates.** The alpha reader
-  (`engine_alpha/two_eyes/`) reads a chart in seven stages — the line → the walk (the end of the trend, the
+- **One reader, in his order; the result row speaks, the pipeline coordinates.** The alpha reader
+  (`engine_alpha/`; `reader.py` calls each stage once) reads a chart in seven stages — the line → the walk (the end of the trend, the
   pair, the box's life) → the mini (off, `MINI_ENABLED`) → the LPS and its trigger → the story → the grade
   (the letter from the dead space and the hold, the place within it from his traits) → the state word — into
-  ONE record (`two_eyes/record.py`) of measured facts and dated words; nothing outside it re-decides any of
-  that. `engine_alpha/two_eyes_adapter.py` turns the record into the scan's result row, the archive columns
-  and the screen block: the one place the two shapes meet. The old engine (`structure/` measured, `scoring/`
+  ONE record (`record.py`) of measured facts and dated words; nothing outside it re-decides any of
+  that. `result.py` turns the record into the scan's result row and the screen block, `archive.py` into the
+  archive columns: the one place the two shapes meet. The old engine (`structure/` measured, `scoring/`
   judged, `evaluation.py` chained them) was retired on Sat 31/10/2026 (`docs/engine_reference.md`, "The old
   engine retired").
-- **To change a number the reader reads, edit `engine_alpha/two_eyes_numbers.py`** (one plain line each;
+- **To change a number the reader reads, edit `engine_alpha/numbers.py`** (one plain line each;
   the version stamp hashes every number there, so the night's `engine_config_version` moves) — never a copy
-  inside a stage. A change to HOW the reader reads bumps `TWO_EYES_RULESET` in `config/reader.py` (a spent
-  string is refused). The door's floors (`config/universe.py`) and the reading window (`config/reader.py`)
+  inside a stage. A change to HOW the reader reads bumps `ALPHA_RULESET` in `config/reader.py` (a spent
+  string is refused). The gate's floors (`config/universe.py`) and the reading window (`config/reader.py`)
   are read through `config.settings` (`from config import settings`): it re-exports every default by name
   and is the one namespace overrides patch, so never import a `config.<domain>` module directly. A new
   setting goes in its domain file **and** in `config/settings.py`'s import list.
@@ -96,7 +97,7 @@ npm --prefix webapp\frontend run lint                        # eslint
 .\.venv\Scripts\python.exe -m tools.regression.negative_corpus --check   # the 16 junk charts' 47 fire days are PINNED (~1.5 min: 16 cases x 10 days): fails on a NEW fire day, on GOOD firing, on a crash or a missing frame
 .\.venv\Scripts\python.exe -m tools.regression.shadow_diff --check       # fleet canonical output + first/last fire day on the same window (~2.5 min: 37 tickers x 10 days, 36 fire)
 .\.venv\Scripts\python.exe -m tools.regression.reader_pin --check        # the alpha reader's own record over 105 charts: boxes, LPS, state, events, grade, stage words (~1 min; zero-diff is the fold acceptance)
-.\.venv\Scripts\python.exe -m tools.audits.live_reader_audit --check --repeat   # the saved US-stock scan replayed through the door (needs output/screener_data.json + the cache; refuses another engine hash)
+.\.venv\Scripts\python.exe -m tools.audits.live_reader_audit --check --repeat   # the saved US-stock scan replayed through the gate (needs output/screener_data.json + the cache; refuses another engine hash)
 .\update_dashboard.bat                                       # USER runs this: rebuild frontend + restart service (1 UAC; refuses while a scan is running)
 ```
 - **Verification an agent may run:** `.\.venv\Scripts\python.exe -m py_compile <file>` on touched
@@ -114,9 +115,9 @@ npm --prefix webapp\frontend run lint                        # eslint
   bare `pytest` used to do exactly this (council review 2026-09-07). `pytest` now sets the same
   variable for itself in `tests/conftest.py`; the **service must never set it** (`docs/deploy.md` §2).
 - **`tools.audits.live_reader_audit --check` is a MANDATORY manual run-slot after any change touching the
-  reader** (its stages, the adapter, the door, its numbers; the slot `doctrine_audit` held until the old
+  reader** (its stages, the result row, the gate, its numbers; the slot `doctrine_audit` held until the old
   engine retired, Sat 31/10/2026). It replays the saved US-stock scan (`output/screener_data.json`) through
-  the door against the cache and checks the fires, their chronology, grades and dated wire blocks. It is NOT
+  the gate against the cache and checks the fires, their chronology, grades and dated wire blocks. It is NOT
   in pytest (needs the live payload), and it REFUSES a payload stamped with another engine hash, never
   re-pinning by itself: the pin IS the saved payload. The operator's step after a deploy that moves the
   hash: run one scan (the nightly, or `run_screener.py`), then `--check --repeat`.
@@ -130,14 +131,16 @@ npm --prefix webapp\frontend run lint                        # eslint
 ## Repository layout
 Full map, import direction and compatibility paths: [`docs/architecture.md`](docs/architecture.md).
 - `engine_alpha/` — the reading engine, a leaf (never imports `core.pipeline`, `core.archive`,
-  `webapp` or `tools`). `reader.py` is the one door (`evaluate_ticker`, `scan_read`, `run_eval_chain`,
-  `read_record`); `universe_door.py` the baseline gate before the read; `two_eyes/` the alpha reader
-  (`frame`, `line`, `swing_line`, `runs`, `walk`, `mini`, `lps`, `story`, `line_words`, `grade`, `clarity`,
-  `traits`, `state`, `record`, `daily_range`); beside it `two_eyes_adapter.py` (the result row and the
-  screen block), `two_eyes_archive.py` (the archive columns), `two_eyes_roles.py`, `two_eyes_numbers.py`
-  (its numbers, hashed into the stamp), `stage_read.py` (the stock's weekly stage), `metrics.py` (ATR,
-  ADR%, 52-week distance, trend template, the weekly resample), `sentinels.py` (`EVAL_ERROR`, the state
-  words), `market_sessions.py`; `freeze/manifest.py` is the engine config hash.
+  `webapp` or `tools`). `gate.py` is the one way in (`evaluate_ticker`, `scan_read`, `run_eval_chain`,
+  `read_record`, and the floors a stock passes before its chart is read; `EVAL_ERROR`); `reader.py` the
+  seven stages, one call each; the stages `chart.py` (the frame contract, the reading window, the daily
+  range, the NYSE calendar), `line.py` (where price turned, the swing line and its far view), `box/` (the
+  walk: `pairs.py` his eye for a rail and every pair, `handover.py` when the shown box gives way, `walk.py`
+  the stage's face, `mini.py` the second box, off), `lps.py`, `story.py`, `grade.py`, `state.py`; beside
+  them `record.py` (the one record, the box roles, the state words), `result.py` (the result row and the
+  screen block), `archive.py` (the archive columns), `stock.py` (the stock's own facts: ADR%, 52-week
+  distance, trend template, the weekly stage), `numbers.py` (its numbers, hashed into the stamp),
+  `stamp.py` (the engine config hash, `python -m engine_alpha.stamp --hash`).
 - `core/pipeline/` — conductor: `data.py` (public data door), `market_data/`, `universe/`, `context/`,
   `screening/` (`screener.py` `run_screener`, `scan_job.py` the nightly job, `dashboard.py` +
   `terminal.py` payload writers), `telemetry/`.

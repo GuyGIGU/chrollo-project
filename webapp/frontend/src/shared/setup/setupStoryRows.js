@@ -78,23 +78,23 @@ export function lpsGrade(data) {
 // The grade cell beside the story: the value, its scale and the words under it, from RESOLVED wire values only.
 //
 // Three kinds of row. The old grade, with chapters that sum to it. An old row from before the 0-100 grade, which
-// says so. And a row the two-eyes reader wrote (build task 15): its grade is the new reader's own, read from its
+// says so. And a row the alpha reader wrote (build task 15): its grade is the new reader's own, read from its
 // dated block, with the facts it was read from when the wire carries them (the scan does; the archive keeps only
 // the score and the letter). Such a row never wears the old grade's words: it has no chapters, and calling it a
 // pre-grade archive row would call last night's read old.
 const OLD_GRADE_TITLE =
   "Technical Analysis Grade — one 0-100 visual grade; the columns beside it read the chart's story left to right";
 const TWO_EYES_GRADE_TITLE =
-  "The two-eyes reader's grade: the base's days with no bar in the box (the dead space), and whether the base held";
+  "The alpha reader's grade: the base's days with no bar in the box (the dead space), and whether the base held";
 
 export function gradeCell(data) {
-  if (data?.two_eyes) {
-    const grade = data.two_eyes.grade;
+  if (data?.alpha) {
+    const grade = data.alpha.grade;
     const score = grade == null ? null : Number(grade.score);
     if (score == null || !Number.isFinite(score)) {
       return {
         value: null, scale: null, label: 'Grade', note: 'not graded',
-        title: 'The two-eyes reader could not read a grade for this setup',
+        title: 'The alpha reader could not read a grade for this setup',
       };
     }
     const facts = grade.empty_days != null && grade.base_days != null;

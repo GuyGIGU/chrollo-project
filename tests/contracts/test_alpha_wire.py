@@ -74,7 +74,7 @@ def test_a_read_whose_grade_fell_over_keeps_the_dark_placeholder():
 
     result = to_result(_read(grade=False))
     assert (result["Score"], result["Tier"], result["_ta_grade"]) == (0.0, "", None)
-    assert result["_wire_two_eyes"]["grade"] is None
+    assert result["_wire_alpha"]["grade"] is None
 
 
 def test_the_old_engines_price_ceiling_never_touches_the_new_letter():
@@ -93,7 +93,7 @@ def test_the_old_engines_price_ceiling_never_touches_the_new_letter():
 def test_the_block_carries_dates_and_prices_and_nothing_to_work_out():
     from engine_alpha.result import to_result
 
-    block = to_result(_read())["_wire_two_eyes"]
+    block = to_result(_read())["_wire_alpha"]
     assert block["boxes"] == [
         {"role": "parent", "r": 100.0, "r_day": "2026-01-05", "s": 90.0, "s_day": "2026-01-07",
          "opened": "2026-01-05", "end": None, "ranges_tall": 5.0},
@@ -125,7 +125,7 @@ def test_the_block_carries_the_story_the_reader_named():
     read = _read()
     read = record.Read(ticker=read.ticker, as_of=read.as_of, boxes=read.boxes, lps=read.lps, state=read.state,
                        close=read.close, grade=read.grade, events=events)
-    block = to_result(read)["_wire_two_eyes"]
+    block = to_result(read)["_wire_alpha"]
     assert block["events"] == [
         {"kind": "spring", "day": "2026-02-10", "price": 89.0, "first": "2026-02-06", "last": "2026-02-13",
          "size": 0.75, "committed": True, "note": None},
@@ -141,11 +141,11 @@ def test_the_screens_boxes_are_the_archive_familys_own():
     """One shaper, one family: the boxes on the scan's wire are the boxes the archive stores, shaped by the same
     function the archive's chart uses."""
     from engine_alpha.result import to_result
-    from engine_alpha.archive import two_eyes_archive_values, two_eyes_screen_boxes
+    from engine_alpha.archive import alpha_archive_values, alpha_screen_boxes
 
     result = to_result(_read())
-    assert result["_wire_two_eyes"]["boxes"] == two_eyes_screen_boxes(
-        two_eyes_archive_values(result.get, prefixed=True))
+    assert result["_wire_alpha"]["boxes"] == alpha_screen_boxes(
+        alpha_archive_values(result.get, prefixed=True))
 
 
 def test_the_screen_draws_no_earlier_box():
@@ -159,7 +159,7 @@ def test_the_screen_draws_no_earlier_box():
                          role=record.ROLE_EARLIER)
     read = record.Read(ticker=read.ticker, as_of=read.as_of, boxes=(earlier,) + read.boxes, lps=read.lps,
                        state=read.state, close=read.close, grade=read.grade)
-    assert [b["role"] for b in to_result(read)["_wire_two_eyes"]["boxes"]] == ["parent"]
+    assert [b["role"] for b in to_result(read)["_wire_alpha"]["boxes"]] == ["parent"]
 
 
 # --------------------------------------------------------------------------- #
@@ -193,10 +193,11 @@ def _payload(monkeypatch, row: dict, frame=None) -> dict:
 #: plan task 3: the stock's read, as an old fire carries it), the stock's ADR (Tue 13/10/2026: the grid's ADR cell
 #: showed a dash on every new-reader chart), the grade's number, and THE block. Exact on purpose: a key added or
 #: dropped here is a deliberate edit, never drift.
-TWO_EYES_WIRE_KEYS = (
+ALPHA_WIRE_KEYS = (
     "R", "S",
     "adr_pct",
     "advance_start", "advance_weeks",     # the stage read (Fri 16/10/2026), in the leadership read
+    "alpha",                              # THE block: the reader's boxes, LPS, grade and story
     "base_len",
     "candles",
     "cycle_stage",
@@ -218,7 +219,6 @@ TWO_EYES_WIRE_KEYS = (
     "ta_grade",
     "tier",
     "trigger",
-    "two_eyes",
     "volumes",
     "weekly_box", "weekly_candles", "weekly_volumes",
 )
@@ -243,7 +243,7 @@ def test_a_two_eyes_fire_keeps_its_chart_and_carries_the_one_block(monkeypatch):
 
     result = to_result(_read())
     chart = _payload(monkeypatch, result)
-    assert chart["two_eyes"] == result["_wire_two_eyes"]
+    assert chart["alpha"] == result["_wire_alpha"]
     assert (chart["tier"], chart["score"], chart["ta_grade"]) == ("S", pytest.approx(92.3), 92.3)
     assert (chart["R"], chart["S"], chart["trigger"], chart["price"]) == (100.0, 90.0, 98.4, 97.1)
 
@@ -257,24 +257,24 @@ def test_every_surface_shows_one_grade_number(monkeypatch):
 
     result = to_result(_read(score=500 / 11, letter="B"))
     chart = _payload(monkeypatch, result)
-    assert chart["ta_grade"] == chart["score"] == chart["two_eyes"]["grade"]["score"] == 45.5
+    assert chart["ta_grade"] == chart["score"] == chart["alpha"]["grade"]["score"] == 45.5
     assert result["Score"] == result["_ta_grade"] == 45.5
 
 
 def test_parent_length_counts_real_sessions_even_when_the_grade_window_ends_earlier(monkeypatch):
-    from core.pipeline.screening.dashboard import _two_eyes_base_length
+    from core.pipeline.screening.dashboard import _alpha_base_length
     from engine_alpha.result import to_result
 
     frame = _frame()
     read = _read()
-    block = to_result(read)['_wire_two_eyes']
+    block = to_result(read)['_wire_alpha']
     block['boxes'][0]['opened'] = '2026-01-05'
     block['boxes'][0]['end'] = '2026-02-10'
     expected = len(frame.loc['2026-01-05':'2026-02-10'])
-    assert _two_eyes_base_length(block, frame) == expected
+    assert _alpha_base_length(block, frame) == expected
     assert expected != read.grade.base_days
     block['boxes'][0]['opened'] = '2025-12-01'
-    assert _two_eyes_base_length(block, frame) is None, 'partial history is not a measured length'
+    assert _alpha_base_length(block, frame) is None, 'partial history is not a measured length'
 
 
 def test_the_new_reader_chart_carries_its_parent_session_count(monkeypatch):
@@ -291,7 +291,7 @@ def test_the_old_families_are_not_carried_on_a_two_eyes_row(monkeypatch):
     from engine_alpha.result import to_result
 
     chart = _payload(monkeypatch, to_result(_read()))
-    assert tuple(sorted(chart)) == TWO_EYES_WIRE_KEYS
+    assert tuple(sorted(chart)) == ALPHA_WIRE_KEYS
 
 
 def test_a_row_without_the_block_draws_no_chart(monkeypatch):
@@ -338,11 +338,11 @@ def test_a_two_eyes_fire_carries_the_stocks_adr(monkeypatch):
     frames, _ = load_sealed_fixture()
     alb = frames["ALB:2026-04-13"].loc[:pd.Timestamp("2026-04-07")]
     new = gate.evaluate_ticker("ALB", alb)
-    assert isinstance(new, dict) and "_wire_two_eyes" in new, "the reader fires on his ALB that day"
+    assert isinstance(new, dict) and "_wire_alpha" in new, "the reader fires on his ALB that day"
     assert round(new["_adr_pct"], 2) == 4.99
 
     card = _payload(monkeypatch, new, alb)
-    assert "two_eyes" in card
+    assert "alpha" in card
     assert card.get("adr_pct") == new["_adr_pct"], "the card: the same number, unrounded"
 
 
@@ -445,7 +445,7 @@ def test_the_archives_chart_draws_a_two_eyes_row_from_its_days(db, monkeypatch):
         two_eyes_mini_opened_date="2026-02-10", two_eyes_mini_daily_range=1.5,
         two_eyes_lps_read_against="mini", two_eyes_has_mini=1)
     chart = browse.get_setup_chart(row.id, db=db)
-    block = chart["two_eyes"]
+    block = chart["alpha"]
     assert block["boxes"] == [
         {"role": "parent", "r": 200.0, "r_day": "2026-01-05", "s": 180.0, "s_day": "2026-01-07",
          "opened": "2026-01-05", "end": None, "ranges_tall": 5.0},
@@ -466,5 +466,5 @@ def test_an_old_archive_row_draws_as_it_always_has(db, monkeypatch):
     row = _archive_row(db, tier="A", score=71.0, current_price=95.0, base_length=40, lps_length=6,
                        r_level=99.0, s_level=91.0, r_anchor=3, s_anchor=7)
     chart = browse.get_setup_chart(row.id, db=db)
-    assert "two_eyes" not in chart
+    assert "alpha" not in chart
     assert (chart["base_len"], chart["r_anchor"], chart["s_anchor"]) == (40, 3, 7)

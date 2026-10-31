@@ -1,7 +1,7 @@
 """The WIRE boundary of a fire's chart (core/pipeline/screening/dashboard._extract_chart_data).
 
 Drives the REAL payload builder on a hand-built fire (the reader's record through its
-adapter, the established pattern of tests/contracts/test_two_eyes_wire.py, which pins the
+adapter, the established pattern of tests/contracts/test_alpha_wire.py, which pins the
 exact key set) over a synthetic frame — never a booted server. The sector-ETF lookup is the
 one monkeypatched boundary (external lookup + a disk cache write).
 
@@ -106,7 +106,7 @@ def test_a_row_without_the_readers_block_draws_no_chart(monkeypatch, capsys):
     monkeypatch.setattr(dashboard_module, "_sector_etf_for_ticker", lambda *_args: None)
     monkeypatch.setattr(dashboard_module, "_group_facts", lambda *_a, **_k: {})
     assert dashboard_module._extract_chart_data(_frame(), pd.DataFrame([row]), ["AAA"]) == {}
-    assert "carries no _wire_two_eyes block" in capsys.readouterr().out
+    assert "carries no _wire_alpha block" in capsys.readouterr().out
 
 
 def test_wire_carries_the_leadership_read(monkeypatch):

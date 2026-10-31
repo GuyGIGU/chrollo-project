@@ -202,16 +202,16 @@ test('shapeTrace on a null/unreadable trace is null — the surface renders its 
   assert.equal(shapeTrace(undefined), null);
 });
 
-// ── the two-eyes reader (build task 15): its rows do not carry the event-map family ──
+// ── the alpha reader (build task 15): its rows do not carry the event-map family ──
 
-test('a two-eyes row is NOT_CARRIED, whatever nulls an archive merge brought along', () => {
+test('a alpha row is NOT_CARRIED, whatever nulls an archive merge brought along', () => {
   // The plan's Done-when: "old families the new reader leaves empty read 'not carried', never as an old-era
-  // row". The archive's modal merges the clicked row's columns into its chart, and on a two-eyes row every
+  // row". The archive's modal merges the clicked row's columns into its chart, and on a alpha row every
   // column of the family is NULL — read as NOT_MEASURED that is "this row predates the event-map read", said of
   // a row the new reader wrote last night.
-  const merged = { two_eyes: { boxes: [] } };
+  const merged = { alpha: { boxes: [] } };
   NARRATIVE_WIRE_FIELDS.forEach((field) => { merged[field] = null; });
   assert.equal(narrativeStatus(merged), NARRATIVE_STATUS.NOT_CARRIED);
   // The scan's own wire carries none of the family's keys on such a row.
-  assert.equal(narrativeStatus({ two_eyes: { boxes: [] }, candles: [] }), NARRATIVE_STATUS.NOT_CARRIED);
+  assert.equal(narrativeStatus({ alpha: { boxes: [] }, candles: [] }), NARRATIVE_STATUS.NOT_CARRIED);
 });

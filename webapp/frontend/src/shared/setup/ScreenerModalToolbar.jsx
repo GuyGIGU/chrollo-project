@@ -178,7 +178,7 @@ export function LensChartToolbar({ fixing = false, onToggleFix }) {
       <div className="lens-chart-toolbar-side">
         {/* "Fix the box" (Fri 17/10/2026): he corrects the reader's two lines on the daily chart; the fix is
             saved beside the reader's pair, the material the chooser is learned from later. Drawn only where
-            the daily is a two-eyes read (the host hands in the toggle). */}
+            the daily is a alpha read (the host hands in the toggle). */}
         {onToggleFix && (
           <button
             type="button"

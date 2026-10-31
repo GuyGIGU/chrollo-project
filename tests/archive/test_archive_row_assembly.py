@@ -59,7 +59,7 @@ from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.archive.writer import retired_columns_null  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
-from engine_alpha.archive import two_eyes_archive_values  # noqa: E402
+from engine_alpha.archive import alpha_archive_values  # noqa: E402
 
 
 def _model_columns() -> frozenset[str]:
@@ -130,7 +130,7 @@ def _retired_splat_keys() -> frozenset[str]:
 def _two_eyes_splat_keys(*, prefixed: bool) -> frozenset[str]:
     """Columns the two-eyes family ``**`` splat contributes."""
     return frozenset(
-        two_eyes_archive_values((lambda _k: None), prefixed=prefixed).keys())
+        alpha_archive_values((lambda _k: None), prefixed=prefixed).keys())
 def _sector_rank_splat_keys() -> frozenset[str]:
     """Columns the sector-rank ``**`` splat contributes.
 
@@ -176,7 +176,7 @@ def test_writer_values_dict_is_subset_of_model_columns():
 
     # 2. The **splats are the ones we resolve hermetically below (fail loudly if
     #    a new/renamed splat appears so the guard is extended, not silently blind).
-    assert set(splats) == {"retired_columns_null", "two_eyes_archive_values",
+    assert set(splats) == {"retired_columns_null", "alpha_archive_values",
                            "sector_rank_columns"}, (
         f"unexpected **splat(s) in archive_scan_results: {splats}; extend the "
         f"row-assembly guard to resolve their columns."
@@ -234,7 +234,7 @@ def test_seed_values_dict_is_subset_of_model_columns():
 
     # 3. The **splats inside overrides are the ones we resolve hermetically (fail
     #    loudly on a new/renamed splat so the guard is extended, not blind).
-    assert set(splats) == {"retired_columns_null", "two_eyes_archive_values",
+    assert set(splats) == {"retired_columns_null", "alpha_archive_values",
                            "fwd_returns"}, (
         f"unexpected **splat(s) in seed_archive overrides: {splats}; extend the "
         f"row-assembly guard to resolve their columns."

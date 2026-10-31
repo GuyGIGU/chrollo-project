@@ -97,7 +97,7 @@ def _evaluate_frames(ticker_frames: dict[str, pd.DataFrame],
     worker_fn = gate.scan_read
     # The night's ruleset, named ONCE: the results cross the pool boundary in a
     # fixed shape, so a per-ticker name would move the worker contract.
-    print(f"Chart reader: {settings.TWO_EYES_RULESET}", flush=True)
+    print(f"Chart reader: {settings.ALPHA_RULESET}", flush=True)
 
     with ProcessPoolExecutor(max_workers=worker_count) as executor:
         futures = {

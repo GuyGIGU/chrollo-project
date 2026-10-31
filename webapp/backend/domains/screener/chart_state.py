@@ -85,7 +85,7 @@ def read_chart_state(ticker: str, universe_key: str | None = None) -> dict:
         out["why"] = DOOR_WORDS.get(leg, leg)
         out["distance_ranges"] = _door_distance(frame, leg)
         return out
-    read = watch.get("read") if watch.get("two_eyes") else None
+    read = watch.get("read") if watch.get("alpha") else None
     if read is not None and read.parent is not None:
         # The reader's own box: its lines, the day it opened, and the days that ride beside a word that counts
         # them (never written into the word).

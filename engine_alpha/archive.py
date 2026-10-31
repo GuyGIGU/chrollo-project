@@ -39,10 +39,10 @@ from engine_alpha.record import ROLES, height_in_ranges
 __all__ = [
     "SCREEN_KEY",
     "SCREEN_ROLES",
-    "TWO_EYES_COLUMN_SQL",
-    "TWO_EYES_LPS_BOXES",
-    "two_eyes_archive_values",
-    "two_eyes_screen_boxes",
+    "ALPHA_COLUMN_SQL",
+    "ALPHA_LPS_BOXES",
+    "alpha_archive_values",
+    "alpha_screen_boxes",
     "volume_vs_50d",
 ]
 
@@ -51,7 +51,7 @@ __all__ = [
 #: the record would otherwise be accepted by the reader and refused here,
 #: costing every fire that used it. EC-22 wants a committed test for each,
 #: and the table's fresh-database CHECK is pinned to this same tuple.
-TWO_EYES_LPS_BOXES = ROLES
+ALPHA_LPS_BOXES = ROLES
 
 #: One box's worth of columns, as suffix -> SQL type. Both boxes take the
 #: same shape on purpose: the mini is read by the same eye as its parent, so
@@ -66,7 +66,7 @@ _PER_BOX: dict[str, str] = {
     "daily_range": "FLOAT",     # the range it was born with, frozen
 }
 
-TWO_EYES_COLUMN_SQL: dict[str, str] = {
+ALPHA_COLUMN_SQL: dict[str, str] = {
     **{f"two_eyes_{box}_{part}": sql
        for box in ("parent", "mini")
        for part, sql in _PER_BOX.items()},
@@ -84,7 +84,7 @@ TWO_EYES_COLUMN_SQL: dict[str, str] = {
 }
 
 _DATE_COLUMNS = frozenset(
-    name for name in TWO_EYES_COLUMN_SQL if name.endswith("_date"))
+    name for name in ALPHA_COLUMN_SQL if name.endswith("_date"))
 
 
 def _clean(value):
@@ -101,7 +101,7 @@ def _clean(value):
     return value
 
 
-def two_eyes_archive_values(get, *, prefixed: bool) -> dict:
+def alpha_archive_values(get, *, prefixed: bool) -> dict:
     """Row -> ``{column: value}`` for every column in the family.
 
     ``get`` is the row's own lookup (``row.get``), ``prefixed`` picks the live
@@ -113,20 +113,20 @@ def two_eyes_archive_values(get, *, prefixed: bool) -> dict:
     stands alone. What IS the rule is that an absent measure is NULL.
     """
     out: dict = {}
-    for column, sql_type in TWO_EYES_COLUMN_SQL.items():
+    for column, sql_type in ALPHA_COLUMN_SQL.items():
         value = _clean(get(("_" + column) if prefixed else column))
         if value is None:
             out[column] = None
             continue
         if column == "two_eyes_lps_read_against":
             value = str(value)
-            if value not in TWO_EYES_LPS_BOXES:
+            if value not in ALPHA_LPS_BOXES:
                 # LOUD, not coerced. This column is read as a closed set by
                 # everything downstream; a fourth word silently stored is a
                 # bug that surfaces a month later as an unreadable row.
                 raise ValueError(
                     f"the LPS was read against {value!r}, which is not one of "
-                    f"{TWO_EYES_LPS_BOXES}")
+                    f"{ALPHA_LPS_BOXES}")
         elif column == "two_eyes_has_mini":
             value = _yes_or_no(value)
         elif sql_type == "FLOAT":
@@ -146,15 +146,15 @@ SCREEN_ROLES = ("parent", "mini")
 #: The result key the screen's ONE block rides on, from the adapter to the scan's wire (`core/pipeline/screening/
 #: dashboard.py` hands it to the chart as ``two_eyes``). Not a column: the archive keeps the family. It lives here,
 #: in a module the nightly path already loads, so the wire can name it without importing the new reader.
-SCREEN_KEY = "_wire_two_eyes"
+SCREEN_KEY = "_wire_alpha"
 
 
-def two_eyes_screen_boxes(values: dict) -> list:
+def alpha_screen_boxes(values: dict) -> list:
     """The family's boxes as the screen reads them: each line's price and the day it was anchored, the day the box
     opened and the day it ended (None while live), and how many of its own daily ranges tall it is (None without a
     stored range). Nothing the browser would have to work out.
 
-    ``values`` is :func:`two_eyes_archive_values`' own output, so the scan's wire (built from a live result) and the
+    ``values`` is :func:`alpha_archive_values`' own output, so the scan's wire (built from a live result) and the
     archive's chart (built from a stored row) are shaped by ONE function from ONE family and cannot drift apart. A
     role whose two lines are not both there draws no box. The height is a ratio of two prices on one scale, so the
     archive's chart, which rescales the lines onto today's candles, keeps it as it is.

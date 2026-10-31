@@ -19,7 +19,7 @@ def test_adapter_strips_leading_underscore():
     assert out["adr_pct"] == 0.42
     assert out["two_eyes_parent_r_price"] == 7.0
     assert out["stage2_trend_pass"] == 1
-    assert out["two_eyes_has_mini"] is True  # two_eyes_archive_values(..., prefixed=False) reads this
+    assert out["two_eyes_has_mini"] is True  # alpha_archive_values(..., prefixed=False) reads this
 
 
 def test_adapter_applies_explicit_renames():

@@ -59,7 +59,7 @@ def save_sector_etf_cache(cache: dict, path: str = _SECTOR_ETF_CACHE_PATH) -> No
 # Idempotent: ALTER TABLE ADD COLUMN is a no-op if the column already exists
 # (we swallow the OperationalError it raises in that case).
 from core.archive.db_path import archive_db_path
-from engine_alpha.archive import two_eyes_archive_values
+from engine_alpha.archive import alpha_archive_values
 
 _NEW_COLUMNS: dict[str, str] = {
     "score_rs_bonus":       "FLOAT",
@@ -825,7 +825,7 @@ def archive_scan_results(
                 # over an old-reader date re-stamps the row whole)
                 **retired_columns_null(),
                 # The reader's two boxes and their anchor DAYS
-                **two_eyes_archive_values(row.get, prefixed=True),
+                **alpha_archive_values(row.get, prefixed=True),
                 # Advisory metadata (Lane E) — graded chips, NOT scored / NOT a veto.
                 # Per-ticker fundamentals / RS-line / days-to-earnings come from the
                 # eval result (set by core.fundamentals.advisory when the flags are on;

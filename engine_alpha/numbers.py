@@ -2,7 +2,7 @@
 
 The stages read these as ``M.NAME`` and never a setting: the version stamp (``engine_alpha/stamp.py``) hashes every
 upper-case name here, so a changed number moves the night's ``engine_config_version``. A change to HOW the reader
-reads bumps ``TWO_EYES_RULESET`` in ``config/reader.py`` instead; the stamp hashes numbers, not code. Keep this
+reads bumps ``ALPHA_RULESET`` in ``config/reader.py`` instead; the stamp hashes numbers, not code. Keep this
 module import-free: the stamp reads it on every night's scan, and a plain file of numbers is the one thing that cannot
 fall over.
 """

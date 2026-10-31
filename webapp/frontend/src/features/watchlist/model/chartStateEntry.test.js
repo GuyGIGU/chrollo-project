@@ -1,4 +1,4 @@
-// The off-scan card's chart-state line (build task 15 of the two-eyes reader).
+// The off-scan card's chart-state line (build task 15 of the alpha reader).
 //
 // The plan's Done-when: "a failed or pending read is a screen state, never one of your ten words, and a card never
 // keeps showing the PREVIOUS ticker's state while a new one loads (a live defect the blind check found in the

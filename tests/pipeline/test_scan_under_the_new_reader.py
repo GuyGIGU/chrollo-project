@@ -129,12 +129,12 @@ def test_the_new_reader_reads_his_alb_through_the_whole_scan(scan, scratch_archi
     results_df, _, _, market_context = scan(BIG)
 
     log = capsys.readouterr().out
-    assert log.count(f"Chart reader: {settings.TWO_EYES_RULESET}") == 1, "the night's ruleset is named once"
+    assert log.count(f"Chart reader: {settings.ALPHA_RULESET}") == 1, "the night's ruleset is named once"
     assert "near_miss_lane" not in market_context and "near_miss_lane" not in market_context["_scan_metrics"]["counts"]
 
     assert list(results_df["Ticker"]) == ["ALB"], "the reader fires on his ALB that day"
     fire = results_df.iloc[0]
-    assert "_wire_two_eyes" in results_df.columns, "the fire carries the reader's block"
+    assert "_wire_alpha" in results_df.columns, "the fire carries the reader's block"
     assert market_context["market_cap_floor"] == {
         "checked": 1, "refused": 0, "unknown": 0, "refused_tickers": []}
     assert fire["_market_cap"] == BIG
@@ -199,7 +199,7 @@ def test_a_fire_carries_the_stocks_read(scan, monkeypatch):
     door admitted) and the leadership cells on the card, pinned to the numbers the old reader's fire carried that
     day (the old reader retired Fri 30/10/2026; these were equal on both readers while it lived)."""
     new_df, new_data, _, _ = scan(BIG)
-    assert "_wire_two_eyes" in new_df.columns
+    assert "_wire_alpha" in new_df.columns
 
     fire = new_df.iloc[0]
     assert {k: fire[k] for k in STOCK_KEYS} == {
@@ -208,7 +208,7 @@ def test_a_fire_carries_the_stocks_read(scan, monkeypatch):
     assert round(fire["_adr_pct"], 2) == 4.99
 
     card = _card(monkeypatch, new_df, new_data)
-    assert "two_eyes" in card
+    assert "alpha" in card
     assert {k: card[k] for k in LEADERSHIP_KEYS} == {
         "rs_rating": 50.0,      # a one-stock universe: the stock sits at its own median
         "stage2_trend_pass_count": 7, "stage2_52w_low_pct": 2.5106,

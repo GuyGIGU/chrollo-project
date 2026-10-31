@@ -164,41 +164,41 @@ def test_a_result_line_from_before_the_count_existed_reads_as_zero_refused():
 def test_the_new_family_is_one_producer_and_every_column_is_nullable():
     """EC-30: a column family rides EVERY writer through ONE producer."""
     import archive_models
-    from engine_alpha.archive import (TWO_EYES_COLUMN_SQL,
-                                               two_eyes_archive_values)
+    from engine_alpha.archive import (ALPHA_COLUMN_SQL,
+                                               alpha_archive_values)
 
     columns = {c.name: c for c in archive_models.SetupArchive.__table__.columns}
-    for name in TWO_EYES_COLUMN_SQL:
+    for name in ALPHA_COLUMN_SQL:
         assert name in columns, f"{name} is not on the model"
         assert columns[name].nullable, (
             f"{name} must be nullable — every row the old reader ever wrote, "
             "and every row it writes tomorrow, has nothing to put there")
-    assert set(two_eyes_archive_values(lambda k: None, prefixed=True)) \
-        == set(TWO_EYES_COLUMN_SQL)
+    assert set(alpha_archive_values(lambda k: None, prefixed=True)) \
+        == set(ALPHA_COLUMN_SQL)
 
 
 def test_the_family_carries_both_boxes_with_their_anchor_days():
     """Bar offsets cannot be redrawn once the two-year window slides past
     them; a DAY can. Two boxes of the same shape, because his mini and its
     parent are one setup."""
-    from engine_alpha.archive import TWO_EYES_COLUMN_SQL
+    from engine_alpha.archive import ALPHA_COLUMN_SQL
 
     for box in ("parent", "mini"):
         for part in ("r_price", "r_anchor_date", "s_price", "s_anchor_date",
                      "opened_date", "end_date", "daily_range"):
             name = f"two_eyes_{box}_{part}"
-            assert name in TWO_EYES_COLUMN_SQL, f"{name} is missing"
-    assert "two_eyes_lps_read_against" in TWO_EYES_COLUMN_SQL
-    assert "two_eyes_has_mini" in TWO_EYES_COLUMN_SQL
+            assert name in ALPHA_COLUMN_SQL, f"{name} is missing"
+    assert "two_eyes_lps_read_against" in ALPHA_COLUMN_SQL
+    assert "two_eyes_has_mini" in ALPHA_COLUMN_SQL
 
 
 def test_nothing_measured_is_stored_empty_and_never_as_a_number():
     """The whole family is NULL under the old reader — and NULL, not 0.0 and
     not "". A zero price is a made-up price, and a made-up number in an
     archive column is indistinguishable from a measured one forever after."""
-    from engine_alpha.archive import two_eyes_archive_values
+    from engine_alpha.archive import alpha_archive_values
 
-    empty = two_eyes_archive_values(lambda key: None, prefixed=True)
+    empty = alpha_archive_values(lambda key: None, prefixed=True)
     assert set(empty.values()) == {None}, \
         f"the old reader's row invents values: { {k: v for k, v in empty.items() if v is not None} }"
 
@@ -206,17 +206,17 @@ def test_nothing_measured_is_stored_empty_and_never_as_a_number():
 def test_the_lps_box_word_is_a_closed_set_that_refuses_an_invented_word():
     """EC-22: every value in a closed-set label column has a committed
     producing test, and a word off the set never reaches the column."""
-    from engine_alpha.archive import (TWO_EYES_LPS_BOXES,
-                                               two_eyes_archive_values)
+    from engine_alpha.archive import (ALPHA_LPS_BOXES,
+                                               alpha_archive_values)
 
-    assert TWO_EYES_LPS_BOXES == ("parent", "mini", "earlier")
-    for word in TWO_EYES_LPS_BOXES:
-        out = two_eyes_archive_values(
+    assert ALPHA_LPS_BOXES == ("parent", "mini", "earlier")
+    for word in ALPHA_LPS_BOXES:
+        out = alpha_archive_values(
             {"_two_eyes_lps_read_against": word}.get, prefixed=True)
         assert out["two_eyes_lps_read_against"] == word
 
     with pytest.raises(ValueError):
-        two_eyes_archive_values(
+        alpha_archive_values(
             {"_two_eyes_lps_read_against": "somewhere else"}.get, prefixed=True)
 
 
@@ -224,10 +224,10 @@ def test_the_mini_flag_has_three_states_not_two():
     """Yes, no, and "the reader that wrote this row never looked" — which is
     every row in the archive today. A two-state flag would quietly claim all
     of them had no mini."""
-    from engine_alpha.archive import two_eyes_archive_values
+    from engine_alpha.archive import alpha_archive_values
 
     def flag(value):
-        return two_eyes_archive_values(
+        return alpha_archive_values(
             {"_two_eyes_has_mini": value}.get, prefixed=True)["two_eyes_has_mini"]
 
     assert flag(True) == 1
@@ -495,23 +495,23 @@ def test_a_fresh_database_refuses_an_off_set_word_even_past_the_producer(tmp_pat
 def test_the_mini_flag_refuses_anything_but_yes_or_no(value):
     """int() stored a 2 as a 2 and truncated 0.7 to 0 — "no mini" — a
     different fact made up out of a bad number."""
-    from engine_alpha.archive import two_eyes_archive_values
+    from engine_alpha.archive import alpha_archive_values
 
     with pytest.raises(ValueError):
-        two_eyes_archive_values({"_two_eyes_has_mini": value}.get, prefixed=True)
+        alpha_archive_values({"_two_eyes_has_mini": value}.get, prefixed=True)
 
 
 def test_a_day_column_holds_a_day():
     """A timestamp is cut to its day, not stored with a clock time the market
     never traded at; a string that is not a day is refused."""
-    from engine_alpha.archive import two_eyes_archive_values
+    from engine_alpha.archive import alpha_archive_values
 
-    out = two_eyes_archive_values(
+    out = alpha_archive_values(
         {"_two_eyes_parent_opened_date": pd.Timestamp("2026-01-05 09:30")}.get,
         prefixed=True)
     assert out["two_eyes_parent_opened_date"] == "2026-01-05"
     with pytest.raises(ValueError):
-        two_eyes_archive_values({"_two_eyes_parent_opened_date": "garbage"}.get,
+        alpha_archive_values({"_two_eyes_parent_opened_date": "garbage"}.get,
                                 prefixed=True)
 
 
@@ -749,9 +749,9 @@ def test_the_archives_lps_words_are_the_records_own_tuple_and_its_check():
 
     import archive_models
     from engine_alpha import record
-    from engine_alpha.archive import TWO_EYES_LPS_BOXES
+    from engine_alpha.archive import ALPHA_LPS_BOXES
 
-    assert TWO_EYES_LPS_BOXES is record.ROLES
+    assert ALPHA_LPS_BOXES is record.ROLES
     check = next(c for c in archive_models.SetupArchive.__table__.constraints
                  if c.name == "ck_setup_archive_two_eyes_lps_read_against")
     assert tuple(re.findall(r"'([^']+)'", str(check.sqltext))) == record.ROLES
@@ -977,7 +977,7 @@ def test_the_night_takes_the_write_lock_before_it_reads(tmp_path, monkeypatch):
     monkeypatch.setattr(writer_mod, "save_sector_etf_cache", lambda *a, **k: None)
 
     other_writer = {}
-    real_family = writer_mod.two_eyes_archive_values
+    real_family = writer_mod.alpha_archive_values
 
     def someone_else_writes_mid_row(get, *, prefixed):
         # Runs after the first row's existence check and before its flush —
@@ -997,7 +997,7 @@ def test_the_night_takes_the_write_lock_before_it_reads(tmp_path, monkeypatch):
                 side.close()
         return real_family(get, prefixed=prefixed)
 
-    monkeypatch.setattr(writer_mod, "two_eyes_archive_values", someone_else_writes_mid_row)
+    monkeypatch.setattr(writer_mod, "alpha_archive_values", someone_else_writes_mid_row)
     written = writer_mod.archive_scan_results(
         pd.DataFrame([_row("AAA0"), _row("AAA1")]), scan_date_str="2026-03-06", enable=True)
     assert other_writer["result"] == "waited", "the night did not hold the write lock"
@@ -1024,7 +1024,7 @@ def test_the_seed_and_manual_writers_fill_the_family_from_their_own_row_shape():
     from core.archive import seed
     from core.archive.result_adapter import seed_row_from_result
     from engine_alpha.result import to_result
-    from engine_alpha.archive import TWO_EYES_COLUMN_SQL, two_eyes_archive_values
+    from engine_alpha.archive import ALPHA_COLUMN_SQL, alpha_archive_values
     from domains.archive import actions as archive_actions
 
     # The bars through the LPS's last day: the family's LPS volume is measured on
@@ -1033,16 +1033,16 @@ def test_the_seed_and_manual_writers_fill_the_family_from_their_own_row_shape():
     bars = pd.DataFrame({"Open": 95.0, "High": 99.0, "Low": 93.0, "Close": 97.0,
                          "Volume": 1000.0}, index=days)
     row = seed_row_from_result(to_result(_fired_read(with_mini=True, lps_box="mini"), frame=bars))
-    family = two_eyes_archive_values(row.get, prefixed=False)
+    family = alpha_archive_values(row.get, prefixed=False)
     empty = {c for c, v in family.items() if v is None}
     assert empty == {"two_eyes_parent_end_date", "two_eyes_mini_end_date", "two_eyes_clarity_json"}, \
         f"only live end days and clarity unmeasured by this legacy-shaped read may be empty: {sorted(empty)}"
-    assert family["two_eyes_has_mini"] == 1 and set(family) == set(TWO_EYES_COLUMN_SQL)
+    assert family["two_eyes_has_mini"] == 1 and set(family) == set(ALPHA_COLUMN_SQL)
 
     for fn in (seed.seed_archive, archive_actions.add_setup_manually):
         calls = [n for n in ast.walk(ast.parse(inspect.getsource(fn)))
                  if isinstance(n, ast.Call)
-                 and getattr(n.func, "id", None) == "two_eyes_archive_values"]
+                 and getattr(n.func, "id", None) == "alpha_archive_values"]
         assert calls, f"{fn.__name__} no longer calls the family producer"
         for call in calls:
             prefixed = {k.arg: k.value for k in call.keywords}["prefixed"]

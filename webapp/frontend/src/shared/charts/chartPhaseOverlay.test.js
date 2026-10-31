@@ -1,7 +1,7 @@
-// The phase overlay's pure read (build task 15 of the two-eyes reader): the two-eyes reader's dated block, located.
+// The phase overlay's pure read (build task 15 of the alpha reader): the alpha reader's dated block, located.
 //
 // The wire carries the box's days and the LPS's days; this module only finds their bars and builds the bands the
-// chart lights. The old engine's own fields (bar offsets, the LPS zone's price box) are not carried on a two-eyes
+// chart lights. The old engine's own fields (bar offsets, the LPS zone's price box) are not carried on a alpha
 // row, so its bands come from the block or not at all.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,11 +17,11 @@ const makeCandles = (n) =>
     return { time: `2024-${month}-${day}`, open: 10 + i, high: 11 + i, low: 9 + i, close: 10 + i };
   });
 
-const twoEyesPayload = (block = {}) => ({
+const alphaPayload = (block = {}) => ({
   candles: makeCandles(40),
   R: 20,
   S: 10,
-  two_eyes: {
+  alpha: {
     boxes: [
       { role: 'parent', r: 20, r_day: '2024-01-16', s: 10, s_day: '2024-01-18', opened: '2024-01-15', end: null },
     ],
@@ -30,20 +30,20 @@ const twoEyesPayload = (block = {}) => ({
   },
 });
 
-test('rootSwingRange: a two-eyes box greys the span between its two anchor days', () => {
-  assert.deepEqual(rootSwingRange(twoEyesPayload(), makeCandles(40)), { startIndex: 15, endIndex: 17 });
+test('rootSwingRange: a alpha box greys the span between its two anchor days', () => {
+  assert.deepEqual(rootSwingRange(alphaPayload(), makeCandles(40)), { startIndex: 15, endIndex: 17 });
   // The anchor days in either order, never inverted.
-  const flipped = twoEyesPayload({
+  const flipped = alphaPayload({
     boxes: [{ role: 'parent', r: 20, r_day: '2024-01-18', s: 10, s_day: '2024-01-16', opened: '2024-01-15', end: null }],
   });
   assert.deepEqual(rootSwingRange(flipped, makeCandles(40)), { startIndex: 15, endIndex: 17 });
   // No parent on the block: no grey, and never the old engine's bar offsets.
-  assert.equal(rootSwingRange({ ...twoEyesPayload({ boxes: [] }), base_len: 6, r_anchor: 1, s_anchor: 2 },
+  assert.equal(rootSwingRange({ ...alphaPayload({ boxes: [] }), base_len: 6, r_anchor: 1, s_anchor: 2 },
     makeCandles(40)), null);
 });
 
-test('buildPhaseRegions: a two-eyes row lights its root swing, its box from the day it opened and its LPS over its own days', () => {
-  const regions = buildPhaseRegions(twoEyesPayload());
+test('buildPhaseRegions: a alpha row lights its root swing, its box from the day it opened and its LPS over its own days', () => {
+  const regions = buildPhaseRegions(alphaPayload());
   const byKey = Object.fromEntries(regions.map((region) => [region.key, region]));
   assert.deepEqual(Object.keys(byKey).sort(), ['a', 'b', 'lps']);
   // The root swing (the climax to the reaction low, the grey bars) as its own band, so Phase A on the board lights
@@ -59,8 +59,8 @@ test('buildPhaseRegions: a two-eyes row lights its root swing, its box from the 
   assert.equal(byKey.lps.high, 11 + 30);
 });
 
-test('buildPhaseRegions: a two-eyes row lights its mini and each word of its story on its own key (Tue 13/10/2026)', () => {
-  const regions = buildPhaseRegions(twoEyesPayload({
+test('buildPhaseRegions: a alpha row lights its mini and each word of its story on its own key (Tue 13/10/2026)', () => {
+  const regions = buildPhaseRegions(alphaPayload({
     boxes: [
       { role: 'parent', r: 20, r_day: '2024-01-16', s: 10, s_day: '2024-01-18', opened: '2024-01-15', end: null },
       { role: 'mini', r: 18, r_day: '2024-01-24', s: 15, s_day: '2024-01-25', opened: '2024-01-24', end: null },
@@ -85,8 +85,8 @@ test('buildPhaseRegions: a two-eyes row lights its mini and each word of its sto
   assert.equal(storyRegionId({ kind: 'SOS', day: '2024-01-27' }), 'story:SOS:2024-01-27');
 });
 
-test('buildPhaseRegions: a two-eyes row with no LPS window lights its root swing and its box alone', () => {
-  const regions = buildPhaseRegions(twoEyesPayload({ lps: { against: 'parent' } }));
+test('buildPhaseRegions: a alpha row with no LPS window lights its root swing and its box alone', () => {
+  const regions = buildPhaseRegions(alphaPayload({ lps: { against: 'parent' } }));
   assert.deepEqual(regions.map((region) => region.key), ['a', 'b']);
 });
 

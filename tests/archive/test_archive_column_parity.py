@@ -13,12 +13,12 @@ That already happened: ``score_traversal_quality`` was archived by scan rows
 The two writers assemble their rows differently:
 
   * the live scan writer is one hand-written ``values = dict(...)`` (plus its
-    ``two_eyes_archive_values`` / ``retired_columns_null`` / ``sector_rank_columns``
+    ``alpha_archive_values`` / ``retired_columns_null`` / ``sector_rank_columns``
     ``**`` splats);
   * the seed writer builds its row through the model-driven mapper —
     ``archive_row_from_result(best_result, overrides=dict(...))`` — so its
     populated columns are the mapper's auto-mapped flat columns PLUS the
-    ``overrides`` special-cases PLUS its ``two_eyes_archive_values`` /
+    ``overrides`` special-cases PLUS its ``alpha_archive_values`` /
     ``retired_columns_null`` / ``fwd_returns`` ``**`` splats.
 
 GUARD: compute each writer's FULL effective populated-column set (literal keys +
@@ -64,7 +64,7 @@ from core.archive import seed as seed_mod  # noqa: E402
 from core.archive import writer as writer_mod  # noqa: E402
 from core.archive.writer import RETIRED_COLUMNS, retired_columns_null  # noqa: E402
 from core.regime.scan_context import sector_rank_fields  # noqa: E402
-from engine_alpha.archive import two_eyes_archive_values  # noqa: E402
+from engine_alpha.archive import alpha_archive_values  # noqa: E402
 from core.archive.r_outcomes import R_COLUMNS  # noqa: E402
 
 
@@ -184,7 +184,7 @@ def _retired_cols() -> frozenset[str]:
 
 def _two_eyes_cols(*, prefixed: bool) -> frozenset[str]:
     return frozenset(
-        two_eyes_archive_values((lambda _k: None), prefixed=prefixed).keys())
+        alpha_archive_values((lambda _k: None), prefixed=prefixed).keys())
 
 
 def _sector_rank_cols() -> frozenset[str]:
@@ -216,11 +216,11 @@ def _mapper_auto_cols() -> frozenset[str]:
 
 def _scan_effective_cols() -> frozenset[str]:
     """Every column the live scan writer populates: its ``values`` literal keys +
-    its ``two_eyes_archive_values`` (prefixed) / ``retired_columns_null`` /
+    its ``alpha_archive_values`` (prefixed) / ``retired_columns_null`` /
     ``sector_rank_columns`` splats."""
     literal = _literal_kwargs(writer_mod.archive_scan_results, "values")
     splats = set(_splat_names(writer_mod.archive_scan_results, "values"))
-    assert splats == {"retired_columns_null", "two_eyes_archive_values",
+    assert splats == {"retired_columns_null", "alpha_archive_values",
                       "sector_rank_columns"}, (
         f"unexpected scan **splat(s): {sorted(splats)}; extend the parity guard."
     )
@@ -231,11 +231,11 @@ def _scan_effective_cols() -> frozenset[str]:
 def _seed_effective_cols() -> frozenset[str]:
     """Every column the seed writer populates through the mapper: the mapper's
     auto-mapped flat columns + the ``overrides`` literal keys + its
-    ``two_eyes_archive_values`` (unprefixed) / ``retired_columns_null`` /
+    ``alpha_archive_values`` (unprefixed) / ``retired_columns_null`` /
     ``fwd_returns`` splats."""
     literal = _literal_kwargs(seed_mod.seed_archive, "overrides")
     splats = set(_splat_names(seed_mod.seed_archive, "overrides"))
-    assert splats == {"retired_columns_null", "two_eyes_archive_values",
+    assert splats == {"retired_columns_null", "alpha_archive_values",
                       "fwd_returns"}, (
         f"unexpected seed **splat(s): {sorted(splats)}; extend the parity guard."
     )
@@ -317,7 +317,7 @@ def test_manual_route_splats_only_the_readers_family():
                    if k is None and isinstance(v, ast.Call)]
     splat_names = {c.func.id if isinstance(c.func, ast.Name)
                    else getattr(c.func, "attr", "?") for c in splat_calls}
-    assert "two_eyes_archive_values" in splat_names, (
+    assert "alpha_archive_values" in splat_names, (
         "the manual route no longer splats the reader's family producer")
     retired_producers = {"sub_score_archive_values", "ta_grade_archive_values", "htf_archive_values",
                          "event_map_archive_values", "sentence_archive_values",

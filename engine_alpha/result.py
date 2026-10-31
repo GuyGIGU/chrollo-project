@@ -16,7 +16,7 @@ from config import settings
 from engine_alpha.gate import EVAL_ERROR
 from engine_alpha.record import STATE_WORDS as WATCH_WIRE_STATES
 from engine_alpha.record import NO_LINES, READ_FAILED, SPRING, Read, Step
-from engine_alpha.archive import SCREEN_KEY, two_eyes_archive_values, two_eyes_screen_boxes, volume_vs_50d
+from engine_alpha.archive import SCREEN_KEY, alpha_archive_values, alpha_screen_boxes, volume_vs_50d
 
 #: Keys downstream reads with square brackets — a missing one is a KeyError in
 #: the middle of a night's write, not a None in a column. A fire row is whole
@@ -289,7 +289,7 @@ def _wire_block(read: Read, result: dict) -> dict:
     chart of the same row draw the same lines; the LPS, the state word, the grade and the story are the record's."""
     lps, grade = read.lps, read.grade
     return {
-        "boxes": two_eyes_screen_boxes(two_eyes_archive_values(result.get, prefixed=True)),
+        "boxes": alpha_screen_boxes(alpha_archive_values(result.get, prefixed=True)),
         "lps": {"against": lps.read_against, "how": lps.how,
                 "start": lps.start_day.isoformat(), "end": lps.end_day.isoformat(),
                 "trigger": float(lps.trigger_price)},
@@ -345,7 +345,7 @@ def fill_watch(read: Read, watch: Optional[dict]) -> None:
     """
     if watch is None:
         return
-    watch["two_eyes"] = True
+    watch["alpha"] = True
     # The record itself, for a board or a page that wants the lines and the
     # LPS of a read that did not fire without reading the chart a second time.
     watch["read"] = read

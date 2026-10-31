@@ -142,7 +142,7 @@ def test_the_adapter_composes_once_and_archives_the_same_breakdown_without_movin
     import json
     from engine_alpha.record import Box, Line, Lps, Read, Step
     from engine_alpha.result import graded_read, to_result
-    from engine_alpha.archive import SCREEN_KEY, two_eyes_archive_values
+    from engine_alpha.archive import SCREEN_KEY, alpha_archive_values
 
     day = dt.date(2026, 1, 30)
     box = Box(Line(100, day), Line(90, day), day)
@@ -159,7 +159,7 @@ def test_the_adapter_composes_once_and_archives_the_same_breakdown_without_movin
     row = to_result(read)
     assert row['Score'] == row['_ta_grade'] == row[SCREEN_KEY]['grade']['score']
     assert row['Tier'] == scored.grade.letter == row[SCREEN_KEY]['grade']['letter']
-    archived = two_eyes_archive_values(row.get, prefixed=True)
+    archived = alpha_archive_values(row.get, prefixed=True)
     assert json.loads(archived['two_eyes_clarity_json']) == scored.grade.clarity
 
 

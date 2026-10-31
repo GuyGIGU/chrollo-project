@@ -15,7 +15,7 @@ from .universe import (
 )
 
 from .reader import (
-    TWO_EYES_RULESET,
+    ALPHA_RULESET,
     DAILY_STRUCTURE_PERIOD,
     ADR_WINDOW,
 )

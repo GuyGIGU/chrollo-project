@@ -20,7 +20,7 @@ import pytest
 
 from _paths import REPO_ROOT
 from engine_alpha import gate
-from engine_alpha.archive import TWO_EYES_COLUMN_SQL
+from engine_alpha.archive import ALPHA_COLUMN_SQL
 from tools.regression.shadow_diff import _load_fixture
 
 _WRITER = REPO_ROOT / "core" / "archive" / "writer.py"
@@ -44,7 +44,7 @@ NEW_READER_FEED_FLOOR = (
 def test_writer_still_maps_every_new_reader_floor_key():
     src = _WRITER.read_text(encoding="utf-8")
     sources = {m.group(2) for m in re.finditer(r'(\w+)=(?:r|row)\.get\("([^"]+)"', src)}
-    family = {"_" + column for column in TWO_EYES_COLUMN_SQL}   # written through two_eyes_archive_values
+    family = {"_" + column for column in ALPHA_COLUMN_SQL}   # written through alpha_archive_values
     missing = [k for k in NEW_READER_FEED_FLOOR if k not in sources | family]
     assert not missing, f"the writer no longer maps these new-reader keys: {missing}"
 

@@ -36,7 +36,7 @@ from core.archive.result_adapter import seed_row_from_result
 from core.pipeline.market_data.downloads import _batched_download, price_auto_adjust
 from core.pipeline.universe.descriptor import DEFAULT_UNIVERSE_TYPE
 from core.archive.writer import retired_columns_null
-from engine_alpha.archive import two_eyes_archive_values
+from engine_alpha.archive import alpha_archive_values
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("chrollo.seed")
@@ -493,7 +493,7 @@ def seed_archive(
             # The old engine's families, emptied on every write
             **retired_columns_null(),
             # The reader's two boxes and their anchor DAYS
-            **two_eyes_archive_values(best_result.get, prefixed=False),
+            **alpha_archive_values(best_result.get, prefixed=False),
             # Forward returns (computed above for this historical date)
             **fwd_returns,
         )

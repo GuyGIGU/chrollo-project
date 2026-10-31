@@ -473,7 +473,7 @@ class SetupArchive(Base):
     strategy_floor_above_ar = Column(Integer, nullable=True)
 
     # ── The two-eyes reader's family — dark until that reader is switched on ──
-    # Owning declaration in engine_alpha/archive.py (TWO_EYES_COLUMN_SQL),
+    # Owning declaration in engine_alpha/archive.py (ALPHA_COLUMN_SQL),
     # splatted by all three writers through the ONE producer. Two boxes of the
     # same shape, because his mini and its parent are one setup read at two
     # distances; each line carries the DAY it was anchored, which survives the

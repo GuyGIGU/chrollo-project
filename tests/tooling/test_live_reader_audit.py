@@ -22,7 +22,7 @@ def test_sealed_alb_replays_through_both_public_paths():
     frames, _ = load_sealed_fixture()
     frame = frames['ALB:2026-04-13'].loc[:'2026-04-07']
     result = audit.gate.scan_read('ALB', frame)
-    chart = {'two_eyes': result[audit.SCREEN_KEY], 'score': result['Score'],
+    chart = {'alpha': result[audit.SCREEN_KEY], 'score': result['Score'],
              'ta_grade': result['_ta_grade'], 'tier': result['Tier']}
     assert audit.inspect_frame('ALB', frame, chart, repeat=True) == []
     changed = {**chart, 'score': chart['score'] - 1}
@@ -41,7 +41,7 @@ def test_future_anchor_and_a_lost_fire_are_failures(monkeypatch):
         return read
     monkeypatch.setattr(audit.gate, 'read_record', answer)
     result = audit.to_result(read)
-    chart = {'two_eyes': result[audit.SCREEN_KEY], 'score': 100, 'ta_grade': 100, 'tier': 'S'}
+    chart = {'alpha': result[audit.SCREEN_KEY], 'score': 100, 'ta_grade': 100, 'tier': 'S'}
     assert 'box contains a future date' in audit.inspect_frame('AAA', frame, chart)
     read = replace(read, lps=None, state='lines, no LPS yet')
     assert any('no longer fires' in issue for issue in audit.inspect_frame('AAA', frame, chart))

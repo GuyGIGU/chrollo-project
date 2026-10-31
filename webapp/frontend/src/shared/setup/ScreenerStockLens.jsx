@@ -26,7 +26,7 @@ import { fundamentalsCells, fundamentalsNote, hasFundamentalsRead } from './fund
 import FundamentalsSheet from './FundamentalsSheet';
 import { hasFundamentalsSheet } from './fundamentalsSheetRead';
 import { hasVolumeRead, volumeCells } from './volumeRead';
-import { twoEyesTechnicalCells } from './twoEyesStory';
+import { alphaTechnicalCells } from './alphaStory';
 
 const pct = (value, digits = 1) => {
   const fixed = fx(value, digits, null);
@@ -95,14 +95,14 @@ const earningsDisplay = (earnings) => {
 // compact and easy to read"): one table, its label/value pairs in six columns read top to bottom, 12px
 // type, a hairline under each row. The technical read first, then the volume at the key points, the
 // leadership (the stock, not the setup) and, on a payload older than the sheet, the four fundamentals
-// numbers. Every cell is a measured fact from the scan payload, no invented data. A row the two-eyes
+// numbers. Every cell is a measured fact from the scan payload, no invented data. A row the alpha
 // reader wrote carries none of the old engine's counts (they printed as dashes, Tue 13/10/2026): it
 // shows its own read's facts instead.
 function technicalCells(data, earnings, regions) {
   const contractions = finiteNumber(data.contraction_count);
   const earn = earningsDisplay(earnings);
   const earningsCell = { k: 'Earnings', v: earn.value, tone: earn.tone, title: earn.title };
-  if (data.two_eyes) return [...twoEyesTechnicalCells(data, regions), earningsCell];
+  if (data.alpha) return [...alphaTechnicalCells(data, regions), earningsCell];
   return [
     { k: 'Box width', v: pct(boxWidthPct(data)) },
     { k: 'Base length', v: bars(data.base_len) },
@@ -390,9 +390,9 @@ export default function ScreenerStockLens({
     );
   }
 
-  // The narrative panel speaks the OLD reader's tape; a two-eyes row is "not
+  // The narrative panel speaks the OLD reader's tape; a alpha row is "not
   // carried" there, so it gets none.
-  const narrative = showDailyStructure && !data?.two_eyes;
+  const narrative = showDailyStructure && !data?.alpha;
   const cells = [
     ...technicalCells(data, earnings, dailyRegions),
     ...(hasVolumeRead(data) ? volumeCells(data) : []),
@@ -414,7 +414,7 @@ export default function ScreenerStockLens({
       ) : null}
       <SnapshotTable cells={cells} onRegionChange={onRegionChange} />
       {ticker ? <FiredCrossedLine ticker={ticker} /> : null}
-      {showDailyStructure && data?.two_eyes ? (
+      {showDailyStructure && data?.alpha ? (
         <section className="stock-lens-section">
           <ReadVerdictControl ticker={ticker} scanIdentity={scanIdentity} />
         </section>

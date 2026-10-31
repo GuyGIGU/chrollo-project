@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gradeCell, lpsGrade, storyRows } from './setupStoryRows.js';
 import { phaseBoard } from './phaseBoard.js';
-import { twoEyesTechnicalCells } from './twoEyesStory.js';
+import { alphaTechnicalCells } from './alphaStory.js';
 
 test('experimental clarity displays the resolved grade and component explanations', () => {
   const summary = 'Experimental clarity · base integrity 100/100';
-  const data = { two_eyes: { boxes: [{ role: 'parent', r: 100, s: 90, opened: '2026-01-01' }],
+  const data = { alpha: { boxes: [{ role: 'parent', r: 100, s: 90, opened: '2026-01-01' }],
     grade: { score: 68, letter: 'A', clarity: { summary, components: [
       { key: 'swings', label: 'Main zigzag', points: 18.2, max_points: 50, explanation: 'Main swings retain measured travel' },
       { key: 'rails', label: 'Rail definition', points: null, max_points: 50, explanation: 'No rail turns measured' },
@@ -15,7 +15,7 @@ test('experimental clarity displays the resolved grade and component explanation
   assert.equal(gradeCell(data).note, summary);
   // The clarity parts are dry stats since Thu 29/10/2026: cells of the stats table, no longer a Box column.
   assert.equal(phaseBoard(data).phases.find((phase) => phase.key === 'box'), undefined, 'the phase board grew a Box column again');
-  const cells = Object.fromEntries(twoEyesTechnicalCells(data).map((cell) => [cell.k, cell]));
+  const cells = Object.fromEntries(alphaTechnicalCells(data).map((cell) => [cell.k, cell]));
   assert.equal(cells['Main zigzag'].v, '18.2 / 50');
   assert.equal(cells['Main zigzag'].title, 'Main swings retain measured travel');
   assert.equal(cells['Rail definition'].v, '—');
@@ -220,7 +220,7 @@ test('a row with no LPS span still carries the marks and the chapters', () => {
   assert.deepEqual(keys(rows), ['a', 'consolidation', 'c', 'phase_d', 'trend']);
 });
 
-// ── the grade cell beside the story (build task 15: the two-eyes reader's grade) ──
+// ── the grade cell beside the story (build task 15: the alpha reader's grade) ──
 
 test('the old grade keeps its own cell: chapters summing to it, or an honest pre-grade absence', () => {
   assert.deepEqual(gradeCell(GRADED), {
@@ -232,25 +232,25 @@ test('the old grade keeps its own cell: chapters summing to it, or an honest pre
   assert.equal(old.note, 'pre-grade archive row');
 });
 
-test('a two-eyes row shows the new grade with its own facts, never the old grade\'s words', () => {
+test('a alpha row shows the new grade with its own facts, never the old grade\'s words', () => {
   const scan = gradeCell({
     ta_grade: 92.3, // the scan's wire carries the new grade's number here too
-    two_eyes: { grade: { score: 92.3, letter: 'S', empty_days: 2, base_days: 41, holds: true } },
+    alpha: { grade: { score: 92.3, letter: 'S', empty_days: 2, base_days: 41, holds: true } },
   });
   assert.equal(scan.value, 92.3);
   assert.equal(scan.scale, '/100');
   assert.equal(scan.note, '2 of 41 base days empty · the base held');
-  const failed = gradeCell({ two_eyes: { grade: { score: 0, letter: 'C', empty_days: 5, base_days: 30, holds: false } } });
+  const failed = gradeCell({ alpha: { grade: { score: 0, letter: 'C', empty_days: 5, base_days: 30, holds: false } } });
   assert.equal(failed.note, '5 of 30 base days empty · the base did not hold');
   // The archive keeps the score and the letter, not the facts.
-  assert.equal(gradeCell({ two_eyes: { grade: { score: 92.3, letter: 'S' } } }).note, 'dead space and the hold');
+  assert.equal(gradeCell({ alpha: { grade: { score: 92.3, letter: 'S' } } }).note, 'dead space and the hold');
   for (const cell of [scan, failed]) {
     assert.ok(!/chapters|pre-grade|predates/.test(`${cell.note} ${cell.title}`), cell.note);
   }
 });
 
-test('a two-eyes row whose grade could not be read says so, and does not call itself old', () => {
-  const cell = gradeCell({ two_eyes: { grade: null } });
+test('a alpha row whose grade could not be read says so, and does not call itself old', () => {
+  const cell = gradeCell({ alpha: { grade: null } });
   assert.equal(cell.value, null);
   assert.equal(cell.note, 'not graded');
   assert.ok(!/pre-grade|predates/.test(`${cell.note} ${cell.title}`), cell.title);

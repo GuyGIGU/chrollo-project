@@ -1,4 +1,4 @@
-// The two-eyes reader's read as the grade panel tells it (Tue 13/10/2026, his "the Grade section at the advanced chart
+// The alpha reader's read as the grade panel tells it (Tue 13/10/2026, his "the Grade section at the advanced chart
 // block is completely broken").
 //
 // The old panel's columns are the old grade's chapters (Consolidation, Phase D, Trend), and a row the new reader wrote
@@ -84,7 +84,7 @@ function boxColumn(box, role, regions, grade) {
 }
 
 function lpsColumn(data, regions) {
-  const lps = data.two_eyes.lps || {};
+  const lps = data.alpha.lps || {};
   const region = (regions || []).find((r) => r.id === 'lps:active') ?? null;
   const days = region ? region.endIndex - region.startIndex + 1 : null;
   const where = lps.against === 'mini' ? (LPS_HOW[lps.how] ?? 'against the mini') : 'in the box';
@@ -132,8 +132,8 @@ function wordColumn(event, regions) {
 
 // The columns in chart order: the box, the words and the mini by their day (a tie keeps that telling order), and the
 // LPS last, where the story ends (an archived row stores no LPS day at all).
-export function twoEyesStory(data, regions = []) {
-  const block = data?.two_eyes;
+export function alphaStory(data, regions = []) {
+  const block = data?.alpha;
   if (!block) return { columns: [], footnote: null };
   const boxes = block.boxes || [];
   const parent = boxes.find((box) => box.role === 'parent');
@@ -152,12 +152,12 @@ export function twoEyesStory(data, regions = []) {
   return { columns: ordered, footnote };
 }
 
-// The technical read's cells for a two-eyes row: the facts of its own read instead of the old engine's counts, which
+// The technical read's cells for a alpha row: the facts of its own read instead of the old engine's counts, which
 // such a row does not carry (they printed as dashes). The base runs from the day the box opened to the last candle.
 // The box's own facts (its lines, the bars in it, whether it held, the clarity parts) sat in a Box column of the phase
 // board until Thu 29/10/2026, his "things like: box, height, base, belong in the dry stats section".
-export function twoEyesTechnicalCells(data, regions = []) {
-  const block = data?.two_eyes || {};
+export function alphaTechnicalCells(data, regions = []) {
+  const block = data?.alpha || {};
   const grade = block.grade || {};
   const parent = (block.boxes || []).find((box) => box.role === 'parent');
   const mini = (block.boxes || []).find((box) => box.role === 'mini');

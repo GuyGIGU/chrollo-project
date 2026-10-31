@@ -34,7 +34,7 @@ New here? Read this file top-to-bottom, then:
    SPY and QQQ ride along as market context (`INDEX_SYMBOLS`). Three universes run off the same
    engine, each with its own cache and artifact: **US Stocks** (the NASDAQ common-stock default),
    **US Sectors + Market**, and **Commodities + ETFs**.
-2. **Screens** every ticker through the universe door, then the alpha reader, in his order: the swing
+2. **Screens** every ticker through the gate, then the alpha reader, in his order: the swing
    line → the box (the end of the trend, the pair, the box's life) → the LPS and its trigger → the story →
    the grade (a letter S/A/B/C and a place within it) → the state word. See `strategy_alpha.md`.
 3. **Renders** the survivors in a React dashboard: OHLC bar charts with the detected box/LPS
@@ -53,13 +53,13 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
 ```
                           ┌───────────────────────────────────────────────────┐
    yfinance ──▶ parquet ──▶│  the screener engine                              │
-                          │   engine_alpha/reader.py   the one door            │
-                          │               (frame contract, universe door, read)│
-                          │   engine_alpha/two_eyes/   the alpha reader        │
-                          │               (line → box → LPS → story → grade →  │
-                          │                state word: one record; numbers in  │
-                          │                two_eyes_numbers.py)                │
-                          │   engine_alpha/two_eyes_adapter.py  the voice      │
+                          │   engine_alpha/gate.py     the gate, the one way in│
+                          │               (frame, the floors, then the read)   │
+                          │   engine_alpha/reader.py   the alpha reader        │
+                          │               (chart → line → box/ → LPS → story → │
+                          │                grade → state word: one record; the │
+                          │                numbers in numbers.py)              │
+                          │   engine_alpha/result.py   the voice               │
                           │               (the record as the scan's result row)│
                           │   core/pipeline/  the conductor (data + per-ticker │
                           │                orchestration, ProcessPool)         │
@@ -80,11 +80,12 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
                           webapp/frontend  — React 19 + Vite (lightweight-charts)
 ```
 
-**One reader + a conductor** is the core design principle: `engine_alpha/two_eyes/` *reads* a chart in
+**One reader + a conductor** is the core design principle: the alpha reader (`engine_alpha/reader.py`,
+one call per stage) *reads* a chart in
 his order (the line, the box, the LPS, the story, the grade, the state word) into one record of measured
-facts and dated words, and nothing outside it re-decides any of that; `engine_alpha/two_eyes_adapter.py`
-*speaks* the record in the scan's result shape; `engine_alpha/reader.py` is the *one door* every caller
-reads through (the universe door first); and `core/pipeline/` wires them together. `engine_alpha/` is a
+facts and dated words, and nothing outside it re-decides any of that; `engine_alpha/result.py`
+*speaks* the record in the scan's result shape; `engine_alpha/gate.py` is the *gate*, the one way in every
+caller reads through (the floors first); and `core/pipeline/` wires them together. `engine_alpha/` is a
 leaf: it never imports the pipeline, the archive, the web app or the tools. `core/archive/` exists so the
 reader's grades can be validated against real forward outcomes rather than intuition. (The reading engine
 was extracted from `core/` into `engine_alpha/` in the 2026-07-18/20 engine-α freeze; that old engine —
@@ -108,14 +109,18 @@ The full map, with import rules, compatibility paths and a "where do I put this?
 
 ```
 engine_alpha/          The reading engine (see core/MAP.md)
-  reader.py            The one door: evaluate_ticker, scan_read, run_eval_chain, read_record
-  universe_door.py     The baseline gate before the read (price, volume, SMA50, SMA200, YoY)
-  two_eyes/            The alpha reader, his seven stages: frame, line, walk, mini (off), lps,
-                         story, grade + traits, state; record.py is the shape of a read
-  two_eyes_adapter.py  The record spoken as the scan's result row; two_eyes_archive.py the
-                         archive columns; two_eyes_numbers.py the reader's numbers (hashed)
-  metrics.py, stage_read.py, sentinels.py, market_sessions.py
-  freeze/manifest.py   The engine config hash
+  gate.py              The gate, the one way in: evaluate_ticker, scan_read, run_eval_chain,
+                         read_record, and the floors before the read (price, volume, SMA50, SMA200, YoY)
+  reader.py            The alpha reader: read(ticker, df), his seven stages one call each
+  chart.py, line.py    Stage 1: the frame contract, the daily range, the NYSE calendar; the swing line
+  box/                 Stages 2-4, the walk: pairs.py, handover.py, walk.py, mini.py (off)
+  story.py, lps.py     Stage 5 the words and their dated events; stage 6 the LPS and its trigger
+  grade.py, state.py   Stage 7 the letter and the traits; the state word, decided last
+  record.py            The shape of a read: Read, Box, Lps, Event, Grade; the roles; the state words
+  result.py            The record spoken as the scan's result row + the screen block; archive.py the
+                         archive columns; numbers.py the reader's numbers (hashed); stock.py the
+                         stock's own facts (ADR%, 52-week, trend template, the weekly stage)
+  stamp.py             The engine config hash (python -m engine_alpha.stamp --hash)
 core/
   pipeline/            Conductor — data.py (public data door); market_data/, universe/,
                          context/, telemetry/; screening/ (screener.py run_screener,
@@ -125,7 +130,7 @@ core/
   calibration/         Engine replay on frozen calibration frames (workbench chips + calibration tools)
   backtest/            Edge report + backtest statistics (production: the edge tile uses it)
   regime/, fundamentals/   Relative strength, sector ranking, fundamentals (RS rating + fundamentals live, display only)
-config/                Defaults by domain: universe.py (the door's floors), reader.py (the
+config/                Defaults by domain: universe.py (the gate's floors), reader.py (the
                          ruleset, the 2y window, the ADR window), enrichment.py, archive.py,
                          market_data.py, market_context.py, runtime.py; settings.py = the one namespace code
                          reads. tickers.csv (cached NASDAQ universe, gitignored),
@@ -257,7 +262,7 @@ Use the smallest guard that proves the change, then widen only when the touched 
 - Reader changes: also run `-m tools.regression.marks_corpus --check` (the operator-marks ratchet: his 52 drawings, 51
   fire on some day of their window), `-m tools.regression.reader_pin --check` (the reader's own record over 105 fixture
   charts; zero-diff is the fold acceptance), and, once the change has landed in the main checkout and a scan has run on it,
-  `-m tools.audits.live_reader_audit --check --repeat` (the saved scan replayed through the door; it refuses another
+  `-m tools.audits.live_reader_audit --check --repeat` (the saved scan replayed through the gate; it refuses another
   engine hash, so the first scan after the deploy is what re-pins it).
 - Frontend changes: run `npm --prefix webapp\frontend run lint`, `npm --prefix webapp\frontend test`,
   and `npm --prefix webapp\frontend run build` — the build in a worktree only, since the live service

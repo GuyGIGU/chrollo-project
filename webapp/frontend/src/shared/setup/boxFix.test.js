@@ -9,13 +9,13 @@ const reaction = { time: '2026-09-24', open: 336.72, high: 338.91, low: 334.30, 
 const last = { time: '2026-10-16', open: 346.09, high: 347.82, low: 340.46, close: 343.46 };
 const data = {
   candles: [climax, reaction, last],
-  two_eyes: { boxes: [{ role: 'parent', r: 345.34, r_day: '2026-09-22', s: 334.3, s_day: '2026-09-24', opened: '2026-09-22', end: null }] },
+  alpha: { boxes: [{ role: 'parent', r: 345.34, r_day: '2026-09-22', s: 334.3, s_day: '2026-09-24', opened: '2026-09-22', end: null }] },
 };
 const on = (bar) => ({ date: bar.time, bar });
 
 test('the reader pair is the parent box on the wire, or null', () => {
   assert.deepEqual(readerPair(data), { r: 345.34, rDay: '2026-09-22', s: 334.3, sDay: '2026-09-24', opened: '2026-09-22' });
-  assert.equal(readerPair({ two_eyes: { boxes: [{ role: 'earlier', r: 1, s: 0 }] } }), null);
+  assert.equal(readerPair({ alpha: { boxes: [{ role: 'earlier', r: 1, s: 0 }] } }), null);
   assert.equal(readerPair({}), null);
 });
 
@@ -55,10 +55,10 @@ test('a fix differs from the reader by a cent or more, and always when the reade
 
 test('the payload carries his lines, the reader pair beside them, the chart last day and the stamp', () => {
   const draft = { r: 345.34, rDay: '2026-09-22', s: 333.05, sDay: '2026-09-21' };
-  assert.deepEqual(fixPayload('AAPL', data, draft, { engine_config_version: 'two-eyes-0.9.2-test' }), {
+  assert.deepEqual(fixPayload('AAPL', data, draft, { engine_config_version: 'alpha-0.9.2-test' }), {
     ticker: 'AAPL', scan_day: '2026-10-16', resistance: 345.34, r_day: '2026-09-22', support: 333.05, s_day: '2026-09-21',
     reader_resistance: 345.34, reader_r_day: '2026-09-22', reader_support: 334.3, reader_s_day: '2026-09-24',
-    reader_opened_day: '2026-09-22', ruleset: 'two-eyes-0.9.2-test', note: null,
+    reader_opened_day: '2026-09-22', ruleset: 'alpha-0.9.2-test', note: null,
   });
   const bare = fixPayload('AAPL', { candles: [last] }, draft);
   assert.equal(bare.reader_resistance, null);

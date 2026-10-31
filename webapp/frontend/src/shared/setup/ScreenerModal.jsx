@@ -113,7 +113,7 @@ const ScreenerModal = ({
   const [fixing, setFixing] = useState(false);
   const fixingRef = useRef(false);
   fixingRef.current = fixing;
-  const canFix = Boolean(data?.two_eyes) && (data?.candles?.length ?? 0) > 0;
+  const canFix = Boolean(data?.alpha) && (data?.candles?.length ?? 0) > 0;
   const fixedBox = useFixedBox(ticker, data, daily.chartRef);
   useEffect(() => { setFixing(false); }, [ticker]);
 

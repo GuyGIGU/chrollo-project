@@ -21,7 +21,7 @@ function eventLine(key, name, day, sentence, { region = null, title = null, phas
 }
 
 export function phaseBoard(data, regions = []) {
-  const block = data?.two_eyes;
+  const block = data?.alpha;
   if (!block) return null;
   const ids = regionIds(regions);
   const boxes = block.boxes || [];
@@ -42,7 +42,7 @@ export function phaseBoard(data, regions = []) {
 
   // The box's own facts (its lines, height, base, hold, clarity) had a Box column here from Fri 17/10/2026; they
   // moved to the stats table on Thu 29/10/2026 (his "things like: box, height, base, belong in the dry stats
-  // section"): twoEyesTechnicalCells. The board keeps the events.
+  // section"): alphaTechnicalCells. The board keeps the events.
 
   // The upthrust on its own.
   const upthrusts = byKind('upthrust').map((event) => eventLine(storyRegionId(event), 'Upthrust', event.day,

@@ -4,9 +4,9 @@
 // saved BESIDE the pair the reader showed. Pure: no DOM, no chart; node --test pins it. The hook
 // (useBoxFix.js) does the clicks and the save, the page (BoxFixPage.jsx) draws the lines.
 
-// The reader's parent box as the wire carries it (two_eyes.boxes), or null when it shows none.
+// The reader's parent box as the wire carries it (alpha.boxes), or null when it shows none.
 export function readerPair(data) {
-  const parent = (data?.two_eyes?.boxes || []).find((box) => box.role === 'parent');
+  const parent = (data?.alpha?.boxes || []).find((box) => box.role === 'parent');
   if (!parent) return null;
   return { r: parent.r, rDay: parent.r_day, s: parent.s, sDay: parent.s_day, opened: parent.opened };
 }

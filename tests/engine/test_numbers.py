@@ -14,7 +14,7 @@ from _paths import REPO_ROOT
 
 def test_a_changed_number_moves_the_version_stamp(monkeypatch):
     """The reader reads its numbers from `two_eyes_numbers`, not from settings, and the version stamp hashes
-    settings: without the TWO_EYES_METHOD_NUMBERS block a tuned number would change the reading and keep the
+    settings: without the ALPHA_NUMBERS block a tuned number would change the reading and keep the
     stamp, so the archived rows before and after could not be told apart. Each number, moved alone, must move
     the stamp."""
     from engine_alpha import stamp as manifest

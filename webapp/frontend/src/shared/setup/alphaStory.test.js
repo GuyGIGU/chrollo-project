@@ -1,10 +1,10 @@
-// The grade panel for a row the two-eyes reader wrote (Tue 13/10/2026, his "the Grade section at the advanced chart
+// The grade panel for a row the alpha reader wrote (Tue 13/10/2026, his "the Grade section at the advanced chart
 // block is completely broken"): the box, the story's words, the mini and the LPS, in the order the chart played them.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildPhaseRegions } from '../charts/chartPhaseOverlay.js';
-import { twoEyesStory, twoEyesTechnicalCells } from './twoEyesStory.js';
+import { alphaStory, alphaTechnicalCells } from './alphaStory.js';
 
 // 60 daily candles from 2026-08-03 on, weekdays only, so the days below land on real bars.
 const candles = (() => {
@@ -23,7 +23,7 @@ const candles = (() => {
 const scanRow = (overrides = {}) => ({
   candles,
   trigger: 57.3,
-  two_eyes: {
+  alpha: {
     boxes: [
       { role: 'parent', r: 56, r_day: '2026-08-05', s: 50, s_day: '2026-08-07', opened: '2026-08-05', end: null, ranges_tall: 3.0 },
       { role: 'mini', r: 56, r_day: '2026-09-15', s: 54, s_day: '2026-09-16', opened: '2026-09-15', end: null, ranges_tall: 1.25 },
@@ -42,7 +42,7 @@ const scanRow = (overrides = {}) => ({
 
 test('the columns run in chart order: the box, the words by their day, the mini, the LPS', () => {
   const data = scanRow();
-  const { columns, footnote } = twoEyesStory(data, buildPhaseRegions(data));
+  const { columns, footnote } = alphaStory(data, buildPhaseRegions(data));
   assert.deepEqual(columns.map((c) => c.name), ['Box', 'Spring', 'Phase D', 'SOS', 'Mini', 'LPS']);
   assert.deepEqual(columns.map((c) => c.kind), ['chapter', 'mark', 'mark', 'mark', 'chapter', 'chapter']);
   assert.equal(footnote, null);
@@ -53,7 +53,7 @@ test('the columns run in chart order: the box, the words by their day, the mini,
 
 test('the box carries its height in daily ranges and its days with a bar in it; the LPS its trigger', () => {
   const data = scanRow();
-  const { columns } = twoEyesStory(data, buildPhaseRegions(data));
+  const { columns } = alphaStory(data, buildPhaseRegions(data));
   const box = columns.find((c) => c.key === 'b');
   assert.equal(box.figure, '3.0');
   assert.equal(box.unit, 'ranges tall');
@@ -68,7 +68,7 @@ test('the box carries its height in daily ranges and its days with a bar in it; 
 
 test('each word says what it did, short on the rail and whole in the tooltip', () => {
   const data = scanRow();
-  const { columns } = twoEyesStory(data, buildPhaseRegions(data));
+  const { columns } = alphaStory(data, buildPhaseRegions(data));
   const byName = Object.fromEntries(columns.map((c) => [c.name, c]));
   assert.equal(byName.Spring.detail, '26/08 · 0.8 daily ranges under support');
   assert.equal(byName.Spring.title, 'Spring, Wed 26/08/2026: 0.8 daily ranges under support.');
@@ -78,11 +78,11 @@ test('each word says what it did, short on the rail and whole in the tooltip', (
 
 test('a row that named no word says so; an archived row says the archive keeps no story', () => {
   const quiet = scanRow({ events: [] });
-  assert.match(twoEyesStory(quiet, buildPhaseRegions(quiet)).footnote, /named no spring/);
+  assert.match(alphaStory(quiet, buildPhaseRegions(quiet)).footnote, /named no spring/);
   // The archive keeps the boxes, the LPS's box and the score: no events key at all, and no LPS days.
-  const archived = { candles, trigger: 57.3, two_eyes: {
-    boxes: scanRow().two_eyes.boxes, lps: { against: 'parent' }, grade: { score: 90, letter: 'S' } } };
-  const told = twoEyesStory(archived, buildPhaseRegions(archived));
+  const archived = { candles, trigger: 57.3, alpha: {
+    boxes: scanRow().alpha.boxes, lps: { against: 'parent' }, grade: { score: 90, letter: 'S' } } };
+  const told = alphaStory(archived, buildPhaseRegions(archived));
   assert.match(told.footnote, /^No story came with this row/);
   assert.deepEqual(told.columns.map((c) => c.name), ['Box', 'Mini', 'LPS']);
   const lps = told.columns.find((c) => c.key === 'lps');
@@ -92,13 +92,13 @@ test('a row that named no word says so; an archived row says the archive keeps n
 });
 
 test('no block, no columns', () => {
-  assert.deepEqual(twoEyesStory({ candles }), { columns: [], footnote: null });
-  assert.deepEqual(twoEyesStory(null), { columns: [], footnote: null });
+  assert.deepEqual(alphaStory({ candles }), { columns: [], footnote: null });
+  assert.deepEqual(alphaStory(null), { columns: [], footnote: null });
 });
 
 test("the technical read's cells come from the reader's own read, never the old engine's dashes", () => {
   const data = scanRow();
-  const cells = Object.fromEntries(twoEyesTechnicalCells(data, buildPhaseRegions(data)).map((c) => [c.k, c.v]));
+  const cells = Object.fromEntries(alphaTechnicalCells(data, buildPhaseRegions(data)).map((c) => [c.k, c.v]));
   assert.equal(cells['Box width'], '12.0%');
   assert.equal(cells['Box height'], '3.0 ranges');
   assert.equal(cells.Base, '58 days', 'from the day the box opened (index 2) through the last candle (index 59)');
@@ -108,15 +108,15 @@ test("the technical read's cells come from the reader's own read, never the old 
   assert.equal(cells['In box to SOS'], '38 of 40 days');
   assert.equal(cells.Hold, 'held');
   // The box's cells light the whole box on the chart, as the board's Box column did; the LPS cell does not.
-  const byKey = Object.fromEntries(twoEyesTechnicalCells(data, buildPhaseRegions(data)).map((c) => [c.k, c]));
+  const byKey = Object.fromEntries(alphaTechnicalCells(data, buildPhaseRegions(data)).map((c) => [c.k, c]));
   assert.equal(byKey.Box.region, 'b');
   assert.equal(byKey.Base.region, 'b');
   assert.equal(byKey.LPS.region, undefined);
   // With no SOS named the grade's count runs to the last day, and the label stops saying "to SOS".
   const quiet = scanRow({ events: [] });
-  const quietCells = Object.fromEntries(twoEyesTechnicalCells(quiet, buildPhaseRegions(quiet)).map((c) => [c.k, c.v]));
+  const quietCells = Object.fromEntries(alphaTechnicalCells(quiet, buildPhaseRegions(quiet)).map((c) => [c.k, c.v]));
   assert.equal(quietCells['In box'], '38 of 40 days');
   assert.equal(quietCells['In box to SOS'], undefined);
-  const noMini = scanRow({ boxes: [scanRow().two_eyes.boxes[0]] });
-  assert.equal(Object.fromEntries(twoEyesTechnicalCells(noMini, buildPhaseRegions(noMini)).map((c) => [c.k, c.v])).Mini, 'none');
+  const noMini = scanRow({ boxes: [scanRow().alpha.boxes[0]] });
+  assert.equal(Object.fromEntries(alphaTechnicalCells(noMini, buildPhaseRegions(noMini)).map((c) => [c.k, c.v])).Mini, 'none');
 });

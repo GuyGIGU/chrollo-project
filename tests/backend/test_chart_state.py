@@ -96,7 +96,7 @@ def test_the_word_and_the_lines_are_the_readers(monkeypatch):
                        state_days=3, close=float(frame["Close"].iloc[-1]))
 
     def two_eyes_chain(ticker, df, spy, breadth, *, watch=None, **_k):
-        watch.update(two_eyes=True, read=read, state=read.state)
+        watch.update(alpha=True, read=read, state=read.state)
         return None
 
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
@@ -137,7 +137,7 @@ def test_a_word_off_the_table_is_refused_loudly(monkeypatch):
     frame = _frame()
 
     def off_table(ticker, df, spy, breadth, *, watch=None, **_k):
-        watch.update(two_eyes=True, state="somewhere else")
+        watch.update(alpha=True, state="somewhere else")
         return None
 
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))
@@ -157,7 +157,7 @@ def test_a_word_with_no_box_carries_no_lines(monkeypatch):
                        state_days=None, close=float(frame["Close"].iloc[-1]))
 
     def boxless(ticker, df, spy, breadth, *, watch=None, **_k):
-        watch.update(two_eyes=True, read=read, state=read.state, why="no pair of swing ends became a box")
+        watch.update(alpha=True, read=read, state=read.state, why="no pair of swing ends became a box")
         return None
 
     monkeypatch.setattr(chart_state.watchlist_candles, "_serving_universe_and_frame", _serve(frame))

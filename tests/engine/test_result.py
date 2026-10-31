@@ -152,11 +152,11 @@ def test_every_two_eyes_fact_the_adapter_carries_is_a_column_the_archive_reads()
     dropped on the floor at write time. The first version did exactly that
     with four of them."""
     from engine_alpha.result import to_result
-    from engine_alpha.archive import TWO_EYES_COLUMN_SQL
+    from engine_alpha.archive import ALPHA_COLUMN_SQL
 
     carried = [k for k in to_result(_read_with_lines()) if k.startswith("_two_eyes_")]
     assert carried, "the adapter carries none of the new reader's own facts"
-    unread = [k for k in carried if k[1:] not in TWO_EYES_COLUMN_SQL]
+    unread = [k for k in carried if k[1:] not in ALPHA_COLUMN_SQL]
     assert not unread, f"no archive column reads {unread}"
 
 
@@ -177,7 +177,7 @@ def test_the_lps_pullback_volume_reaches_the_archive_on_the_reads_own_days():
     panel's one measure, and the archive family stores it; with no frame it is
     empty, never a made-up number."""
     from engine_alpha.result import to_result
-    from engine_alpha.archive import two_eyes_archive_values
+    from engine_alpha.archive import alpha_archive_values
 
     days = pd.bdate_range(end="2026-03-06", periods=260)
     lps_run = [600.0, 500.0, 400.0, 300.0, 200.0]  # Mon 02/03 to Fri 06/03, each day different
@@ -188,7 +188,7 @@ def test_the_lps_pullback_volume_reaches_the_archive_on_the_reads_own_days():
     # the last day alone would read 0.21, the 50-day window cut short another number.
     expected = round(400.0 / ((45 * 1000.0 + sum(lps_run)) / 50), 2)
     assert result["_two_eyes_lps_volume_ratio"] == expected
-    assert two_eyes_archive_values(result.get, prefixed=True)["two_eyes_lps_volume_ratio"] == expected
+    assert alpha_archive_values(result.get, prefixed=True)["two_eyes_lps_volume_ratio"] == expected
     assert to_result(_read_with_lines())["_two_eyes_lps_volume_ratio"] is None
 
 
@@ -222,8 +222,7 @@ def test_the_adapter_is_not_part_of_the_leaf():
 
     root = str(REPO_ROOT)
     assert os.path.exists(os.path.join(root, "engine_alpha", "result.py"))
-    assert not os.path.exists(
-        os.path.join(root, "engine_alpha", "two_eyes", "two_eyes_adapter.py"))
+    assert not os.path.exists(os.path.join(root, "engine_alpha", "two_eyes_adapter.py"))
 
 
 # --------------------------------------------------------------------------- #
@@ -238,12 +237,12 @@ def test_the_ruleset_string_is_hand_bumped_and_in_the_manifest():
     from config import settings
     from engine_alpha import stamp as manifest
 
-    assert isinstance(settings.TWO_EYES_RULESET, str)
-    assert settings.TWO_EYES_RULESET.strip()
+    assert isinstance(settings.ALPHA_RULESET, str)
+    assert settings.ALPHA_RULESET.strip()
     listed = manifest.manifest_inputs() if hasattr(manifest, "manifest_inputs") else None
     source = listed if listed is not None else open(manifest.__file__, encoding="utf-8").read()
-    assert "TWO_EYES_RULESET" in str(source)
-    assert "TWO_EYES_RULESET" in manifest.ENGINE_SETTINGS_KEYS
+    assert "ALPHA_RULESET" in str(source)
+    assert "ALPHA_RULESET" in manifest.ENGINE_SETTINGS_KEYS
 
 
 def test_bumping_the_ruleset_string_moves_the_version_stamp(monkeypatch):
@@ -253,12 +252,12 @@ def test_bumping_the_ruleset_string_moves_the_version_stamp(monkeypatch):
     from engine_alpha.stamp import manifest_hash
 
     before = manifest_hash()
-    monkeypatch.setattr(settings, "TWO_EYES_RULESET", "two-eyes-0.0.0-probe")
+    monkeypatch.setattr(settings, "ALPHA_RULESET", "two-eyes-0.0.0-probe")
     assert manifest_hash() != before
 
 
-#: Every TWO_EYES_RULESET string ever committed, oldest first (read from
-#: `git log --all -G'TWO_EYES_RULESET *=' -- config/`). The LAST one is the
+#: Every ALPHA_RULESET string ever committed, oldest first (read from
+#: `git log --all -G'ALPHA_RULESET *=' -- config/`). The LAST one is the
 #: string in config now. A string once used is spent: the stamp hashes the
 #: settings and not the reader's code, so a fixed reader re-flipped under a spent
 #: string would stamp its nights with the same version as the bad night it
@@ -292,6 +291,7 @@ SPENT_RULESETS = (
     "two-eyes-0.10.3-known-rails",
     "two-eyes-0.11.0-wrap-and-traits",
     "two-eyes-0.12.0-one-reader",
+    "alpha-0.13.0-the-tree",
 )
 
 
@@ -303,9 +303,9 @@ def test_a_ruleset_string_is_never_reused():
 
     assert len(set(SPENT_RULESETS)) == len(SPENT_RULESETS), (
         "a ruleset string is listed twice: a string once used is spent")
-    current = settings.TWO_EYES_RULESET
+    current = settings.ALPHA_RULESET
     assert current == SPENT_RULESETS[-1], (
-        f"TWO_EYES_RULESET is {current!r}. "
+        f"ALPHA_RULESET is {current!r}. "
         + (f"That string is SPENT (used before, at position {SPENT_RULESETS.index(current) + 1}); "
            "a re-flip must bump to a NEW string, or its nights share the bad night's stamp."
            if current in SPENT_RULESETS else

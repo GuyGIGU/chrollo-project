@@ -82,7 +82,7 @@ def _scan_row(ticker: str) -> dict:
     return {
         "Ticker": ticker, "Tier": "A", "Score": 100, "Setup": "LPS",
         "Current Price": 30.0, "_trigger_price": 30.5, "_R": 30.0, "_S": 25.0,
-        "_wire_two_eyes": {
+        "_wire_alpha": {
             "boxes": [{"role": "parent", "r": 30.0, "s": 25.0, "opened": days[-60], "end": None,
                        "r_day": days[-55], "s_day": days[-50]}],
             "lps": {"start": days[-5], "end": days[-1]},

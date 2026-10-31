@@ -16,7 +16,7 @@ const REGION_DEFS = {
   c: { label: 'C', name: PHASE_NAMES.c, detail: 'Support shakeout or test', token: '--accent-pink' },
   d: { label: 'D', name: PHASE_NAMES.d, detail: 'Right-side tightening range', token: '--accent-blue' },
   lps: { label: 'LPS', name: PHASE_NAMES.lps, detail: 'Last support-test zone', token: '--accent-yellow' },
-  // The two-eyes reader's own bands (Tue 13/10/2026): the mini, and each word of its story over its own days. Keys
+  // The alpha reader's own bands (Tue 13/10/2026): the mini, and each word of its story over its own days. Keys
   // of their own, so lighting the box never lights the mini or a word with it (the overlay matches id OR key).
   mini: { label: 'MINI', name: 'Mini', detail: 'The smaller box inside the setup', token: '--accent-purple' },
   story: { label: '•', name: 'Story', detail: 'A word of the story', token: '--text-faint' },
@@ -60,7 +60,7 @@ const indexOnOrAfter = (candles, rawDate) => {
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
-// --- the two-eyes reader's dated block (build task 15) ---
+// --- the alpha reader's dated block (build task 15) ---
 //
 // The wire carries the days and the resolved prices; this only finds each day's bar on the candles the SAME
 // artifact shipped (EC-38) and draws. A day survives any window, so the scan's card and the archive's chart, whose
@@ -78,8 +78,8 @@ export const locateDay = (candles, rawDate) => {
 
 // One box of the block, located: each line's anchor bar, the box's first bar and its last (the last candle while it
 // lives). Null when the block has no box of that role, its lines are not both there, or it ended before the window.
-export const twoEyesBox = (data, candles, role) => {
-  const box = (data?.two_eyes?.boxes || []).find((candidate) => candidate?.role === role);
+export const alphaBox = (data, candles, role) => {
+  const box = (data?.alpha?.boxes || []).find((candidate) => candidate?.role === role);
   const r = finiteNumber(box?.r);
   const s = finiteNumber(box?.s);
   if (!box || r == null || s == null || !candles?.length) return null;
@@ -246,10 +246,10 @@ const phaseIndexes = (data, candles) => ({
 // colour the IDENTICAL bars. Returns null when the engine emitted no anchor pair.
 export const rootSwingRange = (data, candles) => {
   if (!candles?.length) return null;
-  if (data?.two_eyes) {
-    // The two-eyes reader's own pair: the bars between the day each line was anchored. Its block is the only
+  if (data?.alpha) {
+    // The alpha reader's own pair: the bars between the day each line was anchored. Its block is the only
     // source on such a row (the old bar offsets are not carried, and never read here).
-    const parent = twoEyesBox(data, candles, 'parent');
+    const parent = alphaBox(data, candles, 'parent');
     if (!parent) return null;
     return { startIndex: Math.min(parent.rIndex, parent.sIndex), endIndex: Math.max(parent.rIndex, parent.sIndex) };
   }
@@ -347,10 +347,10 @@ const storyRegion = (data, candles, event) => {
   });
 };
 
-// A two-eyes row's bands: its box from the day it opened, its mini (when it has one) inside its own lines, each word
+// A alpha row's bands: its box from the day it opened, its mini (when it has one) inside its own lines, each word
 // of its story over its own days, and its LPS over its own days (the band spans those bars' own lowest low and
 // highest high). The old engine's phases are not carried on such a row.
-const twoEyesRegions = (data, candles) => {
+const alphaRegions = (data, candles) => {
   const regions = [];
   // The root swing the box stands on (the climax to the reaction low: the grey bars) as the 'a' band, so the
   // board's Phase A lights the swing alone and not the whole box (Fri 17/10/2026, his nit).
@@ -359,22 +359,22 @@ const twoEyesRegions = (data, candles) => {
     const region = buildRegion('a', candles, root.startIndex, root.endIndex, { detail: 'The root swing the box stands on' });
     if (region) regions.push(region);
   }
-  const parent = twoEyesBox(data, candles, 'parent');
+  const parent = alphaBox(data, candles, 'parent');
   if (parent) {
     const region = buildRegion('b', candles, parent.openIndex, setupEndIndex(data, candles), { range: 'setupBox' });
     if (region) regions.push(region);
   }
-  const mini = twoEyesBox(data, candles, 'mini');
+  const mini = alphaBox(data, candles, 'mini');
   if (mini) {
     const region = buildRegion('mini', candles, mini.openIndex, setupEndIndex(data, candles),
       { high: mini.r, low: mini.s });
     if (region) regions.push(region);
   }
-  for (const event of data.two_eyes.events || []) {
+  for (const event of data.alpha.events || []) {
     const region = storyRegion(data, candles, event);
     if (region) regions.push(region);
   }
-  const lps = data.two_eyes.lps;
+  const lps = data.alpha.lps;
   const start = locateDay(candles, lps?.start);
   const end = locateDay(candles, lps?.end);
   const span = start != null && end != null ? priceRangeForBars(candles, start, end) : null;
@@ -393,7 +393,7 @@ const twoEyesRegions = (data, candles) => {
 export const buildPhaseRegions = (data) => {
   const candles = data?.candles || [];
   if (candles.length === 0) return [];
-  if (data?.two_eyes) return twoEyesRegions(data, candles);
+  if (data?.alpha) return alphaRegions(data, candles);
 
   const indexes = phaseIndexes(data, candles);
   const baseEnd = setupEndIndex(data, candles);

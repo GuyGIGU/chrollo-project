@@ -1,4 +1,4 @@
-// One off-scan card's chart state, as a value keyed by its ticker (build task 15 of the two-eyes reader).
+// One off-scan card's chart state, as a value keyed by its ticker (build task 15 of the alpha reader).
 //
 // The engine's ONE state word for a chart the scan did not list arrives from `/screener-data/state/<ticker>`,
 // already resolved (EC-28): "not scanned" with the door's leg and its distance in ranges, or the lines and their
