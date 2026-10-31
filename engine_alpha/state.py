@@ -1,24 +1,9 @@
-"""The state word: the ONE word a chart carries on the screen, decided last (build task 12b, step 7).
+"""The state word: the ONE word a chart carries on the screen, decided last and in its own guard.
 
-The ten words are one closed table (``record.STATE_WORDS``). Who says which:
-
-  not scanned                 the door, before any read (his "lets go with not scanned")
-  fired, crossed              the LPS stage, and they are FINAL: nothing here may retype them. An LPS over
-                              resistance fires (his ANRO: "its an LPS above Resistance that fires"), so the right
-                              edge is read only when there is no fire and no cross
-  lines, no LPS yet           a box is shown and the last bars still trade at it
-  beyond R, undetermined      a box is shown and the last bars sit WHOLLY over its resistance area
-  under S, undetermined       ... wholly under its support area. His sentence for the open right edge: "The bars
-                              after wards determine the meaning" (Sun 30/08/2026)
-  forming N of 15             no box is shown, and a pair of lines the bars have already come back to is
-                              younger than his fifteen days ("Lets go with 15 days"); N rides beside the word
-  no lines                    none of the above
-  root candidate, unconfirmed
-  broke down                  on the table and never said by this reader: both were typed off a box-end reader
-                              that is gone; a box now ends only into a newer box
-
-All of it is OURS but the sentences quoted. The word is derived from the read; nothing that decides a fire reads
-it, and ``read`` runs this inside its own guard: a state that cannot be decided leaves the LPS's word standing.
+The ten words are one closed table (``record.STATE_WORDS``); ``not scanned`` is the gate's, ``fired`` and ``crossed``
+the LPS stage's and FINAL. With a box the right edge is read: ``lines, no LPS yet`` while the last bar still trades
+at it, ``beyond R`` / ``under S`` once it sits wholly past a rail's area, the run's length beside the word. With no
+box a young pair the bars came back to is ``forming N of 15``, else ``no lines``; two words of the ten are never said.
 """
 from __future__ import annotations
 
@@ -33,8 +18,7 @@ STAGE = "state"
 
 def side(high: float, low: float, R: float, S: float, area: float) -> Optional[str]:
     """Where ONE day's bar sits against a box: ``BEYOND_R`` when its low is over the resistance area, ``UNDER_S``
-    when its high is under the support area, None while any of it still reaches the box or its areas. The one
-    judgment of "the price has run on past the box"; the boards read it too."""
+    when its high is under the support area, None while any of it still reaches the box or its areas."""
     if low > R + area:
         return BEYOND_R
     if high < S - area:

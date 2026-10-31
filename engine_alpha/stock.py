@@ -12,12 +12,8 @@ from engine_alpha.chart import NYSE_BUSINESS_DAY
 
 
 def adr_pct(df, window: int = 20) -> float:
-    """Average Daily Range % over the last ``window`` bars.
-
-    Qullamaggie ADR%: 100 * (SMA(High / Low) - 1). Returns a plain percent
-    such as 6.2 for 6.2%. Degenerate, insufficient, or non-finite input returns
-    0.0 so dashboard/archive JSON never receives NaN/Inf from this metric.
-    """
+    """Average Daily Range % over the last ``window`` bars: 100 * (SMA(High / Low) - 1), a plain percent such as 6.2;
+    0.0 on degenerate or non-finite input, so no JSON ever receives NaN."""
     try:
         if df is None or len(df) < window:
             return 0.0
@@ -41,13 +37,8 @@ def adr_pct(df, window: int = 20) -> float:
         return 0.0
 
 def distance_to_52w_high_pct(high, current_price, lookback: int = 252):
-    """Fraction the current price sits below its trailing ``lookback``-bar high
-    (e.g. -0.07 = 7% below the 52-week high); ``None`` when there is no valid high.
-
-    One measurement shared by the fire's trend read and the health-board classifier, so the drawdown
-    basis can never drift between them. A degenerate window (empty, non-positive, or all-NaN max)
-    yields ``None`` rather than ``NaN``: the guard is ``not (max_high > 0)`` so a NaN max takes the
-    ``None`` branch."""
+    """The fraction the current price sits below its trailing ``lookback``-bar high (-0.07 = 7% below); ``None`` with no
+    valid high (the guard is ``not (max_high > 0)``, so a NaN max takes the ``None`` branch)."""
     window = high.iloc[-min(lookback, len(high)):]
     max_high = float(window.max()) if len(window) else 0.0
     if not (max_high > 0):
@@ -55,25 +46,8 @@ def distance_to_52w_high_pct(high, current_price, lookback: int = 252):
     return (float(current_price) - max_high) / max_high
 
 def trend_template(df, *, dist_52w_high_pct=None) -> dict:
-    """Minervini Stage-2 trend-template criteria (measure-only, no opinion).
-
-    The classic price/structure template, computed self-contained from df:
-      1. price > SMA_150 and price > SMA_200
-      2. SMA_150 > SMA_200
-      3. SMA_200 trending up over the last ~1 month (21 bars)
-      4. SMA_50 > SMA_150 > SMA_200
-      5. price > SMA_50
-      6. price >= 30% above the 52-week low
-      7. price within 25% of the 52-week high
-
-    Minervini's 8th criterion (RS rating >= 70, a universe percentile) is
-    deliberately omitted — Chrollo measures relative strength SPY-relatively
-    elsewhere and does not compute a universe rank — so the pass count is out
-    of 7 and ``stage2_trend_pass`` means all 7.
-
-    Returns a JSON-safe dict (un-prefixed keys). Every field is None/False-safe
-    on insufficient (< 200 bars) or non-finite input — never raises, never NaN.
-    """
+    """Minervini's Stage-2 trend template, seven criteria measured on ``df`` (the RS-rating eighth is left out): a
+    JSON-safe dict, None/False-safe under 200 bars or on non-finite input, never raising."""
     empty = {
         "stage2_ma_stack_pass": False,
         "stage2_ma200_slope_1m_pct": None,
@@ -104,7 +78,6 @@ def trend_template(df, *, dist_52w_high_pct=None) -> dict:
                 if not np.isfinite(slope_pct):
                     slope_pct = None
 
-        # 52-week low distance (fraction above the 252-bar low).
         low_252 = float(df["Low"].iloc[-min(252, n):].min())
         low_pct = ((price - low_252) / low_252) if (np.isfinite(low_252) and low_252 > 0) else None
 
@@ -131,19 +104,15 @@ _AGG = {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume":
 _RULE = {"weekly": "W-FRI", "monthly": "ME"}
 
 def resample_ohlc(df: pd.DataFrame, tf: str) -> Optional[pd.DataFrame]:
-    """Resample a daily OHLCV frame to weekly (``W-FRI``) or monthly (``ME``).
-
-    Keeps the latest (still-forming) period as the final bar. Returns None on
-    an unusable frame.
-    """
+    """Resample a daily OHLCV frame to weekly (``W-FRI``) or monthly (``ME``), the forming period kept as the last bar;
+    None on an unusable frame."""
     rule = _RULE.get(tf)
     if rule is None:
         raise ValueError(f"unknown timeframe {tf!r}")
     if df is None or len(df) == 0:
         return None
     if not isinstance(df.index, pd.DatetimeIndex):
-        # Only coerce a genuinely date-like (string/object) index. A numeric index
-        # would be silently epoch-coerced into 1970 and collapse every bar — skip it.
+        # Only a date-like (object) index is coerced: a numeric one would be epoch-coerced into 1970.
         if df.index.dtype != object:
             return None
         try:
@@ -171,9 +140,8 @@ def _empty() -> dict:
     return {key: None for key in STAGE_FACTS}
 
 def completed_weeks(daily: pd.DataFrame) -> pd.DataFrame:
-    """The daily frame's weekly bars (weeks ending Friday: the week's high, low and last close), the forming week
-    left out. The frame's last row is the read day; its week is complete when the next trading session falls in
-    a later week, so a week whose Friday is a holiday is complete on its Thursday."""
+    """The daily frame's weekly bars (weeks ending Friday), the forming week left out: a week is complete when the next
+    trading session falls in a later week, so a week whose Friday is a holiday is complete on its Thursday."""
     index = pd.DatetimeIndex(daily.index)
     if index.tz is not None:
         index = index.tz_localize(None)
@@ -215,9 +183,8 @@ def stages(weeks: pd.DataFrame) -> list:
     return out
 
 def advance_start(weeks: pd.DataFrame, upto: int):
-    """The position of the week the advance began, as of the completed week ``upto``: the week after the last
-    weekly close under a 40-week average that is not rising (the count rule of 12/10/2026). None when no such
-    close sits in the weeks read; ``upto + 1`` when the week read itself closed under one (no advance yet)."""
+    """The position of the week the advance began, as of the completed week ``upto``: the week after the last weekly
+    close under a 40-week average not rising; None with no such close, ``upto + 1`` when the week read closed under one."""
     close = weeks["Close"].to_numpy(float)
     average = weeks["Close"].rolling(int(M.STAGE_MA_WEEKS)).mean().to_numpy(float)
     start = None
@@ -228,11 +195,8 @@ def advance_start(weeks: pd.DataFrame, upto: int):
     return start
 
 def read_stage(daily: pd.DataFrame) -> dict:
-    """The stage read of one stock as of its frame's last day: ``cycle_stage`` (1 to 4), ``advance_start`` (the
-    Friday of the week the current stage-2 advance began, ISO) and ``advance_weeks`` (completed weeks from that week
-    to the week read, both counted), each None when not measured; the advance only in stage 2. Read the whole frame
-    the scan holds (five years), never the reader's two-year window: a stage and an advance run for years. Never
-    raises: a stock fact never costs a fire."""
+    """The stage read of one stock on its frame's last day: ``cycle_stage`` (1 to 4), ``advance_start`` (ISO Friday) and
+    ``advance_weeks``, each None when not measured; read on the whole frame, never the two-year window; never raises."""
     out = _empty()
     try:
         weeks = completed_weeks(daily)

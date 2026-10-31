@@ -1,9 +1,5 @@
-"""Adapt the two-eyes ``Read`` to the scan, archive and screen result contract.
-
-This adapter stays outside the reader's leaf package so that it can know the
-legacy result shape. A fire returns a complete result dict, a chart without
-a setup returns ``None``, and a failed read returns ``EVAL_ERROR``. A failure
-must never appear as a chart with no lines.
+"""The alpha reader's ``Read`` as the scan's result row, the archive columns and the screen block: a fire is a whole
+result dict, a chart without a setup is ``None``, a failed read is ``EVAL_ERROR`` and never a chart with no lines.
 """
 from __future__ import annotations
 
@@ -18,13 +14,8 @@ from engine_alpha.record import STATE_WORDS as WATCH_WIRE_STATES
 from engine_alpha.record import NO_LINES, READ_FAILED, SPRING, Read, Step
 from engine_alpha.archive import SCREEN_KEY, alpha_archive_values, alpha_screen_boxes, volume_vs_50d
 
-#: Keys downstream reads with square brackets — a missing one is a KeyError in
-#: the middle of a night's write, not a None in a column. A fire row is whole
-#: in these or it is not a row. Surveyed, not guessed: the display names are
-#: indexed by `core/pipeline/screening/terminal.py` and `core/pipeline/screening/dashboard.py`, the underscored
-#: ones by the dashboard payload, the harness and the yardstick, and the seed
-#: path re-keys `_base_len`, `_lps_len`, `_r_anchor_bar` and `_s_anchor_bar`
-#: into the archive's own column names.
+#: Keys downstream indexes with square brackets (the terminal and dashboard writers, the payload, the seed path):
+#: a fire row is whole in these or it is not a row.
 REQUIRED_KEYS = (
     "Ticker", "Tier", "Setup", "Score", "Current Price",
     "Base Len", "Box Width", "Touches", "ATR Ratio", "LPS Length",
@@ -35,37 +26,21 @@ REQUIRED_KEYS = (
     "_ta_grade", "_ta_grade_raw",
 )
 
-#: Keys downstream reads with ``.get()``. Their absence is not a crash — it is
-#: worse, because nothing says anything: a computation quietly produces
-#: nothing at all. The archive's sector-RS enrichment reads the base window
-#: this way (`core/archive/writer.py`), so a fire row without these dates is
-#: written with its RS-vs-sector column silently empty. The box knows its own
-#: days, so it can say them.
+#: Keys downstream reads with ``.get()``: the archive's sector-RS enrichment goes silently empty without them.
 SILENTLY_LOST_KEYS = ("_base_date_start", "_base_date_end")
 
-#: Columns that are whole numbers by contract WHEN MEASURED. A float here is
-#: stored and then compared against an int forever after; an unmeasured one is
-#: None, never 0.
+#: Columns that are whole numbers WHEN MEASURED; an unmeasured one is None, never 0.
 WHOLE_NUMBER_KEYS = ("Base Len", "Touches", "LPS Length", "Breach Days",
                      "_base_len", "_lps_len", "_lps_offset",
                      "_r_anchor_bar", "_s_anchor_bar",
                      "_r_touches", "_s_touches")
 
-#: The screen's vocabulary — HIS ten words, borrowed from the one place that
-#: owns them rather than copied. A second copy of a closed set is how two
-#: parts of a system come to disagree about what a word means, and the
-#: publisher raises on anything off the table.
+#: The screen's vocabulary: his ten words, borrowed from the record, never copied.
 STATE_WORDS = WATCH_WIRE_STATES
 
 
 def to_state(read: Read) -> str:
-    """The one word the screen shows for this read.
-
-    A crashed read's own word (`READ_FAILED`) is NOT on his ten-word table and
-    must never cross: the publisher raises on an unknown word. It does not
-    need to, because a crashed read leaves here as the counted-failure
-    sentinel long before a word is asked for — this only guards the seam.
-    """
+    """The one word the screen shows for this read; a crashed read's own word is not on his table and never crosses."""
     if read.failed:
         return READ_FAILED
     if read.state not in STATE_WORDS:
@@ -76,13 +51,8 @@ def to_state(read: Read) -> str:
 
 
 def stock_trend(frame) -> dict:
-    """The stock's trend template, measured by the shared legacy functions.
-
-    Not the setup's: it reads the stock, not the box, so a fire carries it whichever reader fired. Read by the old
-    chain's OWN functions on the old chain's OWN frame (EC-3): ``frame`` is what the universe door admitted, cut to
-    the daily window as ``evaluation._prepare_eval_frame_with_reason`` cuts it, the 52-week-high distance taken at
-    its last close, then ``trend_template``. Under the archive's names (``_stage2_*``), exactly the old row's keys.
-    """
+    """The stock's trend template, not the box's: the frame the door admitted, cut to the daily window, under the
+    archive's ``_stage2_*`` names."""
     from engine_alpha.chart import _trim_to_period
     from engine_alpha.stock import distance_to_52w_high_pct, trend_template
 
@@ -94,13 +64,7 @@ def stock_trend(frame) -> dict:
 
 
 def stock_adr(frame) -> dict:
-    """The stock's ADR%, its average daily range: the archive's volatility column (the edge reads split fires into
-    ADR thirds) and the ADR cell of the big chart's leadership grid.
-
-    The stock's, not the setup's, read as :func:`stock_trend` reads the trend: the old chain's OWN ``adr_pct`` over
-    ``ADR_WINDOW`` days of the old chain's OWN frame (EC-3, one formula), so a chart both readers fire carries one
-    ADR, under the old row's key (``_adr_pct``). Carried, never graded: the new reader's grade reads no ADR.
-    """
+    """The stock's ADR% over ``ADR_WINDOW`` days of the daily window, under ``_adr_pct``: carried, never graded."""
     from engine_alpha.chart import _trim_to_period
     from engine_alpha.stock import adr_pct
 
@@ -109,29 +73,21 @@ def stock_adr(frame) -> dict:
 
 
 def stock_stage(frame) -> dict:
-    """The stock's life-cycle stage on its weekly chart and the week its advance began (the stage read, Fri
-    16/10/2026), the leadership read's other half: the stock, not the box. Read on the WHOLE frame the universe
-    door admitted (the cache's five years), never cut to the reader's two years, because a stage and an advance
-    run for years. Under the archive's names (``engine_alpha/stock.py``)."""
+    """The stock's weekly stage and the week its advance began, read on the WHOLE frame (a stage runs for years), under
+    the archive's names."""
     from engine_alpha.stock import read_stage
 
     return {f"_{key}": value for key, value in read_stage(frame).items()}
 
 
 def _spring_day(read: Read) -> Optional[str]:
-    """The day of the new reader's own spring (its tip), or None: the screen reads the volume at that key point on
-    it. Its story names one spring at most."""
+    """The day of the reader's own spring (its tip), or None; the screen reads the volume at that key point."""
     return next((event.day.isoformat() for event in read.events if event.kind == SPRING), None)
 
 
 def graded_read(read: Read, frame=None, stage=None) -> Read:
-    """Compose the trait grade once, outside the chart-reading leaf: the letter the integrity grade's, the score
-    placed within the letter by his traits (`engine_alpha/grade.py`). The weekly stage is one of them:
-    given as ``stage`` (the row's own read), else read off the stock's whole ``frame``; a stage that cannot be read
-    leaves its row unmeasured and costs no other trait.
-
-    A grade never costs a fire: if composing fails, the integrity grade stands and the trail says why.
-    """
+    """Compose the trait grade once: the letter the integrity grade's, the score placed within it by his traits, the weekly
+    stage given as ``stage`` or read off ``frame``. A grade never costs a fire: if composing fails, the integrity grade stands."""
     grade = read.grade
     if grade is None or not grade.clarity or grade.clarity.get("method"):
         return read
@@ -156,63 +112,36 @@ def graded_read(read: Read, frame=None, stage=None) -> Read:
 
 
 def to_result(read: Read, frame=None):
-    """A ``Read`` as the old engine's three answers.
-
-    Returns ``EVAL_ERROR`` for a failed read, ``None`` for no setup, or a whole
-    result dict for a fire. ``frame``, when given, is the chart the universe
-    door admitted: a fire then carries the stock's trend template
-    (:func:`stock_trend`) and its ADR (:func:`stock_adr`), as an old-reader
-    fire does, and its stage read (:func:`stock_stage`), which an old-reader
-    fire does not carry.
-    """
+    """A ``Read`` as the scan's three answers: ``EVAL_ERROR`` for a failed read, ``None`` for no setup, a whole result
+    dict for a fire; with ``frame`` (the chart the door admitted) the fire carries the stock's trend, ADR and stage too."""
     if read.failed:
         return EVAL_ERROR
     if not read.fired:
         return None
 
-    # The stock's own reads, once: the trend template, its ADR and its weekly stage ride the row, and the stage
-    # is one of the grade's traits.
+    # The stock's own reads, once; the stage is one of the grade's traits.
     stock = {} if frame is None else {**stock_trend(frame), **stock_adr(frame), **stock_stage(frame)}
     read = graded_read(read, stage=stock.get("_cycle_stage"))
     box, lps, grade = read.parent, read.lps, read.grade
-    # The grade's number, rounded ONCE to the wire's grade precision (one
-    # decimal): the score, `_ta_grade` and the block all carry this one
-    # number, so the list's chip, the story panel and the archive cannot
-    # disagree.
+    # Rounded ONCE to the wire's grade precision: the score, _ta_grade and the block carry this one number.
     score = round(float(grade.score), 1) if grade is not None else None
     base_end = box.end_day or read.as_of
     result = {
         "Ticker": read.ticker,
-        # EMPTY, not zero, for everything this reader does not measure yet —
-        # and empty, not a different quantity, for a column whose meaning on
-        # every old-reader row this reader does not share. A number stored in
-        # either shape is indistinguishable from a measured one forever after.
-        #
-        # Only this reader's grade decides the tier and 0-100 score; the
-        # legacy tier caps do not run here. If grading fails, the fire stays:
-        # an empty tier identifies the 0.0 placeholder required by the score
-        # column. The screen charts lettered tiers only.
+        # The grade's letter; "" when grading fell over (the screen charts lettered tiers only).
         "Tier": grade.letter if grade is not None else "",
-        # The SETUP TYPE — LPS / REBOUND on every old-reader row — not the
-        # screen's state word, which is a different vocabulary and rides the
-        # watch sink to the screen. A fire of this reader is a box and its
-        # last receding run: an LPS setup.
+        # The setup TYPE, not the screen's state word: a box and its last receding run is an LPS setup.
         "Setup": "LPS",
         "Score": score if score is not None else 0.0,
-        # The read day's real close. The resistance line stood in here once,
-        # and the forward-returns backfill scales every trigger by this price.
+        # The read day's real close; the forward-returns backfill scales every trigger by it.
         "Current Price": round(float(read.close), 2) if read.close is not None else None,
-        # This column counts trading bars on legacy rows. Leave it empty
-        # rather than substitute a calendar-day duration.
+        # The old columns this reader does not measure stay EMPTY, never zero: downstream indexes the keys.
         "Base Len": None,
-        # The box's height as a fraction of its support — the column's own
-        # definition on every old-reader row — so this one IS measured.
+        # The box's height as a fraction of its support, the column's own definition: measured.
         "Box Width": float((box.resistance.price - box.support.price)
                            / box.support.price),
         "Touches": None,
-        # The ten-day over fifty-day range squeeze, which this reader does not
-        # measure. The box's height in daily ranges is a different number,
-        # and it lives in the family's own daily-range column.
+        # The ten-over-fifty-day range squeeze, not the box's height in ranges.
         "ATR Ratio": None,
         "LPS Length": None,
         "Breach Days": None,
@@ -221,17 +150,10 @@ def to_result(read: Read, frame=None):
         "_trigger_price": float(lps.trigger_price),
         "_phase_b_start_date": box.opened_day.isoformat(),
         "_lps_zone_end_date": lps.end_day.isoformat(),
-        # The base window, for the archive's sector-RS enrichment. It reads
-        # these with `.get()`, so leaving them out costs no error and voids
-        # the computation instead. Its other two inputs are the base's first
-        # and last CLOSE, which this record does not carry — so RS-vs-sector
-        # stays empty on a two-eyes row until it does. Said out loud rather
-        # than filled with a zero, which would be a made-up price.
+        # The base window for the archive's sector-RS enrichment, read with .get(): absent, it would void silently.
         "_base_date_start": box.opened_day.isoformat(),
         "_base_date_end": base_end.isoformat() if base_end else None,
-        # The seed path re-keys these into the archive's own column names
-        # (`_base_len` -> base_length, `_r_anchor_bar` -> r_anchor, …), so a
-        # fire row without them writes NULLs into columns the scan fills.
+        # The seed path re-keys these into the archive's own columns, so the keys must exist.
         "_base_len": None,
         "_lps_len": None,
         "_lps_offset": None,
@@ -241,34 +163,19 @@ def to_result(read: Read, frame=None):
         "_s_touches": None,
         "_vol_contraction": None,
         "_tightness_ratio": None,
-        # The 0-100 grade the screen shows beside the letter and the scan
-        # sorts by: the new grade's score on the same 0-100 scale; the engine
-        # version tells the two readers' rows apart. None when the grade fell over — "not
-        # measured", stored empty — but the KEY must exist, because the scan
-        # sorts its results by this column. The old grade's raw sum and its
-        # chapters are not this reader's: empty, never the score again.
+        # The 0-100 score the screen shows and the scan sorts by: None when the grade fell over, but the KEY must exist.
         "_ta_grade": score,
         "_ta_grade_raw": None,
-        # What the old engine has no word for, carried so the new reader's own
-        # facts survive the crossing rather than being rebuilt from prices —
-        # under the archive family's OWN names. A first version spoke names
-        # of its own, so a real fire filled 2 of the family's 16 columns and
-        # every producer-level test still passed.
+        # The reader's own facts under the archive family's OWN names, so they survive the crossing.
         **_box_family("parent", box),
         **_box_family("mini", read.mini),
         "_two_eyes_lps_read_against": lps.read_against,
-        # The new reader LOOKED, so this is 1 or 0 and never empty: empty is
-        # kept for rows written by a reader that never looked.
+        # The reader LOOKED: 1 or 0, never empty (empty is a row written by a reader that never looked).
         "_two_eyes_has_mini": read.mini is not None,
         "_two_eyes_clarity_json": json.dumps(grade.clarity, allow_nan=False) if grade and grade.clarity else None,
-        # The screen's volume at key points reads the
-        # LPS pullback on the block's own days and the spring on this one;
-        # never the old reader's spring (`_bin_c_event_date`). No archive
-        # column reads it: the archive family stores no event.
+        # The screen's volume at key points reads the spring on this day; no archive column reads it.
         "_spring_date": _spring_day(read),
-        # The LPS pullback's volume against the 50-day average, on the block's
-        # own days, by the panel's one measure: an archive fact (his word Mon
-        # 12/10/2026, option A), empty when the frame is not there to read.
+        # The LPS pullback's volume against the 50-day average on the block's own days: an archive fact.
         "_two_eyes_lps_volume_ratio": None if frame is None else volume_vs_50d(
             frame, lps.end_day.isoformat(), first_day=lps.start_day.isoformat()),
         **stock,
@@ -284,9 +191,8 @@ def to_result(read: Read, frame=None):
 
 
 def _wire_block(read: Read, result: dict) -> dict:
-    """The screen's block for a two-eyes fire: days and resolved prices, nothing for the browser to
-    work out. The boxes are the archive family's own, through its one shaper, so the scan's card and the archive's
-    chart of the same row draw the same lines; the LPS, the state word, the grade and the story are the record's."""
+    """The screen's block for a fire: days and resolved prices, nothing for the browser to work out; the boxes through
+    the archive family's one shaper, so the scan's card and the archive's chart draw the same lines."""
     lps, grade = read.lps, read.grade
     return {
         "boxes": alpha_screen_boxes(alpha_archive_values(result.get, prefixed=True)),
@@ -300,17 +206,13 @@ def _wire_block(read: Read, result: dict) -> dict:
             "score": result["_ta_grade"], "letter": grade.letter,
             **({"clarity": grade.clarity} if grade.clarity is not None else {}),
             "empty_days": int(grade.empty_days), "base_days": int(grade.base_days), "holds": bool(grade.holds)},
-        # The story the grade panel tells left to right (Tue 13/10/2026, his "the Grade section ... is completely
-        # broken"): every word the reader named on the box shown, oldest first. Scan-only: the archive keeps no
-        # event, so the archive's chart of the same row says it has no story rather than an empty one.
+        # Every word the reader named on the box shown, oldest first; scan-only, the archive keeps no event.
         "events": [_wire_event(event) for event in read.events],
     }
 
 
 def _wire_event(event) -> dict:
-    """One word of the story as the screen reads it: the word, the day it points at and the price there, the first
-    and last day of the swing that makes it, its size in the daily ranges the words are read in, whether it has
-    settled, and the reader's own note (what opened the right side; an SOS no LPS follows yet)."""
+    """One word of the story as the screen reads it: the word, its day and price, its swing's days, its size, settled or not, the note."""
     def day(value):
         return None if value is None else value.isoformat()
     return {"kind": event.kind, "day": event.day.isoformat(), "price": float(event.price),
@@ -320,10 +222,7 @@ def _wire_event(event) -> dict:
 
 
 def _box_family(role: str, box) -> dict:
-    """One box as the archive family's keys (`engine_alpha/archive.py`
-    reads them as ``_two_eyes_<role>_<part>``). No box, no keys — the family
-    then stores that half as empty, which is the truth for a setup whose
-    reader found no mini."""
+    """One box as the archive family's ``_two_eyes_<role>_<part>`` keys; no box, no keys (that half is stored empty)."""
     if box is None:
         return {}
     return {
@@ -338,26 +237,17 @@ def _box_family(role: str, box) -> dict:
 
 
 def fill_watch(read: Read, watch: Optional[dict]) -> None:
-    """Put the new reader's read into the watch sink the screen reads.
-
-    The chart-state page types its state word off the ONE paying read rather
-    than walking the chart a second time, so the sink has to carry the word.
-    """
+    """Put the read into the watch sink the screen reads: the chart-state page types its state word off this one read."""
     if watch is None:
         return
     watch["alpha"] = True
-    # The record itself, for a board or a page that wants the lines and the
-    # LPS of a read that did not fire without reading the chart a second time.
+    # The record itself, for a page that wants the lines of a read that did not fire.
     watch["read"] = read
     if read.failed:
-        # A crashed read leaves NOTHING here. Its own word is not on his
-        # table, and a bare `why` is worse than silence: the page's verdict
-        # falls through to "no lines" and shows a broken read as a chart that
-        # simply has none. The caller gets the sentinel instead.
+        # A crashed read leaves no word: its own is not on his table, and a bare why would read as "no lines".
         watch["failed"] = True
         watch["refusal"] = read.refusal
         return
-    # Only a word from his table may go in here: the publisher raises on an
-    # unknown one.
+    # Only a word from his table may go in here: the publisher raises on an unknown one.
     if read.state in STATE_WORDS:
         watch["state"] = read.state

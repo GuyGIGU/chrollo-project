@@ -14,9 +14,7 @@ import math
 
 
 STAGE = "grade"
-#: The named events whose own swing is story, never empty (his 13/09/2026). "Forgiven" is the build's word: each event
-#: is a piece of the setup that makes the box stronger, never a fault let pass (his 09/10/2026), so its swing's days are
-#: the box's own. Phase D is a day: it forgives nothing.
+#: The named events whose own swing is story, never empty; Phase D is a day and forgives nothing.
 FORGIVEN = (SPRING, SPRING_TEST, UPTHRUST, LAST_SUPPER, SOS)
 
 def ending_sos(events, days: list, opening_bar: int):
@@ -42,8 +40,7 @@ def letter(score: float) -> str:
     return "S" if score >= M.GRADE_S else "A" if score >= M.GRADE_A else "B" if score >= M.GRADE_B else "C"
 
 def whole_points(raw: float) -> float:
-    """The score read to the whole point, half up: the one number every surface shows and the letter is cut on (cut
-    on the raw score, a 74.55 showed "75" beside an A: verify-15b)."""
+    """The score read to the whole point, half up: the one number every surface shows and the letter is cut on."""
     return float(np.floor(raw + 0.5))
 
 def read(high, low, days, turns, events, *, R: float, S: float, unit: float, opening_bar: int,
@@ -81,12 +78,8 @@ def could_not_be_read(exc: BaseException) -> tuple:
 
 
 def contraction(high, low, opening_bar: int, end: int, read_bar: int):
-    """The right side's contraction, his VCP eye (Thu 29/10/2026, "right-side contraction = strength"). The RIGHT
-    SIDE is the bars after the base — from THE SOS's push to the read day — and its mean daily range is set against
-    the base's (``end`` is the base's last day); with no right side of three days yet, the base's own last third
-    against its earlier two thirds. A ratio: 0.5, the bars halved; 1.0, no tighter. None when there are fewer than
-    six bars to compare or the earlier ranges are nil (review 2026-10-29: the first cut read the base's last third
-    only, never the right side)."""
+    """The right side's contraction: the mean daily range of the bars after the base (``end`` its last day) against the
+    base's; with no right side of three days yet, the base's last third against its first two. None under six bars."""
     ranges = np.asarray(high, dtype=float) - np.asarray(low, dtype=float)
     if read_bar - end >= 3:
         early, late = ranges[opening_bar:end + 1], ranges[end + 1:read_bar + 1]
@@ -103,14 +96,8 @@ def contraction(high, low, opening_bar: int, end: int, read_bar: int):
 
 def measure(line, events, days, *, R: float, S: float, opening_bar: int, read_bar: int, high=None, low=None,
             unit=None) -> dict:
-    """Facts only, on the grade's base and the already-built fine/far swing line.
-
-    Travel uses identical fine-line endpoints. Rail distances use the box height;
-    a spring's below-support valley or upthrust's above-resistance peak belongs
-    to its event only within that event's own, already-known swing. With the bars
-    and the box's frozen daily range given, the box's height in its own ranges
-    (his tightness) and the right side's contraction join the facts.
-    """
+    """Facts only, on the grade's base and the built swing line: travel on identical fine-line endpoints, rail distances
+    in box heights (a named spring or upthrust turn excused within its own swing), the height in ranges, the contraction."""
     days = list(days)
     sos = ending_sos(events, days, opening_bar)
     end = days.index(sos.first_day) - 1 if sos is not None else read_bar
@@ -211,10 +198,7 @@ def trait_rows(integrity, facts: dict, stage=None) -> list:
     return out
 
 def compose_grade(integrity, facts: dict, stage=None):
-    """The letter is the integrity grade's; the traits place the score inside the letter's band.
-
-    A base that did not hold stays at 0. With no measured trait the integrity score stands.
-    """
+    """The letter is the integrity grade's; the traits place the score in its band; a base that did not hold stays at 0."""
 
     components = trait_rows(integrity, facts, stage)
     budget = sum(c["max_points"] for c in components if c["fraction"] is not None)

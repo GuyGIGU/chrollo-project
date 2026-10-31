@@ -1,31 +1,7 @@
-"""The two-eyes reader's archive column family — ONE producer, three writers.
-
-Task 6 of the two-eyes-reader build. The old engine stores a setup's geometry
-as a price pair plus BAR OFFSETS into the frame it was read from. That works
-for exactly as long as the frame does: once the two-year window slides past
-the base, the offsets point at nothing and the drawing cannot be recovered.
-And there is nowhere at all to put a second box, so his mini — which is not a
-different setup, it is the same one read closer in — has never been storable.
-
-This family fixes both, dark, before a single new-reader row exists:
-
-* **two boxes of the same shape**, parent and mini, each carrying both lines
-  as a price AND the DAY that line was anchored, the day the box opened, a
-  nullable day it ended, and the daily range it was born with. A day survives
-  any window;
-* **which box the LPS was read against**, as a closed set, because with two
-  live boxes "the LPS" is ambiguous and an ambiguous archive column is worse
-  than an absent one;
-* **whether the setup had a mini at all**, in THREE states — yes, no, and
-  "the reader that wrote this row never looked", which is every row in the
-  archive today and every row the old reader writes tomorrow.
-
-Everything here is NULL under the old reader. NULL, not 0.0 and not "": a
-zero price is a made-up price, and a made-up number in an archive column is
-indistinguishable from a measured one forever after. Three writers reach this
-table (the live scan, the archive seed, and the backend's manual route) and
-EC-30 requires the family to ride all three through this one producer; a test
-names each writer and fails at add time if one is left out.
+"""The alpha reader's archive column family, through ONE producer for its three writers (the live scan, the seed, the
+backend's manual route): two boxes of one shape (parent and mini) as prices and the DAYS they were anchored, which box
+the LPS was read against, whether the setup had a mini (1 / 0 / NULL = never looked), the LPS volume ratio and the
+clarity JSON. An absent measure is NULL, never 0.0 and never "".
 """
 from __future__ import annotations
 
@@ -46,16 +22,10 @@ __all__ = [
     "volume_vs_50d",
 ]
 
-#: The roles a box can hold, and the closed set the LPS column is drawn from.
-#: THE record's own tuple, not a copy typed out again (EC-33): a word added to
-#: the record would otherwise be accepted by the reader and refused here,
-#: costing every fire that used it. EC-22 wants a committed test for each,
-#: and the table's fresh-database CHECK is pinned to this same tuple.
+#: The roles a box can hold, the closed set the LPS column is drawn from: THE record's own tuple, not a copy.
 ALPHA_LPS_BOXES = ROLES
 
-#: One box's worth of columns, as suffix -> SQL type. Both boxes take the
-#: same shape on purpose: the mini is read by the same eye as its parent, so
-#: anything asked of one can be asked of the other.
+#: One box's worth of columns, suffix -> SQL type; both boxes take the same shape.
 _PER_BOX: dict[str, str] = {
     "r_price": "FLOAT",         # the resistance line
     "r_anchor_date": "TEXT",    # and the DAY it was anchored on
@@ -74,11 +44,7 @@ ALPHA_COLUMN_SQL: dict[str, str] = {
     "two_eyes_lps_read_against": "TEXT",
     # 1 / 0 / NULL — and NULL is not "no".
     "two_eyes_has_mini": "INTEGER",
-    # The LPS pullback's average volume against the 50-day average ending on its
-    # last day, on this reader's own LPS days: the one setup fact that separated
-    # the archive's big winners (decisions.md Nulls, 2026-10-04). Archived so the
-    # archive can keep measuring it after the flip (his word Mon 12/10/2026,
-    # option A). A fact: never a gate, never a point.
+    # The LPS pullback's volume against the 50-day average, on this reader's own LPS days: a fact, never a gate.
     "two_eyes_lps_volume_ratio": "FLOAT",
     "two_eyes_clarity_json": "TEXT",
 }
@@ -88,9 +54,7 @@ _DATE_COLUMNS = frozenset(
 
 
 def _clean(value):
-    """NaN and pandas' own nulls become None: the family's one producer says
-    "no value" one way for every writer and every reader of the row (SQLite
-    would store a bare NaN as empty too; pandas' NaT and NA would not bind)."""
+    """NaN and pandas' own nulls become None: the family says "no value" one way for every writer and reader."""
     if value is None:
         return None
     try:
@@ -102,16 +66,8 @@ def _clean(value):
 
 
 def alpha_archive_values(get, *, prefixed: bool) -> dict:
-    """Row -> ``{column: value}`` for every column in the family.
-
-    ``get`` is the row's own lookup (``row.get``), ``prefixed`` picks the live
-    result's ``_``-prefixed keys over the seed's bare ones — the same contract
-    every other family producer in this tree takes.
-
-    All-or-nothing is NOT the rule here, unlike the strategy family: a setup
-    with no mini legitimately has a parent and no second box, so each half
-    stands alone. What IS the rule is that an absent measure is NULL.
-    """
+    """Row -> ``{column: value}`` for every column in the family; ``get`` is the row's own lookup, ``prefixed`` picks the
+    live result's ``_``-prefixed keys over the seed's bare ones. Each box stands alone; an absent measure is NULL."""
     out: dict = {}
     for column, sql_type in ALPHA_COLUMN_SQL.items():
         value = _clean(get(("_" + column) if prefixed else column))
@@ -121,9 +77,7 @@ def alpha_archive_values(get, *, prefixed: bool) -> dict:
         if column == "two_eyes_lps_read_against":
             value = str(value)
             if value not in ALPHA_LPS_BOXES:
-                # LOUD, not coerced. This column is read as a closed set by
-                # everything downstream; a fourth word silently stored is a
-                # bug that surfaces a month later as an unreadable row.
+                # LOUD, not coerced: a fourth word silently stored is an unreadable row a month later.
                 raise ValueError(
                     f"the LPS was read against {value!r}, which is not one of "
                     f"{ALPHA_LPS_BOXES}")
@@ -137,28 +91,16 @@ def alpha_archive_values(get, *, prefixed: bool) -> dict:
     return out
 
 
-#: The boxes the screen draws, in the order it draws them: the setup's own box, then the mini inside it. Never an
-#: earlier box (build task 15, ours): the earlier boxes are each night's own telling (the known limit of Fri
-#: 02/10/2026), the archive keeps none, and a screen that drew them would disagree with the archive's view of the
-#: same row. The approval pack's pages still draw them.
+#: The boxes the screen draws, in order: the setup's own box, then the mini inside it; never an earlier box.
 SCREEN_ROLES = ("parent", "mini")
 
-#: The result key the screen's ONE block rides on, from the adapter to the scan's wire (`core/pipeline/screening/
-#: dashboard.py` hands it to the chart as ``two_eyes``). Not a column: the archive keeps the family. It lives here,
-#: in a module the nightly path already loads, so the wire can name it without importing the new reader.
+#: The result key the screen's ONE block rides on, from the adapter to the scan's wire; not a column.
 SCREEN_KEY = "_wire_alpha"
 
 
 def alpha_screen_boxes(values: dict) -> list:
-    """The family's boxes as the screen reads them: each line's price and the day it was anchored, the day the box
-    opened and the day it ended (None while live), and how many of its own daily ranges tall it is (None without a
-    stored range). Nothing the browser would have to work out.
-
-    ``values`` is :func:`alpha_archive_values`' own output, so the scan's wire (built from a live result) and the
-    archive's chart (built from a stored row) are shaped by ONE function from ONE family and cannot drift apart. A
-    role whose two lines are not both there draws no box. The height is a ratio of two prices on one scale, so the
-    archive's chart, which rescales the lines onto today's candles, keeps it as it is.
-    """
+    """The family's boxes as the screen reads them: each line's price and anchor day, the opened and end days, the height
+    in its own ranges. ``values`` is :func:`alpha_archive_values`' output, so the wire and the archive's chart cannot drift."""
     boxes = []
     for role in SCREEN_ROLES:
         def part(name, role=role):
@@ -186,16 +128,8 @@ def _day_position(df, day):
 
 
 def volume_vs_50d(df, day, first_day=None):
-    """The volume on ``day`` — or the average volume from ``first_day`` to
-    ``day``, both included — against the 50-day average ending on ``day`` (that
-    day included, as the engine's Vol_50 counts it, which is how the old
-    reader's LPS read divides its pullback's volume). Volume at a key point, a
-    spring's day or an LPS pullback's run of days: ONE measure (EC-3), shared by
-    the screen's panel and the family's ``two_eyes_lps_volume_ratio`` so the two
-    cannot disagree. It lives here, beside the column it fills, because the old
-    chart reader's files are frozen and both callers already load this module.
-    A fact, never a gate or a point. None when a day is not in the frame, the
-    run ends before it starts, or the average is unreadable."""
+    """The volume on ``day`` — or the average from ``first_day`` to ``day``, both included — against the 50-day average
+    ending on ``day``: ONE measure for the screen's panel and the family's column. None when a day is not in the frame."""
     pos = _day_position(df, day)
     start = pos if first_day is None else _day_position(df, first_day)
     if pos is None or start is None or start > pos:
@@ -208,23 +142,14 @@ def volume_vs_50d(df, day, first_day=None):
 
 
 def _yes_or_no(value) -> int:
-    """1 or 0, and nothing else. ``int()`` would have stored a 2 as a 2 and
-    truncated 0.7 to 0 — "no mini" — which is a different fact made up out of
-    a bad number. Refused instead, like a word off the closed set."""
+    """1 or 0, and nothing else: ``int()`` would have stored a 2, or truncated 0.7 into a made-up "no"."""
     if value in (True, False, 0, 1):          # bools, ints, floats, numpy scalars
         return int(value)
     raise ValueError(f"has-a-mini must be yes or no, got {value!r}")
 
 
 def _day(column: str, value) -> str:
-    """A day as YYYY-MM-DD — the one way every other date column in this table
-    is written, so the archive reads the same whichever reader wrote the row.
-
-    A timestamp is cut to its day rather than stored with a clock time the
-    market never traded at; a string must BE a day. Anything else is refused:
-    a column named for a day that holds something else cannot be redrawn,
-    which is the whole reason this family carries days.
-    """
+    """A day as YYYY-MM-DD: a timestamp is cut to its day, a string must BE a day, anything else is refused."""
     if isinstance(value, datetime.datetime):  # before date: it is a subclass
         return value.date().isoformat()
     if isinstance(value, datetime.date):

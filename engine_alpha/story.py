@@ -14,9 +14,7 @@ from engine_alpha.line import turn_line, turn_line_floors
 STAGE = "story"
 
 def _lps_days(pullback, low) -> tuple:
-    """The first day and the low's day of the pullback the words lean on: the one the LPS stage measured, when it
-    stood on its last day (none of his sentences refused it and the box was a box), whether it has since been
-    bought or not. ``(None, None)`` otherwise."""
+    """The first day and the low's day of the pullback the words lean on (the LPS stage's, when it stood), else ``(None, None)``."""
     if pullback is None or not pullback.stood:
         return None, None
     start, end = int(pullback.start_bar), int(pullback.end_bar)
@@ -24,17 +22,9 @@ def _lps_days(pullback, low) -> tuple:
 
 def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: float, read_bar: int,
          pullback=None, trend_end_bar: Optional[int] = None) -> tuple:
-    """The events of the box shown, oldest first. ``turns`` is the read's own line, forming turn included;
-    ``start_bar`` the day the box opened; ``unit`` the one daily range the words are measured in; ``pullback``
-    what the LPS stage measured, or None; ``trend_end_bar`` the top (or low) of the trend the box took its place
-    from, when it took it from a box anchored inside that trend.
-
-    "The trend still ending": a push that tops within fourteen trading days of the END OF THE TREND is no
-    upthrust. The trend's end is the box's first line, or the earlier ``trend_end_bar`` when there is one: his ALB
-    (Thu 01/10/2026), "even a later pair could work if that movement in 20/1 -> 27/1 and the crash afterwards
-    could be treated as the place where the trend ends" and "there is a later [upthrust] on 25/02/2026". On the
-    reader's own, later ALB box (it opens Thu 05/02/2026) the trend ended on Tue 27/01/2026, so the push of Wed
-    25/02 is his upthrust there too; counted from the box's own first line it would be one day short."""
+    """The events of the box shown, oldest first: ``turns`` the read's own line (forming turn included), ``start_bar``
+    the box's first day, ``unit`` the daily range the words are measured in, ``pullback`` the LPS stage's or None,
+    ``trend_end_bar`` the trend's end when earlier than the box (a push topping within fourteen days of it is no upthrust)."""
     line = [(int(t.bar), t.kind, float(t.price), None if t.knowable_bar is None else int(t.knowable_bar))
             for t in turns]
     start, read_bar, unit = int(start_bar), int(read_bar), float(unit)
@@ -51,8 +41,7 @@ def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: fl
     pushes, spring, sos = words["thrusts"], words["phase_c"], words["the_sos"]
     out = []
     if spring is not None:
-        # The spring's days are its own dip, first bar under the support area to the tip; the recovery is the
-        # swing after it (his GFR, Thu 16/10/2026: "not the spring itself"). Its commit day is the recovery's.
+        # The spring's days are its own dip, first bar under the support area to the tip; the recovery is the swing after.
         out.append(Event(kind=SPRING, day=day(spring["tip_bar"]), price=spring["tip_price"],
                          first_day=day(spring["first_bar"]), last_day=day(spring["tip_bar"]),
                          size=spring["depth_ranges"], committed=spring["knowable_bar"] is not None,
@@ -80,9 +69,7 @@ def read(turns, high, low, days, *, start_bar: int, R: float, S: float, unit: fl
     opens = words["phase_d"]
     if opens is not None:
         bar, opener = int(opens["open_bar"]), opens["opener"]
-        # The right side's opening is as settled as what opened it: a low of the line that has committed (the
-        # round trip, the staircase); THE SOS once THE SOS is itself settled; the LPS once it has been bought
-        # (until then the pullback is only the read day's own, and tomorrow's read may measure another).
+        # The opening is as settled as its opener: a committed low, THE SOS once settled, the LPS once bought.
         low_known = at.get((bar, "valley"))
         bought = None if pullback is None else pullback.crossed_bar
         known = {"round trip": low_known, "staircase": low_known,
@@ -149,20 +136,15 @@ def thrusts(line, start, R, unit):
     return out
 
 def _peak_before(line, bar):
-    """The price of the line peak the turn on ``bar`` fell from: the turn right before the valley on that day,
-    else the last peak before it."""
+    """The price of the line peak the turn on ``bar`` fell from: the turn before that day's valley, else the last peak before it."""
     k = next((i for i, t in enumerate(line) if t[0] == bar and t[1] == "valley"), None)
     if k is not None and k > 0:
         return line[k - 1][2]
     return next((t[2] for t in reversed(line) if t[1] == "peak" and t[0] < bar), None)
 
 def pick_the_sos(th, lps_low_bar, after=None, *, line, highs, start, read_bar, unit):
-    """THE SOS. Of the thrusts launched at or after ``after`` (the Phase C tip, or an earlier LPS low) and topping at
-    or before the LPS low, the last one topping after the middle of the box whose top clears, by more than the rail
-    area, every high since ``after`` (else the box start) printed before the push began and every earlier push's
-    top; a first push launched on that first day reads the line peak the floor fell from. With none clearing, the
-    last push after the middle. With no LPS the same read over every push, in progress: ``in_progress`` means no LPS
-    follows it yet. With no push after the middle, none."""
+    """THE SOS: of the thrusts launched at or after ``after`` and topping by the LPS low, the last past the middle of the
+    box whose top clears every earlier high by more than the rail area, else the last past the middle; None with none."""
     pool = [t for t in th if after is None or t["launch_bar"] >= after]
     if lps_low_bar is not None:
         pool = [t for t in pool if t["top_bar"] <= lps_low_bar]
@@ -185,10 +167,7 @@ def pick_the_sos(th, lps_low_bar, after=None, *, line, highs, start, read_bar, u
     return {**(breaking or late)[-1], "in_progress": lps_low_bar is None}
 
 def _crashes_back(line, k, R, unit):
-    """Where the push topping at the line peak ``line[k]`` crashes back into the range: the first later line
-    valley under the resistance area, before any line peak over its top. It may take more than one swing (his ALB,
-    Wed 25/02/2026: the next low still holds over the area). The index of that valley, or None while the price
-    has not crashed back (or went on to a higher top first)."""
+    """The index of the first later line valley under the resistance area, before any peak over ``line[k]``'s top; else None."""
     area, top = _area(unit), line[k][2]
     for j in range(k + 1, len(line)):
         _, kind, price, _ = line[j]
@@ -199,11 +178,7 @@ def _crashes_back(line, k, R, unit):
     return None
 
 def _upthrust_printed(line, k, R, unit, fifteenth=None):
-    """ONE predicate for "an upthrust printed" on the line peak ``line[k]``, read by THE upthrust and by the
-    spring's "the range ran on": it climbs more than LINE_WORD_UPTHRUST_MIN_POKE_ATR ranges over the resistance,
-    it tops no sooner than the box's fifteenth day when that day is given (before it the trend is still ending:
-    his ALB, the run of Tue 20/01 to Tue 27/01/2026, "is not an upthrust"), and it crashes back
-    (``_crashes_back``). The index of the valley it crashed back to, or None."""
+    """The valley an upthrust at ``line[k]`` crashed back to (it poked over R past the floor, no sooner than ``fifteenth``), or None."""
     if (line[k][2] - R) / unit <= M.LINE_WORD_UPTHRUST_MIN_POKE_ATR:
         return None
     if fifteenth is not None and line[k][0] < fifteenth:
@@ -211,21 +186,8 @@ def _upthrust_printed(line, k, R, unit, fifteenth=None):
     return _crashes_back(line, k, R, unit)
 
 def the_upthrust(th, line, R, unit, pc, start, read_bar, fifteenth=None):
-    """THE upthrust, one per box. His words Tue 15/09/2026: "an Event that belongs in Phase B, it is kind of a
-    'Reverse' Spring where price climbs quickly out of the structure then crashes back into the trading range" (his
-    UNF, Thu 11/06/2026), tweaked Wed 16/09/2026: "not every small false breach of Resistance is one or a candidate
-    for one ... only the swinged that actually breached gets to be marked (just like a spring) not the entire run
-    up from support with all of the Dips combined ... usually only one UT is present. and it's the most
-    major/devolped one rather then tiny hiccups in resistance."
-
-    Of the thrusts topping in Phase B (before the Phase C tip when the box has one, else at or before the middle of
-    the box) for which an upthrust printed (``_upthrust_printed``: the climb over the resistance, the box's
-    fifteenth day ``fifteenth`` when given, the crash back under the resistance area), the one that climbed
-    furthest out; the earlier one when two climb the same. It is marked from the swing that breached (the line valley right before the top), never the run
-    up from support with its dips; that run stays in the record as ``launch_bar``/``launch_price``, data and never
-    the mark, and ``candidates`` counts how many pushes reached the pick, so his "usually only one" can be read
-    from the measurement. A word read in hindsight: ``knowable_bar`` is the commit of the valley it crashed back to
-    (None while that valley forms)."""
+    """THE upthrust, one per box: of the Phase B thrusts for which an upthrust printed, the one that climbed furthest out
+    (the earlier on a tie), marked from the swing that breached; ``candidates`` counts the pushes that reached the pick."""
     half = _middle(start, read_bar)
     at = {(t[0], t[1]): k for k, t in enumerate(line)}
     best, seen = None, 0
@@ -250,23 +212,8 @@ def the_upthrust(th, line, R, unit, pc, start, read_bar, fifteenth=None):
     return None if best is None else {**best[1], "candidates": seen}
 
 def last_suppers(th, lows, unit, lps_start, *, R, pc, start, read_bar):
-    """The last supper, in hindsight, ONCE per box (his word, Sat 03/10/2026: "a last supper is a noticeable deep
-    correction that happens *usually only once either pre or post break out").
-
-    The corrections that qualify: off a thrust whose top breaches resistance (any poke over R, his words Sat
-    19/09/2026: "every poke over resistance is a breach even small ones count but that shouldn't worry us at all
-    since its still in the resistance area"), after the Phase C tip when there is
-    one and after the middle of the box (the Phase D test here is those two clauses, not the Phase D word), whose
-    deepest low within four trading days digs as deep as his shallowest less the margin (LINE_WORD_SUPPER_NAMED_DIG_ATR:
-    "noticeable deep"; a shallower pause still ends a push). The drop is sought only on the days before a later LPS
-    window opens, so a last supper and that LPS never share a day (MRK: his drop ends Thu 30/07/2026, price digs on
-    into his LPS window's first day, Mon 03/08). A drop straight into the LPS window is that LPS, not a last supper.
-
-    Of the corrections, the box carries the one off its HIGHEST top (ours: on his eight it is his, or on SILC THE
-    SOS's top of the same correction one trading day before his; the deepest loses VIK, the last MRK, the first
-    four). So two tops falling into ONE low are
-    one correction, named from the higher top (SILC, NTCT, WTS: THE SOS's top and his a day or three later). The
-    later top wins an exact tie of price. A list of at most one."""
+    """The last supper, in hindsight, once per box: off the HIGHEST top over R after the Phase C tip and the middle,
+    whose deepest low within four days digs the named depth, sought only before the LPS window opens. At most one."""
     if lps_start is None:
         return []
     half = _middle(start, read_bar)
@@ -287,14 +234,8 @@ def last_suppers(th, lows, unit, lps_start, *, R, pc, start, read_bar):
     return [] if best is None else [best[1]]
 
 def dips(line, highs, start, S, unit, lows=None):
-    """Every line valley more than the rail area under S inside the box, with its recovery by the swing:
-    recovered (the answering valley has committed), recovering (it is still forming, or the reaching swing has
-    not been answered yet), failed (a lower low than the tip printed first), or under S, undetermined.
-
-    The dip's OWN days are ``first_bar`` to ``tip_bar``: the run of bars under the support area that ends at the
-    tip, read on ``lows`` (his GFR, Thu 16/10/2026: *"you marked the bars going up, aka the recover after the
-    swing, not the spring itself"*). The recovery is the swing after it: ``reach_bar`` (the first bar whose high
-    is back in the area), ``reach_turn_bar`` (the bar of the line peak that reached) and ``confirm_bar``."""
+    """Every line valley more than the rail area under S inside the box, with its recovery by the swing (recovered,
+    recovering, failed, or under S, undetermined); its own days are ``first_bar`` to ``tip_bar``, the recovery the swing after."""
     area = _area(unit)
     out = []
     for i, (vb, vk, vp, _) in enumerate(line):
@@ -331,9 +272,7 @@ def dips(line, highs, start, S, unit, lows=None):
     return out
 
 def _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar):
-    """Where the right side would open after the dip at line[i]: the round trip after it (its recovery reaches the
-    R area with no lower low first, then the next valley holds the support area) or the first staircase near R
-    after it, each only after the middle of the box (his must), else the LPS window's first day."""
+    """Where the right side opens after the dip at line[i]: round trip or staircase past the middle, else the LPS window's first day."""
     area, mid = _area(unit), (R + S) / 2.0
     half = _middle(start, read_bar)
     opens = []
@@ -352,11 +291,7 @@ def _right_side_opens(line, i, start, R, S, unit, lps_start, read_bar):
     return min(opens) if opens else None
 
 def _range_ran_on(line, i, R, S, unit, open_bar, half, fifteenth=None):
-    """After the dip at line[i], before the right side opened, the box went back up to the R area and then down
-    under the support area again, or an upthrust printed (a top at or before the middle of the box for which
-    ``_upthrust_printed`` holds; a later one is a push in
-    Phase D): the range was still running, so the dip was Phase B. His VIK (Sat
-    19/09/2026): the dip of Wed 29/04/2026 is "No" spring, his upthrust of Thu 14/05/2026 came after it."""
+    """The range ran on after the dip at line[i], before the right side opened: back to R then under S again, or an upthrust."""
     area, back_at_r = _area(unit), False
     for k in range(i + 1, len(line)):
         b, kind, p, _ = line[k]
@@ -385,14 +320,8 @@ def phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=None,
     return None
 
 def spring_tests(line, pc, S, unit, sos=None):
-    """After the Phase C, the FIRST line valley after its recovery that holds over the spring's low and no higher
-    than the top of the support area: one test per Phase C. (Naming every such valley named up to 11 on one box,
-    so it could never miss one he drew.) A test is a swing of its own, on a bar after the reaching peak's: the
-    low of the very bar whose high reached back into the area is the spring's recovery, not a test (his GFR,
-    Thu 16/10/2026: two Phase C events, *"one of them is already engulfed in the other"*). It may sit UNDER the
-    support area, and the valley THE SOS's swing rises from is the SOS's own, never a test (his AAPL, Fri
-    17/10/2026: the test of Tue 06/10 sat 0.55 ranges under support, and *"what you marked as the Test is already
-    a part of the SOS"*)."""
+    """After the Phase C, the FIRST line valley after its recovery holding over the spring's low and no higher than the
+    top of the support area: one test per Phase C, on a bar after the reaching peak's and before THE SOS's swing."""
     if pc is None:
         return []
     after = pc["reach_turn_bar"] if pc.get("reach_turn_bar") is not None else pc["tip_bar"]
@@ -405,12 +334,8 @@ def spring_tests(line, pc, S, unit, sos=None):
     return []
 
 def phase_d(line, start, R, S, unit, pc, sos, lps_start, read_bar):
-    """Where the right side opens: the earliest opening AFTER THE MIDDLE of the box, a must (his ruling Mon
-    14/09/2026), among the round trip after the Phase C (its recovery reaches the R area, then the next valley holds
-    in the support area), the first staircase near R after the Phase C and after the middle (two consecutive line
-    valleys, the second higher, both above the box midpoint, the peak between them in the R area), THE SOS's last
-    swing once an LPS follows it, and the LPS window's first day. An opening at or before the middle stays listed and
-    opens nothing; with no opening after the middle there is no Phase D yet."""
+    """Where the right side opens: the earliest opening AFTER THE MIDDLE of the box among the round trip after the Phase
+    C, the first staircase near R, THE SOS's last swing once an LPS follows it, and the LPS window's first day; else None."""
     area, mid = _area(unit), (R + S) / 2.0
     half = _middle(start, read_bar)
     openings = {}
@@ -458,12 +383,8 @@ def _empty(unit, read_bar):
 
 def assemble(line, highs, lows, *, start: int, R: float, S: float, unit: float, read_bar: int,
              lps_start=None, lps_low_bar=None, fifteenth: int) -> dict:
-    """The word rules put together ONCE: the pushes, the spring and its tests, THE SOS, THE upthrust, the last
-    suppers and the opening of Phase D, on ``line`` (bar, kind, price, knowable bar) inside the box opened on
-    ``start``. The story (``story.read``) and :func:`read_line_words` both call it (council review 2026-10-09,
-    finding 13); word recall feeds it the reader's own line, in the box's own daily range. ``fifteenth`` is the
-    caller's: the story counts it from the end of the trend, a box with no trend end (his own drawn box, in
-    word recall) from its own first line."""
+    """The word rules put together once on ``line`` (bar, kind, price, knowable bar) inside the box opened on ``start``;
+    ``fifteenth`` is the caller's: the story counts it from the end of the trend, word recall from the box's first line."""
     pushes = thrusts(line, start, R, unit)
     spring = phase_c(line, highs, start, S, unit, R, lps_start, read_bar, fifteenth=fifteenth, lows=lows)
     sos = pick_the_sos(pushes, lps_low_bar, after=spring["tip_bar"] if spring is not None else None,
@@ -476,11 +397,8 @@ def assemble(line, highs, lows, *, start: int, R: float, S: float, unit: float, 
             "phase_d": phase_d(line, start, R, S, unit, spring, sos, lps_start, read_bar)}
 
 def read_line_words(df, box, unit, *, lps=None, inner=None, line=None):
-    """Every word on the line inside the elected box, read on the frame's last day. ``box`` carries
-    ``start_bar``, ``R`` and ``S``; ``lps`` (``start_bar``, ``low_bar``, ``low``) and ``inner`` (the mini) may be
-    None. Bars are the frame's own positions. ``line`` is the turn line to read (bar, kind, price, knowable
-    bar); without it the line is built here from the frame's per-bar range, the scalar ``unit`` filling any bar
-    with none. Word recall passes the READER's own line, so it measures the words the reader names."""
+    """Every word on the line inside the elected box, read on the frame's last day. ``box`` carries ``start_bar``, ``R``
+    and ``S``; ``lps`` and ``inner`` (the mini) may be None; ``line`` is the turn line to read, else built here from the frame."""
     n = len(df)
     unit = float(unit) if unit is not None else float("nan")
     if n == 0 or not np.isfinite(unit) or unit <= 0:

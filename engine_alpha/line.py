@@ -11,8 +11,7 @@ from engine_alpha import numbers as M
 from engine_alpha.chart import DAILY_RANGE
 
 
-#: The closed list of what cutting the frame on the right may change. Everything else the line says on the
-#: shorter frame it says on the longer one, word for word.
+#: The closed list of what cutting the frame on the right may change; everything else the line says is the same.
 FORMING_ONLY = (
     "the forming turn at the right edge: its bar and its price, until a later bar commits it",
     "before the line has opened (no leg has covered its floor yet): its opening turn too, whose kind is not"
@@ -72,9 +71,7 @@ def build(prepared, floor_ranges: Optional[float] = None) -> SwingLine:
     days = tuple(d.date() for d in prepared.index)
     _refuse_missing(highs, lows, ranges, days)
     floor = float(M.TURN_LINE_FLOOR_ATR if floor_ranges is None else floor_ranges)
-    # No scalar fallback: the unit is each day's own range, or nothing. A bar with no readable range (the
-    # warm-up at the very left) tracks the running extreme and commits nothing — the primitive's own rule,
-    # `turn_line_floors` with no scalar to fall back on.
+    # No scalar fallback: the unit is each day's own range, or nothing; an unwarmed bar commits nothing.
     floors = turn_line_floors(prepared, None, floor)
     turns = _stamped(turn_line(highs, lows, floors), ranges, days)
     return SwingLine(floor_ranges=floor, turns=turns, _highs=highs, _lows=lows, _ranges=ranges, _days=days,
@@ -98,10 +95,7 @@ def _readable(ranges, bar: int) -> bool:
     return bool(np.isfinite(unit)) and unit > 0
 
 def _fine_direction(turns, n: int) -> list:
-    """For each bar, the direction the fine line came into it: True rising, False falling, None before the
-    line has opened. It is the kind of the last turn committed BEFORE the bar (knowable on an earlier bar):
-    after a committed valley the line is rising, after a committed peak it is falling. The turn a bar
-    itself commits does not count — that reversal is only known at the bar's close."""
+    """How the fine line came into each bar (True rising, False falling, None before it opened): the last turn known before it."""
     out = [None] * n
     committed = sorted(((t.knowable_bar, t.kind) for t in turns if t.knowable_bar is not None),
                        key=lambda x: x[0])
@@ -115,24 +109,7 @@ def _fine_direction(turns, n: int) -> list:
     return out
 
 def _far_on_bars(turns, highs, lows, ranges, direction, floor: float) -> list:
-    """The fine line folded at a bigger floor.
-
-    The far view's extremes are the fine line's own COMMITTED turns — never a bar's high or low on its own —
-    and a far turn commits when a bar backs off that extreme by ``floor`` daily ranges, the range being that
-    bar's own (the fine line's commit rule, at a bigger floor). So every far turn is a turn of the fine line,
-    by construction, and it is knowable no earlier than the fine turn it is: at each bar the pool holds the
-    fine turns knowable by that bar, and only they can be extremes. Reading the bar's two ends in the fine
-    line's order (its direction into the bar, that end first) keeps both views on one rule inside a bar.
-
-    Why not the bars' own extremes at a bigger floor: with each day's own range as the unit, a day whose
-    range jumps can print a higher high the fine line never turns on (its rise off the running low is short
-    of THAT day's larger floor), and a far view reading bars would take it as its extreme — a far turn on a
-    bar the fine line has no turn on. The fine line's turns are what the far view folds; a print the fine
-    line judged as noise is not a swing at any distance.
-
-    Returns ``[(bar, kind, price, knowable_bar)]`` like the fine primitive; ``[]`` until the far view has
-    opened (the older of its two running extremes when they first sit a far floor apart, knowable then).
-    """
+    """The fine line folded at ``floor`` daily ranges: ``[(bar, kind, price, knowable_bar)]``, every far turn a committed fine turn."""
     n = len(highs)
     fine = list(turns)                                            # bar order == knowable order
     pool = []                                                     # committed fine turns, as they become knowable
@@ -184,8 +161,7 @@ def _far_on_bars(turns, highs, lows, ranges, direction, floor: float) -> list:
                     ext = idx
         if ext is None:                                           # the far leg has no committed extreme yet
             continue
-        # The bar's two ends in the fine line's order into it; the end against the far direction tests the
-        # back-off, and a flip lets the bar's other end test the new leg (two far turns on one wide bar).
+        # The bar's two ends in the fine line's order into it; a flip lets the other end test the new leg.
         ends = ((True, float(highs[i])), (False, float(lows[i])))
         if direction[i] is False:
             ends = ends[::-1]
@@ -205,8 +181,7 @@ def _far_on_bars(turns, highs, lows, ranges, direction, floor: float) -> list:
     return out
 
 def _stamped(raw_turns, ranges, days) -> tuple:
-    """``(bar, kind, price, knowable_bar)`` from the primitive -> ``Turn`` with its day, its knowable day and
-    its size in the daily range of its own day."""
+    """``(bar, kind, price, knowable_bar)`` -> ``Turn`` with its day, its knowable day and its size in its own day's range."""
     out = []
     previous_price = None
     for bar, kind, price, know in raw_turns:
@@ -224,15 +199,8 @@ def _stamped(raw_turns, ranges, days) -> tuple:
 
 
 def turn_line_floors(df, atr_val, mult=None):
-    """The per-bar floor for :func:`turn_line`: ``mult`` daily ranges measured in the range of each bar's OWN
-    day, falling back to the one scalar range the caller already holds wherever the frame carries no ATR
-    column (the unit tests' bare OHLC frames, and any bar before the ATR warms up).
-
-    His unit is "the daily range", and over a two-year frame that is not one number: measured on his 35 drawn
-    marks, the line lands on 186 of his 186 named turns with the per-bar range and 183 with a single range
-    taken from the read day (build step 4, 2026-09-13). At the line's density that one-day recall is mostly
-    chance (his day moved three trading days still lands 173 of 186), so it places the floor and does not prove
-    the line (review, Mon 14/09/2026)."""
+    """The per-bar floor for :func:`turn_line`: ``mult`` daily ranges in the range of each bar's OWN day, falling back
+    to the scalar ``atr_val`` wherever the frame carries no ATR column (bare OHLC frames, bars before the ATR warms up)."""
     mult = M.TURN_LINE_FLOOR_ATR if mult is None else float(mult)
     scalar = float(atr_val) if atr_val is not None and np.isfinite(atr_val) and float(atr_val) > 0 else np.nan
     n = len(df) if df is not None else 0
@@ -248,15 +216,8 @@ def turn_line_floors(df, atr_val, mult=None):
     return floors
 
 def _opening_direction(highs, lows, floors):
-    """How the line leaves the start of the chart, or None when the chart never covers the floor (no leg is
-    committed anywhere). Returns ``(up, bar, low_bar, high_bar)``: ``up`` True when it rose first, the bar on which
-    the first leg covered its floor, and the bars of the running low and high at that moment.
-
-    Read it as "which move covered the floor first": the running high and low track EVERY bar, and on the first
-    bar with a readable floor where they sit a floor apart, the OLDER of the two owns the opening leg and is the
-    opening turn (a tie on one bar opens upward). The opening turn is bar 0 only when bar 0 is that extreme: the
-    line used to open on bar 0 whatever followed, and a rise whose top printed on a bar with no readable floor
-    went unseen (review findings F3 and TG-8, Mon 14/09/2026)."""
+    """``(up, bar, low_bar, high_bar)`` on the bar the first leg covered its floor — the OLDER running extreme owns the
+    opening, a tie opens upward — or None when the chart never covers it."""
     run_hi, run_lo = float(highs[0]), float(lows[0])
     i_hi = i_lo = 0
     for i in range(1, len(highs)):
@@ -272,11 +233,7 @@ def _opening_direction(highs, lows, floors):
     return None
 
 def _extreme_since(values, turn_bar: int, confirming_bar: int, *, lowest: bool, turn_read_first: bool) -> int:
-    """The bar of the most extreme value from the turn to the confirming bar — the new leg's extreme so far,
-    read on the day the old leg's turn was confirmed. The turn bar's own other end counts only when the turn
-    was that bar's FIRST-read end (the bar was entered in the old leg's direction, so its other end came
-    after the turn and belongs to the new leg); read before the turn, it belongs to the leg before and was
-    that leg's business. Ties go to the earlier bar, as the running extreme always did."""
+    """The new leg's extreme from the turn to the confirming bar; the turn bar's other end counts only when the turn was read first."""
     start = turn_bar if turn_read_first else turn_bar + 1
     if start > confirming_bar:
         return confirming_bar
@@ -284,20 +241,8 @@ def _extreme_since(values, turn_bar: int, confirming_bar: int, *, lowest: bool, 
     return start + int(np.argmin(window) if lowest else np.argmax(window))
 
 def turn_line(highs, lows, floors):
-    """THE turn line (operator ruling, final method point 1): one line over the whole chart, one floor, wick to
-    wick, no retracement ratio.
-
-    A turn COMMITS on the bar where price backs off the running extreme by that bar's floor; the confirming bar
-    carries the next leg's extreme, so a bar whose own range covers the floor holds both a peak and a valley.
-    The opening turn is the older running extreme when the first leg covers its floor (bar 0 when bar 0 is it, a
-    turn by its shape), and the running extreme at the right edge rides as a FORMING turn: the line has no edge
-    mask, which is what the order-1 walk's ``peak_mask[n - order:]`` reserve costs it (his 25 of 37
-    pullbacks bottom within two days of the edge).
-
-    Returns ``[(bar, kind, price, knowable_bar)]``, oldest first and strictly alternating. ``knowable_bar`` is
-    the bar at whose close the turn was irreversibly committed (the causality contract's stamp, which the line
-    knows by construction instead of reconstructing); it is ``None`` for the forming turn at the right edge.
-    """
+    """THE turn line, wick to wick: a turn commits on the bar that backs off the running extreme by that bar's floor.
+    Returns ``[(bar, kind, price, knowable_bar)]``, oldest first and alternating; the forming turn at the right edge has None."""
     highs = np.asarray(highs, dtype=float)
     lows = np.asarray(lows, dtype=float)
     n = len(highs)
@@ -314,18 +259,14 @@ def turn_line(highs, lows, floors):
         # The chart never covers the floor: the opening turn and one forming extreme, no committed leg.
         i_hi, i_lo = int(np.argmax(highs)), int(np.argmin(lows))
         rose_first = i_hi >= i_lo
-        # Nothing is knowable yet, not even which kind the first bar is: both turns ride as forming (task 8;
-        # the original stamped the opening on bar 0).
+        # Nothing is knowable yet, not even which kind the first bar is: both turns ride as forming.
         out = [(0, "valley" if rose_first else "peak", float(lows[0] if rose_first else highs[0]), None)]
         tail = ((i_hi, "peak", float(highs[i_hi])) if rose_first else (i_lo, "valley", float(lows[i_lo])))
         if (tail[0], tail[1]) != (out[0][0], out[0][1]):
             out.append((tail[0], tail[1], tail[2], None))
         return out
 
-    # The opening turn is the older running extreme (bar 0 when bar 0 is it, a turn by its shape); the first leg's
-    # own extreme so far is the other one. Nothing commits before the bar on which that leg covered its floor —
-    # and that bar is the opening turn's knowable day too, even on bar 0: the bar is a turn by its shape, but
-    # WHICH kind is known only when the first leg has covered its floor (task 8; the original stamped 0).
+    # The opening turn's knowable day is the bar on which the first leg covered its floor, even when it is bar 0.
     up, first, i_lo, i_hi = opening
     if up:
         turns = [(i_lo, "valley", float(lows[i_lo]), first)]
@@ -333,15 +274,10 @@ def turn_line(highs, lows, floors):
     else:
         turns = [(i_hi, "peak", float(highs[i_hi]), first)]
         ext_i, ext_p = i_lo, float(lows[i_lo])
-    # Whether the running extreme was its bar's FIRST-read end. The one rule inside a bar: a bar is read in
-    # the direction the line came into it, that end first. An extreme set while the line was already
-    # running its way was read first and its bar's other end came after it; an extreme found on the
-    # confirming bar of the turn before (or on the opening's tie bar) was read second. The opening's
-    # extreme on a bar of its own is taken as read first (two-eyes-reader task 8).
+    # Whether the running extreme was its bar's FIRST-read end: a bar is read in the direction the line came into
+    # it, that end first; an extreme on the opening's tie bar was read second.
     ext_first = i_hi != i_lo
-    # A bar wide enough to open the line on its own (both running extremes on the deciding bar, the tie that
-    # opens upward) has been read once already; reading it again would carry its low a second time as a
-    # back-off from its own high (two-eyes-reader task 8).
+    # A bar that opened the line on its own has been read once already; read again it would carry its low twice.
     start = first + 1 if i_lo == i_hi == first else first
     for i in range(start, n):
         f = float(floors[i])
@@ -353,10 +289,7 @@ def turn_line(highs, lows, floors):
             if readable and ext_p - float(lows[i]) >= f:
                 turns.append((ext_i, "peak", ext_p, i))
                 up = False
-                # The new leg's extreme is the lowest low since the peak, over every bar from the peak's
-                # to this one — not this bar's alone, which skipped a lower low printed in between when
-                # the confirmation took more than one bar (two-eyes-reader task 8). Every bar in that
-                # stretch was entered rising, so its low is its second-read end: read after the peak.
+                # The new leg's extreme is the lowest low over every bar from the peak's to this one, not this bar's alone.
                 ext_i = _extreme_since(lows, ext_i, i, lowest=True, turn_read_first=ext_first)
                 ext_p, ext_first = float(lows[ext_i]), False
         else:

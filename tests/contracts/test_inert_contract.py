@@ -94,7 +94,7 @@ def test_every_default_off_engine_flag_is_enrolled():
     unenrolled = _default_off_engine_flags() - set(DECLARED_ADDITIVE_FIELDS)
     assert not unenrolled, (
         f"{sorted(unenrolled)} default off and are registered engine flags "
-        "(engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS) but declare no "
+        "(engine_alpha/stamp.ENGINE_SETTINGS_KEYS) but declare no "
         "additive field set: measure the result-row keys each adds (flag off "
         "vs on over the shadow fixture and the sealed marks fixture) and enroll "
         "it in DECLARED_ADDITIVE_FIELDS — the empty set if it adds none")
@@ -111,7 +111,7 @@ def test_every_enrolled_name_is_a_default_off_engine_flag():
              - ENROLLED_THEN_FLIPPED_LIVE)
     assert not stray, (
         f"{sorted(stray)} declare an additive field set but are not default-off "
-        "engine flags (engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS, default "
+        "engine flags (engine_alpha/stamp.ENGINE_SETTINGS_KEYS, default "
         "False in config.settings): drop the row for a deleted or dissolved flag, "
         "fix a typo, or name a flag that flipped live in ENROLLED_THEN_FLIPPED_LIVE")
 

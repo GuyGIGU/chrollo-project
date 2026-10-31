@@ -1,38 +1,8 @@
-"""Frozen-config manifest — the hashable identity of the engine's constants.
+"""The version stamp: the hash of every number that can move a read, the night's ``engine_config_version``.
 
-The engine's computed output is a pure function of (market data, engine
-constants, detector code). This module canonicalises the *constants* half: an
-EXPLICIT allow-list of every value in ``config.settings`` that can move a
-detector decision (which setups fire, how they score/rank, where the phase
-boundaries land), gathered into a sorted dict whose sha256 is the engine config
-version. An archived signal stamped with that hash can later be traced to the
-exact config that produced it, and a freeze + backtest can assert the config
-hasn't silently drifted. ONE non-settings block rides along, for the same
-reason — it decides what the DATA MEANS, so it rotates the version like any
-weight: the reader's own numbers (``engine_alpha/numbers.py``), which
-the reader reads instead of settings.
-
-The old engine's knobs (config/engine.py, config/scoring.py) left this list when
-that engine retired (Sat 31/10/2026, the operator's word): the hash rotated once,
-a declared epoch, and ``ALPHA_RULESET`` bumped to ``two-eyes-0.12.0-one-reader``.
-
-Design rules (deliberate, audited):
-
-  * The allow-list is HAND-CURATED, not a ``dir(settings)`` sweep. That is the
-    whole point: it draws the line between "engine identity" (in) and "ops
-    noise" (out — data source, cache, fetch tuning, rate-limit, quarantine,
-    scheduler, dashboard, regime observability, ARCHIVE_LIVE_SCANS) so that an
-    ops tweak never churns the engine version, and so the contract is auditable.
-  * Settings are read LAZILY inside the function (import in-body), never at
-    module import. The backend runs with cwd=webapp/backend which shadows the
-    repo-root ``config`` package; a module-level import would risk binding the
-    wrong module at import time. (See project_config_collision.)
-  * A listed key that has VANISHED from settings raises ``KeyError`` — the
-    contract cannot silently rot when a constant is renamed/removed. New
-    settings are simply absent from the manifest until added to the allow-list
-    on purpose.
-
-Pure, read-only. No engine math, no I/O beyond the CLI's stdout.
+``collect_manifest`` gathers a hand-curated allow-list of ``config.settings`` names (the ops knobs stay out, so a
+fetch or cache tweak never churns the version) and every upper-case name of ``engine_alpha/numbers.py``;
+``manifest_hash`` is its sha256. Settings are read lazily inside the function; a listed name that vanished raises.
 """
 from __future__ import annotations
 
@@ -40,17 +10,11 @@ import hashlib
 import json
 from typing import Any, Dict
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ENGINE-RELEVANT CONSTANTS (the manifest allow-list).
-#
-# Every name here is a setting that can change a detector decision. Grouped to
-# mirror config/settings.py sections for auditability. To add a constant to the
-# frozen contract, add its name here (and accept the new hash + re-baseline).
-# ─────────────────────────────────────────────────────────────────────────────
+# The allow-list: every setting that can change a read. To freeze a new one, add its name here and accept the new hash.
 ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
-    # Phase 0 — price-series regime (every read's provenance)
+    # The price series' regime (every read's provenance)
     "DATA_DIVIDEND_ADJUSTED",
-    # The universe door (engine_alpha/gate.py) and the market-cap floor on the fires
+    # The gate's floors (engine_alpha/gate.py) and the market-cap floor on the fires
     "MIN_PRICE",
     "MIN_VOLUME_50D",
     "MIN_YEARLY_RETURN",
@@ -62,18 +26,11 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "ADR_WINDOW",
     # Relative strength against SPY: the lookback of the excess-return read (the seed's and the scan's SPY 6m)
     "RS_LOOKBACK_BARS",
-    # Lane-C advisory/enrichment flags + tuning knobs (default-off + byte-identical off, read via
-    # _flag()/getattr on the advisory path). Registered so the consumption wave that wires them into
-    # score/archive rotates engine_config_version from day one — and so a lookback/lag tweak that changes an
-    # archived advisory value cannot slip the hash. (SECTOR_RANKING_ETFS is the ranked symbol SET,
-    # ops-excluded like INDEX_SYMBOLS — see below.)
+    # The advisory flags and their knobs: each moves an archived advisory value, so it rotates the stamp
     "FUNDAMENTALS_ENABLED",
     "FUNDAMENTALS_EARNINGS_HISTORY_LIMIT",
     "FUNDAMENTALS_FILING_LAG_DAYS",
-    # The fundamentals sheet + the fundamental grade (2026-10-12): display and
-    # archive only, but each knob moves an archived value (the grade), so it
-    # rotates the stamp like the lag above. SEC_CONTACT is a data source:
-    # ops-excluded (see the list below).
+    # The fundamentals sheet and the fundamental grade: display and archive only, but each knob moves the archived grade
     "FUND_SHEET_QUARTERS",
     "FUND_GRADE_EPS_GROWTH_MIN",
     "FUND_GRADE_SALES_GROWTH_MIN",
@@ -93,38 +50,13 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "RS_RATING_LOOKBACK",
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DELIBERATELY EXCLUDED (ops / observability knobs).
-#
-# Documented for auditability only — NOT used by collect_manifest. These move
-# how data is fetched/cached/scheduled or are pure observability, never a
-# detector decision. Changing one must NOT churn the engine version.
-#   data source / cache:  MARKET_DATA_PROVIDER, SEC_CONTACT, CACHE_FILENAME, PARQUET_*,
-#                         DOWNLOAD_PERIOD, TICKER_* admission/skiplist, ...
-#   archiving:            ARCHIVE_LIVE_SCANS
-#   fetch tuning:         TTL_*, FULL_REFRESH_*, INCREMENTAL_*, *_REPAIR_*,
-#                         MARKET_DATA_MIN_LATEST_COVERAGE, SPLIT_PROBE_*,
-#                         MARKET_DATA_EVALUATE_MAX_LAG_SESSIONS,
-#                         ABSENT_SESSION_LEDGER_MAX,
-#                         PROVIDER_ABSENT_SESSION_MAX_COVERAGE
-#   rate limit / quarantine:  YAHOO_RATE_LIMIT_*, YAHOO_DOWNLOAD_WORKERS,
-#                         QUARANTINE_*
-#   market-context fetch: SPY_SYMBOL, INDEX_SYMBOLS, SECTOR_RANKING_ETFS,
-#                         MARKET_CONTEXT_TTL_*
-#   regime observability: REGIME_* (state is observability-only, not a gate)
-#   dashboard:            DASHBOARD_*
-#   scheduler / alerts:   SCAN_SCHEDULE_*, FORWARD_RETURNS_MIN_AGE_DAYS,
-#                         ALERT_*
-# ─────────────────────────────────────────────────────────────────────────────
+# DELIBERATELY EXCLUDED, the ops knobs: data source and cache, ARCHIVE_LIVE_SCANS, fetch tuning, rate limit and
+# quarantine, the market-context fetch (SPY_SYMBOL, INDEX_SYMBOLS, SECTOR_RANKING_ETFS), REGIME_*, DASHBOARD_*,
+# the scheduler and alerts. None of them moves a read; tests/engine/test_invariants.py holds the list.
 
 
 def _canonical(value: Any) -> Any:
-    """Coerce a settings value into a JSON-canonical form.
-
-    Tuples/lists -> list; dicts -> dict with sorted keys is handled by
-    json.dumps(sort_keys=True), so we only need to make containers JSON-native.
-    Scalars (int/float/bool/str/None) pass through unchanged.
-    """
+    """A settings value in JSON-native form: tuples and lists to lists, dict keys to strings; scalars pass through."""
     if isinstance(value, tuple):
         return [_canonical(v) for v in value]
     if isinstance(value, list):
@@ -135,12 +67,8 @@ def _canonical(value: Any) -> Any:
 
 
 def collect_manifest() -> Dict[str, Any]:
-    """Return the canonical engine-config manifest (a plain dict).
-
-    Reads ``config.settings`` lazily and pulls exactly ``ENGINE_SETTINGS_KEYS``.
-    Raises ``KeyError`` if any listed key is missing from settings — the frozen
-    contract must not silently rot when a constant is renamed or removed.
-    """
+    """The canonical manifest, a plain dict: ``ENGINE_SETTINGS_KEYS`` read lazily off ``config.settings``, plus the
+    reader's numbers as ``ALPHA_NUMBERS``. Raises ``KeyError`` when a listed name is gone from settings."""
     from config import settings
 
     manifest: Dict[str, Any] = {}
@@ -154,16 +82,11 @@ def collect_manifest() -> Dict[str, Any]:
         raise KeyError(
             "frozen-config manifest references settings that no longer exist: "
             + ", ".join(sorted(missing))
-            + " — update engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS deliberately "
+            + " — update engine_alpha/stamp.ENGINE_SETTINGS_KEYS deliberately "
             "(a rename/removal changes the engine contract)."
         )
 
-    # The reader's own numbers (two-eyes-reader task 7): the reader reads them
-    # from numbers, not settings, so without this block a tuned number
-    # would change the reading and keep the version. The numbers live OUTSIDE the
-    # package (a module with no imports): this stamp runs on every night's
-    # payload and archive write, and importing them from inside the package would
-    # run its door, which loads every stage (council review 2026-10-09, finding 1).
+    # the reader reads its numbers here, not in settings: without this block a tuned number would keep the version
     from engine_alpha import numbers
 
     manifest["ALPHA_NUMBERS"] = {

@@ -22,23 +22,14 @@ from pandas.tseries.holiday import (
 from pandas.tseries.offsets import CustomBusinessDay
 
 
-# The project's ONE NYSE session calendar. Not the old chart reader — this
-# package imports nothing from that — and not a second copy of the holiday
-# rules, which is how two parts of a system come to disagree about whether
-# the market was open. It sits on the engine's side of the fence because the
-# engine is a leaf that may not import `core`; the pipeline's calendar
-# re-exports it under the name its callers have always used.
-
 OHLC = ("Open", "High", "Low", "Close")
 
-#: The column that carries each day's range once a frame is prepared. The name is the one the copied
-#: pieces read (the word rules, the swing line's floors), so it stays ATR_10 although the reader calls
-#: it the daily range.
+#: The column that carries each day's range once a frame is prepared; the line's floors read it by this name.
 DAILY_RANGE = "ATR_10"
 
 class FrameRefused(ValueError):
-    """A chart that may not be read, and the reason, in one sentence. ``rule`` is the rule's own name alone (the
-    sentence's first half), so a night can count its refusals by rule without taking the sentence apart."""
+    """A chart that may not be read, and why, in one sentence; ``rule`` is the rule's name alone, so a night can
+    count its refusals by rule."""
     rule: str = ""
 
 def _refuse(rule: str, detail: str) -> None:
@@ -47,11 +38,8 @@ def _refuse(rule: str, detail: str) -> None:
     raise refusal
 
 def check(df: pd.DataFrame) -> None:
-    """Refuse a frame no reader should be asked to read. Returns None or raises.
-
-    The order is deliberate — shape, then time, then the bars — so the first
-    refusal is the most basic thing wrong, not an accident of iteration.
-    """
+    """Refuse a frame no reader should be asked to read (returns None or raises): shape, then time, then the bars,
+    so the first refusal is the most basic thing wrong."""
     if df is None or len(df) == 0:
         _refuse("empty frame", "no bars at all")
 
@@ -65,9 +53,7 @@ def check(df: pd.DataFrame) -> None:
     if index.hasnans:
         _refuse("index has a missing date", "at least one day is NaT")
 
-    # Order is asked of the WHOLE index first. Walking pairwise would find a
-    # shuffled frame too, but it would report the first gap it tripped over —
-    # true of that pair, and the wrong diagnosis of the frame.
+    # The WHOLE index first: a pairwise walk would blame the first gap it tripped over, not the frame.
     if not index.is_monotonic_increasing:
         for position in range(1, len(index)):
             if index[position] < index[position - 1]:
@@ -77,11 +63,7 @@ def check(df: pd.DataFrame) -> None:
 
     for position in range(1, len(index)):
         before, after = index[position - 1], index[position]
-        # The DAY, not the timestamp. Comparing timestamps let the same day
-        # through twice whenever the two rows carried different clock times —
-        # 09:30 and 16:00 on one date read as two consecutive days, because
-        # the gap rule below normalizes and this one did not. A rule whose
-        # name says "day" has to be asked in days.
+        # The DAY, not the timestamp: 09:30 and 16:00 on one date are one day.
         if after.normalize() == before.normalize():
             _refuse("the same day twice", f"{after.date()} appears at "
                                           f"{position - 1} and {position}")
@@ -104,9 +86,6 @@ def check(df: pd.DataFrame) -> None:
                 f"{holed.index[0].date()} — this is dropped upstream today, so "
                 "its arrival here means the prep was bypassed")
 
-# The daily-structure window rule (copied from the old engine's frames.py at 61c88cc, two-eyes-reader task 8;
-# the ONE home since that engine retired, Sat 31/10/2026): the adapter's stock facts and
-# core/pipeline/market_data/downloads.py cut their frames with it too.
 def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
     """Trim DataFrame index to the trailing period window (e.g., '2y')."""
     if data.empty:
@@ -122,16 +101,8 @@ def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
     return data.loc[data.index >= cutoff]
 
 def prepare(df: pd.DataFrame) -> pd.DataFrame:
-    """A chart made ready to read, in this order: the contract (``check``), each day's range on the LONG
-    frame, then the cut to the reading window with the ranges carried.
-
-    Stage 1 of the two-eyes reader (task 8). The order is the point. The old engine cuts first and computes
-    its range inside the window, so its first weeks read a cold average; here the unit warms up on the bars
-    before the window and every bar inside it has its range. Sliding the window's left edge by a day then
-    changes no range; the line's first turns depend on where that edge falls for a few weeks at most and
-    are the same turns after (its own tests measure and pin it). Returns a copy; the frame handed in is
-    never written to.
-    """
+    """A chart made ready to read, in this order: the contract (``check``), each day's range on the LONG frame so
+    the unit warms up before the window, then the cut to the reading window with the ranges carried. Returns a copy."""
     check(df)
     out = df.copy()
     out[DAILY_RANGE] = calculate_atr(out, M.DAILY_RANGE_DAYS)
@@ -139,23 +110,7 @@ def prepare(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _fast_ewm(x, period):
-    """Extremely fast Exponential Weighted Moving Average using IIR filter.
-
-    NaN contract: every NaN sample — leading pad or interior hole — is masked
-    OUT of the recursive filter, which runs over the valid subsequence and
-    scatters its results back onto those positions. A NaN input bar therefore
-    yields a NaN output bar (honest: no measurement where there is no data)
-    and NOTHING else. It does NOT leak forward.
-
-    Before 2026-09-07 only a LEADING NaN run was masked (the ``diff()`` pad the
-    docstring named); one interior NaN entered ``lfilter``'s state and poisoned
-    every later sample, so a single bad OHLC cell anywhere in a two-year frame
-    silently deleted that ticker's whole chart read from that bar onward — the
-    downstream ``_finite(atr)`` brick guards then refused everything with no
-    counted reason (council review 2026-09-07, finding 14). Masking is a strict
-    superset of the old handling: with no NaN, or a leading run only, the valid
-    subsequence IS the old slice and the output is byte-identical.
-    """
+    """Exponential moving average by IIR filter; every NaN sample is masked out and stays NaN, never leaking forward."""
     x_arr = np.asarray(x, dtype=float)
     isnan = np.isnan(x_arr)
     if isnan.any():
@@ -176,7 +131,7 @@ def _fast_ewm_valid(x, period):
     return y
 
 def _true_range(df):
-    """Compute True Range using vectorized np.maximum (avoids pd.concat overhead)."""
+    """True Range, vectorized."""
     high = df['High'].values
     low = df['Low'].values
     prev_close = df['Close'].shift(1).values
@@ -186,14 +141,7 @@ def _true_range(df):
     return np.maximum(tr1, np.maximum(tr2, tr3))
 
 def calculate_atr(df, period=14):
-    """Average True Range using Wilder's exponential smoothing.
-
-    A missing OHLC cell makes True Range NaN at that bar (and at the next, via
-    the shifted Close), and ``_fast_ewm``'s mask keeps the NaN THERE: the ATR
-    series resumes on the next readable bar instead of dying to the right edge
-    (council review 2026-09-07, finding 14). Callers keep their own
-    ``_finite(atr)`` guards — a NaN ATR is still a refusal, just a local one.
-    """
+    """Average True Range with Wilder's smoothing; a bar with a missing cell is NaN there and the series resumes after it."""
     tr = _true_range(df)
     atr = _fast_ewm(tr, period)
     return pd.Series(atr, index=df.index)
@@ -214,16 +162,7 @@ class NyseHolidayCalendar(AbstractHolidayCalendar):
         Holiday("Christmas Day", month=12, day=25, observance=nearest_workday),
     ]
 
-#: Days the NYSE closed that no rule predicts — funerals, disasters, attacks.
-#: A rule calendar cannot generate these, so they are listed, and the list is
-#: the difference between a frame contract that works and one that refuses
-#: every chart: measured on the frozen fixtures, the single missing 2025-01-09
-#: made all 35 of his drawings and all 37 fleet charts look like they had a
-#: day deleted from the middle.
-#:
-#: This also means `session_gap` was quietly wrong for the pipeline's own
-#: freshness checks across each of these dates, since it grew from the same
-#: rule calendar.
+#: Days the NYSE closed that no rule predicts — funerals, disasters, attacks — so they are listed.
 UNSCHEDULED_CLOSURES = (
     "2001-09-11", "2001-09-12", "2001-09-13", "2001-09-14",  # the attacks
     "2004-06-11",   # President Reagan's funeral

@@ -1,13 +1,7 @@
-"""Read a smaller box alongside its parent, using the walk's own life rules.
-
-Candidates open after the parent's birth, sit inside or across it, and have less than
-80% of its price height (operator ruling, 2026-10-21). Filter size before the inner
-walk so an oversized box cannot block a smaller candidate. The selected box must
-also clear the parent's support area and differ from its two rails.
-
-A mini has its own rails and never replaces the parent. It need not sit at the top.
-The LPS uses it only when its low is in, on or near it; mini-side faults fall back
-to the parent read.
+"""The mini (off behind ``MINI_ENABLED``): a smaller box inside or across the parent, read with the walk's own life
+rules over the pairs that opened after the parent's birth and stand under ``MINI_MAX_PARENT_HEIGHT_RATIO`` of its
+height; it has its own rails and never replaces the parent. The LPS is read against it only when the pullback's low
+is in, on or near it (``read_lps``); a fault on the mini's side leaves the parent's read standing.
 """
 from __future__ import annotations
 
@@ -70,8 +64,7 @@ def find(found: Walk, high, low, read_bar: int, ranges=None) -> tuple:
     if not chosen:
         return ()
     walked = [t for t in found.ends if t.get("foot_bar") is not None]
-    # His HCA reading (a pair the bars knew stands through a run that came back) is not asked of inner pairs:
-    # inside the parent every inner pair's rails are levels the bars knew, so it would say nothing there.
+    # His HCA reading is not asked of inner pairs: inside the parent every pair's rails are levels the bars knew.
     history = tuple(lives(chosen, walked, high, low, read_bar, known_rails=False, ranges=ranges))
     if not history or not is_a_mini(history[-1].pair, found.winner):
         return ()
@@ -87,10 +80,8 @@ def _when(found: Walk, bar: Optional[int]) -> str:
 
 
 def record(found: Walk, history: tuple) -> tuple:
-    """The record of the mini: ``(box, step)`` — the live mini as a ``Box`` with the role ``mini`` (its own
-    anchor days, its own frozen range, no end day), and one step in words: its lines, when it became a box and was
-    shown, where it stands against the parent in the parent's ranges, how many candidates it was chosen from and
-    the chain before it."""
+    """The record of the mini, ``(box, step)``: the live mini as a ``Box`` with the role ``mini``, and one step in
+    words — its lines, its birth and showing, where it stands against the parent, the candidates, the chain before."""
     parent, life = found.winner, history[-1]
     pair = life.pair
     r, s = found.turns[pair.r_index], found.turns[pair.s_index]
@@ -116,11 +107,8 @@ IN, ON, NEAR, AWAY = "in", "on", "near", "away"
 
 
 def where(low: float, band) -> str:
-    """Where a pullback's low sits against the mini, in the mini's OWN area (half its frozen range; his area, the
-    only width): ``in`` — inside the band and clear of both lines; ``on`` — inside and within the area of a line
-    (resting on it, a slight poke included: *"whenever they are slightly poking out or not does not matter one
-    bit"*, Sat 26/09/2026); ``near`` — outside the band and within the area of a line; ``away`` — anything else.
-    ``band`` is anything with ``R``, ``S`` and ``area``."""
+    """Where a pullback's low sits against the mini, in the mini's own area: ``in`` (clear of both lines), ``on``
+    (inside, within a line's area), ``near`` (outside, within it) or ``away``. ``band`` has ``R``, ``S``, ``area``."""
     low, R, S, a = float(low), float(band.R), float(band.S), float(band.area)
     if S + a < low < R - a:
         return IN
@@ -130,9 +118,8 @@ def where(low: float, band) -> str:
 
 
 def lps_box(low: float, band) -> tuple:
-    """Which box the LPS is read against, and how (his sentence of Sun 13/09/2026: *"the LPS read can be against
-    it if it is inside/near it/resting on it"*): ``("mini", word)`` when the low is in, on or near the mini;
-    ``("parent", None)`` with no mini or a low away from it. ONE chooser, so the board draws the band that fired."""
+    """Which box the LPS is read against, and how (his ruling, Sun 13/09/2026): ``("mini", word)`` when the low is
+    in, on or near the mini; ``("parent", None)`` with no mini or a low away from it."""
     if band is None:
         return ROLE_PARENT, None
     word = where(low, band)
@@ -148,10 +135,8 @@ def could_not_be_read(exc: Exception) -> tuple:
 # What the reader calls: the mini, and the LPS against it                     #
 # --------------------------------------------------------------------------- #
 def read(found: Walk, high, low, ranges, read_bar: int) -> tuple:
-    """The mini on one read: ``(box, pair, steps)`` — the live mini as a ``Box`` and its ``Pair`` with the step that
-    says it, or ``(None, None, ())`` when the walk shows no inner box. A fault leaves the parent-only read standing
-    with a step that says why, never a crash: by his ruling the LPS may be read against the mini, so a bug in the
-    mini must never cost a fire."""
+    """The mini on one read, ``(box, pair, steps)``, or ``(None, None, ())`` when the walk shows no inner box; a
+    fault leaves the parent-only read standing with a step that says why, never a crash."""
     try:
         history = find(found, high, low, read_bar, ranges=ranges)
         if not history:
@@ -163,11 +148,9 @@ def read(found: Walk, high, low, ranges, read_bar: int) -> tuple:
 
 
 def read_lps(parent_pullback, mini_pair: Pair, high, low, ranges, turns, days, read_bar: int, boxes) -> tuple:
-    """The LPS against the mini, on his condition: when the pullback's low is in, on or near the mini (the mini's own
-    area), it is measured again against the mini's lines and stamped with which box and how; its window and trigger
-    are the bars' and do not move. Away from the mini, a mini that became a box only after the pullback ended, or a
-    fault on the mini's side: the parent's read, with a sentence — never "no LPS", never a crashed read. Returns
-    ``(lps, steps, word, pullback)``, the steps including every sentence the mini's side added."""
+    """The LPS against the mini when the pullback's low is in, on or near it, measured again against the mini's lines
+    and stamped with which box and how; otherwise, or on any fault of the mini's side, the parent's read with a
+    sentence. Returns ``(lps, steps, word, pullback)``."""
     against, how, extra, pullback = ROLE_PARENT, None, (), parent_pullback
     try:                                              # the chooser is the mini's side too
         against, how = lps_box(parent_pullback.low, mini_pair)
@@ -194,8 +177,7 @@ def read_lps(parent_pullback, mini_pair: Pair, high, low, ranges, turns, days, r
         the_lps, said, word = lps_stage.record(parent_pullback, days, read_bar=read_bar)
         extra = extra + (Step("LPS", f"the LPS record against the mini could not be made: {type(exc).__name__}: "
                                      f"{exc}; read against the parent"),)
-    # The archive tie: "mini" is said only with a stored mini. The pair and its box are set together, so this cannot
-    # happen by construction; if it ever does, the parent's read stands, with a sentence.
+    # The archive tie: "mini" is said only with a stored mini box; else the parent's read stands, with a sentence.
     if the_lps is not None and the_lps.read_against == ROLE_MINI and not any(b.role == ROLE_MINI for b in boxes):
         the_lps, said, word = lps_stage.record(parent_pullback, days, read_bar=read_bar)
         extra = extra + (Step("LPS", "the LPS was read against the mini but no mini box is on the record: "

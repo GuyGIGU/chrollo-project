@@ -1,228 +1,175 @@
 """Every number the alpha reader reads, one plain line each with the words that placed it.
 
-The stages read these as ``M.NAME`` and never a setting: the version stamp (``engine_alpha/stamp.py``) hashes every
-upper-case name here, so a changed number moves the night's ``engine_config_version``. A change to HOW the reader
-reads bumps ``ALPHA_RULESET`` in ``config/reader.py`` instead; the stamp hashes numbers, not code. Keep this
-module import-free: the stamp reads it on every night's scan, and a plain file of numbers is the one thing that cannot
-fall over.
+The stages read these as ``M.NAME``, never a setting: the stamp (``engine_alpha/stamp.py``) hashes every upper-case
+name here, so a changed number moves the night's ``engine_config_version``. A change to HOW the reader reads bumps
+``ALPHA_RULESET`` in ``config/reader.py`` instead. Import-free: the stamp reads it on every night's scan.
 """
 
-#: Placed by the sweep on his 186 turns (his Q1 asked for a search): a turn commits when price backs off the
-#: running extreme by this many of the bar's own daily range.
+#: A turn commits when price backs off the running extreme by this many daily ranges: the sweep on his 186 turns (his
+#: Q1).
 TURN_LINE_FLOOR_ATR = 0.75
 
 #: The ruled rail area, in daily ranges ("rail area is about half a daily range").
 LINE_WORD_AREA_ATR = 0.5
 
-# THE UNIT OF THE WORDS (build task 12b, Fri 02/10/2026; ours): the story measures every word of a box in that
-# box's OWN daily range, the range of the day its second line was anchored: the same range its two rail areas
-# are measured in, frozen for the box's whole life, so a word never changes because today's bars were wide. The
-# three numbers below were first placed in another range (the one six bars back from the read day) and are
-# re-derived here from his own marked bars in the box's range (tests/engine/test_story.py holds each to
-# them). The rail area above is HIS number and did not move.
+# --- The words' numbers, each in the box's OWN daily range, frozen for its life (Fri 02/10/2026) -------------------
 
-#: An upthrust climbs this far over R: between the breach he crossed out (his UNF, Fri 05/06/2026: 1.21 of the
-#: box's ranges) and the smallest he named (his VIK, Thu 14/05/2026: 1.31). The band is 0.09 wide in this range:
-#: a knife edge on both sides, said so in the decisions record. Not re-placed.
+#: An upthrust climbs this far over R: between his UNF breach crossed out (Fri 05/06/2026: 1.21) and his smallest
+#: named, VIK (Thu 14/05/2026: 1.31).
 LINE_WORD_UPTHRUST_MIN_POKE_ATR = 1.25
 
-#: A push covers at least this much ground, launch low to top. His smallest drawn SOS covers 1.33 of the box's
-#: ranges (SGHT, Mon 21/09 to Tue 22/09/2026); the floor sits 0.20 on his side of it (1.70 as first placed).
+#: A push covers at least this much ground, launch low to top: his smallest drawn SOS covers 1.33 (SGHT, Mon 21/09 to
+#: Tue 22/09/2026), the floor 0.20 on his side.
 LINE_WORD_SOS_MIN_GROUND_ATR = 1.13
 
-#: A pause this deep ends a push (and a last supper digs at least this far). His shallowest drawn last supper digs
-#: 1.52 of the box's ranges (SILC), and the pause before his PBT push of Tue 05/05/2026 is 1.24: the number sits
-#: 0.21 under that pause, so his push is read as he drew it, and 0.49 on his side of his shallowest supper (1.5 as
-#: first placed).
+#: A pause this deep ends a push: 0.21 under the pause before his PBT push of Tue 05/05/2026 (1.24), 0.49 under his
+#: shallowest last supper (SILC, 1.52).
 LINE_WORD_SUPPER_DIG_ATR = 1.03
 
-#: A last supper is NAMED only when it digs this far: "a noticeable deep correction" (his word, Sat 03/10/2026).
-#: His shallowest drawn last supper (SILC, 1.52 of the box's ranges) less the 0.2 margin the floors keep; the
-#: push-ending floor above stays where his PBT push needs it.
+#: A last supper is NAMED only when it digs this far: "a noticeable deep correction" (Sat 03/10/2026); his shallowest
+#: (SILC, 1.52) less the 0.2 margin.
 LINE_WORD_SUPPER_NAMED_DIG_ATR = 1.32
 
 #: His longest last supper, in trading days.
 LINE_WORD_SUPPER_MAX_DAYS = 4
 
-# R15's breakout margin (BOX_END_BREAKOUT_ATR, 0.10 ranges over R by the close) left with the copied box-end
-# reader at task 11: the new reader's box ends by swings alone, and reads no close anywhere.
+# --- Stage 1: the numbers the frame preparation and the line read ---------------------------------------------------
 
-# --- Stage 1 (task 8): the numbers the frame preparation and the line read -------------------------
-
-#: The daily range is the true range smoothed by Wilder's rule over this many trading days: the old
-#: engine's ATR_10, the unit every number above is placed in (a literal 10 in the old engine, never a
-#: setting). It is built on the LONG frame, before the cut to the reading window.
+#: The daily range: the true range smoothed by Wilder's rule over this many trading days (ATR_10, the unit every
+#: number here is placed in), built on the LONG frame.
 DAILY_RANGE_DAYS = 10
 
-#: What the reader sees: the trailing window the old engine has always read (its DAILY_STRUCTURE_PERIOD),
-#: so the yardstick compares like with like. Only the frame is cut; the daily range is not recomputed
-#: inside it.
+#: The trailing window the reader sees; only the frame is cut, the daily range is not recomputed inside it.
 READ_WINDOW = "2y"
 
-# --- Stages 2 and 3 (task 10): the numbers the end of the trend, the walk and the election read ---------
+# --- Stages 2 to 4: the numbers the end of the trend, the walk and the election read --------------------------------
 
-#: The far view's floor, in daily ranges: how far back the reader stands to see the trends. Placed at the
-#: listing gate (task 9, Sat 26/09/2026) as the one distance at which the trend into his box is seen at all;
-#: OURS and provisional, his sitting settles it.
+#: The far view's floor, in daily ranges: how far back the reader stands to see the trends. OURS, placed at the
+#: listing gate (Sat 26/09/2026), provisional.
 FAR_VIEW_FLOOR_RANGES = 1.5
 
-#: A pair of lines is a box no sooner than its fifteenth trading day from the first anchor: "Lets go with 15
-#: days" (Sat 12/09/2026).
+#: A pair of lines is a box no sooner than its fifteenth trading day from the first anchor: "Lets go with 15 days"
+#: (Sat 12/09/2026).
 BOX_DAYS = 15
 
-#: A pair shorter than this many of its own daily ranges is listed by the walk but is never a box: bars cannot
-#: zigzag inside it (his "huge spread" is huge against the box itself, "answer a.", Sun 20/09/2026). The
-#: number is OURS, the listing gate's bound (task 9).
+#: A pair shorter than this many of its own daily ranges is never a box: his "huge spread" is huge against the box
+#: itself ("answer a.", Sun 20/09/2026); the number is OURS.
 BOX_MIN_HEIGHT_RANGES = 1.0
 
-#: A pair the bars KNEW before it opened: in this many trading days before its opening, at least
-#: KNOWN_RAILS_MIN_BARS highs at its resistance and as many lows at its support, each within this share of the
-#: pair's daily range. His HCA (Sat 24/10/2026): "an earlier pair that provides a tighter box leading to more
-#: context overall". The three numbers are OURS, measured on his 48 drawings + 12 fixes: every window from 25 to 80
-#: days, every share from 0.2 to 0.33 and two or three bars read the same board (HCA and ACCO his, nothing lost).
+#: A pair the bars KNEW before it opened (his HCA, Sat 24/10/2026: "an earlier pair that provides a tighter box
+#: leading to more context overall"): the days before its opening that are read ...
 KNOWN_RAILS_DAYS = 30
+#: ... the share of the pair's daily range a high or low sits within to count at a rail ...
 KNOWN_RAILS_AREA_RANGES = 0.25
+#: ... and how many highs at its resistance and as many lows at its support. OURS, measured on his 48 drawings + 12
+#: fixes: windows 25 to 80, shares 0.2 to 0.33, two or three bars read the same board.
 KNOWN_RAILS_MIN_BARS = 2
 
 #: A mini must be strictly smaller than this share of its parent's R-S price height (operator, 2026-10-21).
 MINI_MAX_PARENT_HEIGHT_RATIO = 0.8
 
-# --- Stage 6 (task 12a): the numbers the LPS and its trigger read --------------------------------------
+# --- Stage 6: the numbers the LPS and its trigger read --------------------------------------------------------------
 
-#: A pullback is read on at most this many bars, its top day and its receding days: "2 - 5 bars" (Tue
-#: 08/09/2026). Of a longer run of receding days only the last five are read, from their highest high.
+#: A pullback is read on at most this many bars: "2 - 5 bars" (Tue 08/09/2026); of a longer run only the last five,
+#: from their highest high.
 LPS_MAX_BARS = 5
 
-#: The unit the LPS is measured in: the daily range as it stood this many trading days before the pullback's
-#: last day, so the pullback's own days never move their own yardstick. It is the unit his 1.35 and the 2.5
-#: below were placed in (the old engine's sample day): in it his six lows over resistance read what they read
-#: when he ruled (ST 1.30) and his deepest pullback 2.43. OURS.
+#: The LPS's unit: the daily range this many trading days before the pullback's last day, the unit his 1.35 and the
+#: 2.5 were placed in (ST reads 1.30, his deepest pullback 2.43). OURS.
 LPS_UNIT_DAYS_BACK = 5
 
-#: His ceiling: the LPS's low sits at most this many daily ranges over resistance. "Lets go with that ceiling
-#: 1.35 I guess...." (Thu 10/09/2026); his farthest, ST, sits 1.30 over.
+#: His ceiling: the LPS's low sits at most this many daily ranges over resistance. "Lets go with that ceiling 1.35 I
+#: guess...." (Thu 10/09/2026); his farthest, ST, sits 1.30 over.
 LPS_CEILING_RANGES = 1.35
 
-#: A fall deeper than this from the top of its swing is a slice of a bigger swing down, not a pullback (his AEF
-#: words, Mon 14/09/2026; "the correction is getting to deep", Tue 08/09/2026). The sentence is his; the number
-#: is OURS, the daily-range yardstick he ruled that day placed over his deepest drawn pullback: 2.5 over the
-#: sealed drawings' 2.43, then 2.75 over his STGW (Fri 23/10/2026: the rest of 19 to 21/10 on the box's top, 2.62
-#: under the spike of 13/10, drawn as his LPS; "Yes, raise the LPS depth ceiling to 2.75 daily ranges").
+#: Deeper than this from its swing's top is a slice of a bigger swing down ("the correction is getting to deep", Tue
+#: 08/09/2026; his AEF words, Mon 14/09/2026): 2.5 over his 2.43, then his STGW: "Yes, raise the LPS depth ceiling to
+#: 2.75 daily ranges" (Fri 23/10/2026).
 LPS_DEPTH_MAX_RANGES = 2.75
 
-#: More than this share of the pullback's high-to-low travel under the support area refuses it: "most of the
-#: move is above it and only small parts of it poke out down" (his JAZZ answer, Sun 13/09/2026).
+#: More than this share of the pullback's high-to-low travel under the support area refuses it: "most of the move is
+#: above it and only small parts of it poke out down" (JAZZ, Sun 13/09/2026).
 LPS_UNDER_SUPPORT_SHARE = 0.5
 
-# THE GRADE (build task 14, Fri 09/10/2026; the decisions rows of that day). The grade is 100 when no day of the
-# base is empty his way and falls in a straight line to 0 at this share: one half, his "mostly dead space" (FRPH,
-# Mon 05/10/2026). The end is his word; the straight line and the cuts below are the plan's, his to approve.
+# --- The grade (Fri 09/10/2026) -------------------------------------------------------------------------------------
+#: The grade is 100 with no empty day and falls in a straight line to 0 at this share of the base: one half, his
+#: "mostly dead space" (FRPH, Mon 05/10/2026).
 GRADE_EMPTY_ZERO = 0.5
 
-#: The letters' cuts on the grade's 0 to 100: S from 75, A from 50, B from 25, C under (the plan's task 14).
+#: The letters' cuts on the grade's 0 to 100: S from 75, A from 50, B from 25, C under (the plan of Fri 09/10/2026).
 GRADE_S = 75.0
 GRADE_A = 50.0
 GRADE_B = 25.0
 
-# THE TRAITS (Thu 29/10/2026, his words: "I want an actual grading system that pops up the best stock at the top of
-# the page ... i've explained a million times what makes a setup higher quality and what traits i want to see"; his
-# traits of Sat 18/10/2026: a tight box, clean swings, right-side contraction, no dead space; and "the stage thing I
-# taught you"). The letter stays the integrity grade's (dead space and the hold: his sealed 40 keep their letters, his
-# ruling 3 of 29/10). WITHIN the letter the traits order the setups: the score runs from the letter's floor to its
-# ceiling by the weighted traits, each a 0..1 fraction of like quantities in a named unit. The weights are OURS; a
-# trait that is not measured leaves the budget. TIGHTNESS CARRIES THE SCORE (Thu 29/10/2026, his "wide ass nothing
-# burger stocks all hug the damn S spot"; his 46 drawings run 1.1 to 2.75 ranges): with 30 points a box three ranges
-# tall with clean swings, rails and stage still read 94, inside the tight pack; with 60 it tops out at 88, under any
-# tight box. Measured the same night on his 90 hearts (36 liked, 54 passed, the same screener): within S NO trait
-# and no stock fact (ADR, run, stage, dollar volume) tells his likes from his passes (every one near a coin flip),
-# so the hearts tune nothing here; the width is the one thing his complaint and his drawings both name.
+# --- The traits (Thu 29/10/2026: "I want an actual grading system that pops up the best stock at the top of the
+# page"): within the letter, the traits order the setups ---
+#: The weights, OURS. TIGHTNESS CARRIES THE SCORE (Thu 29/10/2026, his "wide ass nothing burger stocks all hug the
+#: damn S spot"); on his 90 hearts no trait tells his likes from his passes.
 TRAIT_WEIGHTS = {"tightness": 60.0, "swings": 5.0, "dead_space": 15.0, "contraction": 5.0, "rails": 10.0,
                  "stage": 5.0}
-#: Tightness: the box's height in its own daily ranges, full marks at or under this many ranges ("a box about as
-#: tall as its bars is completely fine", Mon 05/10/2026; his boxes run 1.1 to 2.75 ranges, most under 2) ...
+#: Tightness: the box's height in its own daily ranges, full marks at or under this many ("a box about as tall as its
+#: bars is completely fine", Mon 05/10/2026; his boxes run 1.1 to 2.75) ...
 TRAIT_TIGHT_FULL_RANGES = 1.25
 #: ... and none at or over this many: a wide, nothing-burger box (on the scan of 28/10/2026, 10 of 197 S boxes).
 TRAIT_TIGHT_ZERO_RANGES = 3.5
-#: Right-side contraction: the ratio of the last third's mean daily range to the earlier two thirds'. Full marks at
-#: or under this ratio, none at TRAIT_CONTRACTION_ZERO_RATIO or looser (his 40 run 0.63 to 1.68; most 0.8 to 1.1).
+#: Right-side contraction: the last third's mean daily range over the earlier two thirds'; full marks at or under this
+#: ratio, none at TRAIT_CONTRACTION_ZERO_RATIO or looser (his 40 run 0.63 to 1.68).
 TRAIT_CONTRACTION_FULL_RATIO = 0.7
 TRAIT_CONTRACTION_ZERO_RATIO = 1.1
-#: The stage, his weekly read (Fri 16/10/2026): the fraction each stage earns. Stage 2, the advance, is the setup's
-#: home; stage 1 may be the base before it; a stage-3 or stage-4 base is late or against the tide.
+#: The stage, his weekly read (Fri 16/10/2026): stage 2 is the setup's home, stage 1 may be the base before it, a
+#: stage-3 or stage-4 base is late or against the tide.
 TRAIT_STAGE_FRACTION = {1: 0.5, 2: 1.0, 3: 0.25, 4: 0.0}
-#: The letters' bands: the floor each letter's traits build from and the width they fill. S fills to 100; the others
-#: stop one point under the next letter's floor so the letter the score is cut on is still the integrity grade's.
+#: The letters' bands: the floor each letter builds from and the width it fills; the others stop one point under the
+#: next letter's floor.
 TRAIT_BANDS = {"S": (75.0, 25.0), "A": (50.0, 24.0), "B": (25.0, 24.0), "C": (0.0, 24.0)}
 
-# --- The walk's switches (Wed 28/10/2026): his candidate rules, each a named switch -------------------------
-# His word that day: "we've got to write the engine in a certain way that will allow us to easily tune it in the
-# right direction". Each switch names ONE reading of the walk that was tried as a monkeypatch and is NOT ruled on;
-# all of them default to the rule as built, so the as-built path reads exactly as before. A reading is measured as
-# one switch off plus one run of `tools.calibration.fires_board` on his live drawings. Flipping one for good is a
-# ruling (decisions.md) and moves the version stamp like any number here. The walk reads them at call time.
+# --- The walk's switches (Wed 28/10/2026: "we've got to write the engine in a certain way that will allow us to
+# easily tune it in the right direction"); all True = the rule as built ---
 
-#: Sentence 3's pair: an end may pair with the other end of its OWN bar (the climax bar's own high and low as the
-#: climax and its reaction). Off: never (his AMTB, Wed 28/10/2026; measured 40 -> 39 on his 47, TWLO lost).
+#: An end may pair with the other end of its OWN bar. Off: never (his AMTB, Wed 28/10/2026; measured 40 -> 39 on his
+#: 47, TWLO lost).
 ONE_BAR_PAIR = True
 
-#: A bar that gapped clear of the bar before (its low over that bar's high): its own low may be the reaction, as
-#: a wide end and as the running low under its top. Off: its low is where the rise landed, not the reaction, so a
-#: later low is (his EHC and ANF, Sat 24/10/2026; the GU2 reading, rise only: the mirror cost his EGBN).
+#: A bar that gapped clear of the bar before: its own low may be the reaction. Off: a later low is (his EHC and ANF,
+#: Sat 24/10/2026).
 GAP_BAR_LOW_IS_REACTION = True
 
-#: The other end of one wide bar is listed as a swing's end (sentence 3, his "correct" of Thu 01/10/2026). Off:
-#: no wide ends at all (the W reading of Sat 24/10/2026, for scale).
+#: The other end of one wide bar is listed as a swing's end (his "correct" of Thu 01/10/2026). Off: no wide ends at
+#: all.
 WIDE_ENDS = True
 
-#: A pair whose first anchor is a trend end's CLIMAX bar may take its second anchor from that same bar: the one
-#: bar is the climax and the reaction of that box's root swing. His words (Wed 28/10/2026): "a climax and its
-#: reaction are never on one bar as in a true climax's end and its reaction, but when choosing a box, a single bar
-#: can represent the climax and the reaction for that box's root swing". Off: never on the climax bar (one-bar
-#: pairs elsewhere stay; measured on his 47: the board unchanged, his AMTB's one-bar box gone).
+#: A pair anchored on a trend end's CLIMAX bar may take its second anchor from that same bar: "a single bar can
+#: represent the climax and the reaction for that box's root swing" (Wed 28/10/2026). Off: never on the climax bar.
 CLIMAX_BAR_OWN_REACTION = True
 
-#: The box must WRAP the bars (his AMTB, Wed 28/10/2026; his words Thu 29/10/2026: "we simply must increase the
-#: reading accuracy of our Reader to match better with the ranges of the actual price action"): a box that is ONE
-#: bar's own high and low is measured in that one wide bar's range, so every bar inside it "respects" it; a
-#: meaningfully tighter pair inside or across it (under the mini bar, 80% of its height), opened while it was still
-#: forming, takes its place on the first day the bars have come back to both its rails while none since the box
-#: opened has come back to one of the box's rails (a come-back: a bar at the rail after the bars had left it; the
-#: root swing's own bars at it are none), read in the tighter pair's own daily range (`handover.wraps`). A two-bar box
-#: — a climax and its reaction, his SILC — keeps its place whatever sits inside it. Off: a pair inside or across the
-#: box never takes its place (the rule as built before Thu 29/10/2026).
+#: The box must WRAP the bars: a meaningfully tighter pair inside or across it takes its place on the first day the
+#: bars have come back to both its rails (his AMTB, Wed 28/10/2026; "we simply must increase the reading accuracy of
+#: our Reader to match better with the ranges of the actual price action", Thu 29/10/2026). Off: never.
 WRAP_TAKES_OVER = True
 
-# --- The election by respect and the mini's sunset (Fri 30/10/2026): his direction, each a switch ----------------
-# His words that night: *"for now i want you to sun set, mini consolidation detection, i find it to be hard to tune,
-# lets focus on the simple core of the reader for now. Lets follow your direction for the Engine, Still on High/LOW
-# values only but with out being hung on extremes"*, and on counting touches: *"we should have some sort 'Close
-# Enough' approach to count touches, plenty of the boxes work because most of the price action was in the area of
-# said rails and it means that they in fact respect that range ... every setup is unique regarding it's bar spread
-# ... the engine misses better more 'Correct' results because it found a more 'lazy' alternative"*. Both switches
-# default to the reader as built; a measurement flips them on the fires board.
+# --- The election by respect and the mini's sunset (Fri 30/10/2026: "lets focus on the simple core of the reader for
+# now"); both default to the reader as built ---
 
-#: The box is the pair the bars RESPECT most, not the first pair to become one: among the pairs that are boxes, a
-#: pair takes the shown box's place on the first day it leads it by RESPECT_MARGIN touches over the last
-#: RESPECT_WINDOW_DAYS trading days (one window for every pair: the same days for all, or the lead is not transitive
-#: and the chain cycles), its own score reaching the margin too, each bar read in its OWN daily range, his "per stock" close-enough: +1 for a bar whose end sits within RESPECT_AREA_RANGES of the rail
-#: it is closest to (a touch; poking out slightly counts), -1 for a bar wholly beyond a rail by more than that (a
-#: bar the pair does not wrap), 0 for a bar inside (``handover.respect_marks``, ``handover.out_respected``). A pair that
-#: opened earlier may win this way too (the way back; his HCA's earlier pair). Under it the left-for-good, way-back
-#: and wraps hand-overs are not asked (the pair the bars live in wins in either direction); the live-trend and
-#: tried-first hand-overs stay. Off: the chain of hand-overs as built.
+#: The box is the pair the bars RESPECT most, not the first to become one: his "Close Enough" touches ("plenty of the
+#: boxes work because most of the price action was in the area of said rails", Fri 30/10/2026). Off: the chain of
+#: hand-overs as built.
 RESPECT_ELECTS = False
+#: A touch: a bar's end within this many of its OWN daily range of the nearest rail, +1 ("every setup is unique
+#: regarding it's bar spread"); wholly beyond a rail by more, -1.
 RESPECT_AREA_RANGES = 0.5
+#: A pair takes the shown box's place when it leads by this many touches, its own score reaching it too ("the engine
+#: misses better more 'Correct' results because it found a more 'lazy' alternative") ...
 RESPECT_MARGIN = 3
+#: ... over the last this many trading days, one window for every pair.
 RESPECT_WINDOW_DAYS = 30
 
-#: The mini stage: a second box inside the parent's right side, and the LPS read against it when its low is in,
-#: on or near it. Off: no mini is read and the LPS reads against the parent alone. OFF since Fri 30/10/2026 on his word
-#: (*"sun set, mini consolidation detection, i find it to be hard to tune"*), measured free that night: on his 51 with a
-#: trigger the same 43 fires, the same boxes, the same triggers; the junk's 47 fire days unchanged; the reader pin
-#: zero-diff. The stage is kept whole behind the switch.
+#: The mini stage: a second box inside the parent's right side, the LPS read against it when its low is in, on or near
+#: it. OFF since Fri 30/10/2026 on his word ("sun set, mini consolidation detection, i find it to be hard to tune"),
+#: measured free: the same 43 fires on his 51, the junk's 47 fire days unchanged.
 MINI_ENABLED = False
 
-# --- The grade's trait scales and the stage read (moved from config on Fri 30/10/2026, values unchanged) ---
+# --- The grade's trait scales and the stage read
+# ----------------------------------------------------------------------
 
 #: Clean swings: the main zigzag's share of the line's travel that earns full marks (the current 48's lower quartile).
 CLARITY_SWING_FULL_SHARE = 0.45

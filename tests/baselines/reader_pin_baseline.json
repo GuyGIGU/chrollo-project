@@ -25461,7 +25461,7 @@
    }
   }
  },
- "captured_at": "2026-10-30T22:36:00+00:00",
- "engine_config_version": "8d66938a7b2f8f18ffebd9057f5532a26ab74731a0e78fadfb50f3943c66b999",
- "ruleset": "two-eyes-0.11.0-wrap-and-traits"
+ "captured_at": "2026-10-31T13:44:00+00:00",
+ "engine_config_version": "d4238fb90790c03f608a97f8460deabfa7ef2b5bf1cb7cd80594fbea5bd3396d",
+ "ruleset": "alpha-0.13.0-the-tree"
 }

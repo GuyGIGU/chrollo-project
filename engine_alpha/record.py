@@ -14,9 +14,7 @@ ROLE_EARLIER = "earlier"
 ROLES = (ROLE_PARENT, ROLE_MINI, ROLE_EARLIER)
 
 def height_in_ranges(R, S, unit):
-    """The box's height in its own daily range: the ONE place the screen's ``ranges_tall`` and the grade's tightness
-    read it (review 2026-10-29). None when the unit is missing, nil or not a number. Lives here, outside the new
-    reader's package, because the archive family's writer runs on the old reader's nightly path too."""
+    """The box's height in its own daily range, the ONE place it is read; None when the unit is missing or not a number."""
     try:
         unit = float(unit)
     except (TypeError, ValueError):
@@ -26,19 +24,12 @@ def height_in_ranges(R, S, unit):
     return float(R - S) / unit
 
 
-#: What a box is doing in this read — a closed set, owned by a module with no
-#: imports so the archive can use the same tuple without importing this
-#: package into the old reader's nightly path.
-
 #: Separate an absent structure from a failed read.
 NO_LINES = "no lines"
 READ_FAILED = "no lines, the read failed"
 
-#: The ten words a chart can carry on the screen: ONE closed table, and each word's one home. The table is the
-#: builder's (final method, point 22), approved inside his "Go!" of Sun 13/09/2026; three of its words answer
-#: his own: a chart with lines and no LPS still shows ("Yes"), the buy day ("we can go with nothing"), a refused
-#: chart ("lets go with not scanned"). The old engine keeps its own copy in a frozen file this package may not
-#: import; a test outside the package holds the two equal. ``READ_FAILED`` is never one of them.
+#: The ten words a chart can carry on the screen: ONE closed table, each word's one home. ``READ_FAILED`` is never
+#: one of them.
 FIRED = "fired"
 CROSSED = "crossed"
 LINES_NO_LPS = "lines, no LPS yet"
@@ -51,9 +42,8 @@ NOT_SCANNED = "not scanned"
 STATE_WORDS = (FIRED, CROSSED, LINES_NO_LPS, FORMING, ROOT_CANDIDATE, BEYOND_R, UNDER_S, BROKE_DOWN,
                NOT_SCANNED, NO_LINES)
 
-#: The words of the story (stage 5): what the drawing did against the box and its two lines. A closed set; each
-#: word is his. Not here: the LPS (it is ``Read.lps``), the mini (a second box), the shakeout (parked by him,
-#: Sun 13/09/2026: "we can stick with Phase C only for now").
+#: The words of the story (stage 5): what the drawing did against the box and its two lines. A closed set, each
+#: word his; the LPS is ``Read.lps`` and the mini a second box, not words.
 SPRING = "spring"               # his "Phase C = Spring btw." (Mon 14/09/2026)
 SPRING_TEST = "spring test"
 UPTHRUST = "upthrust"
@@ -63,14 +53,7 @@ PHASE_D = "Phase D"
 EVENT_KINDS = (SPRING, SPRING_TEST, UPTHRUST, SOS, LAST_SUPPER, PHASE_D)
 
 def _as_day(value):
-    """A plain day, or None.
-
-    A timestamp is what a date index hands out, and it passes for a day
-    (it is one, by inheritance) until something writes it down: then it
-    carries a clock time the market never traded at, and the archive,
-    which stores days, refuses the whole fire. Cut here, once, so every
-    reader of the record gets a day.
-    """
+    """A plain day, or None: a timestamp is cut to its date here, once, so no clock time ever reaches the archive."""
     if value is None:
         return None
     if isinstance(value, dt.datetime):      # before date: a timestamp is both
@@ -96,8 +79,7 @@ class Box:
     opened_day: dt.date
     end_day: Optional[dt.date] = None
     role: str = ROLE_PARENT
-    #: The daily range the box was measured in, frozen at its birth — never
-    #: the read day's, so a box does not change size because today was wide.
+    #: The daily range the box was measured in, frozen at its birth, never the read day's.
     daily_range: Optional[float] = None
 
     def __post_init__(self):
@@ -106,16 +88,13 @@ class Box:
         if self.role not in ROLES:
             raise ValueError(f"unknown box role {self.role!r}; expected one of {ROLES}")
 
-#: HOW the LPS sat against the mini, his three positions (Sun 13/09/2026: *"the
-#: LPS read can be against it if it is inside/near it/resting on it"*): its low
-#: inside the mini's band, resting on one of its lines, or near one from outside.
-#: Said only of the mini (ours): the parent's read carries no word.
+#: HOW the LPS sat against the mini: its low inside the mini's band, resting on one of its lines, or near one from
+#: outside. Said of the mini only; the parent's read carries no word.
 LPS_HOW = ("in", "on", "near")
 
 @dataclass(frozen=True)
 class Lps:
-    """The last run of receding days, which box it receded inside, and — when
-    that box is the mini — how its low sat against it."""
+    """The last run of receding days, the box it receded inside and, for the mini, how its low sat against it."""
     start_day: dt.date
     end_day: dt.date
     read_against: str           # a box role; with two live boxes this is not optional
@@ -125,8 +104,6 @@ class Lps:
     def __post_init__(self):
         object.__setattr__(self, "start_day", _as_day(self.start_day))
         object.__setattr__(self, "end_day", _as_day(self.end_day))
-        # Validated the same way a box's role is. A closed set that is checked
-        # in one place and not the other is a closed set in name only.
         if self.read_against not in ROLES:
             raise ValueError(
                 f"the LPS was read against {self.read_against!r}; expected one "
@@ -144,18 +121,15 @@ class Step:
 
 @dataclass(frozen=True)
 class Event:
-    """One word of the story, as a fact: which word, the day it points at and the price there (a spring's tip, an
-    upthrust's or a push's top, the day the right side opens), and around it the first day of the swing that
-    makes it and its last day. Days and prices only: a bar index never leaves the reader. ``committed`` is
-    False while the swing it stands on, or the swing that answers it, is still forming; ``known_day`` is the
-    day it could first be said. Nothing that decides a fire reads an event."""
+    """One word of the story as a fact: the word, the day and price it points at, the first and last day of the swing
+    that makes it. ``committed`` is False while that swing, or its answer, is still forming; ``known_day`` is the day
+    it could first be said."""
     kind: str
     day: dt.date
     price: float
     first_day: Optional[dt.date] = None
     last_day: Optional[dt.date] = None
-    #: How big, in the unit the words are read in (a spring's depth under support, a climb over resistance,
-    #: the ground a push covered, a last supper's drop). A fact for the grade, never a gate.
+    #: How big, in the unit the words are read in. A fact for the grade, never a gate.
     size: Optional[float] = None
     committed: bool = False
     known_day: Optional[dt.date] = None
@@ -174,10 +148,8 @@ GRADE_LETTERS = ("S", "A", "B", "C")
 
 @dataclass(frozen=True)
 class Grade:
-    """The grade (stage 7): his dead space and whether the base held, read on the setup's box. ``score`` runs from 0
-    to 100 and ``letter`` follows it; ``empty_days`` of the base's ``base_days`` were empty his way; ``holds`` is
-    False when, after THE SOS's top, the price fell under the whole base. A verdict and its facts: nothing that
-    decides a fire reads it."""
+    """The grade (stage 7): ``score`` 0 to 100 and its ``letter``; ``empty_days`` of ``base_days`` were empty his way;
+    ``holds`` is False when, after the SOS's top, the price fell under the whole base."""
     score: float
     letter: str
     empty_days: int
@@ -195,12 +167,8 @@ class Grade:
 
 @dataclass(frozen=True)
 class Read:
-    """One chart, read once, as of one day.
-
-    `state` is the one word the screen shows. `failed` separates "the chart
-    has no lines" from "the read crashed": they are the same sentence to a
-    careless caller and completely different facts to him.
-    """
+    """One chart, read once, as of one day. ``state`` is the one word the screen shows; ``failed`` separates "the
+    chart has no lines" from "the read crashed"."""
     ticker: str
     as_of: Optional[dt.date] = None
     boxes: tuple = ()
@@ -209,25 +177,17 @@ class Read:
     state: str = NO_LINES
     failed: bool = False
     refusal: Optional[str] = None
-    # The read day's own close. The archive stores it as the setup's price,
-    # and the forward-returns backfill scales every trigger by it — so a
-    # stand-in (the resistance line was the first one) quietly regrades the
-    # outcome of every fire. None until a frame has been read.
+    # The read day's own close: the archive stores it as the setup's price and the backfill scales every trigger by it.
     close: Optional[float] = None
-    # The story (stage 5): the events the drawing printed against the box shown. Empty until the story is read,
-    # and empty again when it could not be: a word never costs a fire, so `fired` does not read this.
+    # The story's events; empty when it could not be read: a word never costs a fire, so `fired` does not read this.
     events: tuple = ()
-    # The number that rides BESIDE a state word that counts days ("forming N of 15": N; a run of days beyond a
-    # line: its length). Never written into the word, which is one of the closed ten.
+    # The number beside a state word that counts days ("forming N of 15": N); never written into the word.
     state_days: Optional[int] = None
-    # The grade (stage 7): None with no box, and None again when it could not be read: a grade never costs a
-    # fire, so `fired` does not read this.
+    # None with no box, and when it could not be read: a grade never costs a fire, so `fired` does not read this.
     grade: Optional[Grade] = None
 
     def __post_init__(self):
-        # Frozen, but a list slipped in through `boxes` or `trail` would make
-        # the record mutable through the back door. Coerced, not merely
-        # annotated (object.__setattr__ is how a frozen dataclass does this).
+        # coerced, not merely annotated: a list through `boxes` or `trail` would make the record mutable
         object.__setattr__(self, "boxes", tuple(self.boxes))
         object.__setattr__(self, "trail", tuple(self.trail))
         object.__setattr__(self, "events", tuple(self.events))
@@ -249,11 +209,7 @@ class Read:
             and self.lps.trigger_price is not None and not self.failed
 
 def crashed(ticker: str, as_of, why: str) -> Read:
-    """A read that fell over. Counted as a failure, never as 'no lines'.
-
-    The path a broken read takes may not break in turn: a day it cannot read
-    is dropped rather than raised, so the refusal still arrives.
-    """
+    """A read that fell over: counted as a failure, never as 'no lines'; a day it cannot read is dropped, not raised."""
     try:
         day = _as_day(as_of)
     except TypeError:

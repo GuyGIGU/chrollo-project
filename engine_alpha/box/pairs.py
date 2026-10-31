@@ -41,8 +41,7 @@ def known_by(turns, bar: int) -> list:
 # Respect: his eye                                                            #
 # --------------------------------------------------------------------------- #
 def rail_of(price: float, R: float, S: float, area: float) -> Optional[str]:
-    """The rail one end of a bar respects: the one it is closest to, when it is within the area of it, on either
-    side of it. Poking out is the same distance as stopping short."""
+    """The rail one end of a bar respects: the closer one, within the area of it on either side (a poke counts)."""
     to_r, to_s = abs(float(price) - float(R)), abs(float(price) - float(S))
     if min(to_r, to_s) > float(area):
         return None
@@ -50,10 +49,8 @@ def rail_of(price: float, R: float, S: float, area: float) -> Optional[str]:
 
 
 def bar_respects(high: float, low: float, R: float, S: float, area: float) -> frozenset:
-    """The rails a bar respects — his picture of Sat 26/09/2026 and his answer to sentence 6: each end of the bar
-    counts for the rail it is closest to. A bar whose high touches resistance and whose low touches support
-    respects both; small bars low in the box rest on support; a bar above resistance whose low is close to it
-    respects resistance."""
+    """The rails a bar respects: each end counts for the rail it is closest to, within the area (his picture, Sat
+    26/09/2026)."""
     return frozenset(rail for rail in (rail_of(high, R, S, area), rail_of(low, R, S, area)) if rail is not None)
 
 
@@ -71,12 +68,8 @@ def _respects(high, low, R: float, S: float, area: float) -> tuple:
 
 def came_back(high, low, R: float, S: float, area: float, r_bar: int, s_bar: int, read_bar: int,
               top_first: bool) -> tuple:
-    """The first bar that came back to each rail, later than both anchors: ``(resistance, support)``, each a bar
-    or None. A bar comes back to a rail when it respects it — resting on it is respect, the price need not have
-    left it first (his SILC: the bars rest on support for weeks). The rail the pair opened on is come back to
-    first; the other rail by the first bar that respects it on that day or after: the price has been at the
-    other rail in between, so the day after a reaction low, still resting on it, is no come-back by itself
-    (his DRTS: the climax 7.89 and its reaction 6.23, a low the base never returned to)."""
+    """The first bar back at each rail after both anchors, ``(resistance, support)``: the rail the pair opened on
+    first, the other by the first bar that respects it on that day or after (resting is respect; his SILC, DRTS)."""
     second = max(r_bar, s_bar)
     if second + 1 > read_bar:
         return None, None
@@ -106,11 +99,8 @@ class End:
 
 
 def swing_ends(turns, high, low, read_bar: int) -> list:
-    """The line's committed turns that are a swing's END by the bars: the high of the bar on neither side is
-    higher (the mirror for a low). A turn the line made out of one wide bar's own high and low, inside a move
-    still running, is not one — his PBT ruling. The other end of one wide bar counts when the bar's first end
-    is itself a swing's end and the bar after does not beat it (sentence 3). An end is known the day after its
-    bar: the next bar has to be seen."""
+    """The committed turns that are a swing's end: the bar on neither side beats the turn's bar. The other end of
+    one wide bar counts only when the bar's first end is a swing's end (his PBT ruling); known the day after."""
     out = []
     for index, turn in enumerate(turns):
         bar = int(turn.bar)
@@ -136,10 +126,8 @@ def swing_ends(turns, high, low, read_bar: int) -> list:
 # Stage 2: the end of the trend                                               #
 # --------------------------------------------------------------------------- #
 def trend_ends(far_turns) -> list:
-    """Every run of the far view that has ended, oldest first: at least two peaks and two valleys each above the
-    last (the mirror for a decline), ended by the first swing that fails to continue it. Each carries its
-    climax, the bar its run began on (the low a rise came off, the high a decline came off) and the day the end
-    was known — the close that committed the swing that ended the run."""
+    """Every run of the far view that has ended, oldest first: two peaks and two valleys each above the last (the
+    mirror for a decline), ended by the first swing that fails to continue it; its climax, start and day known."""
     t = [(int(tr.bar), tr.kind, float(tr.price), tr.knowable_bar) for tr in far_turns if tr.knowable_bar is not None]
     out = []
     direction, start = 0, None
@@ -166,10 +154,8 @@ def trend_ends(far_turns) -> list:
 
 
 def first_foot(ends, trend_end: dict, ranges) -> Optional[int]:
-    """Where a trend end's walk starts, as an index into ``ends``: the first swing end of the climax's level in
-    its run — a later high that pokes a little over his top does not move his line (PBT: 22.71 over his 22.65).
-    The level is the rail area around the climax, in the range of the climax's day. None when no swing end of
-    the run stands there (the climax itself is no swing's end)."""
+    """Where a trend end's walk starts, as an index into ``ends``: the first swing end at the climax's level in its
+    run (his PBT: a later poke over the top does not move his line); None when none stands there."""
     kind = "peak" if trend_end["kind"] == "BC" else "valley"
     area = float(M.LINE_WORD_AREA_ATR) * float(ranges[trend_end["climax_bar"]])
     for i, end in enumerate(ends):
@@ -220,18 +206,15 @@ class Pair:
 
 
 def connects(high, low, first: End, second: End) -> bool:
-    """A swing connects the two ends: from the first bar to the second the top is the highest high and the low
-    the lowest low — his *"we cannot allow for dismemberd anchor paring"*. The rule said of ONE pair: the reader
-    lists by ``pairs_from``, which walks the same rule, and the tests hold its list to this."""
+    """A swing connects the two ends: between their bars the top is the highest high and the low the lowest low."""
     top, bottom = (first, second) if first.kind == "peak" else (second, first)
     span = slice(first.bar, second.bar + 1)
     return bool(high[span].max() <= top.price and low[span].min() >= bottom.price)
 
 
 def move_began(high, low, end: End, before: Optional[int] = None) -> float:
-    """Where the move into a swing's end began, by bars alone: for a top, the lowest low since the price was last
-    above it; for a low, the highest high since the price was last below it. ``before`` reads the move up to
-    that bar only (one wide bar: the move into the bar, its own other end left out)."""
+    """Where the move into a swing's end began, by bars alone: for a top the lowest low since the price was last
+    above it, for a low the mirror. ``before`` reads the move up to that bar only (one wide bar's other end out)."""
     stop = end.bar + 1 if before is None else int(before)
     if stop <= 0:
         return float(end.price)
@@ -243,8 +226,8 @@ def move_began(high, low, end: End, before: Optional[int] = None) -> float:
 
 
 def _a_part_only(high, low, first: End, second: End) -> Optional[tuple]:
-    """Sentence 4 on one pair: ``(top_first, began)`` when the second end took back a part only of the move
-    before the first; None when it took back all of it. One wide bar is read in either order."""
+    """``(top_first, began)`` when the second end took back a part only of the move before the first, else None;
+    one wide bar is read in either order."""
     orders = [(first, second)]
     if first.bar == second.bar:
         orders.append((second, first))
@@ -256,11 +239,8 @@ def _a_part_only(high, low, first: End, second: End) -> Optional[tuple]:
 
 
 def measure(high, low, ranges, first: End, second: End, joined: int, read_bar: int) -> Pair:
-    """One pair of swing ends a swing connects, read his way. Its unit is the range of its second anchor's day;
-    under one of those tall, or with a counter move that took back the whole move before it, it is listed and
-    never a box. It is a box on the later of: the bars back on both rails, its fifteenth trading day from the
-    first anchor, and the day the reader could list it — however late, and whatever ran past a rail meanwhile.
-    A birth after the read day is not a birth yet."""
+    """One pair a swing connects, measured in its second anchor's daily range: unfit under one range tall or when
+    the counter move took back the whole move; a box on the later of both come-backs, its fifteenth day, its listing."""
     top, bottom = (first, second) if first.kind == "peak" else (second, first)
     unit = float(ranges[second.bar])
     area = float(M.LINE_WORD_AREA_ATR) * unit
@@ -286,10 +266,8 @@ def measure(high, low, ranges, first: End, second: End, joined: int, read_bar: i
 
 
 def pairs_from(ends, trends, high, low, ranges, read_bar: int) -> list:
-    """Every pair of swing ends a swing connects, from the first trend end's first foot on, in the order they
-    open: each end with the ends of the other kind after it, for as long as it stays the extreme on its side (a
-    top with each lower low after it until a bar goes over the top: one rail stays while the other moves). A
-    pair is listed no sooner than the day a trend end before it was known."""
+    """Every pair a swing connects, from the first trend end's first foot on, in the order they open: each end with
+    the ends of the other kind after it while it stays the extreme on its side; listed no sooner than a trend end."""
     walked = [(t["foot_bar"], t["known_bar"]) for t in trends if t.get("foot_bar") is not None]
     climaxes = {int(t["climax_bar"]) for t in trends}
     out = []

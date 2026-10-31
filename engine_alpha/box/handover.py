@@ -1,9 +1,7 @@
 """The box's life (stage 4 of the walk): when the box shown gives way, and to which pair. The first pair to become
-a box is shown; a later box takes its place when the shown one was anchored inside a live trend
-(``inside_a_live_trend``), when the price left it for good (``left_for_good``), when a tighter pair inside a
-one-bar box is the one the bars live in (``wraps``), when a dip came back (``came_back_to``) or, under the election
-by respect, when the bars respect it more (``out_respected``). ``lives`` reads the chain day by day on what each day
-knew; every hand-over is a sentence of his, named by the constants at the top.
+a box is shown; another takes its place by one of his rules (``inside_a_live_trend``, ``left_for_good``, ``wraps``,
+``came_back_to``, or ``out_respected`` under the election by respect). ``lives`` reads the chain day by day on what
+each day knew; the why-sentence of every hand-over is a constant at the top, printed by the trail.
 """
 from __future__ import annotations
 
@@ -20,9 +18,7 @@ from engine_alpha.box.pairs import RESISTANCE, SUPPORT, Pair, _respects
 FIRST_BOX = "the first pair to become a box"
 
 
-#: His GFR (Thu 16/10/2026): a pair off the SAME opening anchor with an EARLIER second anchor — the climax and its
-#: reaction before the pair one swing to its right — was tried first (sentence 5) and takes the place the day it is
-#: a box. A pair that opened on another anchor never comes back this way (the Tested-DEAD rows of 2026-10-01).
+#: His GFR, Thu 16/10/2026: the sibling pair tried first (same opening anchor, earlier second) takes the place at birth.
 TRIED_FIRST = "the pair tried before it became a box"
 
 
@@ -35,14 +31,11 @@ LEFT_FOR_GOOD = "the price left the box before it and the bars no longer came ba
 CAME_BACK = "the dip came back: the bars are back at both rails of the box it had given up"
 
 
-#: His AMTB (Wed 28/10/2026) and his word of Thu 29/10/2026, *"we simply must increase the reading accuracy of our Reader
-#: to match better with the ranges of the actual price action"*: a box the bars never came back to at one of its rails
-#: does not wrap them; the tighter pair inside it that they do come back to is the box (``wraps``).
+#: His AMTB, Wed 28/10/2026: a one-bar box the bars never came back to gives way to the tighter pair they live in.
 WRAPS = "the box was one bar's own high and low; the pair inside it the bars live in and come back to is the box"
 
 
-#: His direction of Fri 30/10/2026 (*"Still on High/LOW values only but with out being hung on extremes"*): the box is
-#: the pair the bars respect most, judged by touches in each bar's own range (``out_respected``; behind ``RESPECT_ELECTS``).
+#: The election by respect, Fri 30/10/2026: the pair the bars touch most is the box (behind ``RESPECT_ELECTS``).
 RESPECTED = "the bars respect the pair more than the box before it: they touch its rails and it wraps them"
 
 
@@ -62,10 +55,8 @@ class Life:
 
 
 def poke_came_back(shown: Pair, high, low, climax_bar: int, read_bar: int) -> Optional[bool]:
-    """His EXPD (Sat 18/10/2026), sentences 8 and 9 on a run past the top of a box ALREADY born: it is the box's
-    own poke when, within the fifteen trading days from the run's top, the bars came back to both rails of the
-    box; then the rise did not go on and the box stands. None while those fifteen days are not all known: the
-    judgment is made once, on their last day, so a reader on any day tells the same history."""
+    """His EXPD, Sat 18/10/2026: a run past the top of a box already born is the box's own poke when the bars came
+    back to both its rails within the fifteen trading days from the run's top; None until those days are all known."""
     last = int(climax_bar) + int(M.BOX_DAYS) - 1
     if int(read_bar) < last:
         return None
@@ -74,10 +65,8 @@ def poke_came_back(shown: Pair, high, low, climax_bar: int, read_bar: int) -> Op
 
 
 def knew_the_rails(shown: Pair, high, low) -> bool:
-    """His HCA (Sat 24/10/2026): *"an earlier pair that provides a tighter box leading to more context overall"*.
-    The pair is not new: in the ``KNOWN_RAILS_DAYS`` trading days before it opened, the bars' highs were at its
-    resistance and their lows at its support, at least ``KNOWN_RAILS_MIN_BARS`` of each, within a quarter of its
-    daily range (``KNOWN_RAILS_AREA_RANGES``). Known on the day it opens, so every reader tells the same."""
+    """His HCA, Sat 24/10/2026: the bars knew the pair's rails before it opened — in the ``KNOWN_RAILS_DAYS`` before,
+    ``KNOWN_RAILS_MIN_BARS`` highs at its resistance and lows at its support, within ``KNOWN_RAILS_AREA_RANGES``."""
     opening = int(shown.opening_bar)
     first = max(0, opening - int(M.KNOWN_RAILS_DAYS))
     near = float(M.KNOWN_RAILS_AREA_RANGES) * shown.unit
@@ -87,11 +76,8 @@ def knew_the_rails(shown: Pair, high, low) -> bool:
 
 
 def poke_stayed_in(shown: Pair, high, low, climax_bar: int, read_bar: int) -> Optional[bool]:
-    """His HCA (Sat 24/10/2026): a run over the top of a pair the bars knew is the pair's own poke when, within the
-    fifteen trading days from the run's top, the bars came back to both its rails (``poke_came_back``) and the
-    middles of the bars after the top sat inside the box more often than over it — the price lived in the box, not
-    above it (his MSGS, where he drew the run's pair, is the other way round). Read on highs and lows: the middle
-    of a bar, never its close. None while those fifteen days are not all known."""
+    """His HCA, Sat 24/10/2026: a run over a pair the bars knew is its own poke when the bars came back to both rails
+    within fifteen days and their middles sat inside it more often than over it; None until those days are known."""
     back = poke_came_back(shown, high, low, climax_bar, read_bar)
     if not back:
         return back
@@ -102,28 +88,14 @@ def poke_stayed_in(shown: Pair, high, low, climax_bar: int, read_bar: int) -> Op
 
 
 def _run_over_a_known_pair(shown: Pair, trend: dict, high, low) -> bool:
-    """A rise over a pair the bars knew (``knew_the_rails``): judged on the fifteenth day from its top
-    (``poke_stayed_in``). A rise that swallows the pair topped after its second anchor without asking (its first
-    foot is after the pair opened, and no bar between the pair's two anchors is over its top: sentence 5); one that
-    topped after the pair was a box meets his EXPD test first, which asks less. Never a fall: the mirror is his
-    WTS's Tested-DEAD row."""
+    """A rise over a pair the bars knew (``knew_the_rails``); never a fall."""
     return trend["kind"] == "BC" and high is not None and knew_the_rails(shown, high, low)
 
 
 def inside_a_live_trend(shown: Pair, new: Pair, trends, day: int, high=None, low=None,
                         known_rails: bool = True) -> Optional[dict]:
-    """The shown pair opened on a top inside a rise that had not ended (on a low inside a fall): a trend end
-    known by ``day`` whose run began before that anchor and whose walk starts after it, the newer pair opening
-    on or after that first foot. His anchor rule — *"We can't start the anchor from the opposite direction of
-    the trend if we are still inside that trend"*. With the bars given, a rise whose climax printed AFTER the
-    shown pair was a box swallows it only once the fifteen trading days from that climax are known and the bars
-    did not come back to both its rails in them (``poke_came_back``; his EXPD, Sat 18/10/2026): a poke that came
-    back is the box's own. The mirror for a fall is not built: on his WTS the base he drew came after such a
-    fall, and the hand-over to the fall's end is what reaches it. And a rise that topped after the shown pair's
-    second anchor but BEFORE it was a box swallows a pair the bars knew before it opened only once those fifteen
-    days are known and the price did not stay in it (``poke_stayed_in``; his HCA, Sat 24/10/2026); not asked with
-    ``known_rails`` off (the mini's walk: inside the parent every inner pair's rails are levels the bars knew).
-    Returns that trend end, or None."""
+    """His anchor rule, Mon 27/07/2026: the trend end known by ``day`` whose run began before the shown pair's anchor
+    and whose walk starts after it, the newer pair opening on or after that foot; None when there is none."""
     found = None
     for trend in trends:
         if trend["known_bar"] > day or trend.get("foot_bar") is None or trend["foot_bar"] > new.opening_bar:
@@ -144,8 +116,7 @@ def inside_a_live_trend(shown: Pair, new: Pair, trends, day: int, high=None, low
 
 
 def _back_at_both(pair: Pair, high, low, first: int, days) -> np.ndarray:
-    """For each day of ``days``: over the last fifteen trading days, never before ``first``, a bar was back at
-    the pair's resistance and one at its support."""
+    """Per day of ``days``: a bar was back at both rails over the last fifteen trading days, never before ``first``."""
     last = int(days[-1])
     on_r, on_s = _respects(high[first:last + 1], low[first:last + 1], pair.R, pair.S, pair.area)
     at_r, at_s = np.concatenate(([0], np.cumsum(on_r))), np.concatenate(([0], np.cumsum(on_s)))
@@ -154,8 +125,7 @@ def _back_at_both(pair: Pair, high, low, first: int, days) -> np.ndarray:
 
 
 def _back_at_rail(pair: Pair, rail: str, high, low, first: int, days) -> np.ndarray:
-    """For each day of ``days``: over the last fifteen trading days, never before ``first``, a bar was back at
-    ONE rail of the pair, its resistance or its support."""
+    """Per day of ``days``: a bar was back at ONE rail over the last fifteen trading days, never before ``first``."""
     last = int(days[-1])
     on_r, on_s = _respects(high[first:last + 1], low[first:last + 1], pair.R, pair.S, pair.area)
     at = np.concatenate(([0], np.cumsum(on_r if rail == RESISTANCE else on_s)))
@@ -164,33 +134,20 @@ def _back_at_rail(pair: Pair, rail: str, high, low, first: int, days) -> np.ndar
 
 
 def far_rail(new: Pair, shown: Pair) -> str:
-    """The shown box's rail the price would have to cross to come back from the newer pair: its support when the
-    newer pair lies above the box, its resistance when it lies below. "No longer come back to the old ones" is
-    read on it (his DSGX, Sat 18/10/2026): a box is left upward when the bars stop coming back to its support, and
-    downward when they stop coming back to its resistance — never downward while they still sit on its top."""
+    """The shown box's rail the price would have to cross coming back from the newer pair: its support for a pair
+    above, its resistance for a pair below; "no longer come back" is read on it (his DSGX, Sat 18/10/2026)."""
     return SUPPORT if new.S >= shown.R - shown.area else RESISTANCE
 
 
 def lies_beyond(new: Pair, shown: Pair) -> bool:
-    """The position half of his sentences 9 and 10: the newer pair lies BEYOND the shown box — its support in
-    or above the shown resistance's area, or its resistance in or below the shown support's area. A pair that
-    does not is inside or across the box: its own leg, a poke, a dip or a mini. The ONE judgment: the walk's
-    take-over and the mini's home both ask it (council review 2026-10-09, finding 13)."""
+    """The newer pair lies beyond the shown box: its support in or above the shown resistance's area, or its
+    resistance in or below the shown support's area. The one judgment the walk's take-over and the mini both ask."""
     return new.S >= shown.R - shown.area or new.R <= shown.S + shown.area
 
 
 def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
-    """His sentences 9 and 10, judged on every day: the newer box lies beyond the shown one — its support in or
-    above the shown resistance's area, or its resistance in or below the shown support's area — and *"the bars
-    now hang on the newer rails and no longer come back to the old ones"*, both halves: over the last fifteen
-    trading days, never before the newer pair opened, the bars came back to both rails of the newer pair and not
-    to the shown box's far rail (``far_rail``: its support for a pair above, its resistance for a pair below).
-    The first such day from ``since`` on, never before the newer pair is a box; None when there is none by the
-    read day. A pair inside or across the shown box is its own leg, a poke, a dip or a mini, and never takes its
-    place; nor does a pair the bars have left (his MTLS: the pair of the July run, a box by the rule on a day the
-    price was already back under it). Until his DSGX (Sat 18/10/2026) the old box counted as left when the bars
-    missed EITHER of its rails: a spring that touched a lower pair's rails had the box left downward fifteen days
-    after its last day at the support, while the bars sat on the box's resistance and the price over its top."""
+    """His sentences 9 and 10 (his DSGX, Sat 18/10/2026): the first day from ``since`` on, ``new`` a box lying beyond
+    the shown box, that the bars came back to both its rails and not to the shown box's far rail in fifteen days."""
     if new.opening_bar <= shown.opening_bar:
         return None
     if not lies_beyond(new, shown):
@@ -207,24 +164,8 @@ def left_for_good(shown: Pair, new: Pair, high, low, since: int, read_bar: int) 
 
 
 def wraps(shown: Pair, new: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
-    """His AMTB (Wed 28/10/2026: the reader boxed the climax bar's own high and low, 30.60 / 28.41, over bars that
-    lived between 29.67 and 28.54) and his word of Thu 29/10/2026 that the box must wrap the actual price action.
-    Of a box that is ONE bar's own high and low (sentence 3; his TOP and CYRX too): its unit is that one wide bar's
-    range, so every bar inside it "respects" its rails, and the pair the bars then live in, measured in a normal
-    range, is the honest reading (a two-bar box — a climax and its reaction, his SILC — keeps its place, however
-    tight the pairs inside it: his eye draws it). A newer pair INSIDE or ACROSS the shown box, meaningfully tighter
-    than it (under his mini bar, 80% of its
-    height, his ruling of 21/10/2026: a pair covering substantially the same range is the same box, his SILC), that
-    opened while the shown pair was still forming
-    (on or before the day it became a box: the same formation's own anchors, never a leg of the right side, which
-    is the mini's business, his DSGX) takes its place on the first day from ``since`` on, never before it is a box,
-    on which the bars have come back to both its rails over the last fifteen trading days while NO bar since the
-    shown box OPENED has come back to one of the shown box's rails. A come-back is a bar at the rail after the bars
-    had left it: the anchor bar and the bars on either side of it that stay at that rail are the root swing's own
-    (the bars that fell from his AMTB's climax, or TOP's, through the top's area on their way down to the reaction).
-    Come back is read within half the NEWER pair's daily range of the rail: his respect, in the honest unit (a one-bar
-    climax's own range is so wide that every bar under its top "respects" it). None when there is none by the read
-    day. Behind ``WRAP_TAKES_OVER`` (the walk's switches, Wed 28/10/2026)."""
+    """His AMTB, Wed 28/10/2026: a one-bar box gives way to a tighter pair inside it, opened while the box formed, on
+    the first day the bars are back at both its rails and none since the box opened came back to the box's rails."""
     if new.opening_bar <= shown.opening_bar or new.birth_bar is None or shown.birth_bar is None:
         return None
     if int(shown.r_bar) != int(shown.s_bar):
@@ -253,14 +194,8 @@ def wraps(shown: Pair, new: Pair, high, low, since: int, read_bar: int) -> Optio
 
 
 def came_back_to(old: Pair, shown: Pair, high, low, since: int, read_bar: int) -> Optional[int]:
-    """His sentence 9 for a dip that comes back late — *"Once a box, it stays a box through dips under support
-    ... that come back"*: the first day after ``since`` (the day the box was given up) on which the bars since
-    that day, and of the last fifteen trading days, have come back to both its rails AND no longer come back to
-    the shown pair's far rail (``far_rail``: its support, the box given up lying above it). The way back is a
-    hand-over, judged as every hand-over is, by both halves of his sentence 10 (his STGW, Fri 23/10/2026: the
-    breakout of Tue 13/10 ran through the pair of early August above his box, and that one run gave the old pair
-    the box's place back while the bars rested on the box's top). None when there is none by the read day. A bar
-    at a rail on or before ``since`` is not the price coming back."""
+    """His sentence 9, a dip that comes back late (his STGW, Fri 23/10/2026): the first day after ``since`` that the
+    bars are back at both rails of the box given up and no longer come back to the shown pair's far rail."""
     first = int(since) + 1
     if first > read_bar:
         return None
@@ -271,11 +206,8 @@ def came_back_to(old: Pair, shown: Pair, high, low, since: int, read_bar: int) -
 
 
 def respect_marks(high, low, ranges, R: float, S: float) -> tuple:
-    """His close-enough (Fri 30/10/2026), each bar in its OWN daily range: ``(on_r, on_s)``, for every bar +1 when an
-    end of it sits within ``RESPECT_AREA_RANGES`` of that rail and closer to it than to the other (a touch: resting,
-    stopping short or poking out slightly, his "whenever they are slightly poking out or not does not matter one
-    bit"), -1 when the whole bar sits beyond the rail by more than that (a bar the pair does not wrap: the one
-    judgment ``state.side`` makes of the right edge), 0 for a bar inside the box or short of the rail."""
+    """His close-enough, Fri 30/10/2026, each bar in its own daily range: ``(on_r, on_s)``, per bar +1 when an end of
+    it touches the rail (within ``RESPECT_AREA_RANGES``, closer than the other), -1 when the whole bar sits beyond."""
     area = float(M.RESPECT_AREA_RANGES) * np.asarray(ranges, dtype=float)
     high, low = np.asarray(high, dtype=float), np.asarray(low, dtype=float)
     on_r, on_s = _respects(high, low, R, S, area)
@@ -291,17 +223,8 @@ def respect_cum(high, low, ranges, R: float, S: float) -> np.ndarray:
 
 
 def out_respected(shown: Pair, new: Pair, cum_shown, cum_new, since: int, read_bar: int) -> Optional[tuple]:
-    """The election by respect (Fri 30/10/2026; behind ``RESPECT_ELECTS``): the first day from ``since`` on, never
-    before ``new`` is a box, on which ``new`` leads the shown pair by ``RESPECT_MARGIN`` touches over the last
-    ``RESPECT_WINDOW_DAYS`` trading days: ``(day, lead)``, or None by the read day. ONE window for every pair, the
-    same days for all: a window that started at each pair's own opening made the lead non-transitive, so three pairs
-    could each beat the next round the ring on one day and the chain never moved on (measured Fri 30/10/2026 on his
-    SILC and ANRO). The margin is the incumbent's: on equality, and short of it,
-    the box shown stands, and the challenger's own score must reach the margin as well: a pair the bars never
-    visit does not out-respect a box they have run away from. Both pairs are scored over the SAME days, each bar in its own range, so neither buys respect
-    with a wide unit of its own (the one-bar box, his AMTB). A pair that opened earlier may win this way: the box
-    given up wins its place back when the bars come back to it (his STGW), an earlier tighter pair when they live in
-    it (his HCA)."""
+    """The election by respect, Fri 30/10/2026 (behind ``RESPECT_ELECTS``): ``(day, lead)`` for the first day from
+    ``since`` on, ``new`` a box, that it leads the shown pair by ``RESPECT_MARGIN`` over ``RESPECT_WINDOW_DAYS``."""
     if new.birth_bar is None:
         return None
     start = max(int(since), int(new.birth_bar))
@@ -314,44 +237,22 @@ def out_respected(shown: Pair, new: Pair, cum_shown, cum_new, since: int, read_b
     opens = np.maximum(0, days - (window - 1))
     own, kept = cum_new[days + 1] - cum_new[opens], cum_shown[days + 1] - cum_shown[opens]
     lead = own - kept
-    # The challenger must itself be respected, not merely untouched: a box the price has run away from scores
-    # under zero (every bar wholly beyond it counts against it), and a pair the bars never visit scores nothing,
-    # which would "lead" it. So its own score must reach the margin too. And the box shown gives way only once
-    # the bars have STOPPED respecting it (its own score under the margin): his sentence 9, a box stays a box
-    # while the bars come back to it, whatever tighter pair they also touch inside it. Measured without this
-    # clause on his 51 (Fri 30/10/2026): the fires held (42 of 51) but his box to the cent fell from 28 to 5-10,
-    # a tighter inner pair taking the place on some twenty of his drawings.
+    # The challenger must itself reach the margin (a pair the bars never visit scores nothing and would "lead" a box
+    # they ran from), and the box shown gives way only once the bars have stopped respecting it (his sentence 9).
     margin = float(M.RESPECT_MARGIN)
     won = np.flatnonzero((lead >= margin) & (own >= margin) & (kept < margin))
     return (int(days[won[0]]), int(lead[won[0]])) if len(won) else None
 
 
 def _key(pair: Pair) -> tuple:
-    """The order boxes are tried in: the day the pair became a box, then the earlier opening, then the earlier
-    second anchor, then the tighter; the feet last, so equal pairs never tie."""
+    """The order boxes are tried in: birth day, earlier opening, earlier second anchor, tighter; the feet last."""
     return (pair.birth_bar, pair.opening_bar, pair.second_bar, pair.height, pair.r_index, pair.s_index)
 
 
 def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True, ranges=None) -> tuple:
-    """The box's life, read day by day on what each day knew. The first pair to become a box is shown. A pair
-    that is a box takes its place when the shown pair was anchored inside a live trend (``inside_a_live_trend``:
-    judged once that trend end is known) or on the first day the price has left it for good (``left_for_good``).
-    Each of those goes to a pair that opened later. One hand-over goes back: when the price had left a box
-    DOWNWARD and a lower pair took its place, the box takes its place back on the first day the bars are back at
-    both its rails and no longer come back to the lower pair's support (``came_back_to``) — a dip that came
-    back. And one goes to a SIBLING: a pair off the shown
-    pair's own opening anchor with an earlier second anchor — the climax and its reaction, before the pair one
-    swing to its right — was tried first (sentence 5), and takes the place on the day it becomes a box
-    (``TRIED_FIRST``; his GFR, Thu 16/10/2026: *"the AR ended where I marked it ... the entire wave going down
-    is already 2 swings and it's not part of the AR"*). And one goes INSIDE a box that is one bar's own high and
-    low: a meaningfully tighter pair inside or across it, opened while it was still forming, takes its place on the
-    first day the bars have come back to both its rails while none since the box opened has come back to one of
-    the box's rails, read in the tighter pair's own range (``wraps``; his AMTB, Wed 28/10/2026: the box must wrap
-    the bars). Every box handed over
-    stays, with the day its lines stop; the last one stands. Under ``RESPECT_ELECTS`` (Fri 30/10/2026) the
-    left-for-good, way-back and wraps hand-overs are not asked: a pair that is a box, whenever it opened, takes the
-    shown box's place on the first day the bars respect it more by the margin (``out_respected``, each bar in its
-    own daily range, ``ranges``); the live-trend and tried-first hand-overs stay."""
+    """The box's life, day by day on what each day knew: the first pair to become a box is shown, and the earliest
+    hand-over (live trend, tried first, left for good, wraps, the way back; under ``RESPECT_ELECTS`` the election in
+    place of the last three) moves the box on. Every box handed over stays, with the day its lines stop."""
     if M.RESPECT_ELECTS and ranges is None:
         raise ValueError("the election by respect reads each bar's own daily range: pass ranges")
     born = sorted((p for p in pairs if p.birth_bar is not None), key=_key)
@@ -366,10 +267,8 @@ def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True, ran
 
     out, vetoed = [], set()
     shown, day, why, trend, lead, before = born[0], int(born[0].birth_bar), FIRST_BOX, None, None, None
-    # The loop ends: every hand-over moves the day forward, or on one day raises the score of the box shown by the
-    # margin (the election: one window for all, so it cannot cycle), or vetoes one more pair (the live-trend kind).
-    # A chain longer than every pair could be handed over on every day is a cycle: refused out loud, never a hang
-    # (the read then counts as a crash, which is what a reader that cannot finish must say).
+    # Every hand-over moves the day forward, raises the shown box's score by the margin or vetoes one more pair, so
+    # the loop ends; a chain longer than every pair on every day is a cycle, refused out loud rather than a hang.
     cap = (len(born) + 1) * (int(read_bar) + 2)
     while True:
         if len(out) > cap:
@@ -394,24 +293,18 @@ def lives(pairs, trends, high, low, read_bar: int, known_rails: bool = True, ran
                 continue
             when = took = by = ahead = None
             if elects and pair.feet in vetoed:
-                # Under the election a pair that gave way because it was anchored inside a live trend never comes
-                # back: his anchor rule is a veto, not a score (else the two hand-overs ping-pong on one day and the
-                # chain never moves on: measured on his SILC, Fri 30/10/2026).
+                # Under the election his anchor rule is a veto, not a score: a pair it swallowed never comes back.
                 continue
             if pair.opening_bar <= shown.opening_bar:
                 if not elects or pair.feet == shown.feet:
                     continue            # as built, only a pair that opened later takes the place
             else:
-                # The day this pair would take the shown box's place: the day a trend end that swallowed the shown
-                # pair was known (never before the pair is a box), or the first day the price has left for good.
                 swallowed = inside_a_live_trend(shown, pair, trends, read_bar, high, low, known_rails)
                 if swallowed is not None:
                     when, took, by = max(int(pair.birth_bar), int(swallowed["known_bar"])), LIVE_TREND, swallowed
                     if swallowed["kind"] == "BC" and (swallowed["climax_bar"] > int(shown.birth_bar) or (
                             known_rails and _run_over_a_known_pair(shown, swallowed, high, low))):
-                        # A run past the top of a box already born, or of a pair the bars knew, is judged on the last
-                        # of the fifteen days from its top (``poke_came_back``, ``poke_stayed_in``, by then known):
-                        # the rise takes the place no sooner.
+                        # a run past a born box, or a pair the bars knew, is judged on the fifteenth day from its top
                         when = max(when, int(swallowed["climax_bar"]) + int(M.BOX_DAYS) - 1)
                 if not elects:
                     left = left_for_good(shown, pair, high, low, day, read_bar)
