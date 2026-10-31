@@ -18,9 +18,5 @@
   "primary_target": null,
   "rows": [],
   "verdicts_trustworthy": false
- },
- "suggested_weights": {
-  "basis": "insufficient_data",
-  "weights": []
  }
 }

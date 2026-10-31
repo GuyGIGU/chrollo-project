@@ -40,10 +40,7 @@ def same_read(left, right):
 def inspect_frame(ticker, frame, expected, *, repeat=False):
     """A cut frame and its saved chart, checked through the public reader door."""
     issues = []
-    stamp = {}
-    read = reader.read_record(ticker, frame, stamp=stamp)
-    if stamp.get('reader') != reader.READER_NEW:
-        issues.append('the new reader did not answer')
+    read = reader.read_record(ticker, frame)
     if read is None or read.failed or not read.fired:
         reason = None if read is None else read.refusal or read.state
         return issues + [f'saved fire no longer fires: {reason}']

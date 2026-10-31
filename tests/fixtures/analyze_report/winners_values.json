@@ -387,9 +387,5 @@
    }
   ],
   "verdicts_trustworthy": false
- },
- "suggested_weights": {
-  "basis": "insufficient_data",
-  "weights": []
  }
 }

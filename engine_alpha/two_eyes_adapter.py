@@ -82,7 +82,7 @@ def stock_trend(frame) -> dict:
     the daily window as ``evaluation._prepare_eval_frame_with_reason`` cuts it, the 52-week-high distance taken at
     its last close, then ``trend_template``. Under the archive's names (``_stage2_*``), exactly the old row's keys.
     """
-    from engine_alpha.frames import _trim_to_period
+    from engine_alpha.two_eyes.frame import _trim_to_period
     from engine_alpha.metrics import distance_to_52w_high_pct, trend_template
 
     daily = _trim_to_period(frame, settings.DAILY_STRUCTURE_PERIOD)
@@ -100,7 +100,7 @@ def stock_adr(frame) -> dict:
     ``ADR_WINDOW`` days of the old chain's OWN frame (EC-3, one formula), so a chart both readers fire carries one
     ADR, under the old row's key (``_adr_pct``). Carried, never graded: the new reader's grade reads no ADR.
     """
-    from engine_alpha.frames import _trim_to_period
+    from engine_alpha.two_eyes.frame import _trim_to_period
     from engine_alpha.metrics import adr_pct
 
     daily = _trim_to_period(frame, settings.DAILY_STRUCTURE_PERIOD)

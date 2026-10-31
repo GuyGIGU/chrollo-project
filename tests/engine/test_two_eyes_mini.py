@@ -27,7 +27,7 @@ def _walk_on_his_last_day(setup: dict):
     from engine_alpha import two_eyes_numbers as M
     from engine_alpha.two_eyes.frame import DAILY_RANGE
     from core.calibration.replay import fixture_frame, load_sealed_fixture
-    from tools.calibration.yardstick import his_last_lps_day
+    from tools.calibration.board_helpers import his_last_lps_day
     from tools.regression.marks_corpus import setup_key
 
     frames, _ = load_sealed_fixture()
@@ -606,19 +606,18 @@ def test_an_lps_read_against_a_mini_that_is_not_on_the_record_falls_back_to_the_
 
 
 def test_dsgn_through_the_one_door_carries_the_mini():
-    """DSGN on his last receding day through `reader.evaluate_ticker` under the switch (tests only; the switch
-    stays dark): one row, the parent's lines, one trigger, the LPS against the mini, the mini's seven keys."""
+    """DSGN on his last receding day through `reader.evaluate_ticker`: one row, the parent's lines, one trigger,
+    the LPS against the mini, the mini's seven keys."""
     from engine_alpha import reader
-    from core.calibration.replay import fixture_frame, flag_capture, load_sealed_fixture
+    from core.calibration.replay import fixture_frame, load_sealed_fixture
     from tools.regression.marks_corpus import load_corpus, setup_key
 
     setup = next(s for s in load_corpus() if s["ticker"] == "DSGN")
     frames, _ = load_sealed_fixture()
     raw = fixture_frame(frames, setup_key(setup), "DSGN")
-    watch, stamp = {}, {}
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        row = reader.evaluate_ticker("DSGN", raw.loc[:pd.Timestamp("2026-03-30")], watch=watch, stamp=stamp)
-    assert stamp == {"reader": reader.READER_NEW} and isinstance(row, dict)
+    watch = {}
+    row = reader.evaluate_ticker("DSGN", raw.loc[:pd.Timestamp("2026-03-30")], watch=watch)
+    assert isinstance(row, dict)
     assert (round(row["_R"], 2), round(row["_S"], 2)) == (10.31, 9.00) and row["_trigger_price"] == pytest.approx(10.70)
     assert row["_two_eyes_lps_read_against"] == "mini" and row["_two_eyes_has_mini"] == 1
     assert (round(row["_two_eyes_mini_r_price"], 2), round(row["_two_eyes_mini_s_price"], 2)) == (10.74, 9.82)

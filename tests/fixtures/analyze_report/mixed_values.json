@@ -816,31 +816,5 @@
    }
   ],
   "verdicts_trustworthy": true
- },
- "suggested_weights": {
-  "basis": "20d+60d_avg",
-  "weights": [
-   {
-    "avg_abs_corr": 0.25,
-    "current": 10,
-    "delta": -0.5,
-    "name": "box_tightness",
-    "suggested": 9.5
-   },
-   {
-    "avg_abs_corr": 0.25,
-    "current": 6,
-    "delta": 3.5,
-    "name": "touch_density",
-    "suggested": 9.5
-   },
-   {
-    "avg_abs_corr": 0.025,
-    "current": 4,
-    "delta": -3.0,
-    "name": "base_age",
-    "suggested": 1.0
-   }
-  ]
  }
 }

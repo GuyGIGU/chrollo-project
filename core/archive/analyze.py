@@ -91,7 +91,6 @@ from core.archive.analyze_stats import (  # noqa: F401  (re-export for import co
     derive_outcomes,
     safe_rank_corr,
     signal_edge,
-    suggested_weights,
 )
 from core.backtest.edge_report import TAIL_MFE_COL  # noqa: F401  (re-export for import compatibility)
 

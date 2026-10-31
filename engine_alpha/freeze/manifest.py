@@ -7,14 +7,14 @@ detector decision (which setups fire, how they score/rank, where the phase
 boundaries land), gathered into a sorted dict whose sha256 is the engine config
 version. An archived signal stamped with that hash can later be traced to the
 exact config that produced it, and a freeze + backtest can assert the config
-hasn't silently drifted. THREE non-settings blocks ride along, all for the same
-reason — they decide what the DATA MEANS, so they rotate the version like any
-weight: the TA-grade story-chapter taxonomy (term→chapter membership + order,
-derived from the scoring registry — re-chaptering changes what the grade's
-breakdown means), the sentence family's signed word/verdict vocabulary
-(derived from the ONE event-vocabulary declaration — a signed re-wording
-changes what an archived sentence SAYS), and the new reader's own numbers,
-which its copied pieces read instead of settings.
+hasn't silently drifted. ONE non-settings block rides along, for the same
+reason — it decides what the DATA MEANS, so it rotates the version like any
+weight: the reader's own numbers (``engine_alpha/two_eyes_numbers.py``), which
+the reader reads instead of settings.
+
+The old engine's knobs (config/engine.py, config/scoring.py) left this list when
+that engine retired (Sat 31/10/2026, the operator's word): the hash rotated once,
+a declared epoch, and ``TWO_EYES_RULESET`` bumped to ``two-eyes-0.12.0-one-reader``.
 
 Design rules (deliberate, audited):
 
@@ -50,319 +50,23 @@ from typing import Any, Dict
 ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     # Phase 0 — price-series regime (every read's provenance)
     "DATA_DIVIDEND_ADJUSTED",
-    # Phase 1 — universe baseline filters
+    # The universe door (engine_alpha/universe_door.py) and the market-cap floor on the fires
     "MIN_PRICE",
     "MIN_VOLUME_50D",
     "MIN_YEARLY_RETURN",
     "MIN_MARKET_CAP",
-    # The 50-day dip exception (miss program 2026-08-28, dark)
-    "SMA50_DIP_EXCEPTION_ENABLED",
-    "SMA50_DIP_MAX_SESSIONS",
-    "SMA50_DIP_MAX_ATR",
-    # The bottoming-base lane (miss program, operator ruling 2026-08-29, dark)
-    "BOTTOMING_BASE_LANE_ENABLED",
-    "BOTTOMING_SMA50_BARS",
-    # Phase 2 — consolidation base parameters
-    "MIN_BASE_DAYS",
-    "MAX_BOX_WIDTH",
-    "CRASH_FILTER_MULT",
-    "EXTENSION_FILTER_MULT",
-    "PIVOT_ORDER_SHORT",
-    "PIVOT_ORDER_LONG",
-    "PIVOT_ORDER_THRESHOLD",
-    "PIP_MACRO_K_MAX",
-    "PIP_MACRO_MAX_POST_EXCESS",
-    "PIP_MACRO_MIN_BASE_BARS",
-    "PIP_MACRO_EQ_FLOOR_FRAC",
-    "PIP_MACRO_EQ_OSC_FRAC",
-    # Climax terminality on the calibrated resolve_phase_a paths (2026-07-19 —
-    # a mid-trend pause may not paint as the climax; re-anchors the Phase-A
-    # overlay + bin_a/bars_since_BC/descent_length diagnostics, never a rail)
-    "PHASE_A_CLIMAX_TERMINALITY_EXCESS",
-    # First-reaction AR anchor (Phase-A overlay; default-off flip must bump the
-    # version from day one — a flip re-anchors the drawn AR on 101 of 335 firing
-    # overlays, re-measured 2026-08-31 against the re-keyed climax; the 19/140
-    # figure this line used to quote was the 2026-07-05 raw-bar scan)
-    # Cause-before-effect election precondition (2026-07-20 — a box may not be
-    # elected over a live trend that never matured a cause; the MIDD class).
-    # Default-off; listed BEFORE any read so the flip bumps engine_config_version
-    # from day one (a name that starts abstaining stops archiving its rows).
-    "CAUSE_BEFORE_EFFECT_VETO_ENABLED",
-    # Third leg of that veto (loose-LPS-shelf threshold); read on the eval path
-    # by cause_maturity, so it must bump engine_config_version like any weight.
-    "CAUSE_LPS_LOOSE_MAX",
-    # Dynamic recursive S/R scanning (Phase B)
-    "BOUNDARY_ATR_BUFFER",
-    "MAX_CONSECUTIVE_OUTSIDE_DAYS",
-    "MIN_BOUNDARY_RESPECT_PCT",
-    "TOUCH_TOLERANCE_ATR",
-    # Worked-equilibrium validity (Phase B)
-    "EQ_MIN_TOUCHES_PER_RAIL",
-    "EQ_MIN_TOUCH_THIRDS",
-    "EQ_MIN_HALF_DWELL",
-    "EQ_MAX_MID_DWELL",
-    "EQ_MIN_COVERAGE",
-    "EQ_COVERAGE_BINS",
-    "EQ_COVERAGE_MIN_FRAC",
-    # Limb-traversal read (Phase B)
-    "TRAVERSAL_NOISE_FRAC",
-    "TRAVERSAL_FULL_FRAC",
-    "TRAVERSAL_LOW_ZONE",
-    "TRAVERSAL_HIGH_ZONE",
-    "TRAVERSAL_MIN",
-    "TRAVERSAL_MIN_DENSITY",
-    # Descent-tail gate
-    "DESCENT_TAIL_LSF_MAX",
-    "DESCENT_TAIL_CFP_MIN",
-    # SOS breakout trim
-    "SOS_TRIM_MIN_RUN",
-    "SOS_TRIM_MIN_PREFIX_FRAC",
-    # Box-start shared-rail back-extension (Phase B)
-    # SOS event detection (box_events.read_box_events -> story completeness)
-    "SOS_NEAR_R_MAX_BOX",
-    "SOS_HOLD_MAX_RANGE_BOX",
-    # Markup-leg qualification (Phase A)
-    "TREND_MIN_GAIN_PCT",
-    "TREND_MIN_MOVE_BARS",
-    "TREND_PRIOR_LOOKBACK",
-    "LOCAL_PEAK_BARS",
-    "ROOT_TREND_SMA",
-    "PHASE_B_ATR_WINDOW",
-    "AR_MIN_DROP_PCT",
-    "AR_MAX_BARS",
-    # Phase 3 — LPS & breakout detection
-    "LPS_MIN_DESCENT_FRAC",
-    "LPS_MIN_HIGH_DESCENT_FRAC",
-    "LPS_MAX_WINDOW_BOX_RANGE",
-    "LPS_OVERSHOOT_WINDOW_ATR_ENABLED",
-    "LPS_OVERSHOOT_WINDOW_ATR_MULT",
-    "LPS_RESCUE_MAX_ADVANCE_BOX",
-    "LPS_INSIDE_HIGH_EXTENSION_BOX_MAX",
-    "LPS_INSIDE_HIGH_EXTENSION_ATR_MAX",
-    "LPS_SCAN_OFFSET_MAX",
-    "LPS_LENGTH_MIN",
-    "LPS_LENGTH_MAX",
-    "LPS_HOLD_TOLERANCE",
-    "LPS_PROFILE_BOX_FRACTION_FLOOR",
-    "LPS_PULLBACK_PROFILE_MIN",
-    "LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R",
-    "LPS_PULLBACK_PROFILE_MAX",
-    "LPS_TERMINAL_LOW_TOL_PROFILE",
-    "LPS_SPREAD_MAX_PROFILE_MULT",
-    "LPS_SPREAD_EXPANSION_MAX_PROFILE",
-    # Cause before effect, Phase C -> Phase D (doctrine-gate repair 2026-08-09):
-    # the elected LPS may not open before the spring tip. Live from birth — the
-    # key rides the manifest so the repair is a declared archive seam, not a
-    # silent reading move.
-    "LPS_AFTER_SPRING_ENABLED",
-    # Holding-shelf completion form (Event Map Task 8, flag-gated dark)
-    "LPS_HOLDING_SHELF_ENABLED",
-    "LPS_SHELF_LENGTH_MIN",
-    "LPS_SHELF_MIN_LOW_POS_BOX",
-    # Ceiling-rest launch-gate exception (miss program, operator ruling 2026-08-29, dark)
-    "LPS_CEILING_REST_ENABLED",
-    # The final method, build step 2 (Sun 13/09/2026): the ruled stack R1..R18
-    # behind flags, dark; listed from birth so any flip rotates the version.
-    "RESPECT_WHOLE_BAR_ENABLED",
-    "DWELL_GRADED_ENABLED",
-    "BOX_HANDOVER_RANGES_ENABLED",
-    "BOX_HANDOVER_MAX_ABOVE_R_ATR",
-    "SPRING_BOUNDS_LIFTED_ENABLED",
-    "LPS_RANGES_YARDSTICK_ENABLED",
-    "LPS_WINDOW_SPAN_ATR_MAX",
-    "LPS_LAUNCH_ABOVE_R_ATR_MAX",
-    "LPS_SHELF_ABOVE_R_ATR_MAX",
-    "LPS_ZONE_CEILING_ATR",
-    "LPS_GRADED_TRAITS_ENABLED",
-    "LPS_CORRECTION_DIG_MIN_ATR",
-    "LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR",
-    "LPS_WINDOW_RECEDING_ENABLED",
-    "LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR",
-    "LPS_BUY_DAY_READS_HIGH_ENABLED",
-    "LPS_REFUSALS_TO_GRADES_ENABLED",
-    "LPS_SELLERS_RISING_FATAL_ENABLED",
-    "TWO_EYES_READER_ENABLED",
+    # The reader: its hand-bumped ruleset string, the daily window its stock facts are read on, the ADR window
+    # (the reader's own numbers ride as the TWO_EYES_METHOD_NUMBERS block below)
     "TWO_EYES_RULESET",
-    "TURN_LINE_ENABLED",
-    "TURN_LINE_TREND_ENABLED",
-    "TURN_LINE_FLOOR_ATR",
-    "LINE_WORD_SOS_ENABLED",
-    "LINE_WORD_LAST_SUPPER_ENABLED",
-    "LINE_WORD_PHASE_C_ENABLED",
-    "LINE_WORD_PHASE_D_ENABLED",
-    "LINE_WORD_MINI_ENABLED",
-    "LINE_WORD_UPTHRUST_ENABLED",
-    "LINE_WORD_AREA_ATR",
-    "LINE_WORD_UPTHRUST_MIN_POKE_ATR",
-    "LINE_WORD_SOS_MIN_GROUND_ATR",
-    "LINE_WORD_SUPPER_DIG_ATR",
-    "LINE_WORD_SUPPER_MAX_DAYS",
-    "BASE_AGE_FROM_ANCHOR_ENABLED",
-    "BASE_AGE_MIN_DAYS",
-    "BOX_WIDTH_CAPS_GRADED_ENABLED",
-    "DEPTH_CAPS_GRADED_ENABLED",
-    "RESPECT_GRADED_ENABLED",
-    "LPS_LEAVES_ELECTION_ENABLED",
-    "WATCH_LANE_MIN_TURNS_PER_RAIL",
-    "BOX_OPENS_ON_ANCHORS_ENABLED",
-    "CLIMAX_FIRST_WALK_ENABLED",
-    "BOX_END_ENABLED",
-    "BOX_END_BREAKOUT_ATR",
-    # The final method, build step 12: the grade ledger (dark)
-    "GRADE_LEDGER_ENABLED",
-    "GRADE_LEDGER_CAPS",
-    "BOX_HEIGHT_FULL_RANGES",
-    "BOX_HEIGHT_ZERO_RANGES",
-    "TURNS_POINT_RATE",
-    "LPS_SPREAD_FULL_RANGES",
-    "LPS_SPREAD_ZERO_RANGES",
-    "TIER_S_MAX_HEIGHT_RANGES",
-    "GRADE_LEDGER_TIER_CUTS",
-    "LPS_CEILING_REST_MAX_BELOW_R_ATR",
-    # Trend-terminal box gate (anchor polarity, operator ruling 2026-07-27)
-    # Deep-excursion pair events (Event Map Task 11, dark)
-    "BAND_RAILS_ENABLED",
-    "BAND_MAX_BOX_WIDTH",
-    "BAND_EVENT_MIN_BARS",
-    "BAND_EVENT_MAX_DEPTH_ATR",
-    "BAND_EVENT_MAX_BARS",
-    # Story-rescue last-resort pool (Event Map program Task 8, dark)
-    "STORY_POOL_ENABLED",
-    # Contraction-rescue lane at full-refusal scope (miss program 2026-08-28, dark)
-    "CONTRACTION_RESCUE_ENABLED",
-    # Bar-posture rescue lane — the S-test form's bar-basis ceiling-leg
-    # variant at the same full-refusal scope (consolidation-method Task 7,
-    # dark; registering it here IS the declared epoch rotation — rows read
-    # under a different reader vocabulary are a different epoch)
-    "BAR_POSTURE_RESCUE_ENABLED",
-    # Sentence-token archive family (consolidation-method Tasks 8/9, dark) —
-    # a vocabulary-deciding knob: rows written under different reader
-    # vocabularies are different epochs, so the flag lives in the frozen
-    # identity from day one
-    "SENTENCE_ARCHIVE_ENABLED",
-    # Near-miss lane ruled-form constants (Task 6 ruling 2026-07-26 —
-    # measure-only telemetry; listed with the ruling so a re-ruling rotates
-    # engine_config_version from day one) + the collector flag (Task 7, dark;
-    # recording-shape knobs are manifest-listed so a re-ruling partitions the
-    # cohort by seam, never reinterprets it)
-    "NEAR_MISS_MAX_QUANTA",
-    "NEAR_MISS_WIDTH_DEFICIT_MAX",
-    "NEAR_MISS_CRASH_DEFICIT_MAX",
-    "NEAR_MISS_DENSITY_DEFICIT_MAX",
-    "NEAR_MISS_LANE_ENABLED",
-    "NEAR_MISS_TOP_K",
-    "NEAR_MISS_WRITER_TICKER_CAP",
-    "NEAR_MISS_WRITER_GLOBAL_CAP",
-    # Election surgery (solve-the-engine task 13, dark)
-    "ELECTION_DETHRONE_ENABLED",
-    "ELECTION_DETHRONE_SESSIONS",
-    "LPS_DRAW_MIN_DESCENT_FRAC",
-    "LPS_ZONE_ATR_MULT",
-    # Phase-C bin measurement
-    "BIN_C_UNDERCUT_ATR_MIN",
-    "BIN_C_UNDERCUT_ATR_MAX",
-    "BIN_C_UNDERCUT_BOX_MAX",
-    "BIN_C_RECOVERY_BARS_MAX",
-    "BIN_C_LINGER_BARS_MAX",
-    "BIN_C_HOLD_BARS",
-    "BIN_C_HOLD_TOL_ATR",
-    "BIN_C_SIGNIF_UNDERCUT_ATR",
-    "BIN_C_MIN_LINGER_BARS",
-    "BIN_C_LATE_BOX_FRACTION",
-    # Phase B->D divider (V-tip)
-    "PHASE_D_VTIP_LATE_FRACTION",
-    "PHASE_D_VTIP_RECOVERY_BARS",
-    # Spread rules
-    "LPS_RANGE_PERCENTILE",
-    "LPS_SPREAD_MUST_DECLINE",
-    "LPS_VOL_CONTRACTION_MAX",
-    # Shared structural-frame constants
-    "STRUCTURE_EDGE_SKIP_BARS",
-    "STRUCTURE_ATR_SAMPLE_OFFSET",
-    "INNER_SEARCH_FRACTION",
-    "INNER_TIGHTNESS_RATIO",
-    "INNER_MIN_DAYS",
-    # Phase 4 — scoring & ranking: the tier ladder on the TA-grade 0-100
-    # scale, live at the 2026-08-09 flip (the tier's source swapped from the
-    # raw sum to ta_grade; the legacy TIER_S/A/B/C cuts retired with the
-    # legacy ladder at the 2026-08-22 consolidation — that removal is a
-    # deliberate engine_config_version rotation, THE declared seam). These
-    # decide a serialized field, so they ride the manifest as siblings do.
-    "TIER_S_STRUCT",
-    "TIER_A_STRUCT",
-    "TIER_B_STRUCT",
-    "TIER_C_STRUCT",
-    "S_MAX_BOX_WIDTH",
-    # Scoring component caps + calibration
-    "SCORE_BASE_AGE",
-    "BASE_AGE_CAP_DAYS",
-    "BASE_AGE_DEADSPACE_WIDTH",
-    "SCORE_TOUCH_DENSITY",
-    "SCORE_VOL_CONTRACTION",
-    "SCORE_LPS_TIGHTNESS",
-    "SCORE_BOX_TIGHTNESS",
-    "SCORE_ATR_SQUEEZE",
-    "TIGHTNESS_ADR_AWARE",
-    "MAX_BOX_WIDTH_ADR",
-    # Candle-spread readability grade (box_tightness multiplier, flag-gated)
-    "CANDLE_GRADE_FLOOR",
-    "CANDLE_SPREAD_BOX_CLEAN",
-    "CANDLE_SPREAD_BOX_MESSY",
-    "CANDLE_SPREAD_ATR_CLEAN",
-    "CANDLE_SPREAD_ATR_MESSY",
-    "CANDLE_TIGHTBAR_CLEAN",
-    "CANDLE_TIGHTBAR_MESSY",
-    # Technical Analysis Score v2 master flag (docs/archive/specs/ta-score-rework.md).
-    # TA-grade v2 vocabulary (batched registration seam, 2026-08-08, build task
-    # 1): the spring term's cap + the three named slopes the v2 term expressions
-    # consume (promoting the scorer's last hidden literals). Listed at
-    # registration — before any read — so ONE seam covers the whole batch
-    # instead of sprinkling phantom epochs across the build.
-    "SCORE_SPRING",
-    "TOUCH_POINT_RATE",
-    "LPS_TIGHTNESS_SLOPE",
-    "VOL_CONTRACTION_SLOPE",
-    # Story terms + warning knobs (task-4 batch — third declared seam): the
-    # Event-Map substrate graded inside the chapters, shape-only caps + the
-    # provisional anchors, plus the floored warning-discount knobs.
-    "SCORE_STORY_S_TESTS",
-    "SCORE_STORY_R_REJECTIONS",
-    "SCORE_STORY_ALTERNATIONS",
-    "SCORE_STORY_TERMINAL_POSTURE",
-    "STORY_COMPLETED_TESTS_FULL",
-    "STORY_ALTERNATIONS_FULL",
-    "STORY_UNREADABLE_NAN_BARS",
-    # Zero-by-geometry leg of the story-input law (2026-08-10 declared seam):
-    # the coverage floor below which all-zero episode counts read ABSENT.
-    "STORY_UNREADABLE_ZONE_COVERAGE",
-    # The ONE-Event-Map Task-12 rotation (2026-08-30): reader-behavior
-    # constants that decide what an archived event/sentence IS.
-    "EPISODE_MAX_GAP_BARS",
-    "EPISODE_DRIFT_MIN_BARS",
-    "EVENT_HOLD_MIN_BARS",
-    "MINI_POSITION_TOL_ATR",
-    "TA_WARN_TERMINAL_DRIFT",
-    "TA_GRADE_WARNING_FLOOR",
-    # Wave-1 charter measurements (task-7 batch — fourth declared seam)
-    "LPS_SHRINK_MIN_TESTS",
-    "STORY_RICHNESS_FULL",
-    # Wave-2 charter measurement (task-8 batch — fifth declared seam)
-    "TREND_BASE_COUNT_CAP",
-    "TREND_BASE_WALK_MAX_ROOTS",
-    # Tag fire-rule thresholds + the weak_monthly warning knob (task-10
-    # batch — sixth declared seam)
-    "TOUCH_VOL_Z_NO_SUPPLY",
-    "TOUCH_VOL_Z_SPRING",
-    "TOUCH_VOL_Z_HEAVY_R",
-    "TA_WARN_WEAK_MONTHLY",
-    # Lane-C advisory/enrichment flags + tuning knobs (deferred to engine-β;
-    # default-off + byte-identical off, read via _flag()/getattr on the advisory
-    # path). Pre-registered like TA_SCORE_V2 so the β consumption wave that wires
-    # them into score/archive rotates engine_config_version from day one — and so a
-    # lookback/lag tweak that changes an archived advisory value cannot slip the
-    # hash. The tuning knobs are read one import-hop out (rs_line / sector_ranking /
-    # metrics), now covered by the manifest-completeness scan. (SECTOR_RANKING_ETFS
-    # is the ranked symbol SET, ops-excluded like INDEX_SYMBOLS — see below.)
+    "DAILY_STRUCTURE_PERIOD",
+    "ADR_WINDOW",
+    # Relative strength against SPY: the lookback of the excess-return read (the seed's and the scan's SPY 6m)
+    "RS_LOOKBACK_BARS",
+    # Lane-C advisory/enrichment flags + tuning knobs (default-off + byte-identical off, read via
+    # _flag()/getattr on the advisory path). Registered so the consumption wave that wires them into
+    # score/archive rotates engine_config_version from day one — and so a lookback/lag tweak that changes an
+    # archived advisory value cannot slip the hash. (SECTOR_RANKING_ETFS is the ranked symbol SET,
+    # ops-excluded like INDEX_SYMBOLS — see below.)
     "FUNDAMENTALS_ENABLED",
     "FUNDAMENTALS_EARNINGS_HISTORY_LIMIT",
     "FUNDAMENTALS_FILING_LAG_DAYS",
@@ -387,63 +91,6 @@ ENGINE_SETTINGS_KEYS: tuple[str, ...] = (
     "SECTOR_RANKING_ENABLED",
     "SECTOR_RANKING_LOOKBACKS",
     "RS_RATING_LOOKBACK",
-    # E3 setup-quality graded sub-score (additive bonus term, flag-gated)
-    "SCORE_SETUP_QUALITY",
-    "SETUP_QUALITY_W_COMPLETENESS",
-    "SETUP_QUALITY_W_CHRONOLOGY",
-    "SETUP_QUALITY_CHRONO_PARTIAL",
-    # Event Map fire-path staging (measure-only diagnostics, flag-gated dark)
-    "EVENT_MAP_ENABLED",
-    # Election stability probe (measure-only diagnostics, flag-gated dark)
-    "ELECTION_STABILITY_ENABLED",
-    "ELECTION_STABILITY_LOOKBACK",
-    # Election-trace export (measure-only narration capture, flag-gated dark)
-    "ELECTION_TRACE_EXPORT_ENABLED",
-    # Strategy read — held-through-correction raw measures (flag-gated dark)
-    "STRATEGY_READ_ENABLED",
-    # Engagement measure yardstick (Move 1 gap-breach; measure-only — the
-    # election-variant form was tested and REJECTED 2026-07-24)
-    "ENGAGEMENT_MAX_EXCURSION_ATR",
-    "SCORE_TRAVERSAL_QUALITY",
-    "TRAVERSAL_QUALITY_DENSITY_FULL",
-    "TRAVERSAL_QUALITY_DWELL_PENALTY",
-    "MIN_STRONG_YEARLY_RETURN",
-    "MAX_STRONG_YEARLY_RETURN",
-    "SCORE_UPTREND_BONUS",
-    "SCORE_RS_BONUS",
-    "RS_LOOKBACK_BARS",
-    "RS_MAX_EXCESS_RETURN",
-    "SCORE_52W_HIGH_PROXIMITY",
-    "HIGH_PROXIMITY_FULL_PCT",
-    "HIGH_PROXIMITY_ZERO_PCT",
-    "SCORE_BREADTH_BONUS",
-    "BREADTH_FULL_PCT",
-    "BREADTH_ZERO_PCT",
-    "SCORE_CONTRACTION",
-    "CONTRACTION_IDEAL_MIN",
-    "CONTRACTION_IDEAL_MAX",
-    "CONTRACTION_FINAL_TIGHT_PCT",
-    "CONTRACTION_FINAL_LOOSE_PCT",
-    "SCORE_ASCENDING_SUPPORT",
-    "ASCENDING_SUPPORT_FULL_SLOPE",
-    "ADR_WINDOW",
-    "SCORE_ADR",
-    "ADR_FULL_PCT",
-    "TOUCH_BONUS_INDIVIDUAL",
-    "TOUCH_BONUS_TOTAL",
-    "TOUCH_BONUS_POINTS",
-    # HTF structure context (same engine on resampled bars)
-    "HTF_CONTEXT_ENABLED",
-    "DAILY_STRUCTURE_PERIOD",
-    "HTF_STAGE_MA",
-    "HTF_STAGE_MA_SLOPE_BARS",
-    "HTF_WEEKLY_WINDOWS",
-    "HTF_MONTHLY_WINDOWS",
-    # The resistance-contraction story form (the miss program's rescue lane
-    # arms it; the Power-Play species lane that once rode it was deleted at
-    # the final method's build step 12, point 25, with its preset, pole and
-    # breakout-wall keys: ONE epoch rotation, Sat 19/09/2026)
-    "POWER_PLAY_STORY_FORM_ENABLED",
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -511,52 +158,12 @@ def collect_manifest() -> Dict[str, Any]:
             "(a rename/removal changes the engine contract)."
         )
 
-    # The TA-grade story-chapter taxonomy is engine identity: which terms belong
-    # to which chapter (and the ruled left→right order) changes what the grade's
-    # breakdown MEANS, so a re-chaptering must rotate engine_config_version like
-    # any weight. Derived lazily FROM the one registry (never a second map) —
-    # a non-settings block, on the same lazy-import rule.
-    from engine_alpha.scoring import taxonomy
-
-    manifest["TA_GRADE_CHAPTER_ORDER"] = list(taxonomy.CHAPTER_ORDER)
-    # The ONE chapter-map projection (whole registry, regime terms as None —
-    # taxonomy.chapter_map's docstring carries the coverage contract).
-    manifest["TA_GRADE_CHAPTER_MAP"] = taxonomy.chapter_map()
-    # The tag fire-rules are judgments (which chips fire): a rule change must
-    # rotate the version exactly like a weight change (task 10).
-    manifest["TA_GRADE_TAG_RULES"] = taxonomy.tag_rules_manifest()
-
-    # The sentence family's signed vocabulary is engine identity on the same
-    # grounds (council review 2026-09-01, finding 6): the family's own law is
-    # "rows written under different reader vocabularies are different epochs —
-    # no backfill, ever", and only the FLAG was in the frozen identity, so a
-    # signed re-wording would mint new-worded rows under the old stamp and the
-    # mixed population could never be partitioned again. The block hashes the
-    # MAPPING, not just the derived word/verdict value sets: a re-ruling that
-    # re-assigns inside the closed sets (spring held -> breached) changes what
-    # an archived sentence MEANS while both sets stay identical, and the
-    # sets-only form rotated nothing on exactly that move (round-two
-    # completeness critic, 2026-09-01). The projection is now DERIVED from a
-    # source registry that is itself guarded against the module's declared
-    # tables, because the hand-enumerated body was the same silent-omission
-    # class one level up: it had swallowed the per-channel BASIS_CONSTANTS,
-    # so re-declaring the puzzle channel's span_origin box -> window — the
-    # field the serializer's offset guard keys on, riding every archived
-    # token's basis cell — moved no hash (round-three critic, 2026-09-01).
-    # Derived lazily FROM the one declaration (EC-33 — never a second copy of
-    # the word tables), on the same lazy-import rule as the taxonomy block
-    # above.
-    from engine_alpha.structure.events import event_vocabulary
-
-    manifest["SENTENCE_VOCABULARY"] = event_vocabulary.vocabulary_manifest()
-    # The new reader's own numbers (two-eyes-reader task 7). Its copied pieces
-    # read them from two_eyes_numbers, not settings — a shared key would move the
-    # frozen original with them — so without this block a tuned number would
-    # change the reading and keep the version. The numbers live OUTSIDE the
+    # The reader's own numbers (two-eyes-reader task 7): the reader reads them
+    # from two_eyes_numbers, not settings, so without this block a tuned number
+    # would change the reading and keep the version. The numbers live OUTSIDE the
     # package (a module with no imports): this stamp runs on every night's
-    # payload and archive write, and importing them from inside the package ran
-    # its door, which loads every stage — so a broken stage stopped the old
-    # reader's night with the switch off (council review 2026-10-09, finding 1).
+    # payload and archive write, and importing them from inside the package would
+    # run its door, which loads every stage (council review 2026-10-09, finding 1).
     from engine_alpha import two_eyes_numbers
 
     manifest["TWO_EYES_METHOD_NUMBERS"] = {

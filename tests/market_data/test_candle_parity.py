@@ -75,13 +75,18 @@ def _awkward_frame() -> pd.DataFrame:
 
 
 def _scan_row(ticker: str) -> dict:
-    """The minimal results row _extract_chart_data needs (the
-    tests/contracts/test_dashboard_wire.py mold)."""
+    """The minimal results row _extract_chart_data needs: the verdicts every row
+    carries and the alpha reader's block (a row without one draws no chart since
+    the old engine retired, Sat 31/10/2026); its days are days of _awkward_frame."""
+    days = [d.strftime("%Y-%m-%d") for d in pd.bdate_range(end="2026-08-12", periods=N_DAYS)]
     return {
         "Ticker": ticker, "Tier": "A", "Score": 100, "Setup": "LPS",
         "Current Price": 30.0, "_trigger_price": 30.5, "_R": 30.0, "_S": 25.0,
-        "_base_len": 8, "_lps_len": 2, "_lps_offset": 0,
-        "_r_anchor_bar": 2, "_s_anchor_bar": 3, "_sub_scores": {},
+        "_wire_two_eyes": {
+            "boxes": [{"role": "parent", "r": 30.0, "s": 25.0, "opened": days[-60], "end": None,
+                       "r_day": days[-55], "s_day": days[-50]}],
+            "lps": {"start": days[-5], "end": days[-1]},
+        },
     }
 
 

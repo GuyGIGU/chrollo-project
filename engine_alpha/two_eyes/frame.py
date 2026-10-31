@@ -122,9 +122,9 @@ def check(df: pd.DataFrame) -> None:
                 f"{holed.index[0].date()} — this is dropped upstream today, so "
                 "its arrival here means the prep was bypassed")
 
-# COPIED from engine_alpha/frames.py at 61c88cc (two-eyes-reader task 8), token for token: the old engine's
-# window rule, so the two readers see the same two years. tests/engine/test_two_eyes_copies_equal_originals.py
-# pins the copy equal to its original on the fixtures.
+# The daily-structure window rule (copied from the old engine's frames.py at 61c88cc, two-eyes-reader task 8;
+# the ONE home since that engine retired, Sat 31/10/2026): the adapter's stock facts and
+# core/pipeline/market_data/downloads.py cut their frames with it too.
 def _trim_to_period(data: pd.DataFrame, period: str) -> pd.DataFrame:
     """Trim DataFrame index to the trailing period window (e.g., '2y')."""
     if data.empty:

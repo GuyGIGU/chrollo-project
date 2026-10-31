@@ -54,7 +54,7 @@ The code is organized as two engines plus a conductor (see [core/MAP.md](../core
 **`core/pipeline/`** = the conductor that wires them together, with **`core/archive/`** as the
 measuring-stick tooling. Orchestrated by `run_screener()` in
 [core/pipeline/screening/screener.py](../core/pipeline/screening/screener.py), running per-ticker evaluation from
-[engine_alpha/evaluation.py](../engine_alpha/evaluation.py) in a `ProcessPoolExecutor`.
+`engine_alpha/evaluation.py` in a `ProcessPoolExecutor`.
 
 ---
 
@@ -294,7 +294,7 @@ Alongside the existing states it distinguishes:
 
 ## Phase 1 — Baseline Universe Filter
 
-`apply_baseline_filters()` ([engine_alpha/evaluation.py](../engine_alpha/evaluation.py)).
+`apply_baseline_filters()` (`engine_alpha/evaluation.py`).
 
 Reject the ticker entirely if any check fails. Run in this order:
 
@@ -346,7 +346,7 @@ is refused at the sma200 leg. Built for MDT (fires 2026-07-14 tier S at his
 drawn R 82.83); evidence in [miss_program_2026-08.md](miss_program_2026-08.md).
 Flag off = byte-identical.
 
-`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` ([engine_alpha/structure/metrics/indicators.py](../engine_alpha/structure/metrics/indicators.py): Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
+`_evaluate_ticker()` then attaches `ATR_10` and `ATR_50` (`engine_alpha/structure/metrics/indicators.py`: Wilder's smoothing via SciPy `lfilter`). `ADX` is implemented in `indicators.py` but **not used** — nothing in the live screener reads it today.
 
 **The smoothing's NaN contract (council review 2026-09-07, finding 14).** `_fast_ewm` masks *every* NaN sample — leading pad or interior hole — out of the recursive filter, runs it over the valid subsequence, and scatters the results back: an unreadable bar yields an unreadable ATR at that bar and nothing more. Until 2026-09-07 only a LEADING run was masked (the `shift(1)`/`diff()` pad the docstring named); one interior NaN entered `lfilter`'s state and propagated to every later sample, so a single bad OHLC cell anywhere in a two-year frame silently deleted that ticker's whole chart read from that bar onward — every brick's `_finite(atr)` guard refused, with no counted refusal reason and a docstring that made the failure look impossible. Masking is a strict superset of the old handling (no NaN, or a leading run only, reads byte-identically), and the live pipeline's `dropna` means it moved nothing on the 248-setup payload at the fix. Known bounded residual, deliberately left: `calculate_adx`'s `np.insert(..., np.nan)` pad makes an unreadable bar's directional movement compare False and land on `0.0` — Wilder's correct convention for bar 0, a mild fabrication for an interior hole; re-typing it would move ADX on every ticker for a case the pipeline already drops.
 
@@ -363,7 +363,7 @@ Cached in `market_context.json` next to the parquet with TTL 1h during market ho
 
 ## Phase 2 — Consolidation Detection
 
-`read_structure()` ([engine_alpha/structure/narrative/reader.py](../engine_alpha/structure/narrative/reader.py)) is the live entry point. It assembles one Wyckoff story through pure brick validators in [engine_alpha/structure/narrative/bricks.py](../engine_alpha/structure/narrative/bricks.py):
+`read_structure()` (`engine_alpha/structure/narrative/reader.py`) is the live entry point. It assembles one Wyckoff story through pure brick validators in `engine_alpha/structure/narrative/bricks.py`:
 
 1. `find_root_swing()` — next calibrated climax -> automatic-reaction anchor, oldest-first.
 2. `validate_equilibrium()` — a real worked Phase-B box, using the existing zigzag candidate and traversal gates.
@@ -482,7 +482,7 @@ Walk bars from `scan_hi = end - MIN_BASE_DAYS` down to `scan_lo = TREND_MIN_MOVE
 
 ### Phase A — Locality Resolution
 
-`resolve_phase_a()` ([engine_alpha/structure/narrative/bricks.py](../engine_alpha/structure/narrative/bricks.py)) repackages `segment_swings()` ([engine_alpha/structure/phases/segmentation.py](../engine_alpha/structure/phases/segmentation.py)) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands within `_SEG_AR_TOL` (10) bars **at or before** `box.start_bar` (never after — Phase A ends where Phase B opens, the `ar_bar <= phase_b_start_bar` invariant); if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/audits/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
+`resolve_phase_a()` (`engine_alpha/structure/narrative/bricks.py`) repackages `segment_swings()` (`engine_alpha/structure/phases/segmentation.py`) after the box is known. It returns the **local** climax -> automatic-reaction bridge whose reaction low lands within `_SEG_AR_TOL` (10) bars **at or before** `box.start_bar` (never after — Phase A ends where Phase B opens, the `ar_bar <= phase_b_start_bar` invariant); if that bridge is unavailable it falls back to the segmentation root, then to a **local synthesis**. The same worked box is reached from nearly every candidate root, so the seed root is only a *scan origin*, not the box's cause; when that seed sits more than `_SEG_LEAD_IN` (60) bars before the box — an ancient origin reaching through to a recent range — the fallback anchors the AR at the box open and the climax at the highest High in the preceding 60-bar run-up, never the stale seed climax (which would otherwise paint, e.g., a 2024 climax on a 2026 box). This fixes the "distant trend top seeds a recent box" problem: Phase A is **guaranteed local** — it belongs to the consolidation that actually validated, not the first trend climax that merely started the search. (`tools/audits/structure_case_audit.py` is the read-only surface for confirming which root won and whether the drawn Phase A is local.)
 
 **Climax terminality (2026-07-19).** Locality alone was not enough: a seed within the
 `_SEG_LEAD_IN` window could still be a *mid-trend* pause — FLXS's 04-28 seed sat 41 bars
@@ -558,8 +558,8 @@ their five manifest rows, and `tools/ar_first_reaction_diff.py`.
 
 ### Phase A — Macro bridge read (live; folded 2026-07-18)
 
-`macro_bridge_zigzag()` ([engine_alpha/structure/phases/phase_a.py](../engine_alpha/structure/phases/phase_a.py), formerly `pip.py`), wired
-unconditionally through `segment_swings()` ([engine_alpha/structure/phases/segmentation.py](../engine_alpha/structure/phases/segmentation.py))
+`macro_bridge_zigzag()` (`engine_alpha/structure/phases/phase_a.py`, formerly `pip.py`), wired
+unconditionally through `segment_swings()` (`engine_alpha/structure/phases/segmentation.py`)
 (folded 2026-07-18; formerly flag `PIP_MACRO_PHASE_A_ENABLED`, live 2026-07-04). A multi-resolution PIP (Perceptually Important Points)
 skeleton is ranked **once** (`pip_indices` — the ranking is strictly nested, so top-K is an
 exact prefix of top-K+1), then walked coarse→fine from `K=4` up to `PIP_MACRO_K_MAX` (24):
@@ -624,7 +624,7 @@ later is a fresh A/B against a fixed `segment_trends`, not a revert of this chan
 
 ### Phase B — Zigzag S/R Anchoring
 
-`phase_b_zigzag()` ([engine_alpha/structure/box/box_primitives.py](../engine_alpha/structure/box/box_primitives.py)).
+`phase_b_zigzag()` (`engine_alpha/structure/box/box_primitives.py`).
 
 1. **Pivots** — `_find_pivots()` (vectorized; asymmetric `>=` left, `>` right so flat tops/bottoms still pivot at the rightmost — the structurally meaningful "last touch"):
    - `ORDER = PIVOT_ORDER_LONG (2)` if window ≥ `PIVOT_ORDER_THRESHOLD (40)` bars, else `PIVOT_ORDER_SHORT (1)`.
@@ -876,7 +876,7 @@ Phases A and B establish *where the base is* and *what its R/S are*. But everyth
 
 The LPS *is* that turn — the last support after the reaction. The engine leans this way structurally: the active setup LPS is terminal-bar based and must sit below its trigger (Phase 3, gate 14), so a qualifying setup is biased toward the up-leg rather than a knife still falling.
 
-**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is resolved by `resolve_phase_d_boundary()` ([engine_alpha/structure/phases/phase_d.py](../engine_alpha/structure/phases/phase_d.py)) and surfaced through the narrative reader, `measure_phases()`, and `scope_consolidation()` ([engine_alpha/structure/context/scope.py](../engine_alpha/structure/context/scope.py)). It is strictly **measurement/evidence**, never a gate: it cannot drop a ticker, change R/S, or directly alter score/tier. The mandatory gate remains the active LPS itself.
+**The comprehension this encodes.** Read top-to-bottom, Phase D is the bridge from *"a consolidation exists"* to *"I understand I'm in the right-most region, past the shakeout — now localize the LPS zone."* That region is resolved by `resolve_phase_d_boundary()` (`engine_alpha/structure/phases/phase_d.py`) and surfaced through the narrative reader, `measure_phases()`, and `scope_consolidation()` (`engine_alpha/structure/context/scope.py`). It is strictly **measurement/evidence**, never a gate: it cannot drop a ticker, change R/S, or directly alter score/tier. The mandatory gate remains the active LPS itself.
 
 The scoping layer emits best-effort chart anchors:
 
@@ -1207,7 +1207,7 @@ goes to his sitting with the pictures.
 
 ## Phase 3 — LPS Detection
 
-`detect_lps()` ([engine_alpha/structure/lps/detection.py](../engine_alpha/structure/lps/detection.py)). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow above-R shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
+`detect_lps()` (`engine_alpha/structure/lps/detection.py`). For each `(offset, length)` window in the recent tape, every hard gate below must pass; failing any hard gate disqualifies the window. Candidate swing depth is measured from the first bar's High -- the anchor peak before the pullback -- into the elected LPS valley. Normally that valley is the final bar's Low, and the trigger is the final bar's High. Two shelf patterns are also valid: a compact rising support shelf can elect its early window low as the LPS low, and a long shallow above-R shelf can hold just above old R. Surviving candidates are filtered for actionability (`current_price < trigger`) and the latest valid setup LPS wins.
 
 **The holding-shelf completion form (`LPS_HOLDING_SHELF_ENABLED`, LIVE since 2026-07-16).** The scan carries a second pure completion judgment, `_holding_shelf_verdict` — the two-form doctrine's flat shelf ([lps_final_structure_canon_2026-07-10.md](lps_final_structure_canon_2026-07-10.md)) — consulted only where the pullback form rejects at gate 7 (pullback depth) or gate 11 (volume floor); every other gate binds both forms. A holding shelf is judged on **geometry only**: at least `LPS_SHELF_LENGTH_MIN = 3` bars, **monotone non-rising lows** (the operator's "LPS = peak that goes down"; a rising low is the canon's wedging failure — which also means the terminal-low guard passes by construction), its low at/above the **box midpoint** (`LPS_SHELF_MIN_LOW_POS_BOX = 0.5` — the canon position test: flat finals are sanctioned only high in the structure; flat-and-low is the named failure geometry), and a dig inside the base depth envelope `[0.40, 4.50]` without the OVERSHOOT_R escalation. A shelf-saved window carries `swing_type = "holding_shelf"` and a **volume-free quality**; volume is measured truthfully (`vol_contraction` may archive negative) but never gates or rewards this form. Flag-off the judgment is never consulted — byte-identity is structural. Calibrated on the operator's marked WTS + PBT shelves (flag-ON: both convert, all pinned corpus hits and all 32 shadow fires unchanged, negative corpus clean). The shelf-length floor STAYS at 3: the 3→2 move was attempted 2026-07-17 and reverted at its flip battery — KWR + FLG (labeled dead-space) both fired via 2-bar shelves; at n=2 the monotone axis is one comparison and does not discriminate.
 
@@ -1273,7 +1273,7 @@ goes to his sitting with the pictures.
 
 ## Phase 4 — Scoring & Tier Assignment
 
-`score_setup()` ([engine_alpha/scoring/scoring.py](../engine_alpha/scoring/scoring.py)) sums **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive).
+`score_setup()` (`engine_alpha/scoring/scoring.py`) sums **15 components**, each clamped into `[0, cap]` (box tightness is first scaled by the live candle-spread readability multiplier — a `[floor, 1]` grade, never additive).
 
 > **Since the 2026-08-09 flip this raw sum is no longer the number the operator reads.** `compose_ta_grade()` normalizes the same terms — plus the promoted story terms — against a FIXED divisor into the **0-100 TA grade**, partitions it into the story chapters, applies the floored warning discounts, and derives the tier from the result. **The legacy path RETIRED 2026-08-23** (operator-delegated; council 2026-08-22): `calculate_tier`, the `TIER_S/A/B/C` cuts and the `TA_SCORE_V2` flag are gone (a declared manifest seam), the **scan ranking is the grade** (raw-sum tiebreak, then ticker — council P1: rank and badge must come from ONE verdict), and the seed scan-back election keys on the same basis. The raw sum survives ONLY as the archived `score` fact and the ranking tiebreak — writers keep stamping it (NOT NULL contract, computationally free), no surface displays it. See [ta_grade_flip_2026-08-09.md](ta_grade_flip_2026-08-09.md) for the flip's basis and measured drift.
 
@@ -1322,7 +1322,7 @@ Operator-chosen from the A/B on the 2026-08-09 scan (256 fires, grades 35.5–76
 
 ## VCP Progressive-Contraction Footprint
 
-`measure_contractions()` ([engine_alpha/structure/metrics/base.py](../engine_alpha/structure/metrics/base.py)) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
+`measure_contractions()` (`engine_alpha/structure/metrics/base.py`) measures the **defining Minervini VCP signature** — a sequence of 2–6 pullbacks each tighter than the last (e.g. 18%→12%→6%) ending in a tight final coil. This is the *process* of tightening, which `box_width` / `atr_squeeze` (static tightness) cannot see.
 
 It reuses the Phase B zigzag machinery over the base window: each peak→valley downswing is one contraction, `depth = (peak − valley) / peak`. The initial BC→AR descent into the base is excluded by design (it's the entry into the base, the early-chop the `cand_start` trim already removes).
 
@@ -1339,7 +1339,7 @@ Persisted to the archive as `contraction_count`, `contraction_quality`, `final_c
 
 ## Base Bar Compression Footprint
 
-`measure_bar_compression()` ([engine_alpha/structure/metrics/base.py](../engine_alpha/structure/metrics/base.py)) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
+`measure_bar_compression()` (`engine_alpha/structure/metrics/base.py`) measures the **texture inside the detected box**: whether the bars themselves are quiet / low-spread, not just whether R/S are close together. This is distinct from `box_width` (range tightness) and `atr_ratio` (ATR squeeze) because a narrow box can still contain sloppy wide bars.
 
 It reports four raw diagnostics, all persisted to the archive and not scored:
 
@@ -1356,7 +1356,7 @@ This is **measure-first / never-gated / never-penalizing**. It gives the archive
 
 ## Ascending Support / Higher-Lows Footprint
 
-`measure_support_slope()` ([engine_alpha/structure/metrics/base.py](../engine_alpha/structure/metrics/base.py)) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
+`measure_support_slope()` (`engine_alpha/structure/metrics/base.py`) measures whether the base's swing lows are **stair-stepping up** — the Minervini "tennis-ball action" / Qullamaggie "higher lows surfing the rising EMA" footprint. A flat box with a *rising floor* is a stronger coil than a flat box with a flat/sagging floor: demand is getting more aggressive into each pullback.
 
 It reuses the same Phase B zigzag as the contraction metric, but reads the **valley** sequence. It fits a least-squares line through the `(bar_index, valley_low)` points and ATR-normalizes the slope so it's comparable across price levels and tickers.
 
@@ -1370,7 +1370,7 @@ Needs ≥ 2 zigzag valleys; otherwise returns neutral (quality 0). Persisted as 
 
 ## ADR% Absolute Volatility
 
-`adr_pct()` ([engine_alpha/structure/metrics/indicators.py](../engine_alpha/structure/metrics/indicators.py)) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
+`adr_pct()` (`engine_alpha/structure/metrics/indicators.py`) measures Qullamaggie-style Average Daily Range % over the latest full tape, not just the consolidation window:
 
 ```
 ADR%(20) = 100 × (mean(High / Low over the last 20 bars) - 1)
@@ -1416,7 +1416,7 @@ thresholds are **unchanged**.
 
 ### Bin features — "where am I in the base?"
 
-`measure_phases()` ([engine_alpha/structure/phases/phase_features.py](../engine_alpha/structure/phases/phase_features.py))
+`measure_phases()` (`engine_alpha/structure/phases/phase_features.py`)
 slices an already-detected base into its named regions and reports raw size,
 price-range, and volume character per region. It detects nothing new — it
 consumes anchors the detector + LPS finder already produced.
@@ -1556,7 +1556,7 @@ heuristic boxes before any later scoring or anchoring change is considered.
 
 ### Minervini Stage-2 trend template
 
-`trend_template()` ([engine_alpha/structure/metrics/indicators.py](../engine_alpha/structure/metrics/indicators.py))
+`trend_template()` (`engine_alpha/structure/metrics/indicators.py`)
 records the classic price/MA leadership template as raw context, computed
 self-contained from the daily frame:
 
@@ -2048,7 +2048,7 @@ detector decision, in manifest order, with its live `config/settings.py` value.
 Regenerate with `python -m tools.maintenance.settings_reference --write`;
 `tests/tooling/test_docs_sync.py` fails the suite when this block drifts._
 
-_engine_config_version: `8d66938a7b2f8f18ffebd9057f5532a26ab74731a0e78fadfb50f3943c66b999`_
+_engine_config_version: `3f3aefb5a4c12d3bf1e3aaeeb12f8708d186a6bd7bc5e7292c980da67951f812`_
 
 ```text
 DATA_DIVIDEND_ADJUSTED = False
@@ -2056,225 +2056,10 @@ MIN_PRICE = 3.0
 MIN_VOLUME_50D = 50000
 MIN_YEARLY_RETURN = -0.2
 MIN_MARKET_CAP = 300000000
-SMA50_DIP_EXCEPTION_ENABLED = False
-SMA50_DIP_MAX_SESSIONS = 25
-SMA50_DIP_MAX_ATR = 1.0
-BOTTOMING_BASE_LANE_ENABLED = False
-BOTTOMING_SMA50_BARS = 50
-MIN_BASE_DAYS = 20
-MAX_BOX_WIDTH = 0.18
-CRASH_FILTER_MULT = 0.7
-EXTENSION_FILTER_MULT = 1.15
-PIVOT_ORDER_SHORT = 1
-PIVOT_ORDER_LONG = 2
-PIVOT_ORDER_THRESHOLD = 40
-PIP_MACRO_K_MAX = 24
-PIP_MACRO_MAX_POST_EXCESS = 0.25
-PIP_MACRO_MIN_BASE_BARS = 20
-PIP_MACRO_EQ_FLOOR_FRAC = 0.5
-PIP_MACRO_EQ_OSC_FRAC = 0.3
-PHASE_A_CLIMAX_TERMINALITY_EXCESS = 0.25
-CAUSE_BEFORE_EFFECT_VETO_ENABLED = True
-CAUSE_LPS_LOOSE_MAX = 0.9
-BOUNDARY_ATR_BUFFER = 0.5
-MAX_CONSECUTIVE_OUTSIDE_DAYS = 10
-MIN_BOUNDARY_RESPECT_PCT = 0.8
-TOUCH_TOLERANCE_ATR = 0.5
-EQ_MIN_TOUCHES_PER_RAIL = 3
-EQ_MIN_TOUCH_THIRDS = 2
-EQ_MIN_HALF_DWELL = 0.15
-EQ_MAX_MID_DWELL = 0.45
-EQ_MIN_COVERAGE = 0.8
-EQ_COVERAGE_BINS = 6
-EQ_COVERAGE_MIN_FRAC = 0.03
-TRAVERSAL_NOISE_FRAC = 0.15
-TRAVERSAL_FULL_FRAC = 0.55
-TRAVERSAL_LOW_ZONE = 0.3
-TRAVERSAL_HIGH_ZONE = 0.7
-TRAVERSAL_MIN = 2
-TRAVERSAL_MIN_DENSITY = 0.08
-DESCENT_TAIL_LSF_MAX = 0.4
-DESCENT_TAIL_CFP_MIN = 0.2
-SOS_TRIM_MIN_RUN = 3
-SOS_TRIM_MIN_PREFIX_FRAC = 0.3
-SOS_NEAR_R_MAX_BOX = 1.5
-SOS_HOLD_MAX_RANGE_BOX = 0.55
-TREND_MIN_GAIN_PCT = 0.15
-TREND_MIN_MOVE_BARS = 20
-TREND_PRIOR_LOOKBACK = 100
-LOCAL_PEAK_BARS = 30
-ROOT_TREND_SMA = 200
-PHASE_B_ATR_WINDOW = 30
-AR_MIN_DROP_PCT = 0.05
-AR_MAX_BARS = 15
-LPS_MIN_DESCENT_FRAC = 0.0
-LPS_MIN_HIGH_DESCENT_FRAC = 0.0
-LPS_MAX_WINDOW_BOX_RANGE = 0.85
-LPS_OVERSHOOT_WINDOW_ATR_ENABLED = True
-LPS_OVERSHOOT_WINDOW_ATR_MULT = 2.0
-LPS_RESCUE_MAX_ADVANCE_BOX = 0.21
-LPS_INSIDE_HIGH_EXTENSION_BOX_MAX = 0.35
-LPS_INSIDE_HIGH_EXTENSION_ATR_MAX = 0.75
-LPS_SCAN_OFFSET_MAX = 7
-LPS_LENGTH_MIN = 2
-LPS_LENGTH_MAX = 7
-LPS_HOLD_TOLERANCE = 0.95
-LPS_PROFILE_BOX_FRACTION_FLOOR = 0.15
-LPS_PULLBACK_PROFILE_MIN = 0.4
-LPS_PULLBACK_PROFILE_MIN_OVERSHOOT_R = 1.25
-LPS_PULLBACK_PROFILE_MAX = 4.5
-LPS_TERMINAL_LOW_TOL_PROFILE = 0.1
-LPS_SPREAD_MAX_PROFILE_MULT = 1.25
-LPS_SPREAD_EXPANSION_MAX_PROFILE = 0.35
-LPS_AFTER_SPRING_ENABLED = True
-LPS_HOLDING_SHELF_ENABLED = True
-LPS_SHELF_LENGTH_MIN = 3
-LPS_SHELF_MIN_LOW_POS_BOX = 0.5
-LPS_CEILING_REST_ENABLED = False
-RESPECT_WHOLE_BAR_ENABLED = False
-DWELL_GRADED_ENABLED = False
-BOX_HANDOVER_RANGES_ENABLED = False
-BOX_HANDOVER_MAX_ABOVE_R_ATR = 1.5
-SPRING_BOUNDS_LIFTED_ENABLED = False
-LPS_RANGES_YARDSTICK_ENABLED = False
-LPS_WINDOW_SPAN_ATR_MAX = 2.5
-LPS_LAUNCH_ABOVE_R_ATR_MAX = 2.5
-LPS_SHELF_ABOVE_R_ATR_MAX = 1.5
-LPS_ZONE_CEILING_ATR = 1.35
-LPS_GRADED_TRAITS_ENABLED = False
-LPS_CORRECTION_DIG_MIN_ATR = 0.68
-LPS_CORRECTION_LAST_HIGH_MAX_ABOVE_FIRST_ATR = 0.25
-LPS_WINDOW_RECEDING_ENABLED = False
-LPS_BREAKOUT_DAY_CLOSE_ABOVE_PRIOR_HIGH_ATR = 0.1
-LPS_BUY_DAY_READS_HIGH_ENABLED = False
-LPS_REFUSALS_TO_GRADES_ENABLED = False
-LPS_SELLERS_RISING_FATAL_ENABLED = False
-TWO_EYES_READER_ENABLED = True
-TWO_EYES_RULESET = 'two-eyes-0.11.0-wrap-and-traits'
-TURN_LINE_ENABLED = False
-TURN_LINE_TREND_ENABLED = False
-TURN_LINE_FLOOR_ATR = 0.75
-LINE_WORD_SOS_ENABLED = False
-LINE_WORD_LAST_SUPPER_ENABLED = False
-LINE_WORD_PHASE_C_ENABLED = False
-LINE_WORD_PHASE_D_ENABLED = False
-LINE_WORD_MINI_ENABLED = False
-LINE_WORD_UPTHRUST_ENABLED = False
-LINE_WORD_AREA_ATR = 0.5
-LINE_WORD_UPTHRUST_MIN_POKE_ATR = 1.25
-LINE_WORD_SOS_MIN_GROUND_ATR = 1.7
-LINE_WORD_SUPPER_DIG_ATR = 1.5
-LINE_WORD_SUPPER_MAX_DAYS = 4
-BASE_AGE_FROM_ANCHOR_ENABLED = False
-BASE_AGE_MIN_DAYS = 15
-BOX_WIDTH_CAPS_GRADED_ENABLED = False
-DEPTH_CAPS_GRADED_ENABLED = False
-RESPECT_GRADED_ENABLED = False
-LPS_LEAVES_ELECTION_ENABLED = False
-WATCH_LANE_MIN_TURNS_PER_RAIL = 2
-BOX_OPENS_ON_ANCHORS_ENABLED = False
-CLIMAX_FIRST_WALK_ENABLED = False
-BOX_END_ENABLED = False
-BOX_END_BREAKOUT_ATR = 0.1
-GRADE_LEDGER_ENABLED = False
-GRADE_LEDGER_CAPS = {'SCORE_BASE_AGE': 0, 'SCORE_VOL_CONTRACTION': 0, 'SCORE_ATR_SQUEEZE': 0, 'SCORE_CONTRACTION': 0, 'SCORE_ASCENDING_SUPPORT': 0, 'SCORE_ADR': 0, 'SCORE_52W_HIGH_PROXIMITY': 0}
-BOX_HEIGHT_FULL_RANGES = 1.0
-BOX_HEIGHT_ZERO_RANGES = 4.0
-TURNS_POINT_RATE = 1.5
-LPS_SPREAD_FULL_RANGES = 0.6
-LPS_SPREAD_ZERO_RANGES = 1.6
-TIER_S_MAX_HEIGHT_RANGES = 2.5
-GRADE_LEDGER_TIER_CUTS = (72, 62, 52, 42)
-LPS_CEILING_REST_MAX_BELOW_R_ATR = 0.3
-BAND_RAILS_ENABLED = True
-BAND_MAX_BOX_WIDTH = 0.23
-BAND_EVENT_MIN_BARS = 2
-BAND_EVENT_MAX_DEPTH_ATR = 5.0
-BAND_EVENT_MAX_BARS = 20
-STORY_POOL_ENABLED = True
-CONTRACTION_RESCUE_ENABLED = False
-BAR_POSTURE_RESCUE_ENABLED = False
-SENTENCE_ARCHIVE_ENABLED = True
-NEAR_MISS_MAX_QUANTA = 1
-NEAR_MISS_WIDTH_DEFICIT_MAX = 0.0081
-NEAR_MISS_CRASH_DEFICIT_MAX = 0.0083
-NEAR_MISS_DENSITY_DEFICIT_MAX = 0.011
-NEAR_MISS_LANE_ENABLED = True
-NEAR_MISS_TOP_K = 32
-NEAR_MISS_WRITER_TICKER_CAP = 8
-NEAR_MISS_WRITER_GLOBAL_CAP = 200
-ELECTION_DETHRONE_ENABLED = True
-ELECTION_DETHRONE_SESSIONS = 10
-LPS_DRAW_MIN_DESCENT_FRAC = 0.4
-LPS_ZONE_ATR_MULT = 0.5
-BIN_C_UNDERCUT_ATR_MIN = 0.3
-BIN_C_UNDERCUT_ATR_MAX = 3.0
-BIN_C_UNDERCUT_BOX_MAX = 0.65
-BIN_C_RECOVERY_BARS_MAX = 8
-BIN_C_LINGER_BARS_MAX = 12
-BIN_C_HOLD_BARS = 3
-BIN_C_HOLD_TOL_ATR = 0.5
-BIN_C_SIGNIF_UNDERCUT_ATR = 0.75
-BIN_C_MIN_LINGER_BARS = 2
-BIN_C_LATE_BOX_FRACTION = 0.5
-PHASE_D_VTIP_LATE_FRACTION = 0.35
-PHASE_D_VTIP_RECOVERY_BARS = 6
-LPS_RANGE_PERCENTILE = 0.5
-LPS_SPREAD_MUST_DECLINE = True
-LPS_VOL_CONTRACTION_MAX = 0.87
-STRUCTURE_EDGE_SKIP_BARS = 5
-STRUCTURE_ATR_SAMPLE_OFFSET = 6
-INNER_SEARCH_FRACTION = 0.5
-INNER_TIGHTNESS_RATIO = 0.75
-INNER_MIN_DAYS = 15
-TIER_S_STRUCT = 62
-TIER_A_STRUCT = 52
-TIER_B_STRUCT = 42
-TIER_C_STRUCT = 32
-S_MAX_BOX_WIDTH = 0.15
-SCORE_BASE_AGE = 22
-BASE_AGE_CAP_DAYS = 120
-BASE_AGE_DEADSPACE_WIDTH = 0.06
-SCORE_TOUCH_DENSITY = 25
-SCORE_VOL_CONTRACTION = 20
-SCORE_LPS_TIGHTNESS = 20
-SCORE_BOX_TIGHTNESS = 22
-SCORE_ATR_SQUEEZE = 8
-TIGHTNESS_ADR_AWARE = True
-MAX_BOX_WIDTH_ADR = 4.5
-CANDLE_GRADE_FLOOR = 0.55
-CANDLE_SPREAD_BOX_CLEAN = 0.35
-CANDLE_SPREAD_BOX_MESSY = 0.6
-CANDLE_SPREAD_ATR_CLEAN = 0.9
-CANDLE_SPREAD_ATR_MESSY = 1.4
-CANDLE_TIGHTBAR_CLEAN = 0.65
-CANDLE_TIGHTBAR_MESSY = 0.3
-SCORE_SPRING = 0
-TOUCH_POINT_RATE = 2.0
-LPS_TIGHTNESS_SLOPE = 2.0
-VOL_CONTRACTION_SLOPE = 2.0
-SCORE_STORY_S_TESTS = 0
-SCORE_STORY_R_REJECTIONS = 0
-SCORE_STORY_ALTERNATIONS = 0
-SCORE_STORY_TERMINAL_POSTURE = 0
-STORY_COMPLETED_TESTS_FULL = 3
-STORY_ALTERNATIONS_FULL = 2
-STORY_UNREADABLE_NAN_BARS = 5
-STORY_UNREADABLE_ZONE_COVERAGE = 0.5
-EPISODE_MAX_GAP_BARS = 2
-EPISODE_DRIFT_MIN_BARS = 3
-EVENT_HOLD_MIN_BARS = 6
-MINI_POSITION_TOL_ATR = 0.5
-TA_WARN_TERMINAL_DRIFT = 1.0
-TA_GRADE_WARNING_FLOOR = 0.5
-LPS_SHRINK_MIN_TESTS = 3
-STORY_RICHNESS_FULL = 0.15
-TREND_BASE_COUNT_CAP = 4
-TREND_BASE_WALK_MAX_ROOTS = 12
-TOUCH_VOL_Z_NO_SUPPLY = -0.3
-TOUCH_VOL_Z_SPRING = 0.3
-TOUCH_VOL_Z_HEAVY_R = 0.5
-TA_WARN_WEAK_MONTHLY = 1.0
+TWO_EYES_RULESET = 'two-eyes-0.12.0-one-reader'
+DAILY_STRUCTURE_PERIOD = '2y'
+ADR_WINDOW = 20
+RS_LOOKBACK_BARS = 126
 FUNDAMENTALS_ENABLED = True
 FUNDAMENTALS_EARNINGS_HISTORY_LIMIT = 12
 FUNDAMENTALS_FILING_LAG_DAYS = 75
@@ -2295,51 +2080,6 @@ RS_LINE_NEW_HIGH_LOOKBACK = 252
 SECTOR_RANKING_ENABLED = False
 SECTOR_RANKING_LOOKBACKS = (21, 63, 126)
 RS_RATING_LOOKBACK = 252
-SCORE_SETUP_QUALITY = 8.0
-SETUP_QUALITY_W_COMPLETENESS = 0.7
-SETUP_QUALITY_W_CHRONOLOGY = 0.3
-SETUP_QUALITY_CHRONO_PARTIAL = 0.5
-EVENT_MAP_ENABLED = True
-ELECTION_STABILITY_ENABLED = False
-ELECTION_STABILITY_LOOKBACK = 3
-ELECTION_TRACE_EXPORT_ENABLED = False
-STRATEGY_READ_ENABLED = False
-ENGAGEMENT_MAX_EXCURSION_ATR = 1.5
-SCORE_TRAVERSAL_QUALITY = 10
-TRAVERSAL_QUALITY_DENSITY_FULL = 0.33
-TRAVERSAL_QUALITY_DWELL_PENALTY = 8
-MIN_STRONG_YEARLY_RETURN = 0.3
-MAX_STRONG_YEARLY_RETURN = 0.6
-SCORE_UPTREND_BONUS = 0
-SCORE_RS_BONUS = 0
-RS_LOOKBACK_BARS = 126
-RS_MAX_EXCESS_RETURN = 0.3
-SCORE_52W_HIGH_PROXIMITY = 8
-HIGH_PROXIMITY_FULL_PCT = -0.05
-HIGH_PROXIMITY_ZERO_PCT = -0.2
-SCORE_BREADTH_BONUS = 8
-BREADTH_FULL_PCT = 0.6
-BREADTH_ZERO_PCT = 0.35
-SCORE_CONTRACTION = 12
-CONTRACTION_IDEAL_MIN = 2
-CONTRACTION_IDEAL_MAX = 6
-CONTRACTION_FINAL_TIGHT_PCT = 0.03
-CONTRACTION_FINAL_LOOSE_PCT = 0.12
-SCORE_ASCENDING_SUPPORT = 8
-ASCENDING_SUPPORT_FULL_SLOPE = 0.1
-ADR_WINDOW = 20
-SCORE_ADR = 8
-ADR_FULL_PCT = 5.0
-TOUCH_BONUS_INDIVIDUAL = 3
-TOUCH_BONUS_TOTAL = 6
-TOUCH_BONUS_POINTS = 10
-HTF_CONTEXT_ENABLED = True
-DAILY_STRUCTURE_PERIOD = '2y'
-HTF_STAGE_MA = 30
-HTF_STAGE_MA_SLOPE_BARS = 4
-HTF_WEEKLY_WINDOWS = {'MIN_BASE_DAYS': 6, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 5, 'TREND_PRIOR_LOOKBACK': 26, 'LOCAL_PEAK_BARS': 8, 'ROOT_TREND_SMA': 30, 'PHASE_B_ATR_WINDOW': 8, 'AR_MAX_BARS': 4, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 3, 'PIVOT_ORDER_THRESHOLD': 12, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 2, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 4, 'BIN_C_RECOVERY_BARS_MAX': 3, 'BIN_C_LINGER_BARS_MAX': 4, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 2, 'BOTTOMING_BASE_LANE_ENABLED': False}
-HTF_MONTHLY_WINDOWS = {'MIN_BASE_DAYS': 4, 'STRUCTURE_EDGE_SKIP_BARS': 1, 'TREND_MIN_MOVE_BARS': 3, 'TREND_PRIOR_LOOKBACK': 12, 'LOCAL_PEAK_BARS': 4, 'ROOT_TREND_SMA': 10, 'PHASE_B_ATR_WINDOW': 6, 'AR_MAX_BARS': 3, 'MAX_CONSECUTIVE_OUTSIDE_DAYS': 2, 'PIVOT_ORDER_THRESHOLD': 8, 'EQ_MIN_TOUCHES_PER_RAIL': 2, 'LPS_SCAN_OFFSET_MAX': 1, 'LPS_LENGTH_MIN': 1, 'LPS_LENGTH_MAX': 2, 'BIN_C_RECOVERY_BARS_MAX': 2, 'BIN_C_LINGER_BARS_MAX': 3, 'BIN_C_HOLD_BARS': 1, 'BIN_C_MIN_LINGER_BARS': 1, 'PHASE_D_VTIP_RECOVERY_BARS': 1, 'BOTTOMING_BASE_LANE_ENABLED': False}
-POWER_PLAY_STORY_FORM_ENABLED = False
 ```
 
 _Ops / data-fetch knobs (cache TTLs, Yahoo rate limits, admission/quarantine,
@@ -2375,13 +2115,13 @@ bugs to fix.
 
 ## Parent + Inner — Nested Phase D Range (live)
 
-The live reader calls `find_inner_box()` ([engine_alpha/structure/narrative/bricks.py](../engine_alpha/structure/narrative/bricks.py)) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` ([engine_alpha/structure/box/consolidation.py](../engine_alpha/structure/box/consolidation.py)): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
+The live reader calls `find_inner_box()` (`engine_alpha/structure/narrative/bricks.py`) after the parent equilibrium box validates. The brick mirrors the inner-search half of `detect_boxes()` (`engine_alpha/structure/box/consolidation.py`): it tries both the mechanical midpoint (`INNER_SEARCH_FRACTION = 0.5`) and the detected inner climax (`detect_inner_root_swing`), then keeps the tighter valid inner box. The inner must be meaningfully tighter (`bw_inner < INNER_TIGHTNESS_RATIO * bw_outer`, i.e. at least 25% tighter at the default 0.75) and span `INNER_MIN_DAYS = 15`+ bars. If no qualifying inner exists, `inner` is `None`; the parent still remains the base of record either way.
 
 `detect_boxes()` remains available for diagnostics and tools. It is no longer the live screener entry point.
 
 Inner ⊂ outer is enforced **temporally**, not in price space — the inner can sit inside, above, or below the outer's R/S; the outer's boundary-respect gate already filters out wild outliers, so an inner found in the outer's recent half is structurally adjacent regardless. **Operator ruling (2026-07-20):** "nested" means found in the *vicinity* of the parent at a more advanced point of the accumulation, never bounded by the parent's original rails — the range's contraction naturally forms a new mini process with its **own** R and S, and a mini-consolidation forming ON the parent's Resistance, treating it as its new Support, is a common variation (8/17 live inners sit partly above parent R — measured 2026-07-19, all sanctioned).
 
-**Position attribute (2026-08-23 unification ruling; re-ruled 2026-08-29/30, the rails-are-areas + touching-both signings).** The elected inner box is stamped with its rail-proximity band against the parent's rails — `mini_consolidation_position()` in [engine_alpha/structure/box/inner_box.py](../engine_alpha/structure/box/inner_box.py): the ruled FOUR-value closed set `at_ceiling` / `mid_range` / `on_support` / `touching_both` (the ONE declaration is `RULED_POSITION_VALUES` beside the producer), tolerance `MINI_POSITION_TOL_ATR` (0.5 — the ruled ±0.5-ATR rail area, promoted to `config/scoring.py` + the frozen manifest at the Task-12 seam) in candidate-ATRs, inclusive band edges. A structure engaging BOTH bands reads `touching_both` — the 2026-08-30 honesty valve that replaced the ceiling-first tiebreak: a base about one bar tall carries no separating position information and must never fabricate an at-resistance read. Stamped ONCE inside `select_inner_box` (with an EC-19 write-time assertion against the closed set, and the raw signed ATR distances riding beside the band) — the live reader and the diagnostic mirror band identically because the tolerance ATR derives from the parent window via the election's own `_candidate_atr`, never a caller-supplied ATR. This executes the operator's ruling that the ceiling shelf and the inner mini-consolidation are ONE event ("no need to give it a new name just acknowledge its position"); the species lane's `resistance_contraction_admission` stays a ruled JUDGMENT over episode facts above this event and never elects geometry. Serialized since the ONE-Event-Map Task-10 seam: the `inner_position` (+ raw distances) archive family, the position TOKEN on the dashboard wire, and four engine-resolved position chips under the operator-signed labels (decisions.md 2026-08-30; `wireVocabulary.js POSITION_LABELS`). Two sibling instruments read this event: the dark `event_vocabulary.py` projection folds it as the `mini_consolidation` tape record, and `tools/regression/reader_pin.py` pins the band's literal grid in its committed baseline (90 charts as of 2026-09-24).
+**Position attribute (2026-08-23 unification ruling; re-ruled 2026-08-29/30, the rails-are-areas + touching-both signings).** The elected inner box is stamped with its rail-proximity band against the parent's rails — `mini_consolidation_position()` in `engine_alpha/structure/box/inner_box.py`: the ruled FOUR-value closed set `at_ceiling` / `mid_range` / `on_support` / `touching_both` (the ONE declaration is `RULED_POSITION_VALUES` beside the producer), tolerance `MINI_POSITION_TOL_ATR` (0.5 — the ruled ±0.5-ATR rail area, promoted to `config/scoring.py` + the frozen manifest at the Task-12 seam) in candidate-ATRs, inclusive band edges. A structure engaging BOTH bands reads `touching_both` — the 2026-08-30 honesty valve that replaced the ceiling-first tiebreak: a base about one bar tall carries no separating position information and must never fabricate an at-resistance read. Stamped ONCE inside `select_inner_box` (with an EC-19 write-time assertion against the closed set, and the raw signed ATR distances riding beside the band) — the live reader and the diagnostic mirror band identically because the tolerance ATR derives from the parent window via the election's own `_candidate_atr`, never a caller-supplied ATR. This executes the operator's ruling that the ceiling shelf and the inner mini-consolidation are ONE event ("no need to give it a new name just acknowledge its position"); the species lane's `resistance_contraction_admission` stays a ruled JUDGMENT over episode facts above this event and never elects geometry. Serialized since the ONE-Event-Map Task-10 seam: the `inner_position` (+ raw distances) archive family, the position TOKEN on the dashboard wire, and four engine-resolved position chips under the operator-signed labels (decisions.md 2026-08-30; `wireVocabulary.js POSITION_LABELS`). Two sibling instruments read this event: the dark `event_vocabulary.py` projection folds it as the `mini_consolidation` tape record, and `tools/regression/reader_pin.py` pins the band's literal grid in its committed baseline (90 charts as of 2026-09-24).
 
 The key difference between `inner_zigzag` and `phase_b_zigzag`: the inner version scores each candidate over **its own** bar range (from the earlier of the two anchors onward) rather than the full inner window. Bars before the inner's first anchor were forming a different structure and would unfairly fail boundary-respect.
 

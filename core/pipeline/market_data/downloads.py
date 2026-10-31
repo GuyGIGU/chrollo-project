@@ -59,7 +59,7 @@ from core.pipeline.universe.ticker_admission import (
 )
 # The daily-structure trim is ENGINE-owned (it defines what the reader sees);
 # re-exported here so existing download/cache callers keep their import path.
-from engine_alpha.frames import _trim_to_period
+from engine_alpha.two_eyes.frame import _trim_to_period
 
 # Callers outside this module (the archive downloads, the candle cache, the
 # calibration workbench) import these from here; they now live beside it.

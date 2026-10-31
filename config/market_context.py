@@ -22,8 +22,8 @@ REGIME_BREADTH_200_WEAK = 0.35
 # universes (Sectors + Market, Commodities + ETFs) — including SPY/QQQ — that
 # classifies each into one position-in-cycle STATE, so the ETF tabs (which fire
 # ZERO tradeable setups by design) become a useful "where is this in its cycle"
-# board. It is a SEPARATE, additive read path over the PUBLIC engine_alpha.structure box
-# detector + trend/drawdown measures; it never touches the byte-parity-locked
+# board. It is a SEPARATE, additive read path over the reader door's box read
+# + trend/drawdown measures; it never touches the byte-parity-locked
 # us_equities firing chain, assigns no score/tier/trigger, and writes nothing to
 # the archive. Read LAZILY inside functions (never at module import) to respect
 # the backend config-vs-cwd shadowing trap. See core/pipeline/context/health_board.py,

@@ -264,9 +264,6 @@ def _values(db_path) -> dict:
     enriched = analyze.derive_outcomes(df)
     derived = ["id", "barrier_win", "durable_win", "win_quality",
                "bars_target_to_stop", analyze.MAGNITUDE_TARGET]
-    corr_20d = {"box_tightness": 0.4, "touch_density": -0.2, "base_age": 0.0}
-    corr_60d = {"box_tightness": 0.1, "touch_density": 0.3, "base_age": 0.05}
-    current = {"box_tightness": 10, "touch_density": 6, "base_age": 4}
     analyze._LINES.clear()
     composition = analyze.section_composition(df, 30)
     analyze._LINES.clear()
@@ -281,7 +278,6 @@ def _values(db_path) -> dict:
                          for t in sorted(df["tier"].dropna().unique())},
         "derived": enriched.reindex(columns=derived).to_dict("records"),
         "signal_edge": analyze.signal_edge(enriched),
-        "suggested_weights": analyze.suggested_weights(df, corr_20d, corr_60d, current),
     })
 
 

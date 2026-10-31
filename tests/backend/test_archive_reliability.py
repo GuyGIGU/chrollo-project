@@ -250,8 +250,6 @@ def test_empty_day_dashboard_carries_panel_session_date(tmp_path, monkeypatch):
     expected = _wire_scanjob(tmp_path, monkeypatch)
     panel = _panel(["AAA", "SPY", "QQQ"], expected)
     _wire_scan_io(monkeypatch, pd.DataFrame(), panel, ["AAA"])
-    # The lane is not under test; keep the empty branch off the writer.
-    monkeypatch.setattr(scan_job_module.settings, "NEAR_MISS_LANE_ENABLED", False)
     seen = {}
     monkeypatch.setattr(scan_job_module, "generate_dashboard",
                         lambda *a, **k: seen.update(k))

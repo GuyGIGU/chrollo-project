@@ -1,10 +1,8 @@
-"""The re-scoped inert contract (consolidation-method Task 11 — Beck).
+"""The inert contract: every default-off engine flag declares the result-row keys it may add.
 
-When a dark flag DISSOLVES (Task 14: its behavior becomes unconditional and
-the boolean retires), its flag-off boom proofs cannot survive — there is no
-flag left to hold off. This file is the DECLARED REPLACEMENT those proofs
-re-scope into, named before any dissolution so deleting the booms without it
-is impossible to miss:
+When a dark flag DISSOLVES (its behavior becomes unconditional and the boolean
+retires), its flag-off boom proofs cannot survive — there is no flag left to
+hold off. This file is the DECLARED REPLACEMENT those proofs re-scope into:
 
 * **OFF-state acceptance = canonical-field byte-identity**, checked against
   ``shadow_diff``'s OWN frozen list (never a re-typed copy), over the shadow
@@ -13,16 +11,14 @@ is impossible to miss:
   a result row is named here and provably DISJOINT from the canonical
   surface, so "additive only" is a checked property, not a promise.
 
-A dissolution task (Task 14) cites THIS contract in place of the retired
-boom tests; extending a lane's field set is a deliberate edit here, in the
-operator-visible diff.
-
 **Enrollment is enforced, not promised** (2026-09-25, council review
 2026-09-01 finding 11b): every default-off ``*_ENABLED`` key the frozen
 identity registers must have an entry, and every entry must name such a flag.
-The old "all declared" test compared the dict to a literal in this same file,
-so a lane that never enrolled could not trip it — and 36 of the 39 dark
-flags had not.
+
+The old engine's 39 dark lanes and the reader switch that replaced the reader
+left this contract when that engine retired (Sat 31/10/2026): the alpha reader
+has no flags, only its numbers (engine_alpha/two_eyes_numbers.py, hashed into
+the version stamp). What remains enrolled is the advisory post-pass.
 """
 from __future__ import annotations
 
@@ -33,91 +29,17 @@ sys.path.insert(0, str(ROOT))
 
 from config import settings
 from engine_alpha.freeze.manifest import ENGINE_SETTINGS_KEYS
-from engine_alpha.structure.box.trace_export import ELECTION_TRACE_COLUMN_SQL
-from engine_alpha.structure.context.strategy_read import STRATEGY_COLUMN_SQL
-from engine_alpha.structure.events.event_vocabulary import SENTENCE_COLUMN_SQL
-from engine_alpha.structure.events.line_words import _WORDS_BY_FLAG
-from engine_alpha.two_eyes_archive import TWO_EYES_COLUMN_SQL
 from tools.regression.shadow_diff import CANONICAL_FIELDS
 
 # The declared additive field sets — result-row keys each lane may ADD.
-# DERIVED from the owning declarations wherever one exists (EC-33); a lane
-# that adds nothing declares the empty set, which is itself the contract:
-# its whole OFF-surface is the canonical fields + the fire set, owned by the
-# shadow guard and the sealed ratchet.
-#
-# The sets enrolled 2026-09-25 are MEASURED, not guessed (integration head
-# 663c7a1, engine ef5de2f0): each default-off flag OFF vs ON, plus the final
-# method's 27 switches together and all 39 dark flags together, through the
-# production evaluation path (core.pipeline.screening.screener._evaluate_ticker,
-# overrides through core.calibration.replay.flag_capture) on EVERY day of the
-# shadow fixture's fired windows (37 tickers) and the sealed marks fixture's
-# fired-policy windows (35 setups) — 207 flag-off fire-days on 64 charts. A
-# set is the ON keys minus the OFF keys, unioned over every chart; the paired
-# same-day diff agreed. No lane added a key only in combination, none removed
-# a key, and none touched the canonical surface. The advisory lanes add their
-# keys in the scan conductor's post-pass instead, measured there offline (see
-# their rows).
+# The advisory lanes add nothing in the evaluation; the scan conductor's
+# post-pass (core/fundamentals/post_pass.attach_fundamentals_post_pass) adds
+# these to the FIRING rows: the four filing-gated metrics and days to earnings.
+# The vendor keys need the network and are read from the code. The RS rating
+# left this lane 2026-10-02: core/regime/scan_context.attach_rs_ratings writes
+# _rs_rating on every scan with no flag, and the post-pass no longer emits
+# _rs_trailing_return.
 DECLARED_ADDITIVE_FIELDS: dict[str, frozenset[str]] = {
-    # The sentence family (Tasks 8/9): the _-prefixed live-result keys of the
-    # owning column dict.
-    "SENTENCE_ARCHIVE_ENABLED": frozenset(
-        "_" + col for col in SENTENCE_COLUMN_SQL),
-    # The rescue lanes add NO result fields: a rescued fire is an ordinary
-    # canonical row (its provenance rides elected_pool / the admission
-    # profile, both pre-existing); their lane telemetry travels the sink,
-    # never the result row.
-    "CONTRACTION_RESCUE_ENABLED": frozenset(),
-    "BAR_POSTURE_RESCUE_ENABLED": frozenset(),
-    # The ceiling-rest exception changes only WHICH windows an LPS may
-    # complete on — no new fields.
-    "LPS_CEILING_REST_ENABLED": frozenset(),
-    # Lanes that change which windows fire and how a fire reads, and add no
-    # field: the universe-door exceptions, the final method's geometry, LPS
-    # and election switches, and the contraction story form the rescue arms.
-    **dict.fromkeys((
-        "SMA50_DIP_EXCEPTION_ENABLED", "BOTTOMING_BASE_LANE_ENABLED",
-        "RESPECT_WHOLE_BAR_ENABLED", "DWELL_GRADED_ENABLED",
-        "BOX_HANDOVER_RANGES_ENABLED", "SPRING_BOUNDS_LIFTED_ENABLED",
-        "LPS_RANGES_YARDSTICK_ENABLED", "LPS_GRADED_TRAITS_ENABLED",
-        "LPS_WINDOW_RECEDING_ENABLED", "LPS_BUY_DAY_READS_HIGH_ENABLED",
-        "LPS_REFUSALS_TO_GRADES_ENABLED", "LPS_SELLERS_RISING_FATAL_ENABLED",
-        "TURN_LINE_ENABLED", "TURN_LINE_TREND_ENABLED",
-        "BOX_WIDTH_CAPS_GRADED_ENABLED", "DEPTH_CAPS_GRADED_ENABLED",
-        "RESPECT_GRADED_ENABLED", "BOX_OPENS_ON_ANCHORS_ENABLED",
-        "BOX_END_ENABLED", "POWER_PLAY_STORY_FORM_ENABLED",
-    ), frozenset()),
-    # The words on the line (build step 5): every word flag adds the ONE JSON
-    # cell (engine_alpha/evaluation.py, ``line_words_fields``); the word flags
-    # themselves are the owning map's keys (line_words._WORDS_BY_FLAG).
-    **{flag: frozenset({"_line_words_json"}) for flag in _WORDS_BY_FLAG},
-    # engine_alpha/evaluation.py, ``base_age_fields`` (build step 6).
-    "BASE_AGE_FROM_ANCHOR_ENABLED": frozenset({"_base_age_from_anchor"}),
-    # engine_alpha/evaluation.py, the descent tail as a comment on the fire
-    # (build step 12) in ``_build_live_result``.
-    "LPS_LEAVES_ELECTION_ENABLED": frozenset({"_descent_tail"}),
-    # engine_alpha/evaluation.py, ``_trend_run_fields`` (build step 10).
-    "CLIMAX_FIRST_WALK_ENABLED": frozenset({"_trend_run_ranges", "_trend_run_days"}),
-    # engine_alpha/evaluation.py, ``ledger_fields`` (build step 12).
-    "GRADE_LEDGER_ENABLED": frozenset({
-        "_height_ranges", "_turns_at_r", "_turns_at_s",
-        "_window_spread_ranges", "_largest_limb_named"}),
-    # engine_alpha/evaluation.py, ``stability_fields``.
-    "ELECTION_STABILITY_ENABLED": frozenset({
-        "_stability_same_frac", "_stability_streak", "_stability_probes",
-        "_stability_refused"}),
-    # The _-prefixed live-result keys of the owning column dicts.
-    "ELECTION_TRACE_EXPORT_ENABLED": frozenset(
-        "_" + col for col in ELECTION_TRACE_COLUMN_SQL),
-    "STRATEGY_READ_ENABLED": frozenset("_" + col for col in STRATEGY_COLUMN_SQL),
-    # The advisory lanes add nothing in the evaluation (measured above); the
-    # scan conductor's post-pass
-    # (core/fundamentals/post_pass.attach_fundamentals_post_pass) adds these
-    # to the FIRING rows: the four filing-gated metrics and days to earnings.
-    # The vendor keys need the network and are read from the code. The RS
-    # rating left this lane 2026-10-02: core/regime/scan_context
-    # .attach_rs_ratings writes _rs_rating on every scan with no flag, and the
-    # post-pass no longer emits _rs_trailing_return.
     "FUNDAMENTALS_ENABLED": frozenset({
         "_fund_eps_growth_yoy", "_fund_sales_growth_yoy",
         "_fund_eps_growth_accel", "_fund_earnings_surprise",
@@ -129,23 +51,11 @@ DECLARED_ADDITIVE_FIELDS: dict[str, frozenset[str]] = {
     "SECTOR_RANKING_ENABLED": frozenset(),
 }
 
-# Switches that REPLACE the reader rather than add a lane to it: "additive
-# only" is not their contract and never could be. Turned on, the two-eyes
-# reader answers every canonical field itself — on his ALB (sealed bars, read on
-# Tue 07/04/2026, a day both readers fire) the score, the tier (A to S) and the
-# base length move, 207 of the old row's keys go and `_wire_two_eyes`, the
-# screen block, arrives. It used to be enrolled here as an additive lane
-# "measured empty: the skeleton draws no lines", which every law in this file
-# read as "turning it on changes nothing he sees" (council review 2026-10-09,
-# finding 10). Its OFF-state is still the shadow guard's and the ratchet's; its
-# ON-state is the approval sitting's.
-REPLACES_THE_READER = frozenset({"TWO_EYES_READER_ENABLED"})
-
 # Flags enrolled while dark that have since FLIPPED LIVE without dissolving.
 # Their entry stays: this contract is what their proofs re-scope into when
 # they do dissolve. A live flag joins only by a deliberate edit here.
 # FUNDAMENTALS_ENABLED flipped live 2026-10-03 (display + archive only).
-ENROLLED_THEN_FLIPPED_LIVE = frozenset({"SENTENCE_ARCHIVE_ENABLED", "FUNDAMENTALS_ENABLED"})
+ENROLLED_THEN_FLIPPED_LIVE = frozenset({"FUNDAMENTALS_ENABLED"})
 
 
 def _default_off_engine_flags() -> set[str]:
@@ -169,39 +79,19 @@ def test_the_canonical_surface_is_pinned_literally():
     # The disjointness law above reads CANONICAL_FIELDS as its SINGLE
     # authority, so a trimmed tuple would weaken the dissolution-era
     # acceptance and that law at once, silently and everywhere (council
-    # review 2026-09-01, finding 11a). Same derive-plus-literal pairing the
-    # sentence set gets below: the derived side keeps the two in step, the
-    # literal makes shrinking the surface a deliberate, visible edit.
+    # review 2026-09-01, finding 11a). The literal makes shrinking the surface
+    # a deliberate, visible edit: this is the alpha reader's surface, pruned to
+    # what its row fills when the fleet shadow was re-based on it (Sat 31/10/2026).
     assert tuple(CANONICAL_FIELDS) == (
-        "Setup", "Score", "Tier", "Base Len", "Box Width", "LPS Length",
-        "_R", "_S", "_trigger_price")
-
-
-def test_the_sentence_set_derives_from_the_owning_declaration():
-    # EC-33: the declared set can never drift from the family it names.
-    assert DECLARED_ADDITIVE_FIELDS["SENTENCE_ARCHIVE_ENABLED"] == frozenset(
-        {"_sentence_tokens", "_sentence_n_tokens", "_sentence_nan_bars"})
-
-
-def test_the_other_derived_sets_match_what_was_measured():
-    # The derive-plus-literal pairing again: the owning declarations keep the
-    # sets in step, these literals (the 2026-09-25 measurement) make a family
-    # that grows or shrinks a visible edit here.
-    assert DECLARED_ADDITIVE_FIELDS["ELECTION_TRACE_EXPORT_ENABLED"] == {"_election_trace"}
-    assert DECLARED_ADDITIVE_FIELDS["STRATEGY_READ_ENABLED"] == {
-        "_strategy_correction_depth_pct", "_strategy_floor_above_ar"}
-    assert set(_WORDS_BY_FLAG) == {
-        "LINE_WORD_SOS_ENABLED", "LINE_WORD_UPTHRUST_ENABLED",
-        "LINE_WORD_LAST_SUPPER_ENABLED", "LINE_WORD_PHASE_C_ENABLED",
-        "LINE_WORD_PHASE_D_ENABLED", "LINE_WORD_MINI_ENABLED"}
+        "Score", "Tier", "Current Price", "Box Width", "_R", "_S",
+        "_trigger_price", "_phase_b_start_date", "_lps_zone_end_date")
 
 
 def test_every_default_off_engine_flag_is_enrolled():
     # The enrollment rule (docs/flag_ledger.md): a new dark lane declares, in
     # the same change, the result-row keys it may add. Without an entry it has
     # no inert contract to re-scope into at its dissolution.
-    unenrolled = (_default_off_engine_flags() - set(DECLARED_ADDITIVE_FIELDS)
-                  - REPLACES_THE_READER)
+    unenrolled = _default_off_engine_flags() - set(DECLARED_ADDITIVE_FIELDS)
     assert not unenrolled, (
         f"{sorted(unenrolled)} default off and are registered engine flags "
         "(engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS) but declare no "
@@ -217,12 +107,8 @@ def test_every_enrolled_name_is_a_default_off_engine_flag():
     # does not exist as named — and read as covered. The manifest is where
     # every engine flag is registered before its first read, so it is the one
     # list this checks against.
-    # The reader switch is named here by its registration alone: since the flip
-    # it defaults ON, and a switch that replaces the reader was never an
-    # additive lane to begin with (its own guards are just below).
-    stray = ((set(DECLARED_ADDITIVE_FIELDS) - _default_off_engine_flags()
-              - ENROLLED_THEN_FLIPPED_LIVE)
-             | (REPLACES_THE_READER - set(ENGINE_SETTINGS_KEYS)))
+    stray = (set(DECLARED_ADDITIVE_FIELDS) - _default_off_engine_flags()
+             - ENROLLED_THEN_FLIPPED_LIVE)
     assert not stray, (
         f"{sorted(stray)} declare an additive field set but are not default-off "
         "engine flags (engine_alpha/freeze/manifest.ENGINE_SETTINGS_KEYS, default "
@@ -238,32 +124,12 @@ def test_the_flipped_live_exemption_names_only_live_enrolled_engine_flags():
             f"{flag} is exempted as flipped live but defaults to {getattr(settings, flag)!r}")
 
 
-
-def test_a_switch_that_replaces_the_reader_is_never_an_additive_lane():
-    assert "TWO_EYES_READER_ENABLED" not in DECLARED_ADDITIVE_FIELDS, (
-        "the two-eyes switch replaces the reader; it cannot be an additive lane")
-    assert not REPLACES_THE_READER & set(DECLARED_ADDITIVE_FIELDS)
-
-
-def test_the_two_eyes_switch_really_replaces_the_reader(monkeypatch):
-    """The reason it is not an additive lane, read through the real door on his
-    own chart: switched on, it moves canonical fields and adds a key outside the
-    archive family. If this ever reads "nothing moved", the reader answered with
-    the old engine under the new name — the door's split brain."""
-    import pandas as pd
-
-    from core.calibration.replay import load_sealed_fixture
-    from engine_alpha import reader
-
-    frames, _ = load_sealed_fixture()
-    cut = frames["ALB:2026-04-13"].loc[:pd.Timestamp("2026-04-07")]
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", False)
-    off = reader.evaluate_ticker("ALB", cut)
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True)
-    on = reader.evaluate_ticker("ALB", cut)
-    assert isinstance(off, dict) and isinstance(on, dict), "both readers fire on his ALB that day"
-    moved = [k for k in CANONICAL_FIELDS if on.get(k) != off.get(k)]
-    assert {"Score", "Tier", "Base Len"} <= set(moved), moved
-    family = {"_" + col for col in TWO_EYES_COLUMN_SQL}
-    assert "_wire_two_eyes" in set(on) - set(off) - family
-
+def test_the_reader_has_no_switch_and_no_dark_lane():
+    """The alpha reader is read as built: its numbers are in the version stamp
+    (engine_alpha/two_eyes_numbers.py) and no boolean on settings chooses a
+    reader or arms a lane inside it. A reader flag added to settings would land
+    in the manifest first, and then here."""
+    assert not hasattr(settings, "TWO_EYES_READER_ENABLED")
+    reader_flags = [k for k in ENGINE_SETTINGS_KEYS
+                    if k.endswith("_ENABLED") and k not in DECLARED_ADDITIVE_FIELDS]
+    assert reader_flags == [], reader_flags

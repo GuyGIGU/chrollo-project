@@ -137,7 +137,9 @@ def test_the_resolver_sees_the_double_rewrite():
     for gone in ("from routers import calibration\n", "import routers." + "archive\n", "import schemas\n"):
         assert unresolved_imports(gone), gone
     assert not unresolved_imports("from core.pipeline.universe import ticker_admission\n")
-    assert not unresolved_imports("from engine_alpha.structure.narrative import bricks, read_structure\n")
+    assert not unresolved_imports("from engine_alpha.two_eyes import read, Read\n")
+    # The old engine's packages are gone (Sat 31/10/2026): an import under one must read as unresolved.
+    assert unresolved_imports("from engine_alpha.structure.narrative import bricks, read_structure\n")
 
 
 # ── (c) the exact regression, and the rewrites around it ──────────────────────
@@ -145,14 +147,12 @@ def test_the_resolver_sees_the_double_rewrite():
 @pytest.mark.parametrize("old, new", [
     ("from core.pipeline import ticker_admission\n",
      "from core.pipeline.universe import ticker_admission\n"),
-    ("from engine_alpha.structure import bricks\n",
-     "from engine_alpha.structure.narrative import bricks\n"),
     ("from core.pipeline import universe\n",
      "from core.pipeline.universe import descriptor as universe\n"),
-    ("from engine_alpha.structure.lps import detect_lps, _profile_unit\n",
-     "from engine_alpha.structure.lps.detection import detect_lps, _profile_unit\n"),
-    ("import engine_alpha.structure.narrative as narrative\n",
-     "import engine_alpha.structure.narrative.reader as narrative\n"),
+    ("from core.pipeline import tickers, ticker_admission\n",
+     "from core.pipeline.universe import tickers, ticker_admission\n"),
+    ("import tools." + "shadow_diff as shadow\n",
+     "import tools.regression.shadow_diff as shadow\n"),
     ("from webapp.backend.services import scan_runner, " + "csv_import\n",
      "from webapp.backend.services import scan_runner\n"
      "from webapp.backend.domains.trading import csv_import\n"),
@@ -169,19 +169,17 @@ def test_new_style_imports_are_left_alone():
     source = ("from core.pipeline.universe import ticker_admission, tickers\n"
               "from core.pipeline.universe import descriptor as universe_mod\n"
               "from core.pipeline.universe import DEFAULT_UNIVERSE_TYPE\n"
-              "from engine_alpha.structure.narrative import bricks\n"
-              "from engine_alpha.structure.metrics import pivots, measure_equilibrium\n")
+              "from engine_alpha.two_eyes import read\n"
+              "from tools.regression.shadow_diff import CANONICAL_FIELDS\n")
     assert amm.rewrite(MM, "tests/pipeline/test_example.py", source)[0] == source
 
 
 @pytest.mark.parametrize("old, new", [
     ('patch("core.pipeline.' + 'tickers.get_cached_tickers")',
      'patch("core.pipeline.universe.tickers.get_cached_tickers")'),
-    ('patch("engine_alpha.structure.lps.detect_lps")',
-     'patch("engine_alpha.structure.lps.detection.detect_lps")'),
     ('SPEC = "services.' + 'trigger_grade"', 'SPEC = "domains.calibration.trigger_grade"'),
     ('cmd = "python -m tools.' + 'reader_pin --check"', 'cmd = "python -m tools.regression.reader_pin --check"'),
-    ("# see engine_alpha/structure/" + "pivots.py", "# see engine_alpha/structure/metrics/pivots.py"),
+    ("# see core/pipeline/" + "tickers.py", "# see core/pipeline/universe/tickers.py"),
 ])
 def test_dotted_names_and_paths_are_rewritten_once(old, new):
     once, twice = _twice("tests/engine/test_example.py", old + "\n")
@@ -234,22 +232,31 @@ def test_a_relative_import_that_no_longer_resolves_is_reported():
     assert [n.split(":")[0] for n in notes] == ["line 1", "line 3"]
 
 
-@pytest.mark.parametrize("source", ["from routers import *\n", "import routers\n", "from output import *\n"])
+@pytest.mark.parametrize("source", [
+    "from routers import *\n", "import routers\n", "from output import *\n",
+    # The old engine (Sat 31/10/2026): its packages are under `deleted`, its modules are deleted notes.
+    "from engine_alpha.structure import bricks\n",
+    "from engine_alpha.structure.lps import detect_lps\n",
+    "import engine_alpha.structure.narrative as narrative\n",
+    "from engine_alpha import evaluation\n",
+    "from config.scoring import TIER_S_STRUCT\n",
+])
 def test_an_import_of_a_deleted_package_is_reported(source):
     new, notes = amm.rewrite(MM, "tests/backend/test_example.py", source)
     assert new == source
-    assert any("no longer exists" in n for n in notes), notes
+    assert any("no longer exists" in n or "is gone" in n for n in notes), notes
 
 
 def test_a_split_import_keeps_its_comment_and_line_endings():
-    source = "import os\r\nfrom engine_alpha.structure import bricks, lps  # noqa: E402\r\n"
-    once, twice = _twice("tests/engine/test_example.py", source)
+    source = "import os\r\nfrom webapp.backend.services import scan_runner, " + "csv_import  # noqa: E402\r\n"
+    once, twice = _twice("tests/backend/test_example.py", source)
     assert once == ("import os\r\n"
-                    "from engine_alpha.structure.narrative import bricks  # noqa: E402\r\n"
-                    "from engine_alpha.structure.lps import detection as lps  # noqa: E402\r\n")
+                    "from webapp.backend.services import scan_runner  # noqa: E402\r\n"
+                    "from webapp.backend.domains.trading import csv_import  # noqa: E402\r\n")
     assert twice == once
-    _, notes = amm.rewrite(MM, "tests/engine/test_example.py",
-                           "from engine_alpha.structure import (\n    bricks,  # the bricks\n    lps,\n)\n")
+    _, notes = amm.rewrite(MM, "tests/backend/test_example.py",
+                           "from webapp.backend.services import (\n    scan_runner,  # the runner\n    "
+                           + "csv_import,\n)\n")
     assert any("comments inside the split import were dropped" in n for n in notes), notes
 
 
@@ -351,12 +358,12 @@ def test_a_move_of_your_own_ports_like_the_refactors():
 
 
 def test_markdown_links_follow_the_moves():
-    source = ("See [the LPS read](../engine_alpha/structure/lps.py#L10), "
+    source = ("See [the shadow](../tools/shadow_diff.py#L10), "
               "[the sheets](../tools/fidelity/pip_phase_a/), "
               "[the spec](strategy_alpha.md) and [a site](https://example.com/x.py).\n"
               "[ref]: ../core/pipeline/tickers.py\n")
     once, twice = _twice("docs/example.md", source)
-    assert once == ("See [the LPS read](../engine_alpha/structure/lps/detection.py#L10), "
+    assert once == ("See [the shadow](../tools/regression/shadow_diff.py#L10), "
                     "[the sheets](../research/fidelity/pip_phase_a/), "
                     "[the spec](strategy_alpha.md) and [a site](https://example.com/x.py).\n"
                     "[ref]: ../core/pipeline/universe/tickers.py\n")
@@ -378,16 +385,18 @@ def _baseline_reachable():
 needs_baseline = pytest.mark.skipif(not _baseline_reachable(),
                                     reason=f"baseline {BASELINE} not in this clone (shallow checkout)")
 
-# Old files that exercise every kind of move: the four modules that became
-# packages, sibling imports inside them, dotted patch targets, backend routers
-# and services under both spellings, the split modules, and tools.
+# Old files that exercise every kind of move: the module that became a package,
+# sibling imports inside it, dotted patch targets, backend routers and services
+# under both spellings, the split modules, and tools. The five old-engine test
+# files that once sat here (bricks, lps, charter measurements, the miss-program
+# lanes, election stability) left when that engine retired (Sat 31/10/2026): a
+# port of one is now all deleted notes and no rewrite.
 _T = "tools/"
 _R = "webapp/backend/" + "routers/"
 PY_CORPUS = [
-    "tests/test_bricks.py", "tests/test_ticker_admission.py", "tests/test_tickers.py",
+    "tests/test_ticker_admission.py", "tests/test_tickers.py",
     "tests/test_universe_descriptor.py", "tests/test_download_integrity.py",
-    "tests/test_candles_router.py", "tests/test_lps.py", "tests/test_charter_measurements.py",
-    "tests/test_miss_program_lanes.py", "tests/test_election_stability.py",
+    "tests/test_candles_router.py",
     "tests/test_health_board.py",
     "tests/test_trigger_grade_spec.py", "tests/test_backend_services.py",
     "webapp/backend/main.py", _R + "archive.py", _R + "calibration.py", _R + "watchlist.py",
@@ -496,7 +505,9 @@ def test_the_map_points_only_at_what_exists():
     missing += [m["new"] for m in MAP["module_moves"]
                 if not _module_file(m["new"])]
     assert not missing, missing
-    assert len(MAP["file_moves"]) > 500 and len(MM.packages) == 4
+    # 545 rows and four packages before the old engine retired (Sat 31/10/2026); its 81 rows and three
+    # packages are `deleted` rows and notes now.
+    assert len(MAP["file_moves"]) > 400 and len(MM.packages) == 1
 
 
 def test_the_migration_doc_lists_every_file_move():

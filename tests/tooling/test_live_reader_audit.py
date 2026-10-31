@@ -37,8 +37,7 @@ def test_future_anchor_and_a_lost_fire_are_failures(monkeypatch):
                 lps=Lps(day, day, 'parent', 99), state='fired', close=98,
                 grade=Grade(100, 'S', 0, 1, True, clarity={'method': 'test'}))
     frame = pd.DataFrame(index=pd.DatetimeIndex([day]))
-    def answer(*args, stamp, **kwargs):
-        stamp['reader'] = 'new'
+    def answer(*args, **kwargs):
         return read
     monkeypatch.setattr(audit.reader, 'read_record', answer)
     result = audit.to_result(read)

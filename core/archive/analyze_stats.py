@@ -3,7 +3,7 @@
 Descriptive statistics, correlations, segment performance, the tightness split,
 the derived outcome columns and the Stage-1 signal-edge classifier, each a pure
 function of an archive frame. ``core.archive.analyze_report`` turns them into
-text; ``suggested_weights`` serves the backend's /calibration panel.
+text.
 """
 from __future__ import annotations
 
@@ -389,74 +389,3 @@ def signal_edge(df: pd.DataFrame, targets: Optional[list] = None,
     return {"primary_target": primary, "n_primary": n_primary,
             "noise_floor": noise, "is_binary": is_binary, "n_minority": n_minority,
             "verdicts_trustworthy": trustworthy, "rows": rows}
-
-
-# ------------------------------------------------------------------
-# Suggested re-weighting (advisory) — router-only: the /calibration
-# panel is the sole caller; the CLI analysis flags candidates but
-# does not re-weight.
-# ------------------------------------------------------------------
-def suggested_weights(df: pd.DataFrame, corr_20d: dict, corr_60d: dict,
-                      current_weights: dict) -> dict:
-    """Pure: an ADVISORY re-weighting table for the /calibration panel.
-
-    Blends |corr| across the 20d + 60d horizons, floors weak signals at 0.02 so
-    one noisy archive can't zero a sub-score, and re-normalizes to preserve the
-    current total point cap. It NEVER applies a weight — it is a suggestion the
-    operator reads and hand-edits ``config/settings.py`` to act on.
-
-    Gated by the SAME adequacy + minority-class guard the Stage-1 signal-edge
-    analysis uses (``signal_edge(...)["verdicts_trustworthy"]``): on a winners-
-    only gallery, or too few matured/labelled rows, it returns NO suggestion
-    (``weights=[]``) instead of a table fit to noise. This replaces the weaker
-    ``n >= 30`` gate the router used to inline. It is router-only: the CLI
-    analysis flags candidate sub-scores but does not itself re-weight.
-
-    Args:
-        df: episode-level frame the suggestion is built from (the matured rows
-            feeding ``corr_20d``/``corr_60d``); the adequacy gate runs on it.
-        corr_20d / corr_60d: {sub-score short-name -> Pearson corr vs fwd return}
-            already computed by the caller (passed in so the values stay identical).
-        current_weights: {sub-score short-name -> current point cap}.
-
-    Returns:
-        ``{"weights": [ {name, current, suggested, delta, avg_abs_corr}, ... ],
-        "basis": str}``. ``weights`` is empty and ``basis`` is
-        ``"insufficient_data"`` when the sample can't support a suggestion.
-    """
-    edge = signal_edge(derive_outcomes(df))
-    if not edge["verdicts_trustworthy"]:
-        return {"weights": [], "basis": "insufficient_data"}
-
-    total_cap = sum(current_weights.values())
-    # If the 60d sample is too small for stable correlations, fall back to 20d
-    # only — otherwise the 60d zeros dilute every sub-score symmetrically and
-    # produce a deceptively even suggestion.
-    n_with_60d = (int(pd.to_numeric(df["fwd_return_60d"], errors="coerce").notna().sum())
-                  if "fwd_return_60d" in df.columns else 0)
-    use_60d = n_with_60d >= 15
-    basis = "20d+60d_avg" if use_60d else "20d_only"
-
-    avg_abs_corr = {}
-    for k in current_weights:
-        c20 = abs(corr_20d.get(k, 0.0) or 0.0)
-        if use_60d:
-            c60 = abs(corr_60d.get(k, 0.0) or 0.0)
-            blended = (c20 + c60) / 2
-        else:
-            blended = c20
-        # Floor so a single sub-score at ~0 corr isn't zeroed by one noisy archive.
-        avg_abs_corr[k] = max(blended, 0.02)
-    norm = sum(avg_abs_corr.values()) or 1.0
-
-    weights = []
-    for k, current in current_weights.items():
-        suggested = round(total_cap * (avg_abs_corr[k] / norm), 1)
-        weights.append({
-            "name": k,
-            "current": current,
-            "suggested": suggested,
-            "delta": round(suggested - current, 1),
-            "avg_abs_corr": round(avg_abs_corr[k], 4),
-        })
-    return {"weights": weights, "basis": basis}

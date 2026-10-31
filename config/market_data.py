@@ -30,7 +30,7 @@ PARQUET_COMPRESSION = "zstd"
 DOWNLOAD_PERIOD = "5y"            # 5y of daily history so weekly (~260 bars) and monthly (~60 bars)
                                  # resampling for HTF context has enough depth. The DAILY structure
                                  # read is trimmed back to DAILY_STRUCTURE_PERIOD so this deeper cache
-                                 # does NOT change daily behavior (see HTF section below + engine_alpha.structure.context.htf).
+                                 # does NOT change daily behavior (see HTF section below).
                                  # Renaming the cache file forces a clean cold 5y backfill on next run.
 TICKER_CACHE_MAX_AGE_DAYS = 1     # Refresh the ticker universe CSV daily
 TICKER_SKIPLIST_FILENAME = "ticker_skiplist.txt"  # One symbol per line; skipped before any Yahoo request

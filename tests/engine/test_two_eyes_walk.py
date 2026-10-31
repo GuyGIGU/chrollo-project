@@ -1502,7 +1502,7 @@ def his_reads() -> list:
     """Each of his drawings read on his last receding day and on his buy day, with his own pair as the reader
     measures a pair (None when his two anchors are not two swing ends a swing connects)."""
     from engine_alpha.two_eyes import frame as frame_module
-    from tools.calibration.yardstick import his_last_lps_day
+    from tools.calibration.board_helpers import his_last_lps_day
     from tools.regression.marks_corpus import load_corpus, setup_key
     from core.calibration.replay import fixture_frame, load_sealed_fixture
 
@@ -1926,7 +1926,7 @@ _READS_ANOTHER_BOX = {
 
 
 def test_the_readers_box_against_his_own_on_each_of_his_drawings(his_reads):
-    from tools.calibration.yardstick import rails_close
+    from tools.calibration.board_helpers import rails_close
 
     got = {"HIS": [], "CLOSE": [], "OTHER": []}
     for row in his_reads:
@@ -1951,7 +1951,7 @@ def test_silc_and_drts_as_he_said_them_on_the_pictures(his_reads):
     are no box while the base forms, because the bars never return to that low before the spring of March; the
     reader's box stays within half a daily range of his."""
     from engine_alpha.two_eyes import walk
-    from tools.calibration.yardstick import rails_close
+    from tools.calibration.board_helpers import rails_close
 
     silc = next(r for r in his_reads if r["key"] == "SILC:2026-04-13")
     pair, days = silc["his_pair"], silc["days"]
@@ -1985,7 +1985,7 @@ def test_roiv_the_dip_of_late_march_came_back_and_the_box_of_march_stands(his_re
     half a daily range of his) and it takes its place back; it stands on his last receding day and on his buy
     day. No pair that is a box sits on the dip's low (25.95) nor on the poke's high (32.79)."""
     from engine_alpha.two_eyes import walk
-    from tools.calibration.yardstick import rails_close
+    from tools.calibration.board_helpers import rails_close
 
     roiv = next(r for r in his_reads if r["key"] == "ROIV:2026-06-17")
     days, on, rails = roiv["days"], roiv["on"], roiv["setup"]["rails_drawn"]

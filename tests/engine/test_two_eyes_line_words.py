@@ -806,12 +806,10 @@ def test_the_reader_reads_the_line_it_is_given_and_nothing_else(monkeypatch):
     lps = SimpleNamespace(start_bar=49, low_bar=54, low=10.5)
     rec = W.read_line_words(df, box, 1.0, lps=lps)
     assert rec["thrusts"] and rec["phase_d"] is not None, "the wave frame carries words"
-    for name, value in (("TRAVERSAL_NOISE_FRAC", 0.99), ("SOS_NEAR_R_MAX_BOX", 0.01),
-                        ("SOS_HOLD_MAX_RANGE_BOX", 0.01), ("EVENT_HOLD_MIN_BARS", 99),
-                        ("TURN_LINE_ENABLED", True), ("TURN_LINE_TREND_ENABLED", True)):
-        monkeypatch.setattr(settings, name, value)
-    assert W.read_line_words(df, box, 1.0, lps=lps) == rec, \
-        "no box-height knob, hold clock or line flag moves a word"
+    # The old engine's box-height knobs, hold clock and line flags are gone with it (Sat 31/10/2026); the words
+    # read no setting at all, only the reader's own numbers (tests/engine/test_two_eyes_numbers.py).
+    assert not hasattr(W, "settings")
+    assert W.read_line_words(df, box, 1.0, lps=lps) == rec, "the words are a pure function of the frame"
 
 
 def test_the_story_and_word_recall_put_the_words_together_in_one_place(monkeypatch):

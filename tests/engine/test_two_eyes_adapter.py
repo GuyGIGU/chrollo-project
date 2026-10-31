@@ -52,7 +52,7 @@ def test_a_crashed_read_becomes_the_counted_failure_sentinel():
     """Not None. A refusal and a crash are both "no row", and the night has to
     be able to tell them apart — that distinction is why the sentinel exists.
     """
-    from engine_alpha.evaluation import EVAL_ERROR
+    from engine_alpha.sentinels import EVAL_ERROR
     from engine_alpha.two_eyes import record
     from engine_alpha.two_eyes_adapter import to_result
 
@@ -227,17 +227,8 @@ def test_the_adapter_is_not_part_of_the_leaf():
 
 
 # --------------------------------------------------------------------------- #
-# The switch, and the version stamp                                           #
+# The version stamp                                                           #
 # --------------------------------------------------------------------------- #
-def test_the_switch_is_on_since_the_flip():
-    """Every flip is his: this commit is the flip (go-live plan), prepared for
-    his word. The switch back is the first undo (docs/deploy.md, "The Flip"),
-    and reverting this commit restores the pin it replaced (the switch off)."""
-    from config import settings
-
-    assert settings.TWO_EYES_READER_ENABLED is True
-
-
 def test_the_ruleset_string_is_hand_bumped_and_in_the_manifest():
     """The engine's version stamp hashes the listed settings, their NAMES and
     the scoring registry — but NO reader code. Without a hand-bumped string,
@@ -252,7 +243,7 @@ def test_the_ruleset_string_is_hand_bumped_and_in_the_manifest():
     listed = manifest.manifest_inputs() if hasattr(manifest, "manifest_inputs") else None
     source = listed if listed is not None else open(manifest.__file__, encoding="utf-8").read()
     assert "TWO_EYES_RULESET" in str(source)
-    assert "TWO_EYES_READER_ENABLED" in str(source)
+    assert "TWO_EYES_RULESET" in manifest.ENGINE_SETTINGS_KEYS
 
 
 def test_bumping_the_ruleset_string_moves_the_version_stamp(monkeypatch):
@@ -300,6 +291,7 @@ SPENT_RULESETS = (
     "two-eyes-0.10.2-lps-depth",
     "two-eyes-0.10.3-known-rails",
     "two-eyes-0.11.0-wrap-and-traits",
+    "two-eyes-0.12.0-one-reader",
 )
 
 
@@ -321,121 +313,62 @@ def test_a_ruleset_string_is_never_reused():
     )
 
 
-def test_the_flag_ledger_carries_the_new_switch():
-    """EC-8: a new engine flag ships with the full protocol in ONE change."""
+def test_the_flag_ledger_keeps_the_record_of_the_retired_switch():
+    """EC-8: a flag ships with the full protocol in ONE change, and a retired one keeps its row — the switch that
+    chose between the two readers is gone from settings (the old engine retired Sat 31/10/2026), and the ledger's
+    Retired section is where its history stays."""
     import os
+
+    from config import settings
 
     root = str(REPO_ROOT)
     with open(os.path.join(root, "docs", "flag_ledger.md"), encoding="utf-8") as f:
         ledger = f.read()
     assert "TWO_EYES_READER_ENABLED" in ledger
+    assert not hasattr(settings, "TWO_EYES_READER_ENABLED"), "the switch is retired: one reader, no switch"
 
 
 # --------------------------------------------------------------------------- #
 # The door                                                                    #
 # --------------------------------------------------------------------------- #
-def test_the_door_sends_the_read_to_the_new_reader_when_the_switch_is_on(monkeypatch):
-    """One switch, one door, and the new reader answers every caller."""
-    from config import settings
-    from engine_alpha import reader
+def test_every_way_through_the_door_answers_with_the_alpha_reader(monkeypatch):
+    """One reader, one door. Every entry point reaches ``two_eyes.read`` — the door
+    used to hold a second reader behind a switch, and a blind check once found the
+    switch reaching only one of its four ways in (go-live plan task 5). The reader
+    is made to say so instead of answering: if any path answers without it, the
+    test says which."""
+    from engine_alpha import reader, two_eyes, universe_door
 
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True, raising=False)
-    assert reader.which_reader() == reader.READER_NEW
-    stamp: dict = {}
-    out = reader.evaluate_ticker("TEST", _frame(), 0.0, None, stamp=stamp)
-    assert out is None, "the skeleton reads no lines, so nothing fires"
-    assert stamp == {"reader": "new"}
+    reached = []
 
+    def speak(ticker, df, **kwargs):
+        reached.append(ticker)
+        return two_eyes.crashed(ticker, None, "the test reader was reached")
 
-def test_every_way_through_the_door_answers_with_the_reader_it_stamps(monkeypatch):
-    """The failure this whole door exists to prevent.
-
-    A blind check found the switch reaching only ONE of the door's four ways
-    in: `run_eval_chain` and `read_box` stamped "new" and then called the old
-    engine anyway, so the chart-state page, the seed, the calibration
-    workbench and the replay seam would all have read with the old engine
-    while the stamp said otherwise. A stamp that names a reader which did not
-    answer is worse than no stamp at all.
-    """
-    from config import settings
-    from engine_alpha import reader
-
-    from engine_alpha import evaluation
-    from engine_alpha.structure.narrative import reader as narrative
-
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True, raising=False)
-
-    # The discriminator. Comparing ANSWERS cannot tell the two readers apart
-    # here — a short frame is refused by the old engine too, so both say None,
-    # and the first version of this test passed against a deliberately broken
-    # door. The old engine is made to explode instead: if any path still
-    # reaches it, the test says so by name.
-    def never(*a, **k):
-        raise AssertionError("the OLD engine answered while the stamp said new")
-
-    monkeypatch.setattr(evaluation, "_evaluate_ticker", never)
-    monkeypatch.setattr(evaluation, "_run_eval_chain", never)
-    monkeypatch.setattr(evaluation, "_run_guarded_chain", never)
-    monkeypatch.setattr(narrative, "read_structure", never)
-
+    # The door's own two gates are held open so the short frame reaches the reader; the gates have their
+    # own tests (test_two_eyes_lps: the door refuses JAZZ by name; test_two_eyes_skeleton: the contract).
+    monkeypatch.setattr(two_eyes, "read", speak)
+    monkeypatch.setattr(two_eyes, "check_frame", lambda df: None)
+    monkeypatch.setattr(universe_door, "apply_baseline_filters_with_reason", lambda df: ((df, 0.0), None))
     frame = _frame()
-    stamp: dict = {}
-    assert reader.evaluate_ticker("T", frame, 0.0, None, stamp=stamp) is None
-    assert stamp == {"reader": "new"}
-
-    stamp = {}
-    assert reader.run_eval_chain("T", frame, 0.0, None, stamp=stamp) is None
-    assert stamp == {"reader": "new"}
-
-    # The box read REFUSES the new reader out loud, as the scan does. It used to
-    # read the chart, throw the read away and answer None — "no box" — on every
-    # chart, so the workbench's "why did this mark miss", its grading and the
-    # replay would have said "no box" to every drawing of his, looking like a
-    # real answer (council review 2026-10-09, finding 2).
-    stamp = {}
-    with pytest.raises(NotImplementedError, match="box-only read"):
-        reader.read_box(frame, 1.0, stamp=stamp)
-    assert stamp == {"reader": "new"}
+    assert reader.evaluate_ticker("E", frame, 0.0, None) is not None     # the counted failure, not "no setup"
+    with pytest.raises(reader.ReadFailed):
+        reader.run_eval_chain("R", frame, 0.0, None)
+    assert reader.read_record("W", frame).failed is True
+    assert reader.scan_read("S", frame) is not None
+    assert reached == ["E", "R", "W", "S"]
+    for name in ("which_reader", "the_old_reader_answers", "read_box", "scan_worker",
+                 "refuse_old_engine_lanes", "LaneRefused", "NotThisReader", "READER_OLD", "READER_NEW"):
+        assert not hasattr(reader, name), f"the door still carries the old reader's {name}"
 
 
-def test_the_scan_refuses_an_old_engine_lane_under_the_new_reader_by_name(monkeypatch):
-    """The scan's lanes reach the old engine directly and take no inner
-    worker, so composing one under the new reader would hand the pool the
-    OLD engine while the stamp said "new". Since go-live task 2 the worker
-    reads with the new reader and no lane; a lane asked for is refused by
-    name, never composed (it used to refuse the whole scan, finding 14)."""
-    from config import settings
-    from engine_alpha import reader
-
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True, raising=False)
-    with pytest.raises(reader.LaneRefused) as refusal:
-        reader.scan_worker(near_miss_lane=True, watch_lane=False)
-    assert "near-miss lane" in str(refusal.value)
-    assert reader.scan_worker(near_miss_lane=False, watch_lane=False) is reader.scan_read
-
-
-def test_a_frame_that_is_not_a_chart_is_a_counted_failure_not_a_crash(monkeypatch):
+def test_a_frame_that_is_not_a_chart_is_a_counted_failure_not_a_crash():
     """A string-date index used to escape the contract entirely: the read took
     the last day off the index BEFORE checking the frame, so it raised out of
     the reader uncaught instead of being counted."""
-    from engine_alpha.evaluation import EVAL_ERROR
-    from config import settings
+    from engine_alpha.sentinels import EVAL_ERROR
     from engine_alpha import reader
 
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", True, raising=False)
     strung = _frame()
     strung.index = [str(d.date()) for d in strung.index]
     assert reader.evaluate_ticker("T", strung, 0.0, None) is EVAL_ERROR
-
-
-def test_with_the_switch_off_the_new_reader_is_never_reached(monkeypatch):
-    """Flag-off output stays byte-identical — the hard rule of this build."""
-    from config import settings
-    from engine_alpha import reader, two_eyes
-
-    called = []
-    monkeypatch.setattr(settings, "TWO_EYES_READER_ENABLED", False, raising=False)
-    monkeypatch.setattr(two_eyes, "read",
-                        lambda *a, **k: called.append(a) or pytest.fail("reached"))
-    reader.evaluate_ticker("TEST", _frame(), 0.0, None)
-    assert not called

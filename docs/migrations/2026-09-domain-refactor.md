@@ -4,16 +4,16 @@ The refactor on `claude/domain-refactor` grouped the code by what it does. It ru
 
 The machine-readable map is [2026-09-domain-refactor.json](2026-09-domain-refactor.json). [apply_move_map.py](../../tools/maintenance/apply_move_map.py) reads it to port a branch, and [test_apply_move_map.py](../../tests/tooling/test_apply_move_map.py) checks that the rewrite is idempotent, that every import it writes resolves, and that every file move in the JSON has a row on this page. The tables below are generated from the JSON; if you edit one, edit the other.
 
-The JSON records 545 file moves, 114 Python module moves, 10 whole-folder moves and 46 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; thirteen of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
+The JSON records 464 file moves, 83 Python module moves, 10 whole-folder moves and 129 deletions. They come from `git diff -M --name-status --find-renames=50% 3bd4531 93ac245`; the rows marked `manual` in the JSON are the exceptions git does not pair on its own. The refactor moved 586 files and 138 modules; thirteen of those files (four of them modules) were deleted afterwards and now sit under [Deleted after the refactor](#deleted-after-the-refactor).
 
 | Area | Files moved |
 |---|---|
-| Engine | 28 |
+| Engine | 0 |
 | Pipeline | 21 |
-| Backend | 47 |
-| Frontend | 216 |
-| Tests | 144 |
-| Tools | 22 |
+| Backend | 46 |
+| Frontend | 213 |
+| Tests | 97 |
+| Tools | 20 |
 | Research evidence | 67 |
 
 ## How to port a branch
@@ -85,7 +85,7 @@ For each branch:
 | Anything else | Dotted module names and forward-slash repo paths (for example the test list in `package.json`, `-m` lines in `.bat` files). In `.ps1`, `.bat` and `.cmd` files, backslash paths too (`tools\shadow_diff.py`). |
 | A tool in a category folder | The old direct-run fallback `from _bootstrap import ...` becomes the repo-root `sys.path` insert plus `from tools._bootstrap import ...`, the form every migrated tool uses. |
 
-It never rewrites a name that is already new. Four old modules became packages of the same name (`engine_alpha.structure.lps`, `.narrative`, `.metrics` and `core.pipeline.universe`), so each old name is also a prefix of new ones. A rewrite stops when the next segment is a submodule of the new package. The rewriter this replaces had no such stop: a second pass turned the new `core.pipeline.universe.ticker_admission` into an import of `ticker_admission` from `core.pipeline.universe.descriptor`, which does not resolve.
+It never rewrites a name that is already new. Four old modules became packages of the same name (`core.pipeline.universe`, and `engine_alpha.structure.lps`, `.narrative`, `.metrics` until the old engine retired on Sat 31/10/2026), so each old name is also a prefix of new ones. A rewrite stops when the next segment is a submodule of the new package. The rewriter this replaces had no such stop: a second pass turned the new `core.pipeline.universe.ticker_admission` into an import of `ticker_admission` from `core.pipeline.universe.descriptor`, which does not resolve.
 
 Limits:
 
@@ -107,12 +107,12 @@ These changes are recorded in the JSON as notes, not as rewrite rules.
 
 ### `config/settings.py`
 
-The defaults moved into seven domain files. `config/settings.py` imports every name from them and stays the one namespace every consumer reads. Scoped overrides patch it too: `engine_alpha/structure/context/htf.py` setattr's `config.settings`. So keep `from config import settings` and never import a domain file.
+The defaults moved into seven domain files; two of them (`config/engine.py`, `config/scoring.py`, the old engine's knobs) retired with that engine on Sat 31/10/2026 and the survivors went to `config/universe.py` and `config/reader.py`. `config/settings.py` imports every name from them and stays the one namespace every consumer reads. Scoped overrides patch it too: the replay seam (`core/calibration/replay.py`, `flag_capture`) setattr's `config.settings`. So keep `from config import settings` and never import a domain file.
 
 | File | Owns |
 |---|---|
-| `config/engine.py` | Chart measurement, baseline admission and reading presets (the detection knobs) |
-| `config/scoring.py` | Score weights, grading scales and tier thresholds (`SCORE_*`, `TIER_*`) |
+| `config/universe.py` | The universe door's floors (`MIN_PRICE`, `MIN_VOLUME_50D`, `MIN_YEARLY_RETURN`, `MIN_MARKET_CAP`) |
+| `config/reader.py` | The reader's ruleset stamp, reading window and ADR window |
 | `config/enrichment.py` | Optional fundamentals and relative-strength enrichment |
 | `config/archive.py` | Archive persistence policy |
 | `config/market_data.py` | Provider, cache, universe admission and price-series policy |
@@ -195,6 +195,8 @@ On Fri 23/10/2026 the operator's Watchlist redesign (the Watchlist tab became a 
 
 On Sat 31/10/2026 the old engine retired on the operator's word of the night before (*"retire the old engine, from now on we focus on the new one"*; claude/retire-old-engine), and twenty-six more files the refactor had moved went with it, every one an instrument, audit or test that read the old engine past the reader door or measured it against the new one: `tests/tooling/test_doctrine_audit.py`, `tests/tooling/test_fold_parity.py`, `tests/tooling/test_near_miss_report.py`, `tests/tooling/test_rail_margin_evidence.py`, `tests/tooling/test_shelf_harness.py`, `tests/tooling/test_ta_grade_archive_replay.py`, `tools/research/bar_state_census.py`, `tools/calibration/calibration_stat_card.py`, `tools/research/correspondence_census.py`, `tools/audits/doctrine_audit.py`, `tools/research/event_map_census.py`, `tools/audits/event_map_chronology.py`, `tools/research/full_package_render.py`, `tools/audits/htf_audit.py`, `tools/research/miss_lane_census.py`, `tools/research/near_miss_census.py`, `tools/research/near_miss_report.py`, `tools/research/operator_marks_diff.py`, `tools/research/rail_area_census.py`, `tools/research/rail_margin_ab.py`, `tools/research/rail_margin_evidence.py`, `tools/research/shape_profile.py`, `tools/calibration/shelf_harness.py`, `tools/audits/structure_case_audit.py`, `tools/research/ta_grade_archive_replay.py`, `tools/audits/ta_grade_timing.py`. Their moves left `file_moves`, their old paths sit under `deleted`, and the twenty module moves among them became `deleted` notes, so a branch that still imports one is told it is gone. The two compatibility aliases `tools/calibration/replay.py` and `tools/calibration/agreement.py` went the same day (their last importers were among the deleted); `core.calibration.replay` and `core.calibration.agreement` are the names.
 
+The same day the deletion reached the engine itself and everything else that read it: 81 more files the refactor had moved went — the whole of `engine_alpha/structure/` (28 modules, every one the old engine's measurement: `engine_alpha/structure/events/box_events.py`, `engine_alpha/structure/box/box_gates.py`, `engine_alpha/structure/box/box_primitives.py`, `engine_alpha/structure/box/box_trace.py`, `engine_alpha/structure/narrative/bricks.py`, `engine_alpha/structure/narrative/chain.py`, `engine_alpha/structure/box/consolidation.py`, `engine_alpha/structure/events/displacement.py`, `engine_alpha/structure/events/event_map.py`, `engine_alpha/structure/events/event_vocabulary.py`, `engine_alpha/structure/box/gate_margins.py`, `engine_alpha/structure/context/htf.py`, `engine_alpha/structure/metrics/indicators.py`, `engine_alpha/structure/box/inner_box.py`, `engine_alpha/structure/lps/detection.py`, `engine_alpha/structure/events/market_structure.py`, `engine_alpha/structure/metrics/base.py`, `engine_alpha/structure/narrative/reader.py`, `engine_alpha/structure/box/near_miss.py`, `engine_alpha/structure/phases/phase_a.py`, `engine_alpha/structure/phases/phase_d.py`, `engine_alpha/structure/phases/phase_features.py`, `engine_alpha/structure/metrics/pivots.py`, `engine_alpha/structure/box/rail_qualification.py`, `engine_alpha/structure/context/scope.py`, `engine_alpha/structure/phases/segmentation.py`, `engine_alpha/structure/context/strategy_read.py`, `engine_alpha/structure/box/trace_export.py`), 47 test files written for that engine or for the switch between the two readers (`tests/archive/test_archive_feed_completeness.py`, `tests/engine/test_bricks.py`, `tests/regression/test_cause_veto_bite.py`, `tests/engine/test_chain.py`, `tests/engine/test_charter_measurements.py`, `tests/engine/test_core_logic.py`, `tests/engine/test_displacement.py`, `tests/engine/test_election_stability.py`, `tests/engine/test_election_surgery.py`, `tests/engine/test_event_map.py`, `tests/engine/test_event_vocabulary.py`, `tests/scoring/test_fired_tags.py`, `tests/engine/test_framing_identity.py`, `tests/engine/test_gate_leg_registry.py`, `tests/engine/test_gate_margins.py`, `tests/engine/test_htf.py`, `tests/archive/test_inner_position_archive.py`, `tests/engine/test_lps.py`, `tests/engine/test_lps_two_form_guards.py`, `tests/engine/test_market_structure.py`, `tests/engine/test_mini_consolidation_position.py`, `tests/engine/test_miss_program_lanes.py`, `tests/engine/test_narrative.py`, `tests/engine/test_narrative_surface_guards.py`, `tests/pipeline/test_near_miss_deferred.py`, `tests/engine/test_near_miss_guards.py`, `tests/archive/test_near_miss_outcomes.py`, `tests/engine/test_near_miss_ruling.py`, `tests/pipeline/test_near_miss_wiring.py`, `tests/engine/test_phase_a.py`, `tests/engine/test_phase_bins.py`, `tests/engine/test_rail_qualification.py`, `tests/engine/test_recovery_view.py`, `tests/engine/test_refusal_telemetry.py`, `tests/engine/test_resistance_contraction.py`, `tests/engine/test_scope_phase_d.py`, `tests/scoring/test_score_taxonomy.py`, `tests/scoring/test_scoring.py`, `tests/engine/test_seeding_refusals.py`, `tests/engine/test_story_pool.py`, `tests/engine/test_story_pool_guards.py`, `tests/engine/test_strategy_read.py`, `tests/archive/test_suggested_weights.py`, `tests/scoring/test_ta_grade_cascade.py`, `tests/engine/test_trace_export.py`, `tests/engine/test_trend_state.py`, `tests/engine/test_trend_terminal_floor.py`), 2 tools (`tools/regression/cause_veto_corpus.py`, `tools/regression/fold_parity.py`), the backend's calibration agreement module (`webapp/backend/domains/calibration/agreement.py`) and the three frontend files that called its two deleted routes or correlated the old scorer's sub-scores (`webapp/frontend/src/features/archive/components/ArchiveReweightingStrip.jsx`, `webapp/frontend/src/features/calibration/hooks/useEngineRead.js`, `webapp/frontend/src/features/calibration/hooks/useMarkAgreement.js`). Their moves left `file_moves`, their old paths sit under `deleted`, and the 31 module moves among them (three of them the packages `engine_alpha.structure.lps`, `.metrics` and `.narrative`) became `deleted` notes. Eight modules the refactor never moved went the same day and are notes too, so a branch that imports one is told it is gone: `engine_alpha.structure`, `engine_alpha.scoring`, `engine_alpha.evaluation`, `engine_alpha.election_identity`, `engine_alpha.stability`, `engine_alpha.frames`, `config.engine` and `config.scoring`; each note names where the piece the alpha reader kept lives now (the sentinels, the universe door, the shared metrics, the window rule, `rails_match`, the surviving settings). `engine_alpha/structure/__init__.py` and `engine_alpha/scoring/__init__.py` are under `deleted` so an import anywhere under either package is reported as gone.
+
 ## What was deleted, and why
 
 | Path | Why |
@@ -245,6 +247,89 @@ On Sat 31/10/2026 the old engine retired on the operator's word of the night bef
 | `tools/structure_case_audit.py` | The refactor moved it to tools/audits/structure_case_audit.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
 | `tools/ta_grade_archive_replay.py` | The refactor moved it to tools/research/ta_grade_archive_replay.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
 | `tools/ta_grade_timing.py` | The refactor moved it to tools/audits/ta_grade_timing.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it read the old engine past the reader door, or measured it against the new one, and the alpha reader is the one reader now. |
+| `webapp/backend/services/calibration_agreement.py` | The refactor moved it to webapp/backend/domains/calibration/agreement.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/box_events.py` | The refactor moved it to engine_alpha/structure/events/box_events.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/box_gates.py` | The refactor moved it to engine_alpha/structure/box/box_gates.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/box_primitives.py` | The refactor moved it to engine_alpha/structure/box/box_primitives.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/box_trace.py` | The refactor moved it to engine_alpha/structure/box/box_trace.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/bricks.py` | The refactor moved it to engine_alpha/structure/narrative/bricks.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/chain.py` | The refactor moved it to engine_alpha/structure/narrative/chain.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/consolidation.py` | The refactor moved it to engine_alpha/structure/box/consolidation.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/displacement.py` | The refactor moved it to engine_alpha/structure/events/displacement.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/event_map.py` | The refactor moved it to engine_alpha/structure/events/event_map.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/event_vocabulary.py` | The refactor moved it to engine_alpha/structure/events/event_vocabulary.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/gate_margins.py` | The refactor moved it to engine_alpha/structure/box/gate_margins.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/htf.py` | The refactor moved it to engine_alpha/structure/context/htf.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/indicators.py` | The refactor moved it to engine_alpha/structure/metrics/indicators.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/inner_box.py` | The refactor moved it to engine_alpha/structure/box/inner_box.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/lps.py` | The refactor moved it to engine_alpha/structure/lps/detection.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/market_structure.py` | The refactor moved it to engine_alpha/structure/events/market_structure.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/metrics.py` | The refactor moved it to engine_alpha/structure/metrics/base.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/narrative.py` | The refactor moved it to engine_alpha/structure/narrative/reader.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/near_miss.py` | The refactor moved it to engine_alpha/structure/box/near_miss.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/phase_a.py` | The refactor moved it to engine_alpha/structure/phases/phase_a.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/phase_d.py` | The refactor moved it to engine_alpha/structure/phases/phase_d.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/phase_features.py` | The refactor moved it to engine_alpha/structure/phases/phase_features.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/pivots.py` | The refactor moved it to engine_alpha/structure/metrics/pivots.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/rail_qualification.py` | The refactor moved it to engine_alpha/structure/box/rail_qualification.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/scope.py` | The refactor moved it to engine_alpha/structure/context/scope.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/segmentation.py` | The refactor moved it to engine_alpha/structure/phases/segmentation.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/strategy_read.py` | The refactor moved it to engine_alpha/structure/context/strategy_read.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/trace_export.py` | The refactor moved it to engine_alpha/structure/box/trace_export.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `webapp/frontend/src/components/archive/ArchiveReweightingStrip.jsx` | The refactor moved it to webapp/frontend/src/features/archive/components/ArchiveReweightingStrip.jsx; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `webapp/frontend/src/hooks/useEngineRead.js` | The refactor moved it to webapp/frontend/src/features/calibration/hooks/useEngineRead.js; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `webapp/frontend/src/hooks/useMarkAgreement.js` | The refactor moved it to webapp/frontend/src/features/calibration/hooks/useMarkAgreement.js; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_archive_feed_completeness.py` | The refactor moved it to tests/archive/test_archive_feed_completeness.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_bricks.py` | The refactor moved it to tests/engine/test_bricks.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_cause_veto_bite.py` | The refactor moved it to tests/regression/test_cause_veto_bite.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_chain.py` | The refactor moved it to tests/engine/test_chain.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_charter_measurements.py` | The refactor moved it to tests/engine/test_charter_measurements.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_core_logic.py` | The refactor moved it to tests/engine/test_core_logic.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_displacement.py` | The refactor moved it to tests/engine/test_displacement.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_election_stability.py` | The refactor moved it to tests/engine/test_election_stability.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_election_surgery.py` | The refactor moved it to tests/engine/test_election_surgery.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_event_map.py` | The refactor moved it to tests/engine/test_event_map.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_event_vocabulary.py` | The refactor moved it to tests/engine/test_event_vocabulary.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_fired_tags.py` | The refactor moved it to tests/scoring/test_fired_tags.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_framing_identity.py` | The refactor moved it to tests/engine/test_framing_identity.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_gate_leg_registry.py` | The refactor moved it to tests/engine/test_gate_leg_registry.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_gate_margins.py` | The refactor moved it to tests/engine/test_gate_margins.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_htf.py` | The refactor moved it to tests/engine/test_htf.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_inner_position_archive.py` | The refactor moved it to tests/archive/test_inner_position_archive.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_lps.py` | The refactor moved it to tests/engine/test_lps.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_lps_two_form_guards.py` | The refactor moved it to tests/engine/test_lps_two_form_guards.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_market_structure.py` | The refactor moved it to tests/engine/test_market_structure.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_mini_consolidation_position.py` | The refactor moved it to tests/engine/test_mini_consolidation_position.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_miss_program_lanes.py` | The refactor moved it to tests/engine/test_miss_program_lanes.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_narrative.py` | The refactor moved it to tests/engine/test_narrative.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_narrative_surface_guards.py` | The refactor moved it to tests/engine/test_narrative_surface_guards.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_near_miss_deferred.py` | The refactor moved it to tests/pipeline/test_near_miss_deferred.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_near_miss_guards.py` | The refactor moved it to tests/engine/test_near_miss_guards.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_near_miss_outcomes.py` | The refactor moved it to tests/archive/test_near_miss_outcomes.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_near_miss_ruling.py` | The refactor moved it to tests/engine/test_near_miss_ruling.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_near_miss_wiring.py` | The refactor moved it to tests/pipeline/test_near_miss_wiring.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_phase_a.py` | The refactor moved it to tests/engine/test_phase_a.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_phase_bins.py` | The refactor moved it to tests/engine/test_phase_bins.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_rail_qualification.py` | The refactor moved it to tests/engine/test_rail_qualification.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_recovery_view.py` | The refactor moved it to tests/engine/test_recovery_view.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_refusal_telemetry.py` | The refactor moved it to tests/engine/test_refusal_telemetry.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_resistance_contraction.py` | The refactor moved it to tests/engine/test_resistance_contraction.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_scope_phase_d.py` | The refactor moved it to tests/engine/test_scope_phase_d.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_score_taxonomy.py` | The refactor moved it to tests/scoring/test_score_taxonomy.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_scoring.py` | The refactor moved it to tests/scoring/test_scoring.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_seeding_refusals.py` | The refactor moved it to tests/engine/test_seeding_refusals.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_story_pool.py` | The refactor moved it to tests/engine/test_story_pool.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_story_pool_guards.py` | The refactor moved it to tests/engine/test_story_pool_guards.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_strategy_read.py` | The refactor moved it to tests/engine/test_strategy_read.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_suggested_weights.py` | The refactor moved it to tests/archive/test_suggested_weights.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_ta_grade_cascade.py` | The refactor moved it to tests/scoring/test_ta_grade_cascade.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_trace_export.py` | The refactor moved it to tests/engine/test_trace_export.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_trend_state.py` | The refactor moved it to tests/engine/test_trend_state.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tests/test_trend_terminal_floor.py` | The refactor moved it to tests/engine/test_trend_terminal_floor.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/cause_veto_corpus.py` | The refactor moved it to tools/regression/cause_veto_corpus.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `tools/fold_parity.py` | The refactor moved it to tools/regression/fold_parity.py; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. |
+| `engine_alpha/structure/__init__.py` | The package was the old engine; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. An import under it is reported as gone. |
+| `engine_alpha/scoring/__init__.py` | The package was the old engine; it was then DELETED when the old engine retired (the operator's word, Fri 30/10/2026: "retire the old engine, from now on we focus on the new one"; claude/retire-old-engine, Sat 31/10/2026): it was the old engine, or it read that engine past the reader door, or it measured it against the new one, and the alpha reader is the one reader now. An import under it is reported as gone. |
 
 Commit `3fa71b5` also deleted `webapp/backend/schemas.py` and the rest of `webapp/backend/ibkr/`, which the first commit had left behind as aliases. Across the whole refactor git pairs each of them with its new home, so they appear as moves in the tables below, not here.
 
@@ -290,42 +375,12 @@ Import names, as the porter rewrites them. Repo-root modules import from the rep
 | `core.pipeline.ticker_admission` | `core.pipeline.universe.ticker_admission` |
 | `core.pipeline.tickers` | `core.pipeline.universe.tickers` |
 | `core.pipeline.universe` | `core.pipeline.universe.descriptor` *package* |
-| `engine_alpha.structure.box_events` | `engine_alpha.structure.events.box_events` |
-| `engine_alpha.structure.box_gates` | `engine_alpha.structure.box.box_gates` |
-| `engine_alpha.structure.box_primitives` | `engine_alpha.structure.box.box_primitives` |
-| `engine_alpha.structure.box_trace` | `engine_alpha.structure.box.box_trace` |
-| `engine_alpha.structure.bricks` | `engine_alpha.structure.narrative.bricks` |
-| `engine_alpha.structure.chain` | `engine_alpha.structure.narrative.chain` |
-| `engine_alpha.structure.consolidation` | `engine_alpha.structure.box.consolidation` |
-| `engine_alpha.structure.displacement` | `engine_alpha.structure.events.displacement` |
-| `engine_alpha.structure.event_map` | `engine_alpha.structure.events.event_map` |
-| `engine_alpha.structure.event_vocabulary` | `engine_alpha.structure.events.event_vocabulary` |
-| `engine_alpha.structure.gate_margins` | `engine_alpha.structure.box.gate_margins` |
-| `engine_alpha.structure.htf` | `engine_alpha.structure.context.htf` |
-| `engine_alpha.structure.indicators` | `engine_alpha.structure.metrics.indicators` |
-| `engine_alpha.structure.inner_box` | `engine_alpha.structure.box.inner_box` |
-| `engine_alpha.structure.lps` | `engine_alpha.structure.lps.detection` *package* |
-| `engine_alpha.structure.market_structure` | `engine_alpha.structure.events.market_structure` |
-| `engine_alpha.structure.metrics` | `engine_alpha.structure.metrics.base` *package* |
-| `engine_alpha.structure.narrative` | `engine_alpha.structure.narrative.reader` *package* |
-| `engine_alpha.structure.near_miss` | `engine_alpha.structure.box.near_miss` |
-| `engine_alpha.structure.phase_a` | `engine_alpha.structure.phases.phase_a` |
-| `engine_alpha.structure.phase_d` | `engine_alpha.structure.phases.phase_d` |
-| `engine_alpha.structure.phase_features` | `engine_alpha.structure.phases.phase_features` |
-| `engine_alpha.structure.pivots` | `engine_alpha.structure.metrics.pivots` |
-| `engine_alpha.structure.rail_qualification` | `engine_alpha.structure.box.rail_qualification` |
-| `engine_alpha.structure.scope` | `engine_alpha.structure.context.scope` |
-| `engine_alpha.structure.segmentation` | `engine_alpha.structure.phases.segmentation` |
-| `engine_alpha.structure.strategy_read` | `engine_alpha.structure.context.strategy_read` |
-| `engine_alpha.structure.trace_export` | `engine_alpha.structure.box.trace_export` |
 | `output.dashboard` | `core.pipeline.screening.dashboard` |
 | `output.terminal` | `core.pipeline.screening.terminal` |
 | `tools.agreement` | `core.calibration.agreement` |
 | `tools.backtest_engine` | `tools.research.backtest_engine` |
 | `tools.build_universe_returns` | `tools.research.build_universe_returns` |
 | `tools.calibration_harness` | `tools.calibration.calibration_harness` |
-| `tools.cause_veto_corpus` | `tools.regression.cause_veto_corpus` |
-| `tools.fold_parity` | `tools.regression.fold_parity` |
 | `tools.guided_list_export` | `tools.calibration.guided_list_export` |
 | `tools.marks_corpus` | `tools.regression.marks_corpus` |
 | `tools.marks_json` | `tools.calibration.marks_json` |
@@ -371,7 +426,6 @@ Import names, as the porter rewrites them. Repo-root modules import from the rep
 | `services.alpaca_prices` | `domains.market_data.alpaca_prices` |
 | `services.archive_queries` | `domains.archive.queries` |
 | `services.auto_import` | `domains.trading.auto_import` |
-| `services.calibration_agreement` | `domains.calibration.agreement` |
 | `services.calibration_fired` | `domains.calibration.fired` |
 | `services.candle_cache` | `domains.market_data.candle_cache` |
 | `services.concordance` | `domains.archive.concordance` |
@@ -407,39 +461,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/tradeDetail/` | `webapp/frontend/src/features/journal/components/tradeDetail/` |
 | `webapp/frontend/src/components/tradeTable/` | `webapp/frontend/src/features/journal/components/tradeTable/` |
 | `webapp/frontend/src/components/watchlist/` | `webapp/frontend/src/features/watchlist/components/` |
-
-### Engine (`engine_alpha/structure/`)
-
-| Old path | New path |
-|---|---|
-| `engine_alpha/structure/box_events.py` | `engine_alpha/structure/events/box_events.py` |
-| `engine_alpha/structure/box_gates.py` | `engine_alpha/structure/box/box_gates.py` |
-| `engine_alpha/structure/box_primitives.py` | `engine_alpha/structure/box/box_primitives.py` |
-| `engine_alpha/structure/box_trace.py` | `engine_alpha/structure/box/box_trace.py` |
-| `engine_alpha/structure/bricks.py` | `engine_alpha/structure/narrative/bricks.py` |
-| `engine_alpha/structure/chain.py` | `engine_alpha/structure/narrative/chain.py` |
-| `engine_alpha/structure/consolidation.py` | `engine_alpha/structure/box/consolidation.py` |
-| `engine_alpha/structure/displacement.py` | `engine_alpha/structure/events/displacement.py` |
-| `engine_alpha/structure/event_map.py` | `engine_alpha/structure/events/event_map.py` |
-| `engine_alpha/structure/event_vocabulary.py` | `engine_alpha/structure/events/event_vocabulary.py` |
-| `engine_alpha/structure/gate_margins.py` | `engine_alpha/structure/box/gate_margins.py` |
-| `engine_alpha/structure/htf.py` | `engine_alpha/structure/context/htf.py` |
-| `engine_alpha/structure/indicators.py` | `engine_alpha/structure/metrics/indicators.py` |
-| `engine_alpha/structure/inner_box.py` | `engine_alpha/structure/box/inner_box.py` |
-| `engine_alpha/structure/lps.py` | `engine_alpha/structure/lps/detection.py` |
-| `engine_alpha/structure/market_structure.py` | `engine_alpha/structure/events/market_structure.py` |
-| `engine_alpha/structure/metrics.py` | `engine_alpha/structure/metrics/base.py` |
-| `engine_alpha/structure/narrative.py` | `engine_alpha/structure/narrative/reader.py` |
-| `engine_alpha/structure/near_miss.py` | `engine_alpha/structure/box/near_miss.py` |
-| `engine_alpha/structure/phase_a.py` | `engine_alpha/structure/phases/phase_a.py` |
-| `engine_alpha/structure/phase_d.py` | `engine_alpha/structure/phases/phase_d.py` |
-| `engine_alpha/structure/phase_features.py` | `engine_alpha/structure/phases/phase_features.py` |
-| `engine_alpha/structure/pivots.py` | `engine_alpha/structure/metrics/pivots.py` |
-| `engine_alpha/structure/rail_qualification.py` | `engine_alpha/structure/box/rail_qualification.py` |
-| `engine_alpha/structure/scope.py` | `engine_alpha/structure/context/scope.py` |
-| `engine_alpha/structure/segmentation.py` | `engine_alpha/structure/phases/segmentation.py` |
-| `engine_alpha/structure/strategy_read.py` | `engine_alpha/structure/context/strategy_read.py` |
-| `engine_alpha/structure/trace_export.py` | `engine_alpha/structure/box/trace_export.py` |
 
 ### Pipeline (`core/pipeline/`, and the writers that left `output/`)
 
@@ -499,7 +520,6 @@ Whole folders that moved unchanged:
 | `webapp/backend/services/alpaca_prices.py` | `webapp/backend/domains/market_data/alpaca_prices.py` |
 | `webapp/backend/services/archive_queries.py` | `webapp/backend/domains/archive/queries.py` |
 | `webapp/backend/services/auto_import.py` | `webapp/backend/domains/trading/auto_import.py` |
-| `webapp/backend/services/calibration_agreement.py` | `webapp/backend/domains/calibration/agreement.py` |
 | `webapp/backend/services/calibration_fired.py` | `webapp/backend/domains/calibration/fired.py` |
 | `webapp/backend/services/candle_cache.py` | `webapp/backend/domains/market_data/candle_cache.py` |
 | `webapp/backend/services/concordance.py` | `webapp/backend/domains/archive/concordance.py` |
@@ -578,7 +598,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/components/archive/ArchiveEquityCurve.jsx` | `webapp/frontend/src/features/archive/components/ArchiveEquityCurve.jsx` |
 | `webapp/frontend/src/components/archive/ArchiveFilters.jsx` | `webapp/frontend/src/features/archive/components/ArchiveFilters.jsx` |
 | `webapp/frontend/src/components/archive/ArchiveHeader.jsx` | `webapp/frontend/src/features/archive/components/ArchiveHeader.jsx` |
-| `webapp/frontend/src/components/archive/ArchiveReweightingStrip.jsx` | `webapp/frontend/src/features/archive/components/ArchiveReweightingStrip.jsx` |
 | `webapp/frontend/src/components/archive/ArchiveSummary.jsx` | `webapp/frontend/src/features/archive/components/ArchiveSummary.jsx` |
 | `webapp/frontend/src/components/archive/ArchiveTable.jsx` | `webapp/frontend/src/features/archive/components/ArchiveTable.jsx` |
 | `webapp/frontend/src/components/archive/ArchiveTierCards.jsx` | `webapp/frontend/src/features/archive/components/ArchiveTierCards.jsx` |
@@ -660,7 +679,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/hooks/useDashboardData.js` | `webapp/frontend/src/features/journal/hooks/useDashboardData.js` |
 | `webapp/frontend/src/hooks/useDrilldown.js` | `webapp/frontend/src/features/screener/hooks/useDrilldown.js` |
 | `webapp/frontend/src/hooks/useEdgePulse.js` | `webapp/frontend/src/features/home/hooks/useEdgePulse.js` |
-| `webapp/frontend/src/hooks/useEngineRead.js` | `webapp/frontend/src/features/calibration/hooks/useEngineRead.js` |
 | `webapp/frontend/src/hooks/useFrameThumb.js` | `webapp/frontend/src/features/calibration/hooks/useFrameThumb.js` |
 | `webapp/frontend/src/hooks/useHoverGlance.js` | `webapp/frontend/src/shared/charts/glance/useHoverGlance.js` |
 | `webapp/frontend/src/hooks/useIBKRStatus.js` | `webapp/frontend/src/features/ibkr/hooks/useIBKRStatus.js` |
@@ -668,7 +686,6 @@ Whole folders that moved unchanged:
 | `webapp/frontend/src/hooks/useLightweightChart.js` | `webapp/frontend/src/shared/charts/useLightweightChart.js` |
 | `webapp/frontend/src/hooks/useLivePrices.js` | `webapp/frontend/src/features/watchlist/hooks/useLivePrices.js` |
 | `webapp/frontend/src/hooks/useLiveRisk.js` | `webapp/frontend/src/features/journal/hooks/useLiveRisk.js` |
-| `webapp/frontend/src/hooks/useMarkAgreement.js` | `webapp/frontend/src/features/calibration/hooks/useMarkAgreement.js` |
 | `webapp/frontend/src/hooks/useMarkFired.js` | `webapp/frontend/src/features/calibration/hooks/useMarkFired.js` |
 | `webapp/frontend/src/hooks/usePollingInterval.js` | `webapp/frontend/src/shared/hooks/usePollingInterval.js` |
 | `webapp/frontend/src/hooks/usePortfolioSnapshot.js` | `webapp/frontend/src/features/portfolio/hooks/usePortfolioSnapshot.js` |
@@ -751,7 +768,6 @@ Whole folders that moved unchanged:
 | `tests/test_analyze_reporter_gates.py` | `tests/archive/test_analyze_reporter_gates.py` |
 | `tests/test_archive_actions_guard.py` | `tests/backend/test_archive_actions_guard.py` |
 | `tests/test_archive_column_parity.py` | `tests/archive/test_archive_column_parity.py` |
-| `tests/test_archive_feed_completeness.py` | `tests/archive/test_archive_feed_completeness.py` |
 | `tests/test_archive_glance_window.py` | `tests/backend/test_archive_glance_window.py` |
 | `tests/test_archive_purge.py` | `tests/archive/test_archive_purge.py` |
 | `tests/test_archive_reliability.py` | `tests/backend/test_archive_reliability.py` |
@@ -759,7 +775,6 @@ Whole folders that moved unchanged:
 | `tests/test_archive_version_scope.py` | `tests/backend/test_archive_version_scope.py` |
 | `tests/test_backend_services.py` | `tests/backend/test_backend_services.py` |
 | `tests/test_backtest_engine.py` | `tests/tooling/test_backtest_engine.py` |
-| `tests/test_bricks.py` | `tests/engine/test_bricks.py` |
 | `tests/test_build_universe_returns.py` | `tests/tooling/test_build_universe_returns.py` |
 | `tests/test_calibration_harness.py` | `tests/tooling/test_calibration_harness.py` |
 | `tests/test_calibration_marks_schema.py` | `tests/backend/test_calibration_marks_schema.py` |
@@ -767,74 +782,45 @@ Whole folders that moved unchanged:
 | `tests/test_candle_cache.py` | `tests/backend/test_candle_cache.py` |
 | `tests/test_candle_parity.py` | `tests/market_data/test_candle_parity.py` |
 | `tests/test_candles_router.py` | `tests/backend/test_candles_router.py` |
-| `tests/test_cause_veto_bite.py` | `tests/regression/test_cause_veto_bite.py` |
-| `tests/test_chain.py` | `tests/engine/test_chain.py` |
-| `tests/test_charter_measurements.py` | `tests/engine/test_charter_measurements.py` |
 | `tests/test_concordance.py` | `tests/backend/test_concordance.py` |
-| `tests/test_core_logic.py` | `tests/engine/test_core_logic.py` |
 | `tests/test_csv_import.py` | `tests/backend/test_csv_import.py` |
 | `tests/test_dashboard_wire.py` | `tests/contracts/test_dashboard_wire.py` |
 | `tests/test_data_freshness.py` | `tests/market_data/test_data_freshness.py` |
 | `tests/test_db_isolation.py` | `tests/integration/test_db_isolation.py` |
-| `tests/test_displacement.py` | `tests/engine/test_displacement.py` |
 | `tests/test_docs_sync.py` | `tests/tooling/test_docs_sync.py` |
 | `tests/test_download_integrity.py` | `tests/market_data/test_download_integrity.py` |
-| `tests/test_election_stability.py` | `tests/engine/test_election_stability.py` |
-| `tests/test_election_surgery.py` | `tests/engine/test_election_surgery.py` |
 | `tests/test_engine_alpha_runtime.py` | `tests/integration/test_engine_alpha_runtime.py` |
 | `tests/test_episode_cache.py` | `tests/backend/test_episode_cache.py` |
 | `tests/test_episodes.py` | `tests/archive/test_episodes.py` |
 | `tests/test_eval_error_counter.py` | `tests/pipeline/test_eval_error_counter.py` |
-| `tests/test_event_map.py` | `tests/engine/test_event_map.py` |
-| `tests/test_event_vocabulary.py` | `tests/engine/test_event_vocabulary.py` |
 | `tests/test_fetch_health.py` | `tests/market_data/test_fetch_health.py` |
 | `tests/test_fetch_repair.py` | `tests/market_data/test_fetch_repair.py` |
 | `tests/test_file_lock.py` | `tests/market_data/test_file_lock.py` |
-| `tests/test_fired_tags.py` | `tests/scoring/test_fired_tags.py` |
 | `tests/test_frame_store.py` | `tests/backend/test_frame_store.py` |
-| `tests/test_framing_identity.py` | `tests/engine/test_framing_identity.py` |
 | `tests/test_fundamentals_metrics.py` | `tests/pipeline/test_fundamentals_metrics.py` |
 | `tests/test_fundamentals_post_pass.py` | `tests/pipeline/test_fundamentals_post_pass.py` |
 | `tests/test_fundamentals_provider.py` | `tests/market_data/test_fundamentals_provider.py` |
-| `tests/test_gate_leg_registry.py` | `tests/engine/test_gate_leg_registry.py` |
-| `tests/test_gate_margins.py` | `tests/engine/test_gate_margins.py` |
 | `tests/test_grading_frame.py` | `tests/backend/test_grading_frame.py` |
 | `tests/test_guards.py` | `tests/integration/test_guards.py` |
 | `tests/test_handler_concurrency_shape.py` | `tests/backend/test_handler_concurrency_shape.py` |
 | `tests/test_health_board.py` | `tests/pipeline/test_health_board.py` |
-| `tests/test_htf.py` | `tests/engine/test_htf.py` |
 | `tests/test_ibkr_hardening.py` | `tests/backend/test_ibkr_hardening.py` |
-| `tests/test_inner_position_archive.py` | `tests/archive/test_inner_position_archive.py` |
 | `tests/test_invariants.py` | `tests/engine/test_invariants.py` |
 | `tests/test_loader_universe_filter.py` | `tests/archive/test_loader_universe_filter.py` |
 | `tests/test_log_encoding.py` | `tests/backend/test_log_encoding.py` |
-| `tests/test_lps.py` | `tests/engine/test_lps.py` |
-| `tests/test_lps_two_form_guards.py` | `tests/engine/test_lps_two_form_guards.py` |
 | `tests/test_manual_add_universe_stamp.py` | `tests/archive/test_manual_add_universe_stamp.py` |
 | `tests/test_market_context_universe.py` | `tests/pipeline/test_market_context_universe.py` |
 | `tests/test_market_data_cache.py` | `tests/backend/test_market_data_cache.py` |
 | `tests/test_market_data_health.py` | `tests/market_data/test_market_data_health.py` |
 | `tests/test_market_data_service.py` | `tests/backend/test_market_data_service.py` |
-| `tests/test_market_structure.py` | `tests/engine/test_market_structure.py` |
 | `tests/test_marks_corpus.py` | `tests/regression/test_marks_corpus.py` |
 | `tests/test_marks_json.py` | `tests/tooling/test_marks_json.py` |
 | `tests/test_marks_validity.py` | `tests/contracts/test_marks_validity.py` |
-| `tests/test_mini_consolidation_position.py` | `tests/engine/test_mini_consolidation_position.py` |
-| `tests/test_miss_program_lanes.py` | `tests/engine/test_miss_program_lanes.py` |
 | `tests/test_missed_winners.py` | `tests/archive/test_missed_winners.py` |
-| `tests/test_narrative.py` | `tests/engine/test_narrative.py` |
-| `tests/test_narrative_surface_guards.py` | `tests/engine/test_narrative_surface_guards.py` |
 | `tests/test_near_miss_archive.py` | `tests/archive/test_near_miss_archive.py` |
-| `tests/test_near_miss_deferred.py` | `tests/pipeline/test_near_miss_deferred.py` |
-| `tests/test_near_miss_guards.py` | `tests/engine/test_near_miss_guards.py` |
 | `tests/test_near_miss_identity_migration.py` | `tests/backend/test_near_miss_identity_migration.py` |
-| `tests/test_near_miss_outcomes.py` | `tests/archive/test_near_miss_outcomes.py` |
-| `tests/test_near_miss_ruling.py` | `tests/engine/test_near_miss_ruling.py` |
-| `tests/test_near_miss_wiring.py` | `tests/pipeline/test_near_miss_wiring.py` |
 | `tests/test_negative_corpus.py` | `tests/regression/test_negative_corpus.py` |
 | `tests/test_outcomes.py` | `tests/archive/test_outcomes.py` |
-| `tests/test_phase_a.py` | `tests/engine/test_phase_a.py` |
-| `tests/test_phase_bins.py` | `tests/engine/test_phase_bins.py` |
 | `tests/test_pointer_audit.py` | `tests/tooling/test_pointer_audit.py` |
 | `tests/test_portfolio_stream_lifecycle.py` | `tests/backend/test_portfolio_stream_lifecycle.py` |
 | `tests/test_price_regime.py` | `tests/pipeline/test_price_regime.py` |
@@ -842,45 +828,29 @@ Whole folders that moved unchanged:
 | `tests/test_provider_capabilities.py` | `tests/market_data/test_provider_capabilities.py` |
 | `tests/test_provider_parity.py` | `tests/tooling/test_provider_parity.py` |
 | `tests/test_providers.py` | `tests/market_data/test_providers.py` |
-| `tests/test_rail_qualification.py` | `tests/engine/test_rail_qualification.py` |
 | `tests/test_rate_limit.py` | `tests/market_data/test_rate_limit.py` |
 | `tests/test_reader_pin.py` | `tests/regression/test_reader_pin.py` |
-| `tests/test_recovery_view.py` | `tests/engine/test_recovery_view.py` |
-| `tests/test_refusal_telemetry.py` | `tests/engine/test_refusal_telemetry.py` |
 | `tests/test_regime_primitives.py` | `tests/pipeline/test_regime_primitives.py` |
 | `tests/test_regression_guards.py` | `tests/regression/test_regression_guards.py` |
 | `tests/test_replay_layer.py` | `tests/tooling/test_replay_layer.py` |
 | `tests/test_request_logging.py` | `tests/backend/test_request_logging.py` |
-| `tests/test_resistance_contraction.py` | `tests/engine/test_resistance_contraction.py` |
 | `tests/test_result_adapter.py` | `tests/archive/test_result_adapter.py` |
 | `tests/test_same_app_guard.py` | `tests/backend/test_same_app_guard.py` |
 | `tests/test_scan_diagnosis.py` | `tests/backend/test_scan_diagnosis.py` |
 | `tests/test_scan_metrics.py` | `tests/pipeline/test_scan_metrics.py` |
 | `tests/test_scan_status.py` | `tests/backend/test_scan_status.py` |
 | `tests/test_scheduler_misfire.py` | `tests/backend/test_scheduler_misfire.py` |
-| `tests/test_scope_phase_d.py` | `tests/engine/test_scope_phase_d.py` |
-| `tests/test_score_taxonomy.py` | `tests/scoring/test_score_taxonomy.py` |
-| `tests/test_scoring.py` | `tests/scoring/test_scoring.py` |
 | `tests/test_seed_force_curation.py` | `tests/archive/test_seed_force_curation.py` |
 | `tests/test_seed_recall.py` | `tests/regression/test_seed_recall.py` |
 | `tests/test_seed_recall_hermetic.py` | `tests/regression/test_seed_recall_hermetic.py` |
-| `tests/test_seeding_refusals.py` | `tests/engine/test_seeding_refusals.py` |
 | `tests/test_service_boot.py` | `tests/backend/test_service_boot.py` |
 | `tests/test_setup_like_verdict.py` | `tests/backend/test_setup_like_verdict.py` |
 | `tests/test_startup_migrations.py` | `tests/backend/test_startup_migrations.py` |
 | `tests/test_story_chain_candidates.py` | `tests/tooling/test_story_chain_candidates.py` |
-| `tests/test_story_pool.py` | `tests/engine/test_story_pool.py` |
-| `tests/test_story_pool_guards.py` | `tests/engine/test_story_pool_guards.py` |
-| `tests/test_strategy_read.py` | `tests/engine/test_strategy_read.py` |
-| `tests/test_suggested_weights.py` | `tests/archive/test_suggested_weights.py` |
-| `tests/test_ta_grade_cascade.py` | `tests/scoring/test_ta_grade_cascade.py` |
 | `tests/test_ticker_admission.py` | `tests/pipeline/test_ticker_admission.py` |
 | `tests/test_tickers.py` | `tests/pipeline/test_tickers.py` |
 | `tests/test_tool_sealed_guards.py` | `tests/tooling/test_tool_sealed_guards.py` |
-| `tests/test_trace_export.py` | `tests/engine/test_trace_export.py` |
 | `tests/test_trade_risk.py` | `tests/contracts/test_trade_risk.py` |
-| `tests/test_trend_state.py` | `tests/engine/test_trend_state.py` |
-| `tests/test_trend_terminal_floor.py` | `tests/engine/test_trend_terminal_floor.py` |
 | `tests/test_trigger_grade_spec.py` | `tests/backend/test_trigger_grade_spec.py` |
 | `tests/test_universe_descriptor.py` | `tests/pipeline/test_universe_descriptor.py` |
 | `tests/test_universe_migration.py` | `tests/backend/test_universe_migration.py` |
@@ -898,9 +868,7 @@ Whole folders that moved unchanged:
 | `tools/backtest_engine.py` | `tools/research/backtest_engine.py` |
 | `tools/build_universe_returns.py` | `tools/research/build_universe_returns.py` |
 | `tools/calibration_harness.py` | `tools/calibration/calibration_harness.py` |
-| `tools/cause_veto_corpus.py` | `tools/regression/cause_veto_corpus.py` |
 | `tools/chart_framing_census.mjs` | `tools/research/chart_framing_census.mjs` |
-| `tools/fold_parity.py` | `tools/regression/fold_parity.py` |
 | `tools/guided_list_export.py` | `tools/calibration/guided_list_export.py` |
 | `tools/marks_corpus.py` | `tools/regression/marks_corpus.py` |
 | `tools/marks_json.py` | `tools/calibration/marks_json.py` |

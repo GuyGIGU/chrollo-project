@@ -13,8 +13,7 @@ These guards pin the contract:
 1. an interior NaN is LOCAL — NaN at that bar, finite after it;
 2. the leading-pad case, and the no-NaN case, stay BYTE-identical to the
    pre-fix read (the fix must be a strict superset, never a re-calibration);
-3. ``calculate_atr`` and ``calculate_adx`` (still the old engine's, in ``structure/metrics/indicators.py``),
-   which share the helper, inherit it.
+3. ``calculate_atr``, which shares the helper, inherits it.
 """
 from __future__ import annotations
 
@@ -27,7 +26,6 @@ from _paths import REPO_ROOT as ROOT
 sys.path.insert(0, str(ROOT))
 
 from engine_alpha.metrics import _fast_ewm, _fast_ewm_valid, calculate_atr, trend_template  # noqa: E402
-from engine_alpha.structure.metrics.indicators import calculate_adx  # noqa: E402
 
 
 def _ramp(n=40, start=100.0, step=0.7):
@@ -123,26 +121,13 @@ def test_calculate_atr_survives_one_bad_price_cell():
     assert np.isfinite(atr.iloc[1:30].to_numpy()).all()
 
 
-def test_calculate_adx_survives_one_bad_price_cell():
-    closes = _ramp(80)
-    df = _frame(closes)
-    df.loc[df.index[40], "Low"] = np.nan
-
-    adx = calculate_adx(df, period=14)
-    tail = adx.iloc[43:]
-    assert np.isfinite(tail.to_numpy()).all(), (
-        "one bad Low cell deleted the ADX to the right edge")
-
-
-def test_clean_frames_read_identically_through_both_indicators():
+def test_clean_frames_read_identically_through_the_indicator():
     """No NaN anywhere: the fix may not move a single value on real data."""
     closes = _ramp(80)
     df = _frame(closes)
     atr = calculate_atr(df, period=14).to_numpy()
-    adx = calculate_adx(df, period=14).to_numpy()
-    # index 0 is the shifted-Close / diff pad in both series (unchanged).
+    # index 0 is the shifted-Close pad (unchanged).
     assert np.isfinite(atr[1:]).all()
-    assert np.isfinite(adx[1:]).all()
 
 
 # --- 4. the trend template (moved here from tests/scoring/test_scoring.py) --

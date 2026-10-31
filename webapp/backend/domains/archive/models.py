@@ -754,10 +754,10 @@ class NearMissArchive(Base):
                          "r_anchor_date", "s_anchor_date",
                          name="uq_near_miss_framing_identity"),
         # EC-19: closed-set label columns get the universe_type treatment —
-        # fresh-DB CHECK here, the write-time assertion at the single
-        # stamping point (near_miss_writer._failing_leg_label), and the
-        # archive-layer test. Vocabulary = the RULED T-COARSE-8 taxonomy
-        # (box_gates.GATE_LEGS stages + the occupancy family collapse).
+        # fresh-DB CHECK here (the writer that stamped it, near_miss_writer,
+        # retired with the old engine on Sat 31/10/2026; the table is read-only
+        # history). Vocabulary = the RULED T-COARSE-8 taxonomy of the old
+        # engine's gate legs + the occupancy family collapse.
         CheckConstraint(
             "failing_leg IN ('width', 'window', 'respect_share', "
             "'respect_run', 'crash', 'occupancy', 'traversal_count', "

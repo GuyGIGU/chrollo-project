@@ -723,18 +723,17 @@ def test_aef_the_pullback_he_refused_fires_on_its_first_day_only_and_each_refusa
 def junk_fire_days() -> dict:
     """Every junk chart read through the door on every day of its fired window: the days it fires."""
     from engine_alpha import reader
-    from core.calibration.replay import fired_window_sessions, flag_capture
+    from core.calibration.replay import fired_window_sessions
     from tools.regression import negative_corpus
 
     frames, meta = negative_corpus._load_fixture()
     out = {}
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        for case in meta["cases"]:
-            key = case.get("key", case["ticker"])
-            raw = frames[key]
-            sessions, _ = fired_window_sessions(raw, raw.index[-1], [])
-            out[key] = [ts.date() for ts in sessions
-                        if isinstance(reader.evaluate_ticker(case["ticker"], raw.loc[:ts]), dict)]
+    for case in meta["cases"]:
+        key = case.get("key", case["ticker"])
+        raw = frames[key]
+        sessions, _ = fired_window_sessions(raw, raw.index[-1], [])
+        out[key] = [ts.date() for ts in sessions
+                    if isinstance(reader.evaluate_ticker(case["ticker"], raw.loc[:ts]), dict)]
     assert len(out) == 16
     return out
 
@@ -761,17 +760,6 @@ def test_the_junk_charts_that_fire_and_the_one_that_stays_silent(junk_fire_days)
     assert junk_fire_days["AEF"] == [dt.date(2026, 6, 3)]
     assert junk_fire_days["DBD"] == [dt.date(2026, 6, 3), dt.date(2026, 6, 5)]
     assert junk_fire_days["BBVA"] == [dt.date(2026, 6, 18), dt.date(2026, 6, 24), dt.date(2026, 6, 26)]
-
-
-@pytest.mark.xfail(strict=True, reason=(
-    "THE STOP RULE'S JUNK CLAUSE, not met at task 12a and not met on the rule of the pair he settled (Thu "
-    "01/10/2026): today's engine fires on 8 of the 16 junk charts, the new reader on 14 since the walk of Sat "
-    "18/10/2026 (AEF silent, DBD firing; 14 from Thu 01/10/2026, 13 before a dip that comes back gave a box its "
-    "place back, 12 before the rebuild). He set the junk charts aside on Thu 01/10/2026. "
-    "The bar was fixed on Sun 20/09/2026 and is not moved here; his ruling at the core sitting, or the grade "
-    "(task 14), owes it. The day this passes, this mark comes off deliberately."))
-def test_no_more_junk_charts_fire_than_under_todays_engine(junk_fire_days):
-    assert sum(1 for days in junk_fire_days.values() if days) <= 8
 
 
 def test_on_the_junk_chart_spcb_a_pullback_refused_the_evening_it_ended_is_never_worded_crossed():
@@ -832,13 +820,10 @@ def _his(key: str):
 
 def test_a_fire_crosses_the_door_as_a_whole_row_with_the_box_the_lps_and_the_trigger():
     from engine_alpha import reader, two_eyes_adapter
-    from core.calibration.replay import flag_capture
 
     setup, raw = _his("SYRE:2026-02-19")
-    watch, stamp = {}, {}
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        row = reader.evaluate_ticker("SYRE", raw.loc[:pd.Timestamp("2026-02-17")], watch=watch, stamp=stamp)
-    assert stamp == {"reader": reader.READER_NEW}
+    watch = {}
+    row = reader.evaluate_ticker("SYRE", raw.loc[:pd.Timestamp("2026-02-17")], watch=watch)
     assert isinstance(row, dict) and not [k for k in two_eyes_adapter.REQUIRED_KEYS if k not in row]
     assert (round(row["_R"], 2), round(row["_S"], 2)) == (35.31, 32.26)
     assert row["_trigger_price"] == pytest.approx(37.22) and row["_lps_zone_end_date"] == "2026-02-17"
@@ -858,27 +843,25 @@ def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_or_is_named
     """The yardstick's headline for the new reader, pinned chart by chart: every one of his drawings either fires on his
     last receding day at his trigger, or is named here with the reason it does not."""
     from engine_alpha import reader
-    from core.calibration.replay import flag_capture
 
     fired, not_scanned, silent = [], {}, []
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        for row in his_windows:
-            if not row["last"]:
-                continue
-            watch = {}
-            cut = row["raw"].loc[:pd.Timestamp(row["span"][1])]
-            result = reader.evaluate_ticker(row["setup"]["ticker"], cut, watch=watch)
-            if watch["state"] == "not scanned":
-                assert result is None
-                not_scanned[row["key"]] = watch["why"]
-            elif isinstance(result, dict):
-                assert result["_lps_zone_end_date"] == row["span"][1].isoformat(), row["key"]
-                if row["setup"].get("trigger_price") is not None:     # CLDT carries no buy
-                    assert result["_trigger_price"] == pytest.approx(float(row["setup"]["trigger_price"]), abs=0.005)
-                fired.append(row["key"])
-            else:
-                assert result is None
-                silent.append(row["key"])
+    for row in his_windows:
+        if not row["last"]:
+            continue
+        watch = {}
+        cut = row["raw"].loc[:pd.Timestamp(row["span"][1])]
+        result = reader.evaluate_ticker(row["setup"]["ticker"], cut, watch=watch)
+        if watch["state"] == "not scanned":
+            assert result is None
+            not_scanned[row["key"]] = watch["why"]
+        elif isinstance(result, dict):
+            assert result["_lps_zone_end_date"] == row["span"][1].isoformat(), row["key"]
+            if row["setup"].get("trigger_price") is not None:     # CLDT carries no buy
+                assert result["_trigger_price"] == pytest.approx(float(row["setup"]["trigger_price"]), abs=0.005)
+            fired.append(row["key"])
+        else:
+            assert result is None
+            silent.append(row["key"])
     assert not_scanned == _THE_DOOR_REFUSES
     assert sorted(silent) == sorted(list(_REFUSED_ON_THE_READERS_BOX) + list(_LAST_DAY_ADVANCES))
     assert len(fired) == 44 and len(fired) + len(silent) + len(not_scanned) == 52     # his 52 (Fri 30/10/2026)
@@ -886,15 +869,12 @@ def test_through_the_door_the_reader_fires_on_his_day_at_his_trigger_or_is_named
 
 def test_the_universe_door_stands_before_the_read_and_a_refused_chart_is_not_scanned():
     from engine_alpha import reader, two_eyes
-    from core.calibration.replay import flag_capture
 
     setup, raw = _his("JAZZ:2026-02-24")
     cut = raw.loc[:pd.Timestamp("2026-02-11")]
     assert two_eyes.read("JAZZ", cut).fired, "the read itself fires: the door is what refuses the day"
     watch = {}
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        assert reader.evaluate_ticker("JAZZ", cut, watch=watch) is None
+    assert reader.evaluate_ticker("JAZZ", cut, watch=watch) is None
     assert watch["state"] == "not scanned" and watch["why"] == "sma50"
     # The entry that raises refuses the same way: not scanned is an answer, never a crash.
-    with flag_capture(TWO_EYES_READER_ENABLED=True):
-        assert reader.run_eval_chain("JAZZ", cut) is None
+    assert reader.run_eval_chain("JAZZ", cut) is None

@@ -212,19 +212,6 @@ def test_the_marking_ui_offers_exactly_the_types_the_backend_accepts():
     assert set(re.findall(r"'([^']*)'", m.group(1))) == set(EVENT_TYPES)
 
 
-def test_last_supper_is_a_descriptive_chip_not_a_warning():
-    """Operator ruling 2026-08-26: a Last Supper is a deep correction stocks
-    often pop off AFTER — it must never READ as a defect. It costs no points
-    either way (it is not a registered grade warning); this pins the DISPLAY
-    side, which is what actually trained the eye."""
-    from engine_alpha.scoring import scoring, taxonomy
-
-    spec = next(t for t in taxonomy.TAGS if t.id == "last_supper")
-    assert spec.warning is False
-    # ...and it is absent from the two warnings that DO discount the grade.
-    assert "last_supper" not in scoring._ta_grade_warnings(None, None)
-
-
 def test_ddl_checks_pin_the_same_closed_sets():
     """The frozen CHECK constraints in models.py must name exactly the sets
     this module owns — set EQUALITY in both directions: a module set the DDL

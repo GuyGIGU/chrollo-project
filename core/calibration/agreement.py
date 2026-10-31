@@ -35,7 +35,26 @@ from __future__ import annotations
 import math
 from datetime import date
 
-from engine_alpha.election_identity import DEFAULT_RAIL_TOL_BOX_FRAC, rails_match
+# Rails within this fraction of the (reference) box height are the same rail.
+# An instrument default, stamped into every report that uses it — not an
+# engine knob and never a firing decision.
+DEFAULT_RAIL_TOL_BOX_FRAC = 0.10
+
+
+def rails_match(r_a: float, s_a: float, r_b: float, s_b: float,
+                *, tol_box_frac: float = DEFAULT_RAIL_TOL_BOX_FRAC) -> bool:
+    """True when both rails agree within ``tol_box_frac`` of the FIRST pair's
+    box height (the reference reading). Non-finite inputs are a programmer
+    error — loud, never a silent False that skews a denominator."""
+    values = (r_a, s_a, r_b, s_b)
+    if not all(isinstance(v, (int, float)) and math.isfinite(v) for v in values):
+        raise ValueError(f"rails_match: non-finite rail in {values!r}")
+    height = r_a - s_a
+    if height <= 0:
+        raise ValueError(f"rails_match: reference rails inverted ({r_a}, {s_a})")
+    tol = tol_box_frac * height
+    return abs(r_a - r_b) <= tol and abs(s_a - s_b) <= tol
+
 
 OUTCOMES = ("match", "disagree", "engine_no_read", "vetoed_cause_absent",
             "edge_uncertain", "basis_mismatch", "negative_upheld",
