@@ -97,11 +97,13 @@ def test_decisions_carries_the_rulings_stranded_on_the_open_pull_request():
     )
 
 
-def _dark_rows() -> list[tuple[str, str, str]]:
-    """(first flag name, the Built cell, whole row) per row of the Dark table."""
+def _rows_under(heading: str) -> list[tuple[str, str, str]]:
+    """(first flag name, the Built cell, whole row) per row of the table under ``heading``."""
     text = _read("flag_ledger.md")
-    start = text.index("## Dark flags")
-    end = text.index("\n## ", start + 1)
+    start = text.index(heading)
+    end = text.find("\n## ", start + 1)
+    if end == -1:
+        end = len(text)
     rows = []
     for line in text[start:end].splitlines():
         line = line.strip()
@@ -112,6 +114,15 @@ def _dark_rows() -> list[tuple[str, str, str]]:
         if m:
             rows.append((m.group(1), cells[1].strip(), line))
     return rows
+
+
+def _dark_rows() -> list[tuple[str, str, str]]:
+    return _rows_under("## Dark flags")
+
+
+def _retired_rows() -> list[tuple[str, str, str]]:
+    """The Retired table: since Sat 31/10/2026 the method's switches sit here, deleted with the old engine."""
+    return _rows_under("## Retired")
 
 
 def test_flag_ledger_lists_every_dark_switch_exactly_once():
@@ -141,11 +152,13 @@ def test_every_method_switch_has_a_recorded_fate_in_the_rewrite():
     text = _read("flag_ledger.md")
     # "Built" says which build step raised the switch; the older lanes only MENTION
     # the method in their re-dating reason, so the cell is read, never the whole row.
-    method = [n for n, built, _ in _dark_rows()
+    # The switches were Dark until the old engine retired (Sat 31/10/2026); they are Retired rows now,
+    # and the fate table below still owes each one its row.
+    method = [n for n, built, _ in _dark_rows() + _retired_rows()
               if "final method" in built or "SOS sitting" in built
               or "AEF answer" in built]
     assert len(method) == 27, (
-        f"expected the method's 27 switches in the ledger's Dark table, parsed "
+        f"expected the method's 27 switches in the ledger's Dark or Retired table, parsed "
         f"{len(method)}: {sorted(method)}"
     )
 

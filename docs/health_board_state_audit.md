@@ -1,5 +1,7 @@
 # Health Board — State-Taxonomy Engine Audit
 
+*Record of 2026-06-30. The engine it maps was retired on Sat 31/10/2026; the board now reads the alpha reader's parent box through the reader door (`engine_alpha.reader.read_record`: the frame contract, the universe door, then the read) and the shared stock measures (`engine_alpha.metrics`: the trend template, the 52-week distance). "Near resistance" / "near support" is the last close within half a daily range of R or S (decision B of the one-reader plan; `docs/engine_reference.md`, "The old engine retired"). The hidden SMA-200 gate below is now the universe door's, by name.*
+
 Grounding for `docs/archive/specs/market-sector-health-board.md`. Produced by an adversarial 3-reader + synthesis audit of the engine's structure / trend / level surface (2026-06-30). Every state below was checked against real signals; states supported only by firing-only or measure-only surfaces were downgraded. **This is the engine map for council-plan and the implementers — it is not a plan.**
 
 ## The core constraint

@@ -182,9 +182,9 @@ guard `_vol_dry_refused` behind `if not holding_shelf:` — *"the shelf form is 
 | **Re-accumulation** | An accumulation process occurring **already inside a trend** — usually with a prior consolidation behind it | The ordinary continuation base |
 
 > ⚠️ **Correction to an earlier claim in this file: genesis accumulation is NOT out of scope.**
-> The SMA-200 gate (`evaluation.py:104-107`, and structurally at
-> `box_primitives.py:60-64` where
-> `collect_root_anchors` returns `[]` below the 200-day) does not block a genesis base. It blocks
+> The SMA-200 gate (the universe door, `engine_alpha/universe_door.py`; before Sat 31/10/2026 the old
+> engine's `evaluation.py:104-107`, and structurally its `box_primitives.py:60-64`, where
+> `collect_root_anchors` returned `[]` below the 200-day) does not block a genesis base. It blocks
 > **firing early in one** — in Phase A/B while price is still under its 200-day, down near the SC.
 > By the time the terminal LPS forms at the top of the range, price is above the 200-day and the
 > setup is perfectly reachable. MSFT's 2014-02-01 LPS would pass this gate.
@@ -255,7 +255,7 @@ the sealed protocol, not re-argue from canon.
 | Loosen respect / dwell / occupancy so canon's Phase-B boundary extension fits | Every lever tested: `EQ_MIN_HALF_DWELL` 0.15→0.125 admits ten junk candidates; →0.10 breaks the ratchet; `EQ_MAX_MID_DWELL` →0.50/0.55 breaks 4-6 pinned hits (MATX stops firing) and fires DGII junk; `MIN_BOUNDARY_RESPECT_PCT` →0.75 admits FLG + BBVA. *"Every gate floor is already sitting exactly where the junk begins."* |
 | Re-read a bounded poke-and-close-back-inside as "respect" | Tested and REJECTED as a gate — admitted FLG + BBVA at every bound ≥ 0.5 ATR while converting **zero** Guided List misses. The wick-basis gate **is** the upthrust/junk defence |
 | Swap dwell to a bar-as-unit basis | Tested and REJECTED — 10/26 hit identities break; DGII + FLG fire |
-| Set rails to the climax→AR extremes | The cascade deliberately descends past them; canon-literal framing trips `MAX_BOX_WIDTH` at once, and raising the cap reverts the rewrite. Breaks `doctrine_audit` B2/B3/B4 |
+| Set rails to the climax→AR extremes | The cascade deliberately descends past them; canon-literal framing tripped the old engine's `MAX_BOX_WIDTH` at once, and raising the cap reverted the rewrite; it broke its `doctrine_audit` B2/B3/B4 (both retired with that engine, Sat 31/10/2026; the alpha reader places its rails on the ends of earlier swings, never on the climax and reaction extremes) |
 | Cluster / order-statistic rail placement | Failed decisively: 20/66 rails within 0.5 ATR (needed 60). `cluster_rails` has **no engine caller** — a tripwire, not plumbing |
 | Bounded compensation across gate margins | Tested-DEAD — the fail-one-leg-with-surplus profile has exact junk twins |
 | Require a prior SOS before an LPS | The decoupling is *why* the engine reads a pre-breakout coil at all |

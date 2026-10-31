@@ -1,5 +1,7 @@
 # Backlog — started-but-unfinished work (survey 2026-07-21) — **SUPERSEDED 2026-08-23**
 
+*Record of its date. The old engine it describes was retired on Sat 31/10/2026; see `docs/engine_reference.md`, "The old engine retired".*
+
 > **This file is a historical snapshot, no longer the tracking surface.** The 2026-08-22
 > "One System" council found it carrying falsified guidance (the TA-v2 item below instructed
 > rebuilding a feature that FLIPPED LIVE 2026-08-09 — committed instructions to mint a forbidden

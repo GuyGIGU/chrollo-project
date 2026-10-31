@@ -20,7 +20,8 @@ Chrollo is a local stock screener with a web app. It never places trades.
 yfinance -> parquet cache -> core/pipeline (conductor)
                                |  calls, per ticker
                                v
-                          engine_alpha (structure measures -> scoring judges)
+                          engine_alpha (the universe door, then the alpha reader;
+                                        the adapter speaks the result row)
                                |
              output/screener_data.json  +  SQLite archive (core/archive)
                                |
@@ -70,7 +71,7 @@ lives in `core/calibration/` and `webapp/backend/domains/calibration/grading.py`
 
 | Path | Owns | Kind of code |
 |---|---|---|
-| `engine_alpha/` | Reading a chart and judging it. `evaluation.py` is the one per-ticker chain. | Production (frozen engine) |
+| `engine_alpha/` | Reading a chart and grading it: the alpha reader (`two_eyes/`) behind the one door (`reader.py`). | Production |
 | `core/pipeline/` | Data, universe, market context, running a scan, writing the payload. | Production |
 | `core/archive/` | The SQLite archive: writing rows, maturing outcomes, analysis, seeding, purging. | Production |
 | `core/backtest/` | The edge report and backtest statistics. The backend's edge tile and `core/archive/analyze_stats.py` import it. | Production |
@@ -86,32 +87,38 @@ lives in `core/calibration/` and `webapp/backend/domains/calibration/grading.py`
 | `output/` | Runtime files the scan writes (payload, logs). Only the README is tracked. | Generated |
 | `run_screener.py` | CLI entry for one scan. | Production entry point |
 
-## 4. Engine and scoring boundaries
+## 4. Engine boundaries
 
-**Structure measures, scoring judges, the pipeline coordinates.**
+**One reader reads and grades, in his order; the adapter speaks; the pipeline coordinates.** The old
+engine's split (`structure/` measured, `scoring/` judged, `evaluation.py` chained them) was retired on
+Sat 31/10/2026 ([`engine_reference.md`](engine_reference.md), "The old engine retired").
 
 | Part | Job | Must not |
 |---|---|---|
-| `engine_alpha/structure/` | Report facts about the chart: the box, phases, LPS, events, the reader, metrics, context. Subfolders: `box/`, `phases/`, `lps/`, `events/`, `narrative/`, `metrics/`, `context/`. | Assign points or decide whether a setup is good. |
-| `engine_alpha/scoring/` | Turn facts into points (`scoring.py`: `score_setup`, `compose_ta_grade`, `calculate_structure_tier`), name the sub-scores (`taxonomy.py`), and resolve chip verdicts (`tags.py`). | Read a chart. |
-| `engine_alpha/evaluation.py` | The one per-ticker chain: baseline filter, structure, LPS, scoring. The scan's worker processes pickle `_evaluate_ticker` by this name. | Fetch data or write files. |
-| `engine_alpha/reader.py` | The ONE door every caller asks which reader answers; the switch `TWO_EYES_READER_ENABLED` is read only in `which_reader`. A read only the other reader can give (the old box read `read_box`, the new reader's record `read_record`) refuses by name, `NotThisReader`. | Change what a reader returns. |
-| `engine_alpha/two_eyes/` | The two-eyes reader (dark): the chart read in his order, stage by stage. A leaf inside the leaf: its numbers (`two_eyes_numbers.py`), box roles (`two_eyes_roles.py`), wire shape (`two_eyes_adapter.py`) and archive columns (`two_eyes_archive.py`) sit outside the package so the old reader's night never loads it. | Import `engine_alpha.structure`, `engine_alpha.scoring` or `engine_alpha.evaluation`. |
-| `engine_alpha/stage_read.py` | The stock's life-cycle stage (1-4) on its weekly chart and the week its stage-2 advance began (2026-10-16); the new reader's adapter attaches it to every fire, display and archive only. Outside `structure/` because the old reader's trees are frozen. | Gate, score or tier anything; read the reader's two-year window instead of the whole frame. |
-| `engine_alpha/freeze/manifest.py` | The engine config hash: a hand-picked list of settings (`ENGINE_SETTINGS_KEYS`) that can move a detector decision. `python -m engine_alpha.freeze.manifest --hash` prints it. | Include ops settings (cache, scheduler, rate limits). |
+| `engine_alpha/reader.py` | The ONE door every caller reads through: `evaluate_ticker` (the whole chain under the skip guard: a result row, `None` or `EVAL_ERROR`), `scan_read` (the scan pool's worker; a frame the reader would not read comes back as `NotRead`, listed apart from the crashes), `run_eval_chain` (raises `ReadFailed`; the seed and the chart-state page), `read_record` (the reader's own record: the workbench, the health board, word recall). Always the frame contract, then the universe door, then the read. | Read a chart any other way. |
+| `engine_alpha/universe_door.py` | The baseline gate before the read, ONE implementation: price, 50-day volume, SMA50, SMA200, year-over-year return; the first failing leg names the reason. Floors in `config/universe.py`. | Read structure. |
+| `engine_alpha/two_eyes/` | The alpha reader: `frame.py` (what a chart must be), `line.py` + `swing_line.py` (stage 1, the one swing line and its far view), `runs.py` + `walk.py` (stages 2 to 4: the end of the trend, the pair, the box's life), `mini.py` (off, `MINI_ENABLED`), `lps.py` (stage 6, the LPS and its trigger), `story.py` + `line_words.py` (stage 5, the words against the box), `grade.py` + `clarity.py` + `traits.py` (stage 7, the letter and the place within it), `state.py` (the one state word, decided last), `record.py` (the shape of a read), `daily_range.py` (the box's own unit). Pure functions of the bars' highs and lows and each day's range; a crashed read is a counted failure, never "no lines". | Import `core`, `webapp` or `tools`; read `config.settings` (its numbers are `two_eyes_numbers.py`). |
+| `engine_alpha/two_eyes_adapter.py` | The record spoken in the scan's result shape (`REQUIRED_KEYS`), the screen block, the trend template and the stock's stage attached to every fire: the one place the reader's words and the result row meet. Beside it `two_eyes_archive.py` (the archive column family's one producer), `two_eyes_roles.py` (the box roles) and `two_eyes_numbers.py` (the reader's numbers, import-free, hashed into the version stamp). | Re-decide anything the reader said. |
+| `engine_alpha/metrics.py` | The stock measures the reader and the scan share: ATR, ADR%, the distance to the 52-week high, the trend template, the weekly/monthly resample. Measure-only, no settings. | Hold an opinion. |
+| `engine_alpha/stage_read.py` | The stock's life-cycle stage (1-4) on its weekly chart and the week its stage-2 advance began (2026-10-16); the adapter attaches it to every fire, display and archive only. | Gate, score or tier anything; read the reader's two-year window instead of the whole frame. |
+| `engine_alpha/sentinels.py`, `engine_alpha/market_sessions.py` | `EVAL_ERROR` (the failed read, an Enum member so it survives the process pool) and the closed table of state words the wire carries; the NYSE session rules the leaf and the pipeline share. | — |
+| `engine_alpha/freeze/manifest.py` | The engine config hash: a hand-picked list of settings (`ENGINE_SETTINGS_KEYS`, 29 names) plus every number in `two_eyes_numbers.py`. `python -m engine_alpha.freeze.manifest --hash` prints it. | Include ops settings (cache, scheduler, rate limits). |
 
 Settings:
 
-- Detection knobs default in `config/engine.py`. Weights, grade scales and tier thresholds
-  default in `config/scoring.py` (`SCORE_*`, `TIER_*`).
-- Every consumer reads them as `from config import settings`. `config/settings.py`
-  re-exports each default by name, and scoped overrides patch that one module
-  (`engine_alpha/structure/context/htf.py`, `window_override`), so every reader sees the
-  same value. Never import `config.engine` or `config.scoring` directly in engine code.
-- A new setting goes in its domain file **and** in the import list of `config/settings.py`.
-  If it can move a detector decision, add it to `ENGINE_SETTINGS_KEYS` on purpose; that
-  rotates the engine config hash, which is an archive seam.
+- The door's floors default in `config/universe.py` (`MIN_PRICE`, `MIN_VOLUME_50D`, `MIN_YEARLY_RETURN`,
+  `MIN_MARKET_CAP`); the reader's own in `config/reader.py` (`TWO_EYES_RULESET`, `DAILY_STRUCTURE_PERIOD`,
+  `ADR_WINDOW`). Every number the reader's stages read is in `engine_alpha/two_eyes_numbers.py`, not in
+  `config/`.
+- Every consumer reads settings as `from config import settings`. `config/settings.py` re-exports each
+  default by name, and scoped overrides patch that one module (`core/calibration/replay.py`'s
+  `flag_capture`), so every reader sees the same value. Never import a `config.<domain>` module directly.
+- A new setting goes in its domain file **and** in the import list of `config/settings.py`. If it can
+  move a reader decision, add it to `ENGINE_SETTINGS_KEYS` on purpose; that rotates the engine config
+  hash, which is an archive seam. A change to HOW the reader reads bumps `TWO_EYES_RULESET` (a spent
+  string is refused).
 - Before changing any of this, read the three engine docs in the order `CLAUDE.md` gives.
+
 
 ## 5. Pipeline boundaries
 
@@ -201,9 +208,7 @@ Rules that go with this layout:
 
 Sealed ground truth is not in `research/`: the operator's marks are in `docs/marks/` and the
 regression baselines in `tests/baselines/`. `tools/_bootstrap.py` refuses any tool write
-into either. It also holds `say_old_reader`: a tool that reads the old engine straight, past
-the reader door (`engine_alpha/reader.py`), prints first on a new-reader night that it reads the
-OLD reader (`tests/engine/test_reader_door.py` finds the tools that must).
+into either.
 [`research/README.md`](../research/README.md) has the full lifecycle.
 
 ## 9. Public entry points
@@ -214,7 +219,7 @@ OLD reader (`tests/engine/test_reader_door.py` finds the tools that must).
 | `core.pipeline.data` | The data door (`fetch_data`, `get_tickers`, `get_market_context`, `get_provider`). |
 | `core.pipeline.screening.run_screener` | Evaluate a universe and return ranked results (also importable as `core.pipeline.run_screener`, lazily). |
 | `core.pipeline.screening.scan_job` | `run_scan_and_export`, `run_all_universe_scans`: the full scan, payload and archive job. |
-| `engine_alpha.evaluation` | The per-ticker chain (`_evaluate_ticker`) and the scan ladder's twins, innermost first: `evaluate_ticker_with_near_miss`, `evaluate_ticker_with_watch`, `evaluate_ticker_with_rescue_stats`. |
+| `engine_alpha.reader` | The one door: `evaluate_ticker`, `scan_read` (the scan pool's worker), `run_eval_chain`, `read_record`. |
 | `webapp/backend/main.py` | The FastAPI app. Do not boot it as an agent; importing it runs the DB migrations, so set `CHROLLO_DB_PATH` first. |
 | `python -m core.archive.<x>` | `forward_returns`, `analyze`, `seed`, `seed_recall`, `purge`. |
 | `python -m tools.<category>.<x>` | Categories: `regression`, `audits`, `calibration`, `research`, `maintenance`, `ops`. |
@@ -224,11 +229,10 @@ OLD reader (`tests/engine/test_reader_door.py` finds the tools that must).
 
 | Path | Real implementation | Why it stays |
 |---|---|---|
-| `config/settings.py` | `config/{engine,scoring,enrichment,archive,market_data,market_context,runtime}.py` | It is the one runtime namespace. Scoped overrides set attributes on it, the manifest reads it, and every consumer must see the same values. Not a shim to remove. |
+| `config/settings.py` | `config/{universe,reader,enrichment,archive,market_data,market_context,runtime}.py` | It is the one runtime namespace. Scoped overrides set attributes on it, the manifest reads it, and every consumer must see the same values. Not a shim to remove. |
 | `webapp/backend/frame_store.py`, `webapp/backend/marks_validity.py` | `domains/calibration/frame_store.py`, `domains/calibration/validation.py` | Tools and tests import them by the old names, both bare and as `webapp.backend.<name>`. Each alias swaps itself in `sys.modules` for its target, resolved relative to its own name: bare `frame_store` is `domains.calibration.frame_store`, and `webapp.backend.frame_store` is `webapp.backend.domains.calibration.frame_store` (the same for `marks_validity` and `validation`). These are two module instances with separate globals, exactly as before the move, so a test or tool that patches a global (`FRAMES_DIR`, say) must patch both, as `tests/backend/test_frame_store.py` does. |
 | `webapp/backend/models.py`, `webapp/backend/archive_models.py` | `domains/*/models.py`, `domains/archive/models.py` and `market_context.py` | Registries: importing them registers every model before `create_all` in `app/startup.py`. `core/archive` and many tests import `archive_models` by bare name. |
-| Lazy `__init__.py` in `engine_alpha/structure/{lps,narrative,metrics}/` and `core/pipeline/{universe,market_data,screening}/`, plus `core/pipeline/__init__.py` | `detection.py`, `reader.py`, `base.py`, `descriptor.py`, `providers.py`, `screening/screener.py` | They keep short import names for a few public functions. The `core/pipeline` ones are lazy so the backend boot stays engine-free; the engine ones save nothing at load time, because `engine_alpha/structure/__init__.py` imports its subpackages eagerly. |
-| `tools/calibration/replay.py`, `tools/calibration/agreement.py` | `core/calibration/{replay,agreement}.py` | Branches cut before the move import these names, and two engine comments cite them. Each alias swaps itself in `sys.modules`, so both names give one module. Remove them once those branches are ported, then add both names to `test_moved_module_paths.py`. |
+| Lazy `__init__.py` in `core/pipeline/{universe,market_data,screening}/`, plus `core/pipeline/__init__.py` | `descriptor.py`, `providers.py`, `screening/screener.py` | They keep short import names for a few public functions, and they are lazy so the backend boot stays engine-free. (The engine's own lazy `__init__.py` files went with `engine_alpha/structure/` on Sat 31/10/2026, as did the two `tools/calibration/{replay,agreement}.py` aliases.) |
 | Names re-exported by `core/archive/analyze.py` | `analyze_features.py`, `analyze_stats.py` | The backend's calibration route, `tools/research/backtest_engine.py` and tests import them from `analyze`. |
 | `_batched_download`, `_is_yahoo_rate_limit_text`, `price_auto_adjust` in `core/pipeline/market_data/downloads.py` | `yahoo_download.py`, `price_regime.py` | Their existing importers use `downloads`. A test that patches a name must patch the module that looks it up. |
 | `tools/run_maturation.bat` | `tools/ops/run_maturation.bat` | The Windows scheduled task "Chrollo Forward Returns" runs this absolute path and is not being re-registered, so this forwarder is the task's permanent entry point, not a shim awaiting removal: it only calls `tools/ops/` and passes back the exit code. `tests/tooling/test_maturation_launcher.py` pins it. |
@@ -242,10 +246,10 @@ Then:
 
 | I am adding... | Put it in | Also |
 |---|---|---|
-| A detector measure (a fact about the chart) | The matching `engine_alpha/structure/<subfolder>/` module | Knob default in `config/engine.py` plus the `config/settings.py` import list. Measure-first: archive the raw value, never gate or penalise at add time. Update `engine_reference.md`. |
-| A score term or weight | `engine_alpha/scoring/scoring.py`, named in `taxonomy.py` | Weight in `config/scoring.py`. Do not change existing weights or tiers without being asked. |
-| A chip verdict | `engine_alpha/scoring/tags.py` | Label and tone only in `shared/setup/tagCatalog.js`. |
-| A flag-gated engine capability | Behind a `*_ENABLED` key in `config/engine.py` | A row in [`flag_ledger.md`](flag_ledger.md) in the same change, with a kill-by date. |
+| A fact the reader measures (a box, an event, a trait) | The stage that owns it in `engine_alpha/two_eyes/` (`walk.py`, `lps.py`, `story.py`, `grade.py`, `traits.py`, ...) | Its number in `engine_alpha/two_eyes_numbers.py`, one plain line (the version stamp hashes it). Measure-first: archive the raw value, never gate at add time. Update `engine_reference.md`, and `strategy_alpha.md` if the theory moves. |
+| A grade trait or weight | `engine_alpha/two_eyes/traits.py` (the trait table) | Weights in `two_eyes_numbers.py` (`TRAIT_WEIGHTS`). Do not change existing weights or the letter rule without being asked. |
+| Something the screen or archive needs from a read | `engine_alpha/two_eyes_adapter.py` (the result row and the screen block), `two_eyes_archive.py` (the columns) | The frontend formats only; a verdict crosses the wire resolved. |
+| A reader rule built to be measured | A bool in `engine_alpha/two_eyes_numbers.py` (as `MINI_ENABLED`, `RESPECT_ELECTS`), off by default | Its measurement in `decisions.md` in the same change (the Tested-DEAD table when it is left off). A `*_ENABLED` setting outside the reader gets a row in [`flag_ledger.md`](flag_ledger.md) with a kill-by date instead. |
 | A market-data source | `core/pipeline/market_data/providers.py` (behind `get_provider`) | Settings in `config/market_data.py`. |
 | A universe | `core/pipeline/universe/descriptor.py` | Ticker list in `config/`. |
 | An archive column | The model in `webapp/backend/domains/archive/models.py` | The additive migrator adds nullable columns on the next boot; the writer in `core/archive/writer.py`. |

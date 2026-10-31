@@ -1,5 +1,20 @@
 # Current state
 
+**2026-10-31 The old engine retired (branch `claude/retire-old-engine`, not merged; deployment
+pending):** his word, late Fri 30/10/2026: *"retire the old engine, from now on we focus on the new
+one obviously!"*. One reader: the alpha reader (`engine_alpha/two_eyes/`) behind the one door
+(`engine_alpha/reader.py`), no switch. `engine_alpha/structure/`, `engine_alpha/scoring/`,
+`evaluation.py`, `config/engine.py`, `config/scoring.py`, the near-miss writer and the old ratchets
+and audits are deleted (170 files; the engine 24,163 lines to 5,565; the suite 3,676 tests to 2,367).
+Nothing the reader says moved: his board 43 of 51, the junk 47 fire days, the reader pin zero-diff.
+Engine stamp `3f3aefb5…`, ruleset `two-eyes-0.12.0-one-reader`, a declared epoch. The weekly and
+monthly panes carry the parent box's own rails; the health board reads the reader's parent box through
+the door; the archive writers NULL the retired column families on every write; the frontend lost only
+the calibration engine overlay, the agreement chip and the sub-score panels. The saved payload of 30/10
+carries the old stamp, so `tools.audits.live_reader_audit --check` refuses until the first scan after
+the deploy re-pins it (then `--check --repeat`). Record and decisions A to H: [`engine_reference.md`](engine_reference.md), "The old engine retired";
+the ruling row in [`decisions.md`](decisions.md).
+
 **2026-10-28 ETFs in the base list (branch `claude/etfs-in-base-list`, not merged; deployment
 pending):** the US-stocks universe keeps the NASDAQ directory's fund rows (it used to drop
 every `ETF == 'Y'` row), minus the leveraged / inverse daily products by name
@@ -104,7 +119,17 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
 
 ## Engine, scoring, research
 
-- **Engine:** config hash `0bbadfac…` (`python -m engine_alpha.freeze.manifest --hash`),
+- **Engine (Sat 31/10/2026): the alpha reader is the one reader.** Config hash `3f3aefb5…`
+  (`python -m engine_alpha.freeze.manifest --hash`), ruleset `two-eyes-0.12.0-one-reader`; the manifest
+  holds 29 settings (the door's floors in `config/universe.py`, the reader's own in `config/reader.py`,
+  the fundamentals, RS-line and sector-ranking knobs) plus every number in `two_eyes_numbers.py`. The old
+  engine and its knobs are gone ([`engine_reference.md`](engine_reference.md), "The old engine retired"); the live stamp before was `80f2ec31…`
+  (the scan of 30/10). Reader pin passes (`python -m tools.regression.reader_pin --check`, rebuilt on the
+  reader's own record over 105 charts); the marks ratchet reads 51 of his 52; the junk gate pins 47 days.
+  The retired lanes: the near-miss lane (its table read-only history), the watch and rescue lanes, the
+  final method's 27 switches, the HTF context, the sub-scores and chapters (the tier is the reader's
+  letter, the score its place within it).
+- **The hash's history, before the retirement:** config hash `0bbadfac…`,
   unchanged by the domain refactor. Reader pin passes (`python -m tools.regression.reader_pin --check`).
   Merging the consolidation-method branch (`claude/eager-chatelet-65e8d4`, PR #11) onto this layout
   rotated it to `193b61c4…`, identity only: two flag keys (`BAR_POSTURE_RESCUE_ENABLED`,
@@ -172,17 +197,19 @@ priority lands or a branch merges. Layout: [`architecture.md`](architecture.md).
   shown as its own group, never pooled: report card section 7, a line on the Home edge tile, and
   the Archive screen's "Calibration setups" filter. Live after `update_dashboard.bat` and the next
   outcome run (or the Archive's Update Forward Returns button).
-- **Scoring:** tier comes from the TA grade against 62 / 52 / 42 / 32, with the
-  `S_MAX_BOX_WIDTH` cap (0.15) on top (`config/scoring.py`). RS and uptrend weights are 0;
-  the re-opened A/B recommends keeping them there, and the operator's answer is owed ([`asks.md`](asks.md)).
-- **Engine rewrite:** the final method (`claude/method-steps-7-12` with `claude/sos-session`) is merged
+- **Scoring:** retired with the old engine on Sat 31/10/2026. The tier is the reader's grade letter
+  (S/A/B/C, from the dead space and the hold) and the score its place within the letter from his traits
+  (`two_eyes/grade.py`, `two_eyes/traits.py`; the weights in `two_eyes_numbers.py`). The 62 / 52 / 42 / 32
+  ladder, `S_MAX_BOX_WIDTH`, the sub-scores and the RS / uptrend weights are gone with `config/scoring.py`;
+  the RS/uptrend answer owed in [`asks.md`](asks.md) is moot.
+- **Engine rewrite (history; the reader went live 10/10 and became the one reader 31/10):** the final method (`claude/method-steps-7-12` with `claude/sos-session`) is merged
   here, every switch dark; the approval sitting flips them together ([`final_method_2026-09.md`](final_method_2026-09.md)).
   `claude/two-eyes-reader` still carries unmerged engine work; it was ported onto this layout on
   2026-09-26 (base `61c88cc`). Its build is CLOSED (Fri 09/10/2026: every stage, the screen block and
   the approval pack built, dark) and the branch review's fixes followed; next are his approval sitting and
   a go-live plan. His FRPH ruling of Fri 09/10/2026 was DROPPED on Sat 10/10/2026, in his words "just leave these two
   behind": no reader rule, nothing on the go-live list. None of it is live here.
-- **The two-eyes flip — built, his word pending (Sat 10/10/2026).** The go-live plan
+- **The two-eyes flip (history: flipped on his word, Sat 10/10/2026; the switch itself deleted Sat 31/10/2026).** The go-live plan
   (`.council/plans/two-eyes-go-live.md`) joins the reader branch with the live branch on
   `claude/sweet-napier-461716`, `TWO_EYES_READER_ENABLED` still False there. The flip commit (the
   switch on, every pin of "off" moved with it) is prepared on `claude/two-eyes-flip`; on the night it
@@ -214,21 +241,20 @@ archive's job and is not settled (see Research). "Dark" means built, off, and wa
 
 | State | `*_ENABLED` flags (value in `config/*.py`) |
 |---|---|
-| LIVE, engine | `CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `EVENT_MAP`, `SENTENCE_ARCHIVE` (measure-only `sentence_*` archive columns) |
+| LIVE, engine | none left as flags: the reader has no `*_ENABLED` setting. Its rules built to be measured are bools in `two_eyes_numbers.py` (`MINI_ENABLED` off, `RESPECT_ELECTS` off, `WRAP_TAKES_OVER` on), recorded in `decisions.md`. The old engine's live flags (`CAUSE_BEFORE_EFFECT_VETO`, `BAND_RAILS`, `STORY_POOL`, `NEAR_MISS_LANE`, `ELECTION_DETHRONE`, `LPS_OVERSHOOT_WINDOW_ATR`, `LPS_AFTER_SPRING`, `LPS_HOLDING_SHELF`, `HTF_CONTEXT`, `EVENT_MAP`, `SENTENCE_ARCHIVE`) went with it on 2026-10-31 |
 | LIVE, advisory (display + archive, never scored) | `FUNDAMENTALS` (2026-10-03) |
 | LIVE, infrastructure | `HEALTH_BOARD`, `TICKER_ADMISSION`, `YAHOO_RATE_LIMIT`, `QUARANTINE` |
-| DARK, final method, kill-by 2026-11-30 | `RESPECT_WHOLE_BAR`, `DWELL_GRADED`, `BOX_HANDOVER_RANGES`, `SPRING_BOUNDS_LIFTED`, `LPS_RANGES_YARDSTICK`, `LPS_GRADED_TRAITS`, `LPS_WINDOW_RECEDING`, `LPS_BUY_DAY_READS_HIGH`, `LPS_REFUSALS_TO_GRADES`, `LPS_SELLERS_RISING_FATAL`, `TURN_LINE`, `TURN_LINE_TREND`, the six `LINE_WORD_*`, `BASE_AGE_FROM_ANCHOR`, `BOX_WIDTH_CAPS_GRADED`, `DEPTH_CAPS_GRADED`, `RESPECT_GRADED`, `LPS_LEAVES_ELECTION`, `BOX_OPENS_ON_ANCHORS`, `CLIMAX_FIRST_WALK`, `BOX_END`, `GRADE_LEDGER` |
-| DARK, kill-by 2026-11-30 | `RS_LINE`, `SECTOR_RANKING`, `ELECTION_TRACE_EXPORT`, `STRATEGY_READ`, `ELECTION_STABILITY` (all re-dated from 2026-09-30 / 2026-09-15 with written reasons, [`flag_ledger.md`](flag_ledger.md)) |
-| DARK, kill-by 2026-10-31 | `CONTRACTION_RESCUE`, `BAR_POSTURE_RESCUE`, `SMA50_DIP_EXCEPTION`, `BOTTOMING_BASE_LANE`, `LPS_CEILING_REST`, `POWER_PLAY_STORY_FORM` |
-| RETIRED (key deleted) | `POWER_PLAY_PRESET` (2026-09-19, with the species lane), `TREND_TERMINAL_BOX_GATE`, `AR_FIRST_REACTION` (both 2026-09-08), `PIP_PIVOTS`, `LPS_REQUIRE_PEAK_DOWN`, `TA_SCORE_V2`, `EQ_DWELL_BAR_BASIS`, and the seven keys folded 2026-07-18 |
+| DARK, kill-by 2026-11-30 | `RS_LINE`, `SECTOR_RANKING` (Lane C enrichment, outside the reader; [`flag_ledger.md`](flag_ledger.md)) |
+| RETIRED (key deleted) | **2026-10-31, with the old engine:** the final method's 27 switches (`RESPECT_WHOLE_BAR` ... `GRADE_LEDGER`), `ELECTION_TRACE_EXPORT`, `STRATEGY_READ`, `ELECTION_STABILITY`, `CONTRACTION_RESCUE`, `BAR_POSTURE_RESCUE`, `SMA50_DIP_EXCEPTION`, `BOTTOMING_BASE_LANE`, `LPS_CEILING_REST`, `POWER_PLAY_STORY_FORM`, `TWO_EYES_READER` (the switch) and every live flag of the old engine; before that `POWER_PLAY_PRESET` (2026-09-19, with the species lane), `TREND_TERMINAL_BOX_GATE`, `AR_FIRST_REACTION` (both 2026-09-08), `PIP_PIVOTS`, `LPS_REQUIRE_PEAK_DOWN`, `TA_SCORE_V2`, `EQ_DWELL_BAR_BASIS`, and the seven keys folded 2026-07-18 |
 
 ## Known limitations
 
-- The marks ratchet reports **STALE** (`python -m tools.regression.marks_corpus --check`): the
-  operator redrew, so the live DB's box marks no longer match the corpus (the check prints the
-  count and the refresh).
-- The climax anchor is still a fixed 60-day window off the box open; box placement and
-  `segment_trends` box-blindness are open ([`flag_ledger.md`](flag_ledger.md), AR row).
+- The marks ratchet reads 51 of his 52 drawings (`python -m tools.regression.marks_corpus --check`;
+  MDT of 24/07 the door refuses, 3.77 ranges under the 200-day) and reports **STALE** whenever he
+  redraws, until `--build-fixture` is run from the calibration frames (never `guided_list_export`).
+- On his day, 43 of his 51 drawings fire at his trigger (the board); the eight misses are the
+  reader's open work ([`decisions.md`](decisions.md), the rows of October). The old engine's open
+  items (the 60-day climax window, `segment_trends` box-blindness) retired with it on 2026-10-31.
 - The parquet cache is survivor-only: delisted names are absent ([`edge_read_2026-07-22.md`](edge_read_2026-07-22.md)).
 - `core/archive` and the payload writer import the backend's ORM by bare name (the one seam left in
   [`architecture.md`](architecture.md) §2).

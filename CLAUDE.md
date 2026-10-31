@@ -7,9 +7,10 @@ Where code lives and which way imports run: `docs/architecture.md`. What is live
 
 ## Non-negotiable reading rule
 
-Before modifying ANY chart-reading engine code — `engine_alpha/structure/`, `engine_alpha/scoring/`, or
-their knobs (detection in `config/engine.py`, scoring in `config/scoring.py`; `config/settings.py` is
-only the namespace that re-exports them) — read, in this order:
+Before modifying ANY chart-reading engine code — the alpha reader `engine_alpha/two_eyes/`, its adapter
+`engine_alpha/two_eyes_adapter.py`, the one door `engine_alpha/reader.py`, the reader's numbers in
+`engine_alpha/two_eyes_numbers.py`, or the door's floors and the reading window (`config/universe.py`,
+`config/reader.py`; `config/settings.py` is only the namespace that re-exports them) — read, in this order:
 
 1. **`docs/strategy_alpha.md`** — the THEORY (Reading Model at minimum). The source of truth for
    how we understand chart analysis; the code implements it, not the other way around.

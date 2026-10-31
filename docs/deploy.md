@@ -520,6 +520,11 @@ dashboard stays broker-free at boot exactly as before.
 
 ## The Flip (the two-eyes reader goes live)
 
+*Record of Sat 10/10/2026: the flip happened on his word that night. On Sat 31/10/2026 the old engine, the
+switch (`TWO_EYES_READER_ENABLED` in `config\engine.py`) and the old reader the undos fall back to were deleted
+(`docs/engine_reference.md`, "The old engine retired"), so undo 1 and undo 2 below no longer exist; the last
+level, the backup of step 1, does, and the morning check still checks every night.*
+
 **Not yet: built, his word pending** (the flip commit waits on `claude/two-eyes-flip`). Only after
 his approval sitting. Every command below is
 his, run in this order from the repo folder (PowerShell, the repo venv). The stamps named are the ones
@@ -586,46 +591,12 @@ rehearsed on a copy of the archive on Sat 10/10/2026 (go-live plan task 10) and 
      do NOT re-scan by hand: the next scheduled night scans and archives as before.
    - **Last level:** restore the backup of step 1 (section 4c).
 
-## Replaying a Scan Night With Both Readers (before the two-eyes flip)
+## Replaying a Scan Night With Both Readers (retired)
 
-The two-eyes reader is built dark (`TWO_EYES_READER_ENABLED` stays `False`; the flip is the go-live
-plan's, after the operator's approval). Before it, one real scan night is read by BOTH readers, every
-ticker through the one door, from the repo folder in PowerShell with the repo venv:
-
-```powershell
-.\.venv\Scripts\python.exe -m tools.calibration.parallel_night output\nights\two-readers
-```
-
-- **Outside the scan slot.** It refuses to start from the scan's hour (`SCAN_SCHEDULE_HOUR_ET`, New
-  York) until two hours after it, while the nightly scan and its catch-up run. The guard is that clock
-  window only: it does not see a scan started by hand at another hour, so look at the dashboard's scan
-  status before you run it.
-- **On a copy.** The scan's market-data file, its meta, the two eligibility ledgers beside it and the
-  scan's own payload of that night (`output/screener_data.json`; `--payload` names another) are copied
-  into the folder you name first, and only the copies are read; the night read is the night copied
-  (its sha256 is in the side file). The service's files are opened only for the length of that copy.
-- **Beside the scan it replays.** The old reader here is this checkout's engine, which need not be the
-  engine that scanned that night, nor its cuts after the read (the market-cap floor). The night says
-  what the scan showed, under which engine, what it took out after its read, and which fires only one
-  of the two has; a payload of another night is named, never compared. The replay reads every chart
-  of the copied panel its ledgers admit; the scan read the names of its ticker list it admitted that
-  night, a set it does not keep on disk, so the two counts can differ (5,520 against 5,502 on Thu
-  08/10/2026); the pack's page says so when they do.
-- **Side files only.** `night.json` and `night.txt` in that folder (and the copies, and the market
-  context computed from them, which a rerun into the same folder on the same night reuses): both
-  readers' fires, the new reader's state words, each reader's wall clock and its five slowest reads,
-  stamped with each reader's engine version. Nothing reaches the archive, the screener payload or the
-  screen.
-
-The approval pack folds the night into its one page. The night runs first: the pack reads three charts he
-never drew (the small box's "near" at work) from the night's copied panel.
-
-```powershell
-.\.venv\Scripts\python.exe -m tools.calibration.parallel_night output\approval-pack\night
-.\.venv\Scripts\python.exe -m tools.calibration.approval_pack output\approval-pack
-```
-
-After another night, `--index-only` rewrites the page without reading a chart again.
+`tools.calibration.parallel_night` (one night read by both readers, on a copy) and
+`tools.calibration.approval_pack` (its one page for his approval sitting) were retired with the old engine on
+Sat 31/10/2026: there is one reader to replay, and the morning check below is the night's check. The nights they
+wrote (`output\nights\`, `output\approval-pack\`) are records of the sitting.
 
 ## The Undo Night (re-read the screen, archive nothing)
 
@@ -639,7 +610,7 @@ curl.exe -N "http://127.0.0.1:8000/run-evaluation-stream/?no_archive=true"
 ```
 
 It runs under the service's scan lock (refused while another scan runs), rewrites the screen's files,
-and writes nothing to `setup_archive`, the near-miss lane or the calibration setups; the forward-return
+and writes nothing to `setup_archive` or the calibration setups; the forward-return
 backfill does not run with it. The run's row in the scan history says "not archived", the scan log
 prints a "Not archived" line per universe, and the screen's file carries `"archived": false` in its
 market context. With the service stopped, the same switch is

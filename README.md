@@ -34,8 +34,9 @@ New here? Read this file top-to-bottom, then:
    SPY and QQQ ride along as market context (`INDEX_SYMBOLS`). Three universes run off the same
    engine, each with its own cache and artifact: **US Stocks** (the NASDAQ common-stock default),
    **US Sectors + Market**, and **Commodities + ETFs**.
-2. **Screens** every ticker through a 4-phase pipeline: baseline filters → consolidation/box
-   detection → Last-Point-of-Support detection → scoring & tier (S/A/B/C/D). See `strategy_alpha.md`.
+2. **Screens** every ticker through the universe door, then the alpha reader, in his order: the swing
+   line → the box (the end of the trend, the pair, the box's life) → the LPS and its trigger → the story →
+   the grade (a letter S/A/B/C and a place within it) → the state word. See `strategy_alpha.md`.
 3. **Renders** the survivors in a React dashboard: OHLC bar charts with the detected box/LPS
    drawn on, the tier, "why-ranked" tag chips, filtering, sorting, and a star-able watchlist.
 4. **Archives** every scan to SQLite and **backfills forward returns** over the following days, so
@@ -52,12 +53,14 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
 ```
                           ┌───────────────────────────────────────────────────┐
    yfinance ──▶ parquet ──▶│  the screener engine                              │
-                          │   engine_alpha/structure/  Visual Structure Engine │
-                          │               (pure geometry: boxes, LPS,          │
-                          │                contractions, ADR) — no opinion     │
-                          │   engine_alpha/scoring/    Scoring Engine          │
-                          │               (facts → points → tier;              │
-                          │                weights in config/scoring.py)       │
+                          │   engine_alpha/reader.py   the one door            │
+                          │               (frame contract, universe door, read)│
+                          │   engine_alpha/two_eyes/   the alpha reader        │
+                          │               (line → box → LPS → story → grade →  │
+                          │                state word: one record; numbers in  │
+                          │                two_eyes_numbers.py)                │
+                          │   engine_alpha/two_eyes_adapter.py  the voice      │
+                          │               (the record as the scan's result row)│
                           │   core/pipeline/  the conductor (data + per-ticker │
                           │                orchestration, ProcessPool)         │
                           │   core/archive/   the measuring stick (record,     │
@@ -77,14 +80,16 @@ The screener half (1–4) is **fully decoupled from the broker** — automation 
                           webapp/frontend  — React 19 + Vite (lightweight-charts)
 ```
 
-**Two engines + a conductor** is the core design principle: `engine_alpha/structure/` *measures*
-(it has no opinion and never assigns points), `engine_alpha/scoring/` *judges* (every weight is a
-tunable in `config/scoring.py`; code reads it through the one `config.settings` namespace), and
-`core/pipeline/` wires them together. `engine_alpha/` is a leaf: it never imports the pipeline,
-the archive, the web app or the tools. `core/archive/` exists
-so the opinions in `scoring/` can eventually be validated against real forward outcomes rather
-than intuition. (The reading engine was extracted from `core/` into `engine_alpha/` in the
-2026-07-18/20 engine-α freeze.)
+**One reader + a conductor** is the core design principle: `engine_alpha/two_eyes/` *reads* a chart in
+his order (the line, the box, the LPS, the story, the grade, the state word) into one record of measured
+facts and dated words, and nothing outside it re-decides any of that; `engine_alpha/two_eyes_adapter.py`
+*speaks* the record in the scan's result shape; `engine_alpha/reader.py` is the *one door* every caller
+reads through (the universe door first); and `core/pipeline/` wires them together. `engine_alpha/` is a
+leaf: it never imports the pipeline, the archive, the web app or the tools. `core/archive/` exists so the
+reader's grades can be validated against real forward outcomes rather than intuition. (The reading engine
+was extracted from `core/` into `engine_alpha/` in the 2026-07-18/20 engine-α freeze; that old engine —
+`structure/` measuring, `scoring/` judging — was retired on Sat 31/10/2026 for the alpha reader built
+beside it from 20/09/2026: `docs/engine_reference.md`, "The old engine retired".)
 
 ### Measure-first philosophy
 
@@ -102,12 +107,14 @@ The full map, with import rules, compatibility paths and a "where do I put this?
 [`docs/architecture.md`](docs/architecture.md).
 
 ```
-engine_alpha/          The frozen reading engine (see core/MAP.md)
-  structure/           Measurement, no opinion: box/, phases/, lps/, events/, narrative/,
-                         metrics/, context/
-  scoring/             Opinion: score_setup, compose_ta_grade, calculate_structure_tier,
-                         tags.py (chip verdicts); weights live in config/scoring.py
-  evaluation.py        The one per-ticker chain: baseline filter → structure → LPS → scoring
+engine_alpha/          The reading engine (see core/MAP.md)
+  reader.py            The one door: evaluate_ticker, scan_read, run_eval_chain, read_record
+  universe_door.py     The baseline gate before the read (price, volume, SMA50, SMA200, YoY)
+  two_eyes/            The alpha reader, his seven stages: frame, line, walk, mini (off), lps,
+                         story, grade + traits, state; record.py is the shape of a read
+  two_eyes_adapter.py  The record spoken as the scan's result row; two_eyes_archive.py the
+                         archive columns; two_eyes_numbers.py the reader's numbers (hashed)
+  metrics.py, stage_read.py, sentinels.py, market_sessions.py
   freeze/manifest.py   The engine config hash
 core/
   pipeline/            Conductor — data.py (public data door); market_data/, universe/,
@@ -118,9 +125,9 @@ core/
   calibration/         Engine replay on frozen calibration frames (workbench chips + calibration tools)
   backtest/            Edge report + backtest statistics (production: the edge tile uses it)
   regime/, fundamentals/   Relative strength, sector ranking, fundamentals (RS rating + fundamentals live, display only)
-config/                Defaults by domain: engine.py (detection knobs), scoring.py (weights,
-                         tiers), enrichment.py, archive.py, market_data.py,
-                         market_context.py, runtime.py; settings.py = the one namespace code
+config/                Defaults by domain: universe.py (the door's floors), reader.py (the
+                         ruleset, the 2y window, the ADR window), enrichment.py, archive.py,
+                         market_data.py, market_context.py, runtime.py; settings.py = the one namespace code
                          reads. tickers.csv (cached NASDAQ universe, gitignored),
                          tickers_us_sectors.csv / tickers_commodities_etf.csv (the curated ETF
                          universes), commodity_equity_map.json (ETF → related-equity drill-down)
@@ -141,7 +148,7 @@ docs/                  architecture.md (layout), current_state.md (live/dark/nex
 tools/                 Dev tools, one folder per job: regression/ (drift ratchets), audits/,
                          calibration/, research/ (censuses, A/Bs, renders), maintenance/,
                          ops/ (backup, restore drill, service recovery)
-tests/                 pytest, one folder per thing it protects (engine/, scoring/, pipeline/,
+tests/                 pytest, one folder per thing it protects (engine/, pipeline/,
                          market_data/, archive/, backend/, contracts/, tooling/, regression/,
                          integration/); baselines/ and fixtures/ are data
 research/              Evidence the rulings cite: evidence/ (census JSON), fidelity/ (renders, logs, A/B sheets)
@@ -236,19 +243,22 @@ Use the smallest guard that proves the change, then widen only when the touched 
 
 - Local edits: run focused tests for the touched module, then `.\.venv\Scripts\python.exe -m pytest -q` before merge.
 - Detector or market-data intake changes: run `.\.venv\Scripts\python.exe -m tools.regression.shadow_diff --check` (fleet canonical
-  drift, ~2.5 min) and `.\.venv\Scripts\python.exe -m tools.regression.negative_corpus --check` (labeled junk must not fire, ~1.5 min).
+  drift, ~2.5 min) and `.\.venv\Scripts\python.exe -m tools.regression.negative_corpus --check` (the junk charts' fire days, ~1.5 min).
   Both grade the marks ratchet's fired window (`core.calibration.replay.fired_window_walk`: the last 10 trading days ending at each
-  frozen day, every clamp named), not the frozen day alone. A junk case that fires on ANY window day fails, with every fire
-  day, score and tier named. A fleet ticker with no fire in the window is dropped; one that fires records the canonical fields
-  of its LAST fire plus `first_fire` / `last_fire` / `fire_days`, so a fire that moves a day earlier reads as drift
-  (final method build step 1, operator ruling 2026-09-13). Early-window junk fires the engine already produced at that
-  seam are pinned as KNOWN in `tests/baselines/negative_corpus_baseline.json` (`--pin-known-fires`, a declared seam
-  recorded in `docs/decisions.md`): the check prints them and reds only on a NEW fire day.
-- Structure-reader, fetch, or seed-recall-sensitive changes: run `.\.venv\Scripts\python.exe -m core.archive.seed_recall --check`.
+  frozen day, every clamp named), not the frozen day alone. The junk gate PINS the days each of the 16 junk charts fires
+  (`tests/baselines/negative_corpus_baseline.json`: 47 days over 15 charts, GOOD silent) and fails on a fire on an unpinned day,
+  on GOOD firing, on a crash or on a missing frame, with the day, score and tier named; a pinned day that goes quiet is named,
+  not failed. A fleet ticker with no fire in the window is dropped; one that fires records the canonical fields of its LAST
+  fire plus `first_fire` / `last_fire` / `fire_days`, so a fire that moves a day earlier reads as drift (final method build
+  step 1, operator ruling 2026-09-13). Re-pinning the junk days is a declared seam (`--pin-known-fires`, recorded in
+  `docs/decisions.md`), never a routine recapture.
+- Reader, fetch, or seed-recall-sensitive changes: run `.\.venv\Scripts\python.exe -m core.archive.seed_recall --check`.
   The checked baseline is intentionally `basis: "fresh"`; only recapture it with an explicit review decision.
-- Engine reading changes: also run `-m tools.regression.marks_corpus --check` (the operator-marks ratchet),
-  `-m tools.regression.reader_pin --check`, and, once the change has landed in the main checkout,
-  `-m tools.audits.doctrine_audit --check` (`docs/decisions.md`, "How a change to this engine should go").
+- Reader changes: also run `-m tools.regression.marks_corpus --check` (the operator-marks ratchet: his 52 drawings, 51
+  fire on some day of their window), `-m tools.regression.reader_pin --check` (the reader's own record over 105 fixture
+  charts; zero-diff is the fold acceptance), and, once the change has landed in the main checkout and a scan has run on it,
+  `-m tools.audits.live_reader_audit --check --repeat` (the saved scan replayed through the door; it refuses another
+  engine hash, so the first scan after the deploy is what re-pins it).
 - Frontend changes: run `npm --prefix webapp\frontend run lint`, `npm --prefix webapp\frontend test`,
   and `npm --prefix webapp\frontend run build` — the build in a worktree only, since the live service
   serves the main checkout's `webapp/frontend/dist` (`update_dashboard.bat` rebuilds it safely).

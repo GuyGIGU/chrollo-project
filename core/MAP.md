@@ -3,30 +3,37 @@
 A plain-English tour of how the screener is organized. No coding knowledge needed —
 this is the "where does X live?" cheat sheet.
 
-The engine is built as **two engines and a conductor**, plus a measuring stick. The
-reading half (structure + scoring + per-ticker evaluation) was extracted from `core/`
-into the frozen **`engine_alpha/`** package in the 2026-07-18/20 engine-α freeze; the
+The engine is built as **one reader and a conductor**, plus a measuring stick. The
+reading half was extracted from `core/` into the **`engine_alpha/`** package in the
+2026-07-18/20 engine-α freeze; on Sat 31/10/2026 that old engine (its `structure/` and
+`scoring/` halves and the `evaluation.py` chain) was retired for the alpha reader built
+beside it from Sun 20/09/2026 (`docs/engine_reference.md`, "The old engine retired"). The
 conductor and the archive stay in `core/`:
 
 ```
         core/pipeline/   "THE CONDUCTOR"
         runs the show, in order
                  │
-        ┌────────┴────────┐
-        ▼                 ▼
-engine_alpha/        engine_alpha/
-structure/           scoring/
-"HOW WE SEE          "HOW WE RATE
- THE CHART"           THE SETUP"
- (measurement)        (opinion)
+                 ▼
+        engine_alpha/reader.py   "THE ONE DOOR"
+        the frame contract, the universe door, then the read
+                 │
+                 ▼
+        engine_alpha/two_eyes/   "THE ALPHA READER"
+        line → box → LPS → story → grade → state word
+        (one record of facts and dated words)
+                 │
+                 ▼
+        engine_alpha/two_eyes_adapter.py   "THE VOICE"
+        the record spoken as the scan's result row
 
         core/archive/    "THE MEASURING STICK"
         records what happened, so we can learn
 ```
 
-The golden rule: **structure measures, scoring judges, pipeline coordinates.**
-The structure folder reports *facts* and never decides if a setup is good.
-The scoring folder turns those facts into points and never looks at a chart itself.
+The golden rule: **the reader reads, the adapter speaks, the pipeline coordinates.**
+The reader reports what it saw — the box, the LPS, the words, the grade, the state word —
+as one record, and nothing outside it re-decides any of that.
 
 This map covers `engine_alpha/`, `core/pipeline/` and `core/archive/`. For `core/backtest/`,
 `core/regime/`, `core/fundamentals/`, the backend, frontend, tests and tools, see
@@ -34,164 +41,68 @@ This map covers `engine_alpha/`, `core/pipeline/` and `core/archive/`. For `core
 
 ---
 
-## 1. `engine_alpha/structure/` — the Visual Structure Engine ("how we SEE the chart")
+## 1. `engine_alpha/two_eyes/` — the alpha reader ("how we SEE the chart")
 
-Pure geometry and measurement. Give it price bars, it tells you *what is there* —
-with zero opinion about whether it's worth buying. **This is the prime directive:
-draw the consolidation accurately and measure its tightness faithfully.**
+Pure functions of the bars' highs and lows and each day's own range. Give it price bars,
+it tells you *what is there*, in his order, stage by stage, and what it says is final: no
+later layer re-reads the chart. **This is the prime directive: draw the consolidation
+accurately and read its LPS faithfully.** The rules are in `docs/strategy_alpha.md`; the
+mechanics, stage by stage, in `docs/engine_reference.md` ("The two-eyes reader").
 
-The folder is split by what each part measures. Rows below carry the subfolder.
+| File | Stage | What it does (in plain terms) |
+|------|-------|-------------------------------|
+| `frame.py` | before any read | The frame contract: what a chart must be (two years of daily bars, no trading day missing from the middle, no day twice). A frame that is not a chart is refused by name, never repaired. |
+| `line.py`, `swing_line.py` | 1 | The ONE swing line over the whole chart (a turn commits when price backs off the running extreme by 0.75 of the bar's own range), and the far view that is the same line seen from further back. Everything after inherits its dates. |
+| `runs.py`, `walk.py` | 2, 3, 4 | The end of the trend (each run's climax and reaction, decided on the line first), the rule of the pair (two rails on the ends of earlier swings, moved one in front of the other), and the box's life: when it is answered and alive, when a later box takes over (a run past the far rail, the way back, the step up, the wrap), when it ends. |
+| `mini.py` | 4 (off) | A smaller box alongside its parent, read with the walk's own life rules. Sunset on his word, Fri 30/10/2026 (`MINI_ENABLED` False); kept whole behind the switch. |
+| `story.py`, `line_words.py` | 5 | The words the drawing printed against the box shown: every push and THE SOS, the upthrust, the last supper, Phase C and its spring test, where Phase D opens. Each in the box's own daily range; they describe a chart and never filter one. |
+| `lps.py` | 6 | The Last Point of Support and its trigger, read on the reader's own box: the run of receding days, his four sentences, the trigger at the high. |
+| `grade.py`, `clarity.py`, `traits.py` | 7 | The grade: the letter (S/A/B/C) from his dead space and whether the base held (`grade.py`); the place within the letter from his traits — tightness, clean swings, right-side contraction, no dead space, rails the turns sit on, the stock's stage (`clarity.py` measures the swings and the rails, `traits.py` is the table; weights `TRAIT_WEIGHTS` in `two_eyes_numbers.py`). |
+| `state.py` | last | The ONE state word a chart carries on the screen (fired, crossed, lines no LPS yet, forming, ...), one closed table. |
+| `record.py` | — | The shape of a read: the boxes (parent, mini, the earlier ones), the LPS and which box it used, the events, the grade, the state word and the trail that explains it. The adapter, the archive and the screen share this contract. |
+| `daily_range.py` | — | The daily range (ATR), the reader's own copy: the unit every word and rail area is measured in. |
 
-| Subfolder | Its job |
-|-----------|---------|
-| `box/` | The box election: which R/S range is the real one, the gates it must pass, the nested inner range, and the election's diagnostics. |
-| `phases/` | Phase boundaries, the trend/range split, and measurements over the named phase regions. |
-| `lps/` | The Last Point of Support. |
-| `events/` | Chart events (swings, SOS, spring, test, LPS, breakout or shakeout) and the one vocabulary that names them. |
-| `narrative/` | The left-to-right reader and the detector bricks it calls. |
-| `metrics/` | Shared pivots, indicators, and measurements of a base already found. |
-| `context/` | Context around a reading: higher timeframe, campaign, chart regions, the Power-Play species. |
+**Want to change how the box or LPS is *read*?** This folder — and the number it reads, in
+`two_eyes_numbers.py`, never a copy inside the stage.
 
-`lps/`, `narrative/` and `metrics/` re-export their main functions from the folder itself
-(`from engine_alpha.structure.lps import detect_lps`); the other folders are imported by file.
-
-| File | What it does (in plain terms) |
-|------|-------------------------------|
-| `box/consolidation.py` | Public box detector: finds the outer Wyckoff range, then optionally refines into a tighter inner Phase D range. |
-| `box/box_primitives.py` | Root anchors + the box ELECTION: zigzag R/S candidate collection/scoring, pool selection, the break-above-R-then-rest rescue, and the shared-rail back-extension. Judges live in `box_gates.py`. |
-| `box/box_gates.py` | Gate application (split from `box_primitives.py` 2026-07-18): boundary respect, the SOS worked-window trim, close-residence dwell/coverage, worked-equilibrium occupancy, and the traversal floor — the validity judges every candidate pair must pass. |
-| `box/box_trace.py` | Trace plumbing for the box election cascade (split from `box_primitives.py` 2026-07-18): the two helpers every gate/election verdict narrates through; no-op when no trace is requested. |
-| `box/inner_box.py` | The inner-box family (split from `box_primitives.py` 2026-07-18): the Phase-D nested range one scale down — inner climax/root-swing detection, inner-stage zigzag, and `select_inner_box`, the one selection rule shared by the live reader and diagnostics. |
-| `box/rail_qualification.py` | Deep-excursion (terminal-shakeout) event qualification for the pair election (formerly `band_rails.py`): every band-leaving excursion must reclaim/fail back and HOLD, else the pair disqualifies. Last-resort pool, consulted only when strict + rescued pools are empty (`BAND_RAILS_ENABLED`, live since 2026-07-16). |
-| `box/near_miss.py` | The near-miss lane's inline recorder: at the outer Phase-B consultation it records the raw-numbers tuple of every gate refusal (live since 2026-07-27, `NEAR_MISS_LANE_ENABLED`). Measure-only — a near-miss never scores, fires, or enters the picks. |
-| `box/gate_margins.py` | Per-leg gate margins in native quanta (bars, touches, thirds...): a SIGNED pass/deficit margin for every `box_gates.GATE_LEGS` leg, plus the post-hoc full-vector completion. Measure-only; consumed by the near-miss lane and its census, never by the live path. |
-| `box/trace_export.py` | Election-trace export (dark, `ELECTION_TRACE_EXPORT_ENABLED`): summarizes the walk's own same-run narration into one compact, date-anchored story; the raw trace never leaves the engine, and operator-facing sentences render from the structured gate-leg records, never internal prose. |
-| `box/box_end.py` | The box's end on the one turn line (final method build step 11, dark, `BOX_END_ENABLED`): the hand-over upward and the breakdown downward, each ended only when a child box's own answering confirms it. Pure functions of the line and the elected box; gates nothing, grades nothing. |
-| `phases/phase_a.py` | The macro Phase-A read (formerly `pip.py`): a multi-resolution swing skeleton (Perceptually Important Points) that ranks turning points by importance so the climax→AR bridge can be read coarse-to-fine. Feeds only the Phase-A overlay (unconditional since the 2026-07-18 fold, overlay-only; formerly flag `PIP_MACRO_PHASE_A_ENABLED`). |
-| `phases/climax.py` | The climax and its automatic reaction on the one turn line (final method build step 10, dark, `CLIMAX_FIRST_WALK_ENABLED`): each run's climax and reaction low, decided before the root swing. A pure function of the line. |
-| `phases/segmentation.py` | The trend/range middle layer: labels swings with ATR displacement, measures swing efficiency, and locates the **root swing** (climax → first big counter-burst) that bridges trend into range. |
-| `phases/phase_features.py` | Measures the named phase regions of a detected base (`measure_phases`): Phase A/B/D windows, the Phase-C spring candidate, LPS position, and the Last-Supper stretch — pure measurement, archived as the `bin_*` column family. |
-| `phases/phase_d.py` | Phase-D boundary resolution: where the right side of the base actually starts. |
-| `lps/detection.py` | Finds the **Last Point of Support** — the quiet, tight pullback that defines the actionable support test. Classifies it: inside the box, a backtest above the ceiling, or a spring below the floor. |
-| `events/market_structure.py` | The chart in Highs & Lows: labels the swing skeleton HH/HL/LH/LL and marks mechanical breaks (BOS / reversal). Layer 0 of the event reader. |
-| `events/box_events.py` | The Wyckoff event reader (L2): calibrated SOS / spring / test / LPS / markup pieces + `assemble_box_narrative`, which orders them into a scored, traceable story. |
-| `events/event_map.py` | The Event Map: (1) the mechanical swing layer — ONE whole-frame pivot walk sliced into a pre-box trend view + the (byte-identical) in-box staircase, every swing stamped with when it *became knowable*; (2) the narrative-role layer — the L2 event zones re-emitted as stamped, tri-stated role labels fed the engine's ELECTED spring/LPS (never re-detecting). Measure-only; on the fire path and live (`EVENT_MAP_ENABLED`); owns the `event_map_*` archive column family. |
-| `events/event_vocabulary.py` | The ONE event vocabulary: folds what the three rail readers say (the typed waves, the role labels, the rail visits) into one chronological stream in one set of words. It adds names, never facts, and never touches a price bar. |
-| `events/line_words.py` | The words on the line (final method build step 5, dark, the `LINE_WORD_*` flags): every push that could be an SOS and THE SOS, the upthrust, the last supper, one Phase C per box, where Phase D opens, the mini. Measure-only: nothing that elects, vetoes, grades or displays reads it. |
-| `events/displacement.py` | How a structure resolves: a close beyond the ceiling (breakout) or a violent break under the floor (shakeout), measured by the one ruled breakout-wall arithmetic that the Power-Play lane and the story chains share. |
-| `narrative/reader.py` | The chronological "pair of eyes": reads A → B → (C?) → D left-to-right as one story, each phase validated by a calibrated detector brick. Its `Structure` is the single source of truth consumers read. |
-| `narrative/bricks.py` | The narrative's building blocks: each phase detector wrapped as a pure `fits_here?` function (root swing, box, spring, LPS, Phase-A overlay resolution). |
-| `narrative/chain.py` | The story-chain coordinator: reads a second structure after a resolved one (a story with a sequel) through the same reader, with the first one frozen. Not wired into the scan yet; only its tests call it. |
-| `metrics/base.py` | Measures already-detected bases: bar compression, VCP contractions, rising support, and volume at R/S touches. |
-| `metrics/pivots.py` | Shared pivot and zigzag helpers used by consolidation and segmentation. |
-| `metrics/indicators.py` | The math helpers — ATR (volatility), ADX (trend strength), and ADR% (absolute daily range). |
-| `context/htf.py` | The same trend+box engine on resampled weekly/monthly bars — the higher-timeframe context read. |
-| `context/scope.py` | Chart-region labels: which bars belong to which phase, for display and archiving. |
-| `context/strategy_read.py` | The strategy read (dark, `STRATEGY_READ_ENABLED`): two campaign-context measures per fire — how deep the correction cut below the resolved climax, and whether the base floor held the automatic reaction's low. Archived raw, measure-first; never gates, never scores. |
-
-**Want to change how the box or LPS is *detected*?** This folder.
-
-## 2. `engine_alpha/scoring/` — the Scoring Engine ("how we RATE the setup")
-
-The opinion layer. It takes the measured facts from the Structure Engine and turns
-them into a number and a letter grade (S / A / B / C / D).
+## 2. Beside the reader in `engine_alpha/`
 
 | File | What it does |
 |------|--------------|
-| `scoring.py` | `score_setup` measures the ingredients (box tightness, touches, volume dry-up, contraction footprint, ADR%, 52-week-high proximity, market breadth, ...) as sub-scores. `compose_ta_grade` sums them into the one Technical Analysis grade (0–100, shown as story chapters), and `calculate_structure_tier` turns that grade into the letter (a wide base is never S). |
-| `taxonomy.py` | The single registry of every sub-score term (its key, archive column, point cap, layer, flag) — the one place consumers derive their lists from instead of re-declaring literals. |
-| `tags.py` | Decides every chip (VCP Coil, No Supply, ...) once, engine-side, from the registry in `taxonomy.py`. The dashboard shows the verdict and never re-decides it. |
+| `reader.py` | The ONE door. `evaluate_ticker` (the whole chain under the skip guard: a result row, `None`, or `EVAL_ERROR`), `scan_read` (the nightly scan's pool worker: the same, plus `NotRead` for a frame the reader would not read, listed apart from the crashes), `run_eval_chain` (the chain that raises `ReadFailed`, for the seed and the chart-state page), `read_record` (the reader's own record, for the workbench, the health board and word recall). Every one of them: the frame contract, then the universe door, then the read. |
+| `universe_door.py` | The baseline gate before the read, ONE implementation: price → 50-day volume → SMA50 → SMA200 → year-over-year return; the first fail names the reason. A chart it refuses is "not scanned" and never read. Floors in `config/universe.py`. |
+| `two_eyes_adapter.py` | The record spoken in the scan's result shape (`REQUIRED_KEYS`: `Score` the grade's number, `Tier` its letter, `_R`/`_S`, the trigger, the dates), the screen block, the trend template and the stock's stage on every fire. The one place the reader's words and the result row meet. |
+| `two_eyes_archive.py` | The reader's archive column family (dated rails, both boxes, the LPS, the story, the grade): ONE producer for the scan writer, the seed and the manual add. |
+| `two_eyes_roles.py` | The roles a box can hold (parent, mini, earlier), one tuple, import-free. |
+| `two_eyes_numbers.py` | Every number the reader reads, one plain line each, and its switches (`MINI_ENABLED`, `RESPECT_ELECTS`, `WRAP_TAKES_OVER`, ...). Import-free; the version stamp hashes all of it, so a changed number moves the night's `engine_config_version`. |
+| `metrics.py` | The stock measures the reader and the scan share: ATR, ADR%, the distance to the 52-week high, Minervini's trend template, the weekly/monthly resample. Measure-only, no settings. |
+| `stage_read.py` | The stock's life-cycle stage (1 neglect, 2 advance, 3 top, 4 decline) on its weekly chart and the week its advance began; attached to every fire, display and archive only. |
+| `sentinels.py` | `EVAL_ERROR` (the failed read, an Enum member so it survives the process pool) and the closed table of state words the wire carries. |
+| `market_sessions.py` | When the market was open: the NYSE session rules, owned here so the leaf never imports `core`. |
+| `freeze/manifest.py` | The engine's identity: 29 settings that can change a decision plus the reader's own numbers, hashed, so two runs can prove they used the same engine. |
 
-**Want to change how much a factor is *worth*?** Edit the numbers in `config/scoring.py`
-(the `SCORE_*` and `TIER_*` constants) — never the measurement code. Code still reads
-them through `config.settings`, which re-exports every default and is the one namespace
-that scoped overrides and tests patch.
-
-### Also in `engine_alpha/`
-
-| File | What it does |
-|------|--------------|
-| `evaluation.py` | The ONE per-ticker chain that live scans and seed replays share (see section 3). |
-| `frames.py` | The engine's own 2-year daily window rule — what the reader sees — kept here so the engine never imports the download code. |
-| `freeze/manifest.py` | The engine's identity: an explicit list of every setting that can change a decision, hashed, so two runs can prove they used the same engine. |
-| `stability.py` | Measure-only and dark (`ELECTION_STABILITY_ENABLED`): does the elected reading survive moving the evaluation day back? Real structures persist; junk flickers. |
-| `election_identity.py` | The one test of whether two elected structures are the SAME reading, shared by the operator-agreement harness and the stability read. |
-
-## 2b. `engine_alpha/reader.py` — the ONE door to the chart reader
-
-Two readers exist side by side (today's engine, and the two-eyes reader of the
-2026-09-20 rewrite: every stage built, dark), so **every shipping path and every gate
-asks the same door which reader answers**, and the switch is read in exactly one
-function (`which_reader`). With the switch on, `scan_worker` hands the scan the door's own
-`scan_read` (`evaluate_ticker`, except that a chart whose frame the reader would not read comes
-back as `NotRead`, by name and reason, listed apart from crashes: go-live plan task 3) and no
-lane (every lane is an old-engine twin: the near-miss lane goes
-quiet and says so, a dark lane switched on refuses the scan by name, `refuse_old_engine_lanes`;
-go-live plan task 2), `read_box` stays the OLD reader's and refuses by name under the new one
-(`NotThisReader`; the new reader's own record is `read_record`, go-live plan task 5), and `run_eval_chain` raises `ReadFailed` for a chart the new reader refused, so a
-failed read is never told as "no setup".
-
-**The two-eyes reader and its doors.** `engine_alpha/two_eyes/` is the reader itself,
-a leaf inside the leaf: it imports nothing of the old reader (`structure`, `scoring`,
-`evaluation`), and its stages run in his order (`frame`, `line`, `walk`, `lps`, `story`,
-`mini`, `grade`, `state`; `record.py` is the shape of a read). Around it, each OUTSIDE
-the package so the old reader's night never loads it: `two_eyes_numbers.py` (its own
-numbers, hashed into the version stamp), `two_eyes_roles.py` (the box roles the archive
-needs), `two_eyes_adapter.py` (a read spoken in the old result shape, the one place the
-two vocabularies meet), `two_eyes_archive.py` (the dated-line archive columns, one
-producer for every writer) and `market_sessions.py` (the NYSE calendar, moved here from
-`core` so the leaf can read it). Beside them, `stage_read.py` (2026-10-16) reads the STOCK's
-life-cycle stage on its weekly chart and the week its advance began; the adapter attaches it to
-every fire (`stock_stage`), display and archive only, and it sits here, not under the frozen
-`structure/context/`. The door has three ways in — `evaluate_ticker` (the whole chain
-under its skip guard), `run_eval_chain` (the chain that raises, for callers that
-want the exception) and `read_box` (the box read alone, no pullback, no score) —
-plus `scan_worker`, which composes the scan's three lanes under the old reader (the
-near-miss cohort, the watch-lane recorder and the rescue lanes' cost twin, outermost). The reader's NAME rides
-an optional `stamp` sink, never the result, so flag-off output stays byte-identical.
-
-**Who reads a chart, and how** (surveyed 2026-09-20; the earlier list of five was
-a lower bound, and two of these bypass the scan's entry point entirely):
+**Who reads a chart, and how** (every one through the door, the frame contract and the
+universe door first; `reader_pin` alone reads before the door, on purpose):
 
 | Caller | Through the door | Why it reads |
 |---|---|---|
-| `core/pipeline/screening/screener.py` | `scan_worker` | the nightly scan |
+| `core/pipeline/screening/screener.py` | `scan_read` | the nightly scan; the night prints the ruleset it read with (`TWO_EYES_RULESET`) |
 | `core/archive/seed.py` | `run_eval_chain` | the archive seed, and a single row's re-read from `webapp/backend/domains/archive/actions.py` |
 | `webapp/backend/domains/screener/chart_state.py` | `run_eval_chain` | one ticker's state word, on demand |
-| `webapp/backend/domains/calibration/fired.py` | `read_box` | the calibration workbench's "why did this mark miss" |
-| `webapp/backend/domains/calibration/grading.py` | `evaluate_ticker`, `read_box` | the workbench's grading, which the agreement harness (`tools/calibration/calibration_harness.py`) shares |
-| `core/calibration/replay.py` | `evaluate_ticker`, `read_box` | the seam the gates share |
-| `tools/regression/marks_corpus.py` · `tools/regression/negative_corpus.py` · `tools/regression/shadow_diff.py` | `evaluate_ticker` | the marks ratchet, the junk corpus, the fleet shadow |
-| `tools/regression/fold_parity.py` · `tools/regression/cause_veto_corpus.py` | `evaluate_ticker` | the fold-parity gate and the cause-before-effect bite gate |
+| `webapp/backend/domains/calibration/grading.py` · `fired.py` | `evaluate_ticker` · `read_record` | the workbench's fired chip (the harness `tools/calibration/calibration_harness.py` shares it) and "why did this mark miss" |
+| `core/pipeline/context/health_board.py` | `read_record` | the health board's box for every ETF member |
+| `core/calibration/replay.py` | `evaluate_ticker` | the seam the ratchets and the calibration boards share |
+| `tools/regression/marks_corpus.py` · `negative_corpus.py` · `shadow_diff.py` | `evaluate_ticker` | the marks ratchet, the junk pin, the fleet shadow |
+| `tools/audits/live_reader_audit.py` | `read_record`, `scan_read` | the saved scan replayed, read twice for consistency |
+| `tools/calibration/word_recall.py` | `read_record` | his drawn words against the reader's own |
+| `tools/regression/reader_pin.py` | `two_eyes.read`, before the door | what the reader SAYS about 105 fixture charts, the ones the door refuses included |
 
-Instruments (the censuses, the A/Bs, `tools/audits/doctrine_audit.py`,
-`tools/audits/structure_case_audit.py`, `tools/research/full_package_render.py`) may still
-name the old engine directly while both readers exist — they measure one reader on
-purpose. `tools/calibration/word_recall.py` reads the new reader's copies and asks the door
-for the old engine's election (task 7). `core/pipeline/screening/screener.py` still exports
-`_evaluate_ticker`, the door under the scan's old name, for the tests that call it by it.
-
-**What the door does NOT reach.** `tools/regression/reader_pin.py` takes the engine's event
-vocabulary straight from the bricks and never asks for a chart read, so the switch
-does not touch it. `webapp/backend/domains/archive/actions.py` re-reads one archived
-row through `core/archive/seed.py`'s `_evaluate_at_date`, which does go through the
-door.
-
-The reader's name is a sink, so it answers the caller that asked. The nightly scan
-reads in a process pool and its results cross that boundary in a fixed shape, so the
-scan does not stamp per ticker: the switch is read once per process and cannot change
-mid-run, so one `which_reader()` names the whole night.
-
-`tests/engine/test_reader_door.py` holds the shipping-and-gating list and fails if one of
-them can reach the old engine — **calling it, or handing it to something that will**.
-The reference rule is the one that matters: the scan never wrote a call at all, it
-picked the twin by name and gave it to the pool.
 
 ## 3. `core/pipeline/` — the Conductor ("runs the screen")
 
-The only part that knows the *order of operations*. For each stock it: filters the
-junk, asks the Structure Engine where the box/LPS is, asks the Scoring Engine how good
-it is, and assembles the ranked list.
+The only part that knows the *order of operations*. For each stock it asks the one door:
+is this chart admitted, where are its box and LPS, what grade, what state word; then it
+assembles the ranked list.
 
 Two files sit at the top of the folder; the rest is grouped by job. `market_data/`,
 `universe/` and `screening/` re-export their main names from the folder itself.
@@ -204,7 +115,6 @@ Two files sit at the top of the folder; the rest is grouped by job. `market_data
 | `screening/scan_job.py` | The whole nightly job: scan → dashboard payload → freshness check → archive; also the download-only refresh. |
 | `screening/dashboard.py` | Writes `output/screener_data.json` (and the per-universe variants), the data file the React frontend loads, on every scan. Despite the name it is not the retired HTML dashboard. Moved from `output/` on 2026-09-24. |
 | `screening/terminal.py` | Formats scan results for the terminal (percentages, day counts, tier colours). Moved from `output/` on 2026-09-24. |
-| `evaluation.py` (lives in `engine_alpha/`) | Per-ticker evaluation: baseline filter, structure pass, LPS check, scoring, and result row assembly — extracted with the reading engine it composes. |
 | `market_data/providers.py` | Market-data source abstraction. The screener fetches its panel through `get_provider().fetch(...)`, not a vendor directly, so a bulk-EOD source can be slotted in behind one contract. Today only `yahoo` (wraps `downloads.fetch_data`). |
 | `market_data/downloads.py` | The Yahoo provider's `fetch_data`: the parquet cache's state machine (meta, quarantine, admission, the absent-session ledger). |
 | `market_data/panel_fetch.py` | Cold and incremental panel builds and their repairs: missing-ticker recovery, latest-session repair, the split probe, the overlap merge, the forming-bar cap. |
@@ -240,12 +150,10 @@ is a trap on this machine (`docs/deploy.md` §2).
 | `forward_returns.py` | `-m core.archive.forward_returns` | Fills in real outcomes once setups are old enough. |
 | `analyze.py` | `-m core.archive.analyze` | The report card: winner fingerprint, what predicted returns, bias warnings. |
 | `analyze_features.py` | (shared) | The report's column lists and the engine-epoch seam. |
-| `analyze_stats.py` | (shared) | The report's numbers: outcomes, signal edge, suggested weights. |
+| `analyze_stats.py` | (shared) | The report's numbers: outcomes, signal edge. |
 | `analyze_report.py` | (shared) | The report's seven sections as text (the seventh: his calibration setups beside the fires). |
 | `purge.py` | `-m core.archive.purge` | Cleans uncurated rows out of the archive. |
 | `seed_recall.py` | `-m core.archive.seed_recall --hermetic-check` | Does the engine still re-find every known seed winner? The hermetic form replays committed data offline. |
-| `near_miss_writer.py` | (automatic) | Records the setups the engine narrowly refused (the near-miss lane). Measure-only. |
-| `near_miss_outcomes.py` | (automatic) | Fills in what happened after each near-miss, with the same outcome math. |
 | `calibration_outcomes.py` | (automatic) | Fills in what happened after each of his calibration setups, measured like a fire (ruling 2026-10-03: archived setups too), and loads them for every study as their own group. |
 | `outcomes.py` | (shared) | The ONE home of outcome math (returns, MFE/MAE, trigger), used by the updater and the backtest alike. |
 | `episodes.py` | (shared) | Collapses a base re-flagged day after day into one episode, so it counts once in any win rate. |
@@ -258,5 +166,6 @@ is a trap on this machine (`docs/deploy.md` §2).
 ## The one-line flow
 
 `.\.venv\Scripts\python.exe run_screener.py` → **pipeline** loads **data**, and for each stock asks
-**structure** "what's here?" then **scoring** "how good?", ranks them, shows the
-dashboard, and (if enabled) hands the results to **archive** to remember.
+the **door** "is this a chart we scan, and what does the reader see?" — the box, the LPS, the
+words, the grade, the state word — ranks the fires by grade, shows the dashboard, and (if
+enabled) hands the results to **archive** to remember.

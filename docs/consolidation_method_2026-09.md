@@ -1,5 +1,7 @@
 # The classic Consolidation method — program record (2026-09)
 
+*Record of its date. The old engine it describes was retired on Sat 31/10/2026; see `docs/engine_reference.md`, "The old engine retired".*
+
 The operator's ruled program (scoped 2026-09-01): the engine translates every chart into
 simplified swings / moves / events, each judged by its NATURE and its RELATION to the
 consolidation, the rails, and the phases — ONE language he and the engine share, in which the
